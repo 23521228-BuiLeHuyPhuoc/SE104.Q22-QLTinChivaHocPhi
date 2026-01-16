@@ -1,0 +1,168 @@
+.course-registration-page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.registration-container {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+}
+
+.available-courses,
+.registered-courses {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1a237e;
+}
+
+.search-mini {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  gap: 8px;
+}
+
+.search-mini svg {
+  color: #999;
+}
+
+.search-mini input {
+  border: none;
+  outline: none;
+  font-size: 0.9rem;
+  width: 150px;
+}
+
+.courses-list {
+  padding: 16px;
+  max-height: calc(100vh - 350px);
+  overflow-y: auto;
+}
+
+.course-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.course-item:hover {
+  background: #e8eaf6;
+}
+
+.course-item.registered {
+  background: #e8f5e9;
+  border-left: 3px solid #2e7d32;
+}
+
+.course-info {
+  flex: 1;
+}
+
+.course-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.course-header strong {
+  color: #1a237e;
+}
+
+.credits-badge {
+  padding: 2px 8px;
+  background: #1a237e;
+  color: white;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
+
+.course-item h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.course-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.course-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.course-meta .fee {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.no-courses {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+.summary-card {
+  margin: 16px;
+  padding: 16px;
+  background: #1a237e;
+  color: white;
+  border-radius: 8px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.summary-item:last-child {
+  margin-bottom: 0;
+}
+
+.summary-item label {
+  opacity: 0.8;
+}
+
+.total-fee {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .registration-container {
+    grid-template-columns: 1fr;
+  }
+}

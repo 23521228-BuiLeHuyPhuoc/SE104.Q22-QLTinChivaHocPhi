@@ -1,0 +1,52 @@
+/* Import page styles - must come first */
+@import './pages/Login.css';
+@import './pages/Dashboard.css';
+@import './pages/Students.css';
+@import './pages/Courses.css';
+@import './pages/Registrations.css';
+@import './pages/Tuition.css';
+@import './pages/Payments.css';
+@import './pages/Semesters.css';
+@import './pages/CourseRegistration.css';
+@import './pages/MyCourses.css';
+@import './pages/MyTuition.css';
+@import './pages/MyPayments.css';
+
+/* Import new structured styles */
+@import './components/common/Header.css';
+@import './components/common/Footer.css';
+@import './components/common/Loading.css';
+@import './components/admin/AdminSidebar.css';
+@import './components/admin/AdminLayout.css';
+@import './components/student/StudentSidebar.css';
+@import './components/student/StudentLayout.css';
+@import './pages/admin/AdminDashboard.css';
+@import './pages/student/StudentDashboard.css';
+
+/* Legacy - keep for compatibility */
+@import './components/Sidebar.css';
+@import './components/Layout.css';
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f5f6fa;
+}
+
+/* Loading Screen */
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 1.2rem;
+  color: #666;
+  background: #f5f6fa;
+}

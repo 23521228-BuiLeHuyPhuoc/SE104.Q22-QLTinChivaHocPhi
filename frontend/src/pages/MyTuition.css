@@ -1,0 +1,128 @@
+.my-tuition-page {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.tuition-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tuition-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.tuition-card.status-paid {
+  border-left: 4px solid #2e7d32;
+}
+
+.tuition-card.status-partial {
+  border-left: 4px solid #f57c00;
+}
+
+.tuition-card.status-unpaid {
+  border-left: 4px solid #c62828;
+}
+
+.tuition-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.semester-info h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: #1a237e;
+}
+
+.credits-info {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.tuition-body {
+  padding: 24px;
+}
+
+.progress-section {
+  margin-bottom: 24px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2e7d32 0%, #4caf50 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.amount-item {
+  text-align: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.amount-item label {
+  display: block;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.amount-item .amount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.amount-item .amount.paid {
+  color: #2e7d32;
+}
+
+.amount-item .amount.remaining {
+  color: #c62828;
+}
+
+.tuition-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.tuition-footer strong {
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .amount-grid {
+    grid-template-columns: 1fr;
+  }
+}
