@@ -10,7 +10,7 @@
 
 ## 📋 TỔNG QUAN CÁC BẢNG
 
-Hệ thống bao gồm **20 bảng** được chia thành 7 nhóm chức năng:
+Hệ thống bao gồm **25 bảng** được chia thành 9 nhóm chức năng:
 
 | Nhóm | Bảng | Mục đích |
 |------|------|----------|
@@ -20,7 +20,53 @@ Hệ thống bao gồm **20 bảng** được chia thành 7 nhóm chức năng:
 | **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống |
 | **Môn học - Lớp** | `mon_hoc`, `dieu_kien_mon_hoc`, `lop` | Quản lý môn học và lớp học |
 | **Thời gian - Đăng ký** | `nam_hoc`, `hoc_ky`, `lop_mo`, `phieu_dang_ky`, `chi_tiet_dang_ky` | Quản lý đăng ký học phần |
-| **Học phí - Thông báo** | `don_gia_tin_chi`, `phieu_thu_hoc_phi`, `thong_bao` | Quản lý học phí và thông báo (gộp chung + cá nhân) |
+| **Lịch học** | `tiet_hoc`, `lich_hoc_lop` | Quản lý tiết học và thời khóa biểu |
+| **Điểm số** | `diem_sinh_vien` | Quản lý điểm sinh viên (đậu/rớt) |
+| **Học phí - Cấu hình** | `don_gia_tin_chi`, `phieu_thu_hoc_phi`, `cau_hinh_dang_ky`, `thong_bao` | Quản lý học phí, cấu hình và thông báo |
+
+---
+
+## 🆕 CÁC BẢNG MỚI BỔ SUNG
+
+### BẢNG `tiet_hoc` - Tiết học
+Quản lý các tiết học trong ngày (Tiết 1-10, Buổi tối). Trường hoạt động từ Thứ 2 đến Thứ 7.
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_tiet` | VARCHAR(10) | **PRIMARY KEY** | Mã tiết (T1-T10, TOI) |
+| `ten_tiet` | VARCHAR(50) | NOT NULL | Tên tiết học |
+| `gio_bat_dau` | TIME | NOT NULL | Giờ bắt đầu |
+| `gio_ket_thuc` | TIME | NOT NULL | Giờ kết thúc |
+| `thu_tu` | INTEGER | NOT NULL, CHECK (1-11) | Thứ tự tiết trong ngày |
+
+### BẢNG `cau_hinh_dang_ky` - Cấu hình đăng ký
+Quản lý quy định đăng ký: số tín chỉ tối đa (24), GPA để vượt (8.5), điểm đậu (5.0).
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_cau_hinh` | VARCHAR(20) | **UNIQUE** | Mã cấu hình (MAX_TC_HK, MIN_GPA_VUOT...) |
+| `gia_tri` | INTEGER | NOT NULL | Giá trị số nguyên |
+| `gia_tri_so` | DECIMAL(4,2) | NULL | Giá trị số thập phân |
+
+### BẢNG `lich_hoc_lop` - Lịch học của lớp mở
+Liên kết lớp mở với tiết học và thứ trong tuần.
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `lop_mo_id` | INTEGER | **FK** → `lop_mo(id)` | Lớp mở |
+| `thu_trong_tuan` | INTEGER | CHECK (2-7) | Thứ trong tuần |
+| `ma_tiet_bat_dau` | VARCHAR(10) | **FK** → `tiet_hoc(ma_tiet)` | Tiết bắt đầu |
+| `ma_tiet_ket_thuc` | VARCHAR(10) | **FK** → `tiet_hoc(ma_tiet)` | Tiết kết thúc |
+
+### BẢNG `diem_sinh_vien` - Điểm sinh viên
+Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_sv` | VARCHAR(15) | **FK** → `sinh_vien(ma_sv)` | Sinh viên |
+| `ma_mon_hoc` | VARCHAR(15) | **FK** → `mon_hoc(ma_mon_hoc)` | Môn học |
+| `diem_trung_binh` | DECIMAL(4,2) | CHECK (0-10) | Điểm TB môn |
+| `ket_qua` | VARCHAR(20) | CHECK (Đậu, Rớt, Chưa có...) | Kết quả |
 
 ---
 
