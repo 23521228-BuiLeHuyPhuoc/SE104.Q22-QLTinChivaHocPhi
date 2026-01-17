@@ -44,7 +44,6 @@
 -- =====================================================
 
 -- Drop tables if exist (in correct order due to foreign keys)
-DROP TABLE IF EXISTS thong_bao_ca_nhan CASCADE;
 DROP TABLE IF EXISTS thong_bao CASCADE;
 DROP TABLE IF EXISTS phieu_thu_hoc_phi CASCADE;
 DROP TABLE IF EXISTS chi_tiet_dang_ky CASCADE;
@@ -426,6 +425,17 @@ CREATE TABLE phieu_dang_ky (
     ma_hoc_ky VARCHAR(15) NOT NULL,
     ngay_lap TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     tong_tin_chi INTEGER DEFAULT 0,
+    -- Thống kê theo loại đăng ký
+    so_mon_hoc_moi INTEGER DEFAULT 0,
+    so_tin_chi_hoc_moi INTEGER DEFAULT 0,
+    tien_hoc_moi DECIMAL(15,0) DEFAULT 0,
+    so_mon_hoc_lai INTEGER DEFAULT 0,
+    so_tin_chi_hoc_lai INTEGER DEFAULT 0,
+    tien_hoc_lai DECIMAL(15,0) DEFAULT 0,
+    so_mon_hoc_cai_thien INTEGER DEFAULT 0,
+    so_tin_chi_hoc_cai_thien INTEGER DEFAULT 0,
+    tien_hoc_cai_thien DECIMAL(15,0) DEFAULT 0,
+    -- Tổng tiền
     tong_tien_dang_ky DECIMAL(15,0) DEFAULT 0,
     ti_le_giam DECIMAL(5,2) DEFAULT 0,
     tien_mien_giam DECIMAL(15,0) DEFAULT 0,
@@ -493,39 +503,33 @@ CREATE TABLE phieu_thu_hoc_phi (
 );
 
 -- =====================================================
--- 20. BẢNG thong_bao - Thông báo chung
+-- 20. BẢNG thong_bao - Thông báo (gộp chung và cá nhân)
+-- loai: 'chung' = thông báo chung, 'ca_nhan' = thông báo cá nhân
 -- =====================================================
 CREATE TABLE thong_bao (
     ma_thong_bao SERIAL NOT NULL,
+    loai VARCHAR(20) NOT NULL DEFAULT 'chung',
     tieu_de VARCHAR(200) NOT NULL,
     noi_dung TEXT NOT NULL,
     loai_thong_bao VARCHAR(50),
+    -- Dành cho thông báo chung
     doi_tuong VARCHAR(30) DEFAULT 'Tất cả',
     ghim_top BOOLEAN DEFAULT FALSE,
-    ngay_tao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ngay_het_han TIMESTAMP,
-    nguoi_tao INTEGER,
-    trang_thai BOOLEAN DEFAULT TRUE,
-    CONSTRAINT thong_bao_pkey PRIMARY KEY (ma_thong_bao),
-    CONSTRAINT fk_tb_nguoitao FOREIGN KEY (nguoi_tao) 
-        REFERENCES tai_khoan(ma_tai_khoan) ON DELETE SET NULL ON UPDATE CASCADE
-);
-
--- =====================================================
--- 21. BẢNG thong_bao_ca_nhan - Thông báo cá nhân
--- =====================================================
-CREATE TABLE thong_bao_ca_nhan (
-    id BIGSERIAL NOT NULL,
-    ma_tai_khoan INTEGER NOT NULL,
-    tieu_de VARCHAR(200) NOT NULL,
-    noi_dung TEXT,
-    loai_thong_bao VARCHAR(50),
+    -- Dành cho thông báo cá nhân
+    ma_tai_khoan_nhan INTEGER,
     duong_dan VARCHAR(255),
     da_doc BOOLEAN DEFAULT FALSE,
     ngay_doc TIMESTAMP,
+    -- Chung
+    nguoi_tao INTEGER,
     ngay_tao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT thong_bao_ca_nhan_pkey PRIMARY KEY (id),
-    CONSTRAINT fk_tbcn_tk FOREIGN KEY (ma_tai_khoan) 
+    trang_thai BOOLEAN DEFAULT TRUE,
+    CONSTRAINT thong_bao_pkey PRIMARY KEY (ma_thong_bao),
+    CONSTRAINT chk_loai_thong_bao CHECK (loai IN ('chung', 'ca_nhan')),
+    CONSTRAINT fk_tb_nguoitao FOREIGN KEY (nguoi_tao) 
+        REFERENCES tai_khoan(ma_tai_khoan) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_tb_nguoinhan FOREIGN KEY (ma_tai_khoan_nhan) 
         REFERENCES tai_khoan(ma_tai_khoan) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -599,10 +603,9 @@ CREATE INDEX idx_pthp_trang_thai ON phieu_thu_hoc_phi(trang_thai);
 -- Index cho bảng thong_bao
 CREATE INDEX idx_tb_nguoi_tao ON thong_bao(nguoi_tao);
 CREATE INDEX idx_tb_trang_thai ON thong_bao(trang_thai);
-
--- Index cho bảng thong_bao_ca_nhan
-CREATE INDEX idx_tbcn_ma_tai_khoan ON thong_bao_ca_nhan(ma_tai_khoan);
-CREATE INDEX idx_tbcn_da_doc ON thong_bao_ca_nhan(da_doc);
+CREATE INDEX idx_tb_loai ON thong_bao(loai);
+CREATE INDEX idx_tb_ma_tai_khoan_nhan ON thong_bao(ma_tai_khoan_nhan);
+CREATE INDEX idx_tb_da_doc ON thong_bao(da_doc);
 
 -- =====================================================
 -- VIEWS - Các view báo cáo
@@ -620,6 +623,17 @@ SELECT
     namhoc.ten_nam_hoc,
     pdk.ngay_lap,
     pdk.tong_tin_chi,
+    -- Thống kê theo loại đăng ký
+    pdk.so_mon_hoc_moi,
+    pdk.so_tin_chi_hoc_moi,
+    pdk.tien_hoc_moi,
+    pdk.so_mon_hoc_lai,
+    pdk.so_tin_chi_hoc_lai,
+    pdk.tien_hoc_lai,
+    pdk.so_mon_hoc_cai_thien,
+    pdk.so_tin_chi_hoc_cai_thien,
+    pdk.tien_hoc_cai_thien,
+    -- Tổng tiền
     pdk.tong_tien_dang_ky,
     pdk.ti_le_giam,
     pdk.tien_mien_giam,
@@ -2777,14 +2791,15 @@ INSERT INTO don_gia_tin_chi (loai_mon, loai_hoc, don_gia, ghi_chu) VALUES
 
 -- =====================================================
 -- INSERT DATA - Thông báo mẫu (Sample Notifications)
+-- Bảng thong_bao gộp cả thông báo chung (loai='chung') và cá nhân (loai='ca_nhan')
 -- =====================================================
-INSERT INTO thong_bao (tieu_de, noi_dung, loai_thong_bao, doi_tuong, ghim_top, trang_thai) VALUES
-('Đợt đăng ký môn học HK2 2024-2025', 'Thời gian đăng ký: 15/01/2025 - 25/01/2025. Sinh viên truy cập hệ thống đăng ký học để chọn môn. Lưu ý kiểm tra điều kiện tiên quyết trước khi đăng ký.', 'Quan trọng', 'Tất cả', TRUE, TRUE),
-('Hạn nộp học phí HK2 2024-2025', 'Hạn cuối nộp học phí: 15/02/2025. Sinh viên chưa nộp đủ học phí sẽ bị khóa đăng ký môn học kỳ tiếp theo. Vui lòng thanh toán qua các phương thức được hỗ trợ.', 'Học phí', 'Sinh viên', TRUE, TRUE),
-('Lịch thi cuối kỳ HK1 2024-2025 đã được cập nhật', 'Sinh viên kiểm tra lịch thi trong mục Thời khóa biểu. Mọi thắc mắc liên hệ Phòng Đào tạo.', 'Lịch thi', 'Sinh viên', FALSE, TRUE),
-('Thông báo nghỉ lễ 30/4 - 1/5', 'Nhà trường thông báo lịch nghỉ lễ 30/4 - 1/5: từ ngày 30/04 đến hết ngày 01/05. Sinh viên quay lại học tập bình thường từ ngày 02/05.', 'Chung', 'Tất cả', FALSE, TRUE),
-('Cập nhật thông tin sinh viên', 'Phòng Công tác sinh viên yêu cầu tất cả sinh viên cập nhật thông tin cá nhân (CCCD, số điện thoại, địa chỉ) trước ngày 30/01/2025.', 'Chung', 'Sinh viên', FALSE, TRUE),
-('Đợt xét học bổng HK1 2024-2025', 'Danh sách xét học bổng HK1 đã được công bố. Sinh viên kiểm tra kết quả tại Phòng Công tác sinh viên hoặc qua hệ thống trực tuyến.', 'Học bổng', 'Sinh viên', FALSE, TRUE);
+INSERT INTO thong_bao (loai, tieu_de, noi_dung, loai_thong_bao, doi_tuong, ghim_top, trang_thai) VALUES
+('chung', 'Đợt đăng ký môn học HK2 2024-2025', 'Thời gian đăng ký: 15/01/2025 - 25/01/2025. Sinh viên truy cập hệ thống đăng ký học để chọn môn. Lưu ý kiểm tra điều kiện tiên quyết trước khi đăng ký.', 'Quan trọng', 'Tất cả', TRUE, TRUE),
+('chung', 'Hạn nộp học phí HK2 2024-2025', 'Hạn cuối nộp học phí: 15/02/2025. Sinh viên chưa nộp đủ học phí sẽ bị khóa đăng ký môn học kỳ tiếp theo. Vui lòng thanh toán qua các phương thức được hỗ trợ.', 'Học phí', 'Sinh viên', TRUE, TRUE),
+('chung', 'Lịch thi cuối kỳ HK1 2024-2025 đã được cập nhật', 'Sinh viên kiểm tra lịch thi trong mục Thời khóa biểu. Mọi thắc mắc liên hệ Phòng Đào tạo.', 'Lịch thi', 'Sinh viên', FALSE, TRUE),
+('chung', 'Thông báo nghỉ lễ 30/4 - 1/5', 'Nhà trường thông báo lịch nghỉ lễ 30/4 - 1/5: từ ngày 30/04 đến hết ngày 01/05. Sinh viên quay lại học tập bình thường từ ngày 02/05.', 'Chung', 'Tất cả', FALSE, TRUE),
+('chung', 'Cập nhật thông tin sinh viên', 'Phòng Công tác sinh viên yêu cầu tất cả sinh viên cập nhật thông tin cá nhân (CCCD, số điện thoại, địa chỉ) trước ngày 30/01/2025.', 'Chung', 'Sinh viên', FALSE, TRUE),
+('chung', 'Đợt xét học bổng HK1 2024-2025', 'Danh sách xét học bổng HK1 đã được công bố. Sinh viên kiểm tra kết quả tại Phòng Công tác sinh viên hoặc qua hệ thống trực tuyến.', 'Học bổng', 'Sinh viên', FALSE, TRUE);
 
 -- =====================================================
 -- INSERT DATA - Tài khoản mẫu (Sample Accounts)
@@ -3071,23 +3086,35 @@ INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong, ghi_chu) VALUES
 -- =====================================================
 -- INSERT DATA - Phiếu đăng ký học phần (Course Registration Forms)
 -- Sử dụng giá trị so_phieu cụ thể để đảm bảo tính nhất quán với chi_tiet_dang_ky và phieu_thu_hoc_phi
+-- Cập nhật với các trường thống kê theo loại đăng ký
+-- Ghi chú: tien_hoc_* = so_tin_chi * don_gia (27000 cho LT, 37000 cho TH)
 -- =====================================================
-INSERT INTO phieu_dang_ky (so_phieu, ma_sv, ma_hoc_ky, ngay_lap, tong_tin_chi, tong_tien_dang_ky, ti_le_giam, tien_mien_giam, tong_tien_phai_dong, trang_thai) VALUES
+INSERT INTO phieu_dang_ky (so_phieu, ma_sv, ma_hoc_ky, ngay_lap, tong_tin_chi, so_mon_hoc_moi, so_tin_chi_hoc_moi, tien_hoc_moi, so_mon_hoc_lai, so_tin_chi_hoc_lai, tien_hoc_lai, so_mon_hoc_cai_thien, so_tin_chi_hoc_cai_thien, tien_hoc_cai_thien, tong_tien_dang_ky, ti_le_giam, tien_mien_giam, tong_tien_phai_dong, trang_thai) VALUES
 -- Sinh viên 22520001 - Nguyễn Văn An (không có đối tượng ưu tiên)
-(1, '22520001', 'HK2-2425', '2025-01-20 08:30:00', 18, 4860000, 0, 0, 4860000, 'Đã đăng ký'),
-(2, '22520001', 'HK1-2425', '2024-09-15 09:00:00', 16, 4320000, 0, 0, 4320000, 'Đã đăng ký'),
+-- Phiếu 1: 6 môn LT, 18 tín chỉ, tổng = 486,000
+(1, '22520001', 'HK2-2425', '2025-01-20 08:30:00', 18, 6, 18, 486000, 0, 0, 0, 0, 0, 0, 486000, 0, 0, 486000, 'Đã đăng ký'),
+-- Phiếu 2: 5 môn LT, 16 tín chỉ, tổng = 432,000
+(2, '22520001', 'HK1-2425', '2024-09-15 09:00:00', 16, 5, 16, 432000, 0, 0, 0, 0, 0, 0, 432000, 0, 0, 432000, 'Đã đăng ký'),
 -- Sinh viên 22520002 - Trần Thị Bình (vùng sâu vùng xa - giảm 50%)
-(3, '22520002', 'HK2-2425', '2025-01-21 10:15:00', 17, 4590000, 50, 2295000, 2295000, 'Đã đăng ký'),
-(4, '22520002', 'HK1-2425', '2024-09-16 14:30:00', 15, 4050000, 50, 2025000, 2025000, 'Đã đăng ký'),
+-- Phiếu 3: 5 môn LT (15 TC) + 1 môn TH (1 TC), tổng = 5*81000 + 37000 = 442,000
+(3, '22520002', 'HK2-2425', '2025-01-21 10:15:00', 16, 6, 16, 442000, 0, 0, 0, 0, 0, 0, 442000, 50, 221000, 221000, 'Đã đăng ký'),
+-- Phiếu 4: 4 môn LT, 13 tín chỉ, tổng = 351,000
+(4, '22520002', 'HK1-2425', '2024-09-16 14:30:00', 13, 4, 13, 351000, 0, 0, 0, 0, 0, 0, 351000, 50, 175500, 175500, 'Đã đăng ký'),
 -- Sinh viên 22520003 - Lê Văn Cường (hộ cận nghèo - giảm 50%)
-(5, '22520003', 'HK2-2425', '2025-01-22 09:45:00', 19, 5130000, 50, 2565000, 2565000, 'Đã đăng ký'),
-(6, '22520003', 'HK1-2425', '2024-09-17 11:20:00', 17, 4590000, 50, 2295000, 2295000, 'Đã đăng ký'),
+-- Phiếu 5: 6 môn LT (18 TC) + 1 môn TH (1 TC), tổng = 6*81000 + 37000 = 523,000
+(5, '22520003', 'HK2-2425', '2025-01-22 09:45:00', 19, 7, 19, 523000, 0, 0, 0, 0, 0, 0, 523000, 50, 261500, 261500, 'Đã đăng ký'),
+-- Phiếu 6: 5 môn LT, 16 tín chỉ, tổng = 432,000
+(6, '22520003', 'HK1-2425', '2024-09-17 11:20:00', 16, 5, 16, 432000, 0, 0, 0, 0, 0, 0, 432000, 50, 216000, 216000, 'Đã đăng ký'),
 -- Sinh viên 22520004 - Phạm Thị Dung (không có đối tượng ưu tiên)
-(7, '22520004', 'HK2-2425', '2025-01-20 15:00:00', 16, 4320000, 0, 0, 4320000, 'Đã đăng ký'),
-(8, '22520004', 'HK1-2425', '2024-09-15 16:45:00', 18, 4860000, 0, 0, 4860000, 'Đã đăng ký'),
+-- Phiếu 7: 5 môn LT, 15 tín chỉ, tổng = 405,000
+(7, '22520004', 'HK2-2425', '2025-01-20 15:00:00', 15, 5, 15, 405000, 0, 0, 0, 0, 0, 0, 405000, 0, 0, 405000, 'Đã đăng ký'),
+-- Phiếu 8: 6 môn LT, 19 tín chỉ, tổng = 513,000
+(8, '22520004', 'HK1-2425', '2024-09-15 16:45:00', 19, 6, 19, 513000, 0, 0, 0, 0, 0, 0, 513000, 0, 0, 513000, 'Đã đăng ký'),
 -- Sinh viên 22520005 - Hoàng Minh Đức (dân tộc thiểu số - giảm 30%)
-(9, '22520005', 'HK2-2425', '2025-01-23 08:00:00', 18, 4860000, 30, 1458000, 3402000, 'Đã đăng ký'),
-(10, '22520005', 'HK1-2425', '2024-09-18 10:30:00', 16, 4320000, 30, 1296000, 3024000, 'Đã đăng ký');
+-- Phiếu 9: 6 môn LT, 18 tín chỉ, tổng = 486,000
+(9, '22520005', 'HK2-2425', '2025-01-23 08:00:00', 18, 6, 18, 486000, 0, 0, 0, 0, 0, 0, 486000, 30, 145800, 340200, 'Đã đăng ký'),
+-- Phiếu 10: 5 môn LT, 16 tín chỉ, tổng = 432,000
+(10, '22520005', 'HK1-2425', '2024-09-18 10:30:00', 16, 5, 16, 432000, 0, 0, 0, 0, 0, 0, 432000, 30, 129600, 302400, 'Đã đăng ký');
 
 -- Cập nhật sequence cho phieu_dang_ky để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval('phieu_dang_ky_so_phieu_seq', 10, true);
@@ -3165,47 +3192,50 @@ INSERT INTO chi_tiet_dang_ky (so_phieu, ma_lop, loai_dang_ky, so_tin_chi, loai_m
 -- =====================================================
 -- INSERT DATA - Phiếu thu học phí (Tuition Payment Receipts)
 -- Sử dụng giá trị so_phieu_thu cụ thể để đảm bảo tính nhất quán
+-- Số tiền thu phải khớp với tong_tien_phai_dong trong phieu_dang_ky tương ứng
 -- =====================================================
 INSERT INTO phieu_thu_hoc_phi (so_phieu_thu, so_phieu_dang_ky, ma_sv, ngay_lap, so_tien_thu, hinh_thuc_thu, ma_giao_dich, nguoi_thu, ghi_chu, trang_thai) VALUES
 -- Thanh toán đầy đủ cho HK1-2425
-(1, 2, '22520001', '2024-09-20 09:30:00', 4320000, 'Chuyển khoản', 'GD20240920001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025', 'Thành công'),
-(2, 4, '22520002', '2024-09-21 10:15:00', 2025000, 'Tiền mặt', 'GD20240921001', 'Nguyễn Thị Thu', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
-(3, 6, '22520003', '2024-09-22 14:00:00', 2295000, 'Chuyển khoản', 'GD20240922001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
-(4, 8, '22520004', '2024-09-20 16:30:00', 4860000, 'Ví điện tử', 'GD20240920002', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 qua MoMo', 'Thành công'),
-(5, 10, '22520005', '2024-09-23 11:00:00', 3024000, 'Chuyển khoản', 'GD20240923001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 (sau giảm 30%)', 'Thành công'),
+(1, 2, '22520001', '2024-09-20 09:30:00', 432000, 'Chuyển khoản', 'GD20240920001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025', 'Thành công'),
+(2, 4, '22520002', '2024-09-21 10:15:00', 175500, 'Tiền mặt', 'GD20240921001', 'Nguyễn Thị Thu', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
+(3, 6, '22520003', '2024-09-22 14:00:00', 216000, 'Chuyển khoản', 'GD20240922001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
+(4, 8, '22520004', '2024-09-20 16:30:00', 513000, 'Ví điện tử', 'GD20240920002', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 qua MoMo', 'Thành công'),
+(5, 10, '22520005', '2024-09-23 11:00:00', 302400, 'Chuyển khoản', 'GD20240923001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 (sau giảm 30%)', 'Thành công'),
 -- Thanh toán cho HK2-2425 (một số đã đóng, một số chưa đóng đủ)
-(6, 1, '22520001', '2025-01-25 08:45:00', 4860000, 'Chuyển khoản', 'GD20250125001', 'Hệ thống', 'Thanh toán học phí HK2 2024-2025', 'Thành công'),
-(7, 3, '22520002', '2025-01-26 09:30:00', 2295000, 'Tiền mặt', 'GD20250126001', 'Trần Văn Hùng', 'Thanh toán học phí HK2 2024-2025 (sau giảm 50%)', 'Thành công'),
-(8, 5, '22520003', '2025-01-27 10:00:00', 1500000, 'Chuyển khoản', 'GD20250127001', 'Hệ thống', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
-(9, 7, '22520004', '2025-01-28 14:15:00', 2000000, 'Ví điện tử', 'GD20250128001', 'Hệ thống', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
-(10, 9, '22520005', '2025-01-29 11:30:00', 3402000, 'Chuyển khoản', 'GD20250129001', 'Hệ thống', 'Thanh toán học phí HK2 2024-2025 (sau giảm 30%)', 'Thành công');
+(6, 1, '22520001', '2025-01-25 08:45:00', 486000, 'Chuyển khoản', 'GD20250125001', 'Hệ thống', 'Thanh toán học phí HK2 2024-2025', 'Thành công'),
+(7, 3, '22520002', '2025-01-26 09:30:00', 221000, 'Tiền mặt', 'GD20250126001', 'Trần Văn Hùng', 'Thanh toán học phí HK2 2024-2025 (sau giảm 50%)', 'Thành công'),
+(8, 5, '22520003', '2025-01-27 10:00:00', 150000, 'Chuyển khoản', 'GD20250127001', 'Hệ thống', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
+(9, 7, '22520004', '2025-01-28 14:15:00', 200000, 'Ví điện tử', 'GD20250128001', 'Hệ thống', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
+(10, 9, '22520005', '2025-01-29 11:30:00', 340200, 'Chuyển khoản', 'GD20250129001', 'Hệ thống', 'Thanh toán học phí HK2 2024-2025 (sau giảm 30%)', 'Thành công');
 
 -- Cập nhật sequence cho phieu_thu_hoc_phi để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval('phieu_thu_hoc_phi_so_phieu_thu_seq', 10, true);
 
 -- =====================================================
 -- INSERT DATA - Thông báo cá nhân (Personal Notifications)
+-- Sử dụng bảng thong_bao đã gộp với loai='ca_nhan'
+-- Số tiền trong thông báo phải khớp với dữ liệu thực tế
 -- =====================================================
-INSERT INTO thong_bao_ca_nhan (ma_tai_khoan, tieu_de, noi_dung, loai_thong_bao, duong_dan, da_doc) VALUES
+INSERT INTO thong_bao (loai, tieu_de, noi_dung, loai_thong_bao, ma_tai_khoan_nhan, duong_dan, da_doc, trang_thai) VALUES
 -- Thông báo cho sinh viên 22520001 (ma_tai_khoan từ subquery)
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520001'), 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Học phí: 4,860,000 VNĐ.', 'Đăng ký', '/phieu-dang-ky/1', TRUE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520001'), 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 4,860,000 VNĐ học phí HK2 2024-2025.', 'Học phí', '/phieu-thu/6', TRUE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520001'), 'Nhắc nhở lịch học', 'Môn Cấu trúc dữ liệu và giải thuật sẽ bắt đầu vào thứ 2 tuần sau tại phòng B3.01.', 'Lịch học', '/lich-hoc', FALSE),
+('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Học phí: 486,000 VNĐ.', 'Đăng ký', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520001'), '/phieu-dang-ky/1', TRUE, TRUE),
+('ca_nhan', 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 486,000 VNĐ học phí HK2 2024-2025.', 'Học phí', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520001'), '/phieu-thu/6', TRUE, TRUE),
+('ca_nhan', 'Nhắc nhở lịch học', 'Môn Cấu trúc dữ liệu và giải thuật sẽ bắt đầu vào thứ 2 tuần sau tại phòng B3.01.', 'Lịch học', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520001'), '/lich-hoc', FALSE, TRUE),
 -- Thông báo cho sinh viên 22520002
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520002'), 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Được giảm 50% học phí do thuộc đối tượng vùng sâu vùng xa.', 'Đăng ký', '/phieu-dang-ky/3', TRUE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520002'), 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 2,295,000 VNĐ học phí HK2 2024-2025 (sau giảm 50%).', 'Học phí', '/phieu-thu/7', TRUE),
+('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 16. Được giảm 50% học phí do thuộc đối tượng vùng sâu vùng xa. Học phí sau giảm: 221,000 VNĐ.', 'Đăng ký', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520002'), '/phieu-dang-ky/3', TRUE, TRUE),
+('ca_nhan', 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 221,000 VNĐ học phí HK2 2024-2025 (sau giảm 50%).', 'Học phí', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520002'), '/phieu-thu/7', TRUE, TRUE),
 -- Thông báo cho sinh viên 22520003
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520003'), 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 7 môn học cho HK2 2024-2025. Được giảm 50% học phí do thuộc hộ cận nghèo.', 'Đăng ký', '/phieu-dang-ky/5', TRUE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520003'), 'Nhắc nhở đóng học phí', 'Bạn còn nợ 1,065,000 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', 'Học phí', '/cong-no', FALSE),
+('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 7 môn học cho HK2 2024-2025. Tổng số tín chỉ: 19. Được giảm 50% học phí do thuộc hộ cận nghèo. Học phí sau giảm: 261,500 VNĐ.', 'Đăng ký', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520003'), '/phieu-dang-ky/5', TRUE, TRUE),
+('ca_nhan', 'Nhắc nhở đóng học phí', 'Bạn còn nợ 111,500 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', 'Học phí', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520003'), '/cong-no', FALSE, TRUE),
 -- Thông báo cho sinh viên 22520004
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520004'), 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2024-2025. Tổng số tín chỉ: 16.', 'Đăng ký', '/phieu-dang-ky/7', TRUE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520004'), 'Nhắc nhở đóng học phí', 'Bạn còn nợ 2,320,000 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', 'Học phí', '/cong-no', FALSE),
+('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2024-2025. Tổng số tín chỉ: 15. Học phí: 405,000 VNĐ.', 'Đăng ký', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520004'), '/phieu-dang-ky/7', TRUE, TRUE),
+('ca_nhan', 'Nhắc nhở đóng học phí', 'Bạn còn nợ 205,000 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', 'Học phí', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520004'), '/cong-no', FALSE, TRUE),
 -- Thông báo cho sinh viên 22520005
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520005'), 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Được giảm 30% học phí do thuộc dân tộc thiểu số.', 'Đăng ký', '/phieu-dang-ky/9', TRUE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520005'), 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 3,402,000 VNĐ học phí HK2 2024-2025 (sau giảm 30%).', 'Học phí', '/phieu-thu/10', TRUE),
+('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Được giảm 30% học phí do thuộc dân tộc thiểu số. Học phí sau giảm: 340,200 VNĐ.', 'Đăng ký', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520005'), '/phieu-dang-ky/9', TRUE, TRUE),
+('ca_nhan', 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 340,200 VNĐ học phí HK2 2024-2025 (sau giảm 30%).', 'Học phí', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = '22520005'), '/phieu-thu/10', TRUE, TRUE),
 -- Thông báo cho Admin
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = 'admin'), 'Báo cáo đăng ký HK2 2024-2025', 'Tổng số sinh viên đã đăng ký: 5. Tổng số lớp mở: 45. Tổng doanh thu dự kiến: 21,442,000 VNĐ.', 'Báo cáo', '/bao-cao/dang-ky', FALSE),
-((SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = 'admin'), 'Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2024-2025. Vui lòng kiểm tra danh sách.', 'Cảnh báo', '/bao-cao/cong-no', FALSE);
+('ca_nhan', 'Báo cáo đăng ký HK2 2024-2025', 'Tổng số sinh viên đã đăng ký: 5. Tổng số lớp mở: 45. Tổng doanh thu dự kiến: 2,144,200 VNĐ.', 'Báo cáo', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = 'admin'), '/bao-cao/dang-ky', FALSE, TRUE),
+('ca_nhan', 'Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2024-2025. Vui lòng kiểm tra danh sách.', 'Cảnh báo', (SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = 'admin'), '/bao-cao/cong-no', FALSE, TRUE);
 
 -- =====================================================
 -- END OF INIT.SQL
