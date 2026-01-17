@@ -915,10 +915,12 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 | 10 | `trg_phieu_thu_hoc_phi_after_update` | Xử lý khi hủy phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
 | 11 | `trg_diem_sinh_vien_before_insert` | **MỚI** - Kiểm tra điểm hợp lệ (0-10), tính điểm TB tự động | `diem_sinh_vien` |
 | 12 | `trg_diem_sinh_vien_after_insert` | **MỚI** - Cập nhật kết quả đậu/rớt (< 5.0 = Rớt) | `diem_sinh_vien` |
-| 13 | `sp_nhap_diem(ma_sv, ma_mon, ma_hk, diem_qt, diem_gk, diem_ck)` | **MỚI** - Procedure nhập điểm sinh viên | `diem_sinh_vien`, `chi_tiet_dang_ky` |
-| 14 | `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)` | **MỚI** - Tính điểm trung bình môn học | `diem_sinh_vien` |
-| 15 | `fn_chuyen_diem_sang_chu(diem_tb)` | **MỚI** - Chuyển điểm số sang điểm chữ (A+, A, B+...) | `diem_sinh_vien` |
-| 16 | `sp_lap_bang_diem_sinh_vien(ma_sv)` | **MỚI** - Procedure lập bảng điểm toàn khóa của SV | `diem_sinh_vien`, `mon_hoc`, `hoc_ky` |
+| 13 | `trg_diem_sinh_vien_after_update` | **MỚI** - Cập nhật GPA tích lũy khi sửa điểm | `diem_sinh_vien`, `cau_hinh_dang_ky` |
+| 14 | `sp_nhap_diem(ma_sv, ma_mon, ma_hk, diem_qt, diem_gk, diem_ck)` | **MỚI** - Procedure nhập điểm sinh viên | `diem_sinh_vien`, `chi_tiet_dang_ky` |
+| 15 | `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)` | **MỚI** - Tính điểm trung bình môn học | `diem_sinh_vien` |
+| 16 | `fn_chuyen_diem_sang_chu(diem_tb)` | **MỚI** - Chuyển điểm số sang điểm chữ (A+, A, B+...) | `diem_sinh_vien` |
+| 17 | `sp_lap_bang_diem_sinh_vien(ma_sv)` | **MỚI** - Procedure lập bảng điểm toàn khóa của SV | `diem_sinh_vien`, `mon_hoc`, `hoc_ky` |
+| 18 | `fn_cap_nhat_gpa_tich_luy(ma_sv)` | **MỚI** - Cập nhật GPA tích lũy sau khi thay đổi điểm | `diem_sinh_vien` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
