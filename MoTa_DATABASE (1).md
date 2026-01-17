@@ -11,7 +11,7 @@
 | Tên Database | `ql_dangky_hocphi` |
 | Hệ quản trị CSDL | PostgreSQL |
 | Phiên bản | 12+ |
-| Số lượng bảng | 20 bảng |
+| Số lượng bảng | 25 bảng |
 | Mã hóa | UTF-8 |
 
 ### 1.2. Danh sách các bảng theo nhóm chức năng
@@ -31,14 +31,18 @@
 | 11 | Đào tạo | `chuong_trinh_hoc` | Chương trình đào tạo |
 | 12 | Thời gian | `nam_hoc` | Danh sách năm học |
 | 13 | Thời gian | `hoc_ky` | Danh sách học kỳ |
-| 14 | Đào tạo | `lop_mo` | Lớp mở trong học kỳ (thay thế mon_hoc_mo) |
-| 15 | Đăng ký | `phieu_dang_ky` | Phiếu đăng ký học phần (có thống kê theo loại học) |
-| 16 | Đăng ký | `chi_tiet_dang_ky` | Chi tiết lớp đăng ký |
-| 17 | Học phí | `phieu_thu_hoc_phi` | Phiếu thu học phí |
-| 18 | Cấu hình | `don_gia_tin_chi` | Đơn giá tín chỉ theo loại học |
-| 19 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền trực tiếp) |
-| 20 | Quản trị | `quan_tri_vien` | Thông tin quản trị viên |
-| 21 | Thông báo | `thong_bao` | Thông báo (gộp chung và cá nhân, phân biệt qua thuộc tính `loai`) |
+| 14 | Thời gian | `tiet_hoc` | Danh sách tiết học (Tiết 1-10, Buổi tối) |
+| 15 | Đào tạo | `lop_mo` | Lớp mở trong học kỳ |
+| 16 | Đào tạo | `lich_hoc_lop` | Lịch học chi tiết của lớp mở |
+| 17 | Đăng ký | `phieu_dang_ky` | Phiếu đăng ký học phần (có thống kê theo loại học) |
+| 18 | Đăng ký | `chi_tiet_dang_ky` | Chi tiết lớp đăng ký |
+| 19 | Điểm số | `diem_sinh_vien` | Điểm các môn học của sinh viên |
+| 20 | Học phí | `phieu_thu_hoc_phi` | Phiếu thu học phí |
+| 21 | Cấu hình | `don_gia_tin_chi` | Đơn giá tín chỉ theo loại học |
+| 22 | Cấu hình | `cau_hinh_dang_ky` | Cấu hình quy định đăng ký (số TC tối đa, GPA vượt) |
+| 23 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền trực tiếp) |
+| 24 | Quản trị | `quan_tri_vien` | Thông tin quản trị viên |
+| 25 | Thông báo | `thong_bao` | Thông báo (gộp chung và cá nhân, phân biệt qua thuộc tính `loai`) |
 
 ---
 
@@ -831,6 +835,175 @@ tong_tien_phai_dong = tong_tien_dang_ky - tien_mien_giam  (QĐ7)
 | ma_thong_bao | loai     | tieu_de               | doi_tuong | ma_tai_khoan_nhan |
 |--------------|----------|-----------------------|-----------|-------------------|
 | 10           | ca_nhan  | Đăng ký thành công    | NULL      | 5                 |
+```
+
+---
+
+### 2.21. BẢNG `tiet_hoc` - Tiết học
+
+**Mô tả:** Lưu trữ thông tin các tiết học trong ngày (Tiết 1-10 và Buổi tối). Trường học mở cửa từ Thứ 2 đến Thứ 7.
+
+**Cấu trúc:**
+
+| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
+|---------|--------------|------|----------|-------|
+| `ma_tiet` | VARCHAR(10) | NO | - | **PK** - Mã tiết học |
+| `ten_tiet` | VARCHAR(50) | NO | - | Tên tiết học |
+| `gio_bat_dau` | TIME | NO | - | Giờ bắt đầu |
+| `gio_ket_thuc` | TIME | NO | - | Giờ kết thúc |
+| `thu_tu` | INTEGER | NO | - | Thứ tự tiết trong ngày (1-11) |
+| `mo_ta` | VARCHAR(200) | YES | - | Mô tả chi tiết |
+| `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái hoạt động |
+| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
+
+**Khóa chính:** `ma_tiet`
+
+**Ràng buộc:**
+- `chk_thu_tu_tiet`: `thu_tu >= 1 AND thu_tu <= 11`
+
+**Ví dụ dữ liệu:**
+```sql
+| ma_tiet | ten_tiet  | gio_bat_dau | gio_ket_thuc | thu_tu | mo_ta                   |
+|---------|-----------|-------------|--------------|--------|-------------------------|
+| T1      | Tiết 1    | 07:30       | 08:15        | 1      | Tiết 1 (7:30 - 8:15)    |
+| T6      | Tiết 6    | 13:00       | 13:45        | 6      | Tiết 6 (13:00 - 13:45)  |
+| TOI     | Buổi tối  | 17:45       | 20:45        | 11     | Buổi tối (17:45 - 20:45)|
+```
+
+---
+
+### 2.22. BẢNG `cau_hinh_dang_ky` - Cấu hình đăng ký môn học
+
+**Mô tả:** Lưu trữ các quy định về đăng ký môn học (số tín chỉ tối đa, điểm GPA để vượt, điểm đậu...)
+
+**Cấu trúc:**
+
+| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
+|---------|--------------|------|----------|-------|
+| `id` | SERIAL | NO | auto | **PK** - ID tự tăng |
+| `ma_cau_hinh` | VARCHAR(20) | NO | - | Mã cấu hình (UNIQUE) |
+| `ten_cau_hinh` | VARCHAR(100) | NO | - | Tên cấu hình |
+| `gia_tri` | INTEGER | NO | - | Giá trị số nguyên |
+| `gia_tri_so` | DECIMAL(4,2) | YES | - | Giá trị số thập phân |
+| `mo_ta` | VARCHAR(300) | YES | - | Mô tả chi tiết |
+| `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái |
+| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
+| `ngay_cap_nhat` | TIMESTAMP | YES | - | Ngày cập nhật |
+
+**Khóa chính:** `id`
+
+**Quy định quan trọng:**
+- **MAX_TC_HK = 24**: Số tín chỉ tối đa mỗi học kỳ
+- **MIN_GPA_VUOT = 8.50**: Điểm GPA tối thiểu để đăng ký vượt tín chỉ
+- **DIEM_DAU = 5.00**: Điểm trung bình môn >= 5.0 mới được tính là đậu (< 5.0 = Rớt)
+
+**Ví dụ dữ liệu:**
+```sql
+| ma_cau_hinh   | ten_cau_hinh                    | gia_tri | gia_tri_so |
+|---------------|---------------------------------|---------|------------|
+| MAX_TC_HK     | Số tín chỉ tối đa mỗi học kỳ    | 24      | NULL       |
+| MIN_GPA_VUOT  | Điểm GPA tối thiểu để vượt TC   | 0       | 8.50       |
+| DIEM_DAU      | Điểm đậu tối thiểu              | 5       | 5.00       |
+```
+
+---
+
+### 2.23. BẢNG `lich_hoc_lop` - Lịch học chi tiết của lớp mở
+
+**Mô tả:** Lưu trữ lịch học chi tiết của từng lớp mở, liên kết với tiết học và thứ trong tuần
+
+**Cấu trúc:**
+
+| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
+|---------|--------------|------|----------|-------|
+| `id` | SERIAL | NO | auto | **PK** - ID tự tăng |
+| `lop_mo_id` | INTEGER | NO | - | **FK** → `lop_mo.id` |
+| `thu_trong_tuan` | INTEGER | NO | - | Thứ trong tuần (2-7) |
+| `ma_tiet_bat_dau` | VARCHAR(10) | NO | - | **FK** → `tiet_hoc.ma_tiet` |
+| `ma_tiet_ket_thuc` | VARCHAR(10) | NO | - | **FK** → `tiet_hoc.ma_tiet` |
+| `phong_hoc` | VARCHAR(50) | YES | - | Phòng học |
+| `ghi_chu` | VARCHAR(200) | YES | - | Ghi chú |
+| `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái |
+| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
+
+**Khóa chính:** `id`
+
+**Khóa ngoại:**
+
+| Tên FK | Cột | Tham chiếu | Mô tả |
+|--------|-----|------------|-------|
+| `fk_lhl_lopmo` | `lop_mo_id` | `lop_mo(id)` | Lịch học thuộc lớp mở |
+| `fk_lhl_tiet_bat_dau` | `ma_tiet_bat_dau` | `tiet_hoc(ma_tiet)` | Tiết bắt đầu |
+| `fk_lhl_tiet_ket_thuc` | `ma_tiet_ket_thuc` | `tiet_hoc(ma_tiet)` | Tiết kết thúc |
+
+**Ràng buộc:**
+- `chk_thu_trong_tuan`: `thu_trong_tuan >= 2 AND thu_trong_tuan <= 7` (Thứ 2 đến Thứ 7)
+
+**Ví dụ dữ liệu:**
+```sql
+| id | lop_mo_id | thu_trong_tuan | ma_tiet_bat_dau | ma_tiet_ket_thuc | phong_hoc |
+|----|-----------|----------------|-----------------|------------------|-----------|
+| 1  | 1         | 2              | T1              | T3               | B1.02     |
+| 2  | 1         | 4              | T6              | T8               | B2.08     |
+```
+
+---
+
+### 2.24. BẢNG `diem_sinh_vien` - Điểm của sinh viên
+
+**Mô tả:** Lưu trữ điểm các môn học của sinh viên. Điểm trung bình < 5.0 = Rớt, >= 5.0 = Đậu
+
+**Cấu trúc:**
+
+| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
+|---------|--------------|------|----------|-------|
+| `id` | SERIAL | NO | auto | **PK** - ID tự tăng |
+| `ma_sv` | VARCHAR(15) | NO | - | **FK** → `sinh_vien.ma_sv` |
+| `ma_mon_hoc` | VARCHAR(15) | NO | - | **FK** → `mon_hoc.ma_mon_hoc` |
+| `ma_hoc_ky` | VARCHAR(15) | NO | - | **FK** → `hoc_ky.ma_hoc_ky` |
+| `ma_lop` | VARCHAR(20) | YES | - | **FK** → `lop.ma_lop` |
+| `diem_qua_trinh` | DECIMAL(4,2) | YES | - | Điểm quá trình (0-10) |
+| `diem_giua_ky` | DECIMAL(4,2) | YES | - | Điểm giữa kỳ (0-10) |
+| `diem_cuoi_ky` | DECIMAL(4,2) | YES | - | Điểm cuối kỳ (0-10) |
+| `diem_trung_binh` | DECIMAL(4,2) | YES | - | Điểm trung bình môn (0-10) |
+| `diem_chu` | VARCHAR(2) | YES | - | Điểm chữ (A+, A, B+, B, C+, C, D+, D, F) |
+| `so_tin_chi` | INTEGER | NO | - | Số tín chỉ môn học |
+| `lan_hoc` | INTEGER | YES | 1 | Lần học (1 = lần đầu, 2 = học lại...) |
+| `ket_qua` | VARCHAR(20) | YES | 'Chưa có' | Kết quả: Chưa có, Đậu, Rớt, Vắng thi, Cấm thi |
+| `ghi_chu` | VARCHAR(300) | YES | - | Ghi chú |
+| `ngay_nhap_diem` | TIMESTAMP | YES | - | Ngày nhập điểm |
+| `nguoi_nhap_diem` | INTEGER | YES | - | **FK** → `tai_khoan.ma_tai_khoan` |
+| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
+| `ngay_cap_nhat` | TIMESTAMP | YES | - | Ngày cập nhật |
+
+**Khóa chính:** `id`
+
+**Ràng buộc duy nhất:** `(ma_sv, ma_mon_hoc, ma_hoc_ky, lan_hoc)`
+
+**Khóa ngoại:**
+
+| Tên FK | Cột | Tham chiếu | Mô tả |
+|--------|-----|------------|-------|
+| `fk_dsv_sv` | `ma_sv` | `sinh_vien(ma_sv)` | Điểm của sinh viên |
+| `fk_dsv_mh` | `ma_mon_hoc` | `mon_hoc(ma_mon_hoc)` | Điểm môn học |
+| `fk_dsv_hk` | `ma_hoc_ky` | `hoc_ky(ma_hoc_ky)` | Điểm trong học kỳ |
+| `fk_dsv_lop` | `ma_lop` | `lop(ma_lop)` | Lớp học |
+
+**Ràng buộc:**
+- `chk_diem_*`: Các điểm phải từ 0 đến 10
+- `chk_diem_chu`: Điểm chữ phải là một trong: A+, A, B+, B, C+, C, D+, D, F
+- `chk_ket_qua`: Kết quả phải là một trong: Chưa có, Đậu, Rớt, Vắng thi, Cấm thi
+
+**Quy định đậu/rớt:**
+- Điểm trung bình >= 5.0: **Đậu**
+- Điểm trung bình < 5.0: **Rớt** (cần học lại)
+
+**Ví dụ dữ liệu:**
+```sql
+| ma_sv    | ma_mon_hoc | ma_hoc_ky | diem_tb | diem_chu | lan_hoc | ket_qua |
+|----------|------------|-----------|---------|----------|---------|---------|
+| 22520001 | IT001      | HK1-2425  | 8.17    | B+       | 1       | Đậu     |
+| 22520004 | MA006      | HK1-2425  | 3.92    | F        | 1       | Rớt     |
 ```
 
 ---

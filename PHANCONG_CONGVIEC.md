@@ -550,9 +550,9 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ---
 
-## 👤 THÀNH VIÊN 3: Quản lý Học kỳ & Đăng ký môn học
+## 👤 THÀNH VIÊN 3: Quản lý Học kỳ, Đăng ký môn học & Lịch học
 
-### Phụ trách: BM4 - Môn học mở trong học kỳ, BM5 - Phiếu đăng ký học phần, QĐ4 - Học kỳ chính/hè, QĐ5 - Đơn giá & Đăng ký lớp mở
+### Phụ trách: BM4 - Môn học mở trong học kỳ, BM5 - Phiếu đăng ký học phần, QĐ4 - Học kỳ chính/hè, QĐ5 - Đơn giá & Đăng ký lớp mở, **Quản lý Lịch học & Giới hạn tín chỉ**
 
 ### 📁 Files Backend cần thao tác:
 
@@ -564,11 +564,15 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 4 | `backend/src/routes/academicYearRoutes.js` | **Tạo mới** - Routes năm học |
 | 5 | `backend/src/controllers/openClassController.js` | **Tạo mới** - API lớp mở theo học kỳ (BM4) |
 | 6 | `backend/src/routes/openClassRoutes.js` | **Tạo mới** - Routes lớp mở |
-| 7 | `backend/src/controllers/registrationController.js` | Cập nhật API đăng ký (BM5, QĐ5) |
+| 7 | `backend/src/controllers/registrationController.js` | Cập nhật API đăng ký (BM5, QĐ5) + **kiểm tra giới hạn tín chỉ** |
 | 8 | `backend/src/routes/registrationRoutes.js` | Cập nhật routes đăng ký |
 | 9 | `backend/src/controllers/priceController.js` | **Tạo mới** - API đơn giá tín chỉ (QĐ5) |
 | 10 | `backend/src/routes/priceRoutes.js` | **Tạo mới** - Routes đơn giá |
-| 11 | `backend/src/index.js` | Đăng ký routes mới |
+| 11 | `backend/src/controllers/scheduleController.js` | **Tạo mới** - API quản lý tiết học và lịch học |
+| 12 | `backend/src/routes/scheduleRoutes.js` | **Tạo mới** - Routes lịch học |
+| 13 | `backend/src/controllers/configController.js` | **Tạo mới** - API cấu hình đăng ký (max TC, GPA vượt) |
+| 14 | `backend/src/routes/configRoutes.js` | **Tạo mới** - Routes cấu hình |
+| 15 | `backend/src/index.js` | Đăng ký routes mới |
 
 ### 📁 Files Frontend cần thao tác:
 
@@ -580,14 +584,22 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 4 | `frontend/src/pages/admin/OpenClasses.css` | **Tạo mới** - Styles |
 | 5 | `frontend/src/pages/admin/UnitPrices.jsx` | **Tạo mới** - Quản lý đơn giá tín chỉ (QĐ5) |
 | 6 | `frontend/src/pages/admin/UnitPrices.css` | **Tạo mới** - Styles |
-| 7 | `frontend/src/pages/Registrations.jsx` | Cập nhật giao diện đăng ký (admin) |
-| 8 | `frontend/src/pages/Registrations.css` | Styles |
-| 9 | `frontend/src/pages/CourseRegistration.jsx` | Cập nhật giao diện đăng ký (sinh viên) |
-| 10 | `frontend/src/pages/CourseRegistration.css` | Styles |
-| 11 | `frontend/src/pages/MyCourses.jsx` | Cập nhật hiển thị môn đã đăng ký |
-| 12 | `frontend/src/services/openClassService.js` | **Tạo mới** - API service lớp mở |
-| 13 | `frontend/src/services/priceService.js` | **Tạo mới** - API service đơn giá |
-| 14 | `frontend/src/App.jsx` | Thêm routes mới |
+| 7 | `frontend/src/pages/admin/ClassSchedule.jsx` | **Tạo mới** - Quản lý lịch học và tiết học |
+| 8 | `frontend/src/pages/admin/ClassSchedule.css` | **Tạo mới** - Styles |
+| 9 | `frontend/src/pages/admin/RegistrationConfig.jsx` | **Tạo mới** - Cấu hình giới hạn tín chỉ |
+| 10 | `frontend/src/pages/admin/RegistrationConfig.css` | **Tạo mới** - Styles |
+| 11 | `frontend/src/pages/Registrations.jsx` | Cập nhật giao diện đăng ký (admin) |
+| 12 | `frontend/src/pages/Registrations.css` | Styles |
+| 13 | `frontend/src/pages/CourseRegistration.jsx` | Cập nhật giao diện đăng ký (sinh viên) + **hiển thị giới hạn TC** |
+| 14 | `frontend/src/pages/CourseRegistration.css` | Styles |
+| 15 | `frontend/src/pages/MyCourses.jsx` | Cập nhật hiển thị môn đã đăng ký + **thời khóa biểu** |
+| 16 | `frontend/src/pages/StudentSchedule.jsx` | **Tạo mới** - Thời khóa biểu sinh viên |
+| 17 | `frontend/src/pages/StudentSchedule.css` | **Tạo mới** - Styles |
+| 18 | `frontend/src/services/openClassService.js` | **Tạo mới** - API service lớp mở |
+| 19 | `frontend/src/services/priceService.js` | **Tạo mới** - API service đơn giá |
+| 20 | `frontend/src/services/scheduleService.js` | **Tạo mới** - API service lịch học |
+| 21 | `frontend/src/services/configService.js` | **Tạo mới** - API service cấu hình |
+| 22 | `frontend/src/App.jsx` | Thêm routes mới |
 
 ### 📝 Chi tiết công việc:
 
@@ -865,7 +877,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ## 👤 THÀNH VIÊN 4: Quản lý Học phí & Báo cáo
 
-### Phụ trách: BM6 - Lập phiếu thu học phí, BM7 - Báo cáo SV chưa đóng HP, QĐ6 - Đóng nhiều lần, QĐ7 - Miễn giảm
+### Phụ trách: BM6 - Lập phiếu thu học phí, BM7 - Báo cáo SV chưa đóng HP, QĐ6 - Đóng nhiều lần, QĐ7 - Miễn giảm, **Quản lý Điểm sinh viên**
 
 ### 📁 Files Backend cần thao tác:
 
@@ -883,7 +895,9 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 10 | `backend/src/routes/statisticsRoutes.js` | **Tạo mới** - Routes thống kê |
 | 11 | `backend/src/controllers/exportController.js` | **Tạo mới** - API xuất báo cáo Excel/PDF |
 | 12 | `backend/src/routes/exportRoutes.js` | **Tạo mới** - Routes xuất báo cáo |
-| 13 | `backend/src/index.js` | Đăng ký routes mới |
+| 13 | `backend/src/controllers/gradeController.js` | **Tạo mới** - API quản lý điểm sinh viên |
+| 14 | `backend/src/routes/gradeRoutes.js` | **Tạo mới** - Routes điểm sinh viên |
+| 15 | `backend/src/index.js` | Đăng ký routes mới |
 
 ### 📁 Files Frontend cần thao tác:
 
@@ -901,10 +915,17 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 10 | `frontend/src/pages/MyPayments.css` | Styles |
 | 11 | `frontend/src/pages/admin/Statistics.jsx` | **Tạo mới** - Giao diện thống kê tổng hợp |
 | 12 | `frontend/src/pages/admin/Statistics.css` | **Tạo mới** - Styles cho trang thống kê |
-| 13 | `frontend/src/services/reportService.js` | **Tạo mới** - API service báo cáo |
-| 14 | `frontend/src/services/statisticsService.js` | **Tạo mới** - API service thống kê |
-| 15 | `frontend/src/services/exportService.js` | **Tạo mới** - API service xuất báo cáo |
-| 16 | `frontend/src/App.jsx` | Cập nhật routes nếu cần |
+| 13 | `frontend/src/pages/admin/GradeManagement.jsx` | **Tạo mới** - Quản lý nhập điểm sinh viên |
+| 14 | `frontend/src/pages/admin/GradeManagement.css` | **Tạo mới** - Styles |
+| 15 | `frontend/src/pages/MyGrades.jsx` | **Tạo mới** - Xem bảng điểm (SV) |
+| 16 | `frontend/src/pages/MyGrades.css` | **Tạo mới** - Styles |
+| 17 | `frontend/src/pages/StudentTranscript.jsx` | **Tạo mới** - Bảng điểm tích lũy toàn khóa |
+| 18 | `frontend/src/pages/StudentTranscript.css` | **Tạo mới** - Styles |
+| 19 | `frontend/src/services/reportService.js` | **Tạo mới** - API service báo cáo |
+| 20 | `frontend/src/services/statisticsService.js` | **Tạo mới** - API service thống kê |
+| 21 | `frontend/src/services/exportService.js` | **Tạo mới** - API service xuất báo cáo |
+| 22 | `frontend/src/services/gradeService.js` | **Tạo mới** - API service điểm sinh viên |
+| 23 | `frontend/src/App.jsx` | Cập nhật routes nếu cần |
 
 ### 📝 Chi tiết công việc:
 
