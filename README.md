@@ -14,17 +14,44 @@ Hệ thống web application quản lý việc đăng ký môn học và thu h�
 ### 👨‍💼 Quản trị viên (Admin)
 - Quản lý sinh viên (CRUD)
 - Quản lý môn học (CRUD)
-- Quản lý học kỳ
+- Quản lý học kỳ và năm học
+- **Quản lý tiết học và lịch học** (Thứ 2-7, Tiết 1-10, Buổi tối)
 - Xem danh sách đăng ký môn học
 - Quản lý học phí và theo dõi công nợ
 - Ghi nhận thanh toán học phí
+- **Nhập và quản lý điểm sinh viên**
+- **Cấu hình quy định đăng ký** (số tín chỉ tối đa, GPA vượt...)
 - Xem báo cáo thống kê
 
 ### 👨‍🎓 Sinh viên
 - Đăng ký môn học theo học kỳ
+- **Kiểm tra giới hạn tín chỉ** (max 24 TC, vượt cần GPA >= 8.5)
+- **Xem thời khóa biểu cá nhân**
 - Xem danh sách môn học đã đăng ký
+- **Xem bảng điểm và GPA tích lũy**
 - Xem thông tin học phí
 - Xem lịch sử thanh toán
+
+### 📊 Quy định đăng ký môn học
+- Số tín chỉ tối đa mỗi học kỳ: **24 tín chỉ**
+- Điều kiện vượt tín chỉ: GPA tích lũy >= **8.5**
+- Số tín chỉ tối đa khi vượt: **30 tín chỉ**
+- Điểm đậu môn học: >= **5.0** (dưới 5.0 = Rớt, cần học lại)
+
+### 📅 Khung giờ học
+| Tiết | Thời gian |
+|------|-----------|
+| Tiết 1 | 07:30 - 08:15 |
+| Tiết 2 | 08:15 - 09:00 |
+| Tiết 3 | 09:00 - 09:45 |
+| Tiết 4 | 09:45 - 10:30 |
+| Tiết 5 | 10:45 - 11:30 |
+| Tiết 6 | 13:00 - 13:45 |
+| Tiết 7 | 13:45 - 14:30 |
+| Tiết 8 | 14:30 - 15:15 |
+| Tiết 9 | 15:30 - 16:15 |
+| Tiết 10 | 16:15 - 17:00 |
+| Buổi tối | 17:45 - 20:45 |
 
 ## 🚀 Cài đặt và Chạy
 
