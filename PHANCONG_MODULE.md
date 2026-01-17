@@ -535,6 +535,128 @@ Trang tổng quan hiển thị thống kê và trạng thái hệ thống.
 | **QĐ6** - Đóng nhiều lần, hạn đóng | Module 12, 13 |
 | **BM7** - Báo cáo SV chưa đóng HP | Module 14 |
 | **QĐ7** - Miễn giảm theo đối tượng | Module 13 |
+| **Quản lý Lịch học** - Tiết học, thời khóa biểu | Module 17 |
+| **Quản lý Điểm** - Bảng điểm, đậu/rớt | Module 18 |
+| **Cấu hình đăng ký** - Giới hạn tín chỉ, GPA vượt | Module 19 |
+
+---
+
+## 🗂️ MODULE 17: QUẢN LÝ LỊCH HỌC & TIẾT HỌC (MỚI)
+
+### Mô tả:
+Quản lý tiết học (Tiết 1-10, Buổi tối), lịch học của các lớp mở. Trường hoạt động từ Thứ 2 đến Thứ 7.
+
+### Bảng Database:
+- `tiet_hoc` - Danh sách tiết học (7:30 - 20:45)
+- `lich_hoc_lop` - Lịch học chi tiết của lớp mở
+
+### Files liên quan:
+
+| Loại | File | Mô tả |
+|------|------|-------|
+| **SQL** | `backend/src/config/init.sql` | Bảng `tiet_hoc`, `lich_hoc_lop`, dữ liệu mẫu |
+| **Backend** | `backend/src/controllers/scheduleController.js` | API CRUD lịch học |
+| **Backend** | `backend/src/routes/scheduleRoutes.js` | Routes cho lịch học |
+| **Frontend** | `frontend/src/pages/admin/ClassSchedule.jsx` | Giao diện quản lý lịch học |
+| **Frontend** | `frontend/src/pages/admin/ClassSchedule.css` | Styles |
+| **Frontend** | `frontend/src/pages/StudentSchedule.jsx` | Thời khóa biểu sinh viên |
+| **Frontend** | `frontend/src/pages/StudentSchedule.css` | Styles |
+| **Frontend** | `frontend/src/services/scheduleService.js` | API service |
+
+### API Endpoints:
+```
+GET    /api/schedules/periods             - Lấy danh sách tiết học
+GET    /api/schedules/class/:lop_mo_id    - Lịch học của lớp mở
+POST   /api/schedules/class               - Thêm lịch học cho lớp
+PUT    /api/schedules/class/:id           - Sửa lịch học
+DELETE /api/schedules/class/:id           - Xóa lịch học
+GET    /api/schedules/student/:sv_id      - Thời khóa biểu sinh viên
+GET    /api/schedules/semester/:hk_id     - Lịch học theo học kỳ
+POST   /api/schedules/check-conflict      - Kiểm tra trùng lịch
+```
+
+### Phân công: **THÀNH VIÊN 3**
+
+---
+
+## 🗂️ MODULE 18: QUẢN LÝ ĐIỂM SINH VIÊN (MỚI)
+
+### Mô tả:
+Quản lý điểm các môn học của sinh viên. Xác định đậu/rớt (điểm TB < 5.0 = Rớt). Tính điểm GPA tích lũy.
+
+### Bảng Database:
+- `diem_sinh_vien` - Điểm các môn học (quá trình, giữa kỳ, cuối kỳ, TB, chữ)
+
+### Files liên quan:
+
+| Loại | File | Mô tả |
+|------|------|-------|
+| **SQL** | `backend/src/config/init.sql` | Bảng `diem_sinh_vien`, view `v_diem_tich_luy_sinh_vien` |
+| **Backend** | `backend/src/controllers/gradeController.js` | API CRUD điểm |
+| **Backend** | `backend/src/routes/gradeRoutes.js` | Routes cho điểm |
+| **Frontend** | `frontend/src/pages/admin/GradeManagement.jsx` | Giao diện nhập điểm (admin) |
+| **Frontend** | `frontend/src/pages/admin/GradeManagement.css` | Styles |
+| **Frontend** | `frontend/src/pages/MyGrades.jsx` | Xem bảng điểm (sinh viên) |
+| **Frontend** | `frontend/src/pages/MyGrades.css` | Styles |
+| **Frontend** | `frontend/src/pages/StudentTranscript.jsx` | Bảng điểm tích lũy |
+| **Frontend** | `frontend/src/pages/StudentTranscript.css` | Styles |
+| **Frontend** | `frontend/src/services/gradeService.js` | API service |
+
+### API Endpoints:
+```
+GET    /api/grades/student/:sv_id                     - Tất cả điểm của SV
+GET    /api/grades/student/:sv_id/semester/:hk_id     - Điểm theo học kỳ
+POST   /api/grades                                     - Nhập điểm
+PUT    /api/grades/:id                                 - Sửa điểm
+GET    /api/grades/gpa/:sv_id                         - Lấy GPA tích lũy
+GET    /api/grades/transcript/:sv_id                  - Bảng điểm toàn khóa
+GET    /api/grades/class/:lop_id                      - Điểm của cả lớp
+```
+
+### Quy định đậu/rớt:
+- **Điểm TB >= 5.0**: Đậu
+- **Điểm TB < 5.0**: Rớt (cần học lại)
+
+### Phân công: **THÀNH VIÊN 4**
+
+---
+
+## 🗂️ MODULE 19: CẤU HÌNH ĐĂNG KÝ MÔN HỌC (MỚI)
+
+### Mô tả:
+Quản lý các quy định về đăng ký môn học: số tín chỉ tối đa (24), điều kiện vượt tín chỉ (GPA >= 8.5).
+
+### Bảng Database:
+- `cau_hinh_dang_ky` - Các cấu hình đăng ký (max TC, GPA vượt, điểm đậu...)
+
+### Files liên quan:
+
+| Loại | File | Mô tả |
+|------|------|-------|
+| **SQL** | `backend/src/config/init.sql` | Bảng `cau_hinh_dang_ky`, dữ liệu mẫu |
+| **Backend** | `backend/src/controllers/configController.js` | API cấu hình |
+| **Backend** | `backend/src/routes/configRoutes.js` | Routes cấu hình |
+| **Frontend** | `frontend/src/pages/admin/RegistrationConfig.jsx` | Giao diện cấu hình |
+| **Frontend** | `frontend/src/pages/admin/RegistrationConfig.css` | Styles |
+| **Frontend** | `frontend/src/services/configService.js` | API service |
+
+### API Endpoints:
+```
+GET    /api/config/registration           - Lấy tất cả cấu hình
+GET    /api/config/registration/:key      - Lấy cấu hình theo mã
+PUT    /api/config/registration/:key      - Cập nhật cấu hình
+GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
+```
+
+### Cấu hình mặc định:
+| Mã | Tên | Giá trị |
+|----|-----|---------|
+| MAX_TC_HK | Số tín chỉ tối đa mỗi học kỳ | 24 |
+| MIN_GPA_VUOT | GPA tối thiểu để vượt TC | 8.5 |
+| MAX_TC_VUOT | Số TC tối đa khi vượt | 30 |
+| DIEM_DAU | Điểm đậu tối thiểu | 5.0 |
+
+### Phân công: **THÀNH VIÊN 3**
 
 ---
 
