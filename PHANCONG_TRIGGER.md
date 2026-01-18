@@ -535,7 +535,7 @@ SELECT * FROM fn_lay_chuong_trinh_hoc_theo_nganh('KTPM');
 
 ## 👤 THÀNH VIÊN 3: Quản lý Học kỳ & Đăng ký môn học
 
-### Phụ trách: BM4, BM5, QĐ4, QĐ5
+### Phụ trách: BM4, BM5, QĐ4, QĐ5, Quản lý Lịch học & Giới hạn tín chỉ
 
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
@@ -550,6 +550,11 @@ SELECT * FROM fn_lay_chuong_trinh_hoc_theo_nganh('KTPM');
 | 9 | `fn_kiem_tra_lop_mo(ma_hoc_ky, ma_lop)` | Kiểm tra lớp có mở trong học kỳ không (QĐ5) | `lop_mo` |
 | 10 | `fn_kiem_tra_si_so_lop(ma_lop, ma_hoc_ky)` | Kiểm tra sĩ số còn chỗ trống | `lop_mo`, `lop` |
 | 11 | `sp_huy_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop)` | Procedure hủy đăng ký lớp | `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo` |
+| 12 | `fn_kiem_tra_gioi_han_tin_chi(ma_sv, ma_hoc_ky, so_tin_chi_moi)` | **MỚI** - Kiểm tra giới hạn tín chỉ đăng ký (max 24, vượt cần GPA >= 8.5) | `cau_hinh_dang_ky`, `diem_sinh_vien`, `phieu_dang_ky` |
+| 13 | `fn_tinh_gpa_tich_luy(ma_sv)` | **MỚI** - Tính điểm trung bình tích lũy (GPA) của sinh viên | `diem_sinh_vien` |
+| 14 | `fn_kiem_tra_trung_lich(ma_sv, ma_hoc_ky, lop_mo_id)` | **MỚI** - Kiểm tra trùng lịch học khi đăng ký | `lich_hoc_lop`, `chi_tiet_dang_ky` |
+| 15 | `trg_lich_hoc_lop_before_insert` | **MỚI** - Kiểm tra lịch học hợp lệ khi thêm | `lich_hoc_lop`, `tiet_hoc`, `lop_mo` |
+| 16 | `sp_them_lich_hoc_lop(lop_mo_id, thu, tiet_bd, tiet_kt, phong)` | **MỚI** - Procedure thêm lịch học cho lớp mở | `lich_hoc_lop`, `tiet_hoc` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -892,9 +897,9 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 
 ---
 
-## 👤 THÀNH VIÊN 4: Quản lý Học phí & Báo cáo
+## 👤 THÀNH VIÊN 4: Quản lý Học phí, Điểm số & Báo cáo
 
-### Phụ trách: BM6, BM7, QĐ6, QĐ7
+### Phụ trách: BM6, BM7, QĐ6, QĐ7, Quản lý Điểm sinh viên
 
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
@@ -908,6 +913,14 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 | 8 | `fn_kiem_tra_qua_han_dong_hp(ma_sv, ma_hoc_ky)` | Kiểm tra SV đã quá hạn đóng HP chưa (QĐ6) | `phieu_dang_ky`, `hoc_ky` |
 | 9 | `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)` | Gửi thông báo nhắc nộp HP cho SV chưa đóng đủ | `thong_bao_ca_nhan`, `sinh_vien`, `tai_khoan` |
 | 10 | `trg_phieu_thu_hoc_phi_after_update` | Xử lý khi hủy phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
+| 11 | `trg_diem_sinh_vien_before_insert` | **MỚI** - Kiểm tra điểm hợp lệ (0-10), tính điểm TB tự động | `diem_sinh_vien` |
+| 12 | `trg_diem_sinh_vien_after_insert` | **MỚI** - Cập nhật kết quả đậu/rớt (< 5.0 = Rớt) | `diem_sinh_vien` |
+| 13 | `trg_diem_sinh_vien_after_update` | **MỚI** - Cập nhật GPA tích lũy khi sửa điểm | `diem_sinh_vien`, `cau_hinh_dang_ky` |
+| 14 | `sp_nhap_diem(ma_sv, ma_mon, ma_hk, diem_qt, diem_gk, diem_ck)` | **MỚI** - Procedure nhập điểm sinh viên | `diem_sinh_vien`, `chi_tiet_dang_ky` |
+| 15 | `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)` | **MỚI** - Tính điểm trung bình môn học | `diem_sinh_vien` |
+| 16 | `fn_chuyen_diem_sang_chu(diem_tb)` | **MỚI** - Chuyển điểm số sang điểm chữ (A+, A, B+...) | `diem_sinh_vien` |
+| 17 | `sp_lap_bang_diem_sinh_vien(ma_sv)` | **MỚI** - Procedure lập bảng điểm toàn khóa của SV | `diem_sinh_vien`, `mon_hoc`, `hoc_ky` |
+| 18 | `fn_cap_nhat_gpa_tich_luy(ma_sv)` | **MỚI** - Cập nhật GPA tích lũy sau khi thay đổi điểm | `diem_sinh_vien` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 

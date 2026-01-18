@@ -10,7 +10,7 @@
 
 ## 📋 TỔNG QUAN CÁC BẢNG
 
-Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
+Hệ thống bao gồm **25 bảng** được chia thành 9 nhóm chức năng:
 
 | Nhóm | Bảng | Mục đích |
 |------|------|----------|
@@ -20,7 +20,53 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 | **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống |
 | **Môn học - Lớp** | `mon_hoc`, `dieu_kien_mon_hoc`, `lop` | Quản lý môn học và lớp học |
 | **Thời gian - Đăng ký** | `nam_hoc`, `hoc_ky`, `lop_mo`, `phieu_dang_ky`, `chi_tiet_dang_ky` | Quản lý đăng ký học phần |
-| **Học phí - Thông báo** | `don_gia_tin_chi`, `phieu_thu_hoc_phi`, `thong_bao`, `thong_bao_ca_nhan` | Quản lý học phí và thông báo |
+| **Lịch học** | `tiet_hoc`, `lich_hoc_lop` | Quản lý tiết học và thời khóa biểu |
+| **Điểm số** | `diem_sinh_vien` | Quản lý điểm sinh viên (đậu/rớt) |
+| **Học phí - Cấu hình** | `don_gia_tin_chi`, `phieu_thu_hoc_phi`, `cau_hinh_dang_ky`, `thong_bao` | Quản lý học phí, cấu hình và thông báo |
+
+---
+
+## 🆕 CÁC BẢNG MỚI BỔ SUNG
+
+### BẢNG `tiet_hoc` - Tiết học
+Quản lý các tiết học trong ngày (Tiết 1-10, Buổi tối). Trường hoạt động từ Thứ 2 đến Thứ 7.
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_tiet` | VARCHAR(10) | **PRIMARY KEY** | Mã tiết (T1-T10, TOI) |
+| `ten_tiet` | VARCHAR(50) | NOT NULL | Tên tiết học |
+| `gio_bat_dau` | TIME | NOT NULL | Giờ bắt đầu |
+| `gio_ket_thuc` | TIME | NOT NULL | Giờ kết thúc |
+| `thu_tu` | INTEGER | NOT NULL, CHECK (1-11) | Thứ tự tiết trong ngày |
+
+### BẢNG `cau_hinh_dang_ky` - Cấu hình đăng ký
+Quản lý quy định đăng ký: số tín chỉ tối đa (24), GPA để vượt (8.5), điểm đậu (5.0).
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_cau_hinh` | VARCHAR(20) | **UNIQUE** | Mã cấu hình (MAX_TC_HK, MIN_GPA_VUOT...) |
+| `gia_tri` | INTEGER | NOT NULL | Giá trị số nguyên |
+| `gia_tri_so` | DECIMAL(4,2) | NULL | Giá trị số thập phân |
+
+### BẢNG `lich_hoc_lop` - Lịch học của lớp mở
+Liên kết lớp mở với tiết học và thứ trong tuần.
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `lop_mo_id` | INTEGER | **FK** → `lop_mo(id)` | Lớp mở |
+| `thu_trong_tuan` | INTEGER | CHECK (2-7) | Thứ trong tuần |
+| `ma_tiet_bat_dau` | VARCHAR(10) | **FK** → `tiet_hoc(ma_tiet)` | Tiết bắt đầu |
+| `ma_tiet_ket_thuc` | VARCHAR(10) | **FK** → `tiet_hoc(ma_tiet)` | Tiết kết thúc |
+
+### BẢNG `diem_sinh_vien` - Điểm sinh viên
+Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_sv` | VARCHAR(15) | **FK** → `sinh_vien(ma_sv)` | Sinh viên |
+| `ma_mon_hoc` | VARCHAR(15) | **FK** → `mon_hoc(ma_mon_hoc)` | Môn học |
+| `diem_trung_binh` | DECIMAL(4,2) | CHECK (0-10) | Điểm TB môn |
+| `ket_qua` | VARCHAR(20) | CHECK (Đậu, Rớt, Chưa có...) | Kết quả |
 
 ---
 
@@ -376,7 +422,7 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 
 ### 18. BẢNG `phieu_dang_ky` - Phiếu đăng ký học phần
 
-**Mục đích:** Lưu trữ phiếu đăng ký học phần của sinh viên theo học kỳ.
+**Mục đích:** Lưu trữ phiếu đăng ký học phần của sinh viên theo học kỳ. Bao gồm thống kê chi tiết theo loại đăng ký (học mới, học lại, học cải thiện) để theo dõi tác động của đối tượng sinh viên và loại học lên học phí.
 
 | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |------------|--------------|-----------|-------|
@@ -385,6 +431,15 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 | `ma_hoc_ky` | VARCHAR(15) | **FOREIGN KEY** → `hoc_ky(ma_hoc_ky)`, NOT NULL | Học kỳ |
 | `ngay_lap` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Ngày lập phiếu |
 | `tong_tin_chi` | INTEGER | DEFAULT 0 | Tổng số tín chỉ đăng ký |
+| `so_mon_hoc_moi` | INTEGER | DEFAULT 0 | Số môn học mới |
+| `so_tin_chi_hoc_moi` | INTEGER | DEFAULT 0 | Số tín chỉ học mới |
+| `tien_hoc_moi` | DECIMAL(15,0) | DEFAULT 0 | Tiền học mới |
+| `so_mon_hoc_lai` | INTEGER | DEFAULT 0 | Số môn học lại |
+| `so_tin_chi_hoc_lai` | INTEGER | DEFAULT 0 | Số tín chỉ học lại |
+| `tien_hoc_lai` | DECIMAL(15,0) | DEFAULT 0 | Tiền học lại |
+| `so_mon_hoc_cai_thien` | INTEGER | DEFAULT 0 | Số môn học cải thiện |
+| `so_tin_chi_hoc_cai_thien` | INTEGER | DEFAULT 0 | Số tín chỉ học cải thiện |
+| `tien_hoc_cai_thien` | DECIMAL(15,0) | DEFAULT 0 | Tiền học cải thiện |
 | `tong_tien_dang_ky` | DECIMAL(15,0) | DEFAULT 0 | Tổng tiền đăng ký |
 | `ti_le_giam` | DECIMAL(5,2) | DEFAULT 0 | Tỷ lệ giảm học phí (%) |
 | `tien_mien_giam` | DECIMAL(15,0) | DEFAULT 0 | Tiền được miễn giảm |
@@ -394,6 +449,8 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 | `ngay_cap_nhat` | TIMESTAMP | NULL | Thời điểm cập nhật |
 
 **Ràng buộc UNIQUE:** `(ma_sv, ma_hoc_ky)` - Mỗi SV chỉ có 1 phiếu đăng ký/học kỳ.
+
+**Lưu ý:** Các trường thống kê (so_mon_*, so_tin_chi_*, tien_*) giúp dễ dàng theo dõi và báo cáo chi tiết số môn học lại/cải thiện ảnh hưởng đến học phí.
 
 ---
 
@@ -439,40 +496,34 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 
 ---
 
-### 21. BẢNG `thong_bao` - Thông báo chung
+### 20. BẢNG `thong_bao` - Thông báo (gộp chung và cá nhân)
 
-**Mục đích:** Lưu trữ các thông báo gửi cho toàn bộ người dùng.
+**Mục đích:** Lưu trữ tất cả thông báo, bao gồm cả thông báo chung (gửi cho nhóm người dùng) và thông báo cá nhân (gửi cho từng người). Phân biệt qua thuộc tính `loai`:
+- `'chung'`: Thông báo gửi cho tất cả hoặc nhóm người dùng
+- `'ca_nhan'`: Thông báo gửi riêng cho từng người dùng
 
 | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |------------|--------------|-----------|-------|
 | `ma_thong_bao` | SERIAL | **PRIMARY KEY** | Mã thông báo |
+| `loai` | VARCHAR(20) | NOT NULL, DEFAULT 'chung', CHECK ('chung', 'ca_nhan') | Loại thông báo |
 | `tieu_de` | VARCHAR(200) | NOT NULL | Tiêu đề |
 | `noi_dung` | TEXT | NOT NULL | Nội dung chi tiết |
-| `loai_thong_bao` | VARCHAR(50) | NULL | Loại thông báo |
-| `doi_tuong` | VARCHAR(30) | DEFAULT 'Tất cả' | Đối tượng nhận |
-| `ghim_top` | BOOLEAN | DEFAULT FALSE | Ghim lên đầu |
-| `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Ngày tạo |
-| `ngay_het_han` | TIMESTAMP | NULL | Ngày hết hạn |
+| `loai_thong_bao` | VARCHAR(50) | NULL | Phân loại (Học phí, Đăng ký, ...) |
+| `doi_tuong` | VARCHAR(30) | DEFAULT 'Tất cả' | Đối tượng nhận (cho thông báo chung) |
+| `ghim_top` | BOOLEAN | DEFAULT FALSE | Ghim lên đầu (cho thông báo chung) |
+| `ngay_het_han` | TIMESTAMP | NULL | Ngày hết hạn (cho thông báo chung) |
+| `ma_tai_khoan_nhan` | INTEGER | **FOREIGN KEY** → `tai_khoan(ma_tai_khoan)` | Tài khoản nhận (cho thông báo cá nhân) |
+| `duong_dan` | VARCHAR(255) | NULL | Link liên quan (cho thông báo cá nhân) |
+| `da_doc` | BOOLEAN | DEFAULT FALSE | Đã đọc chưa (cho thông báo cá nhân) |
+| `ngay_doc` | TIMESTAMP | NULL | Ngày đọc (cho thông báo cá nhân) |
 | `nguoi_tao` | INTEGER | **FOREIGN KEY** → `tai_khoan(ma_tai_khoan)` | Người tạo |
+| `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Ngày tạo |
 | `trang_thai` | BOOLEAN | DEFAULT TRUE | Trạng thái |
 
----
-
-### 22. BẢNG `thong_bao_ca_nhan` - Thông báo cá nhân
-
-**Mục đích:** Lưu trữ thông báo gửi đến từng người dùng cụ thể.
-
-| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
-|------------|--------------|-----------|-------|
-| `id` | BIGSERIAL | **PRIMARY KEY** | ID tự tăng |
-| `ma_tai_khoan` | INTEGER | **FOREIGN KEY** → `tai_khoan(ma_tai_khoan)`, NOT NULL | Tài khoản nhận |
-| `tieu_de` | VARCHAR(200) | NOT NULL | Tiêu đề |
-| `noi_dung` | TEXT | NULL | Nội dung |
-| `loai_thong_bao` | VARCHAR(50) | NULL | Loại thông báo |
-| `duong_dan` | VARCHAR(255) | NULL | Link liên quan |
-| `da_doc` | BOOLEAN | DEFAULT FALSE | Đã đọc chưa |
-| `ngay_doc` | TIMESTAMP | NULL | Ngày đọc |
-| `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Ngày tạo |
+**Ưu điểm của thiết kế gộp:**
+1. Đơn giản hóa cấu trúc database (giảm từ 2 bảng xuống 1)
+2. Dễ dàng quản lý và truy vấn
+3. Linh hoạt trong mở rộng
 
 ---
 
@@ -530,12 +581,12 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 
 | Loại | Số lượng |
 |------|----------|
-| Tổng số bảng | 21 |
-| Bảng có khóa ngoại | 16 |
+| Tổng số bảng | 20 |
+| Bảng có khóa ngoại | 15 |
 | Cột tính toán (computed) | 1 (`mon_hoc.so_tin_chi`) |
 | Ràng buộc UNIQUE | 10 |
 | Ràng buộc CHECK | 12 |
-| Index | 30+ |
+| Index | 32+ |
 | Views | 3 |
 
 ---
@@ -545,3 +596,18 @@ Hệ thống bao gồm **21 bảng** được chia thành 7 nhóm chức năng:
 - **Mã hóa:** UTF-8 để hỗ trợ tiếng Việt có dấu
 - **Phiên bản PostgreSQL:** 12+ (yêu cầu cho generated columns)
 - **Tham khảo chi tiết:** Xem file `MoTa_DATABASE.md` để biết thêm về functions, triggers, và hướng dẫn sử dụng
+
+## 📋 THAY ĐỔI SO VỚI PHIÊN BẢN TRƯỚC
+
+### Tối ưu hóa bảng thông báo
+- **Trước:** 2 bảng riêng biệt (`thong_bao` cho thông báo chung, `thong_bao_ca_nhan` cho thông báo cá nhân)
+- **Sau:** 1 bảng duy nhất `thong_bao` với thuộc tính `loai` để phân biệt ('chung' hoặc 'ca_nhan')
+- **Lý do:** Đơn giản hóa cấu trúc, dễ quản lý, giảm độ phức tạp của code
+
+### Bổ sung thống kê chi tiết cho phiếu đăng ký
+- **Trước:** Chỉ có tổng số tín chỉ và tổng tiền
+- **Sau:** Bổ sung 9 cột thống kê theo loại đăng ký:
+  - `so_mon_hoc_moi`, `so_tin_chi_hoc_moi`, `tien_hoc_moi`
+  - `so_mon_hoc_lai`, `so_tin_chi_hoc_lai`, `tien_hoc_lai`
+  - `so_mon_hoc_cai_thien`, `so_tin_chi_hoc_cai_thien`, `tien_hoc_cai_thien`
+- **Lý do:** Phiếu thu học phí bị ảnh hưởng bởi đối tượng sinh viên và số môn học lại/cải thiện. Cần thống kê chi tiết để báo cáo và quản lý chính xác hơn.
