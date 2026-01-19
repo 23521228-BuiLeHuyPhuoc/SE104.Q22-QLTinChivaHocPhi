@@ -49,10 +49,10 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
 | API | Method | Endpoint | Mô tả chi tiết |
 |-----|--------|----------|----------------|
 | Lấy danh sách tỉnh | GET | `/api/locations/provinces` | Trả về danh sách tất cả tỉnh/thành phố, có phân trang và tìm kiếm |
-| Lấy chi tiết tỉnh | GET | `/api/locations/provinces/:id` | Trả về thông tin chi tiết 1 tỉnh kèm danh sách huyện |
-| Thêm tỉnh | POST | `/api/locations/provinces` | Yêu cầu: `{ma_tinh, ten_tinh}`. Kiểm tra mã không trùng |
+| Lấy chi tiết tỉnh | GET | `/api/locations/provinces/:id` | Trả về thông tin chi tiết 1 tỉnh kèm danh sách phường/xã |
+| Thêm tỉnh | POST | `/api/locations/provinces` | Yêu cầu: `{ma_tinh, ten_tinh, loai_tinh}`. Kiểm tra mã không trùng |
 | Sửa tỉnh | PUT | `/api/locations/provinces/:id` | Cập nhật tên tỉnh, không cho sửa mã |
-| Xóa tỉnh | DELETE | `/api/locations/provinces/:id` | Kiểm tra không có huyện nào thuộc tỉnh trước khi xóa |
+| Xóa tỉnh | DELETE | `/api/locations/provinces/:id` | Kiểm tra không có phường/xã nào thuộc tỉnh trước khi xóa |
 
 **Request/Response mẫu:**
 ```javascript
@@ -61,35 +61,51 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
 {
   "success": true,
   "data": [
-    { "ma_tinh": "HCM", "ten_tinh": "TP. Hồ Chí Minh", "trang_thai": true, "so_huyen": 24 },
-    { "ma_tinh": "HN", "ten_tinh": "Hà Nội", "trang_thai": true, "so_huyen": 30 }
+    { "ma_tinh": "29", "ten_tinh": "Hồ Chí Minh", "loai_tinh": "Thành phố", "trang_thai": true, "so_phuong_xa": 168 },
+    { "ma_tinh": "1", "ten_tinh": "Hà Nội", "loai_tinh": "Thành phố", "trang_thai": true, "so_phuong_xa": 125 }
   ],
-  "pagination": { "page": 1, "limit": 10, "total": 63 }
+  "pagination": { "page": 1, "limit": 10, "total": 34 }
 }
 
 // POST /api/locations/provinces
 // Request:
-{ "ma_tinh": "DL", "ten_tinh": "Đắk Lắk" }
+{ "ma_tinh": "35", "ten_tinh": "Bắc Giang", "loai_tinh": "Tỉnh" }
 // Response:
 { "success": true, "message": "Thêm tỉnh thành công", "data": {...} }
 ```
 
-##### 2. API Quản lý Huyện/Quận
+##### 2. API Quản lý Phường/Xã
 
 | API | Method | Endpoint | Mô tả chi tiết |
 |-----|--------|----------|----------------|
-| Lấy danh sách huyện | GET | `/api/locations/districts` | Trả về tất cả huyện, hỗ trợ filter theo tỉnh |
-| Lấy huyện theo tỉnh | GET | `/api/locations/districts/province/:id` | Lọc huyện theo mã tỉnh |
-| Lấy chi tiết huyện | GET | `/api/locations/districts/:id` | Thông tin huyện kèm tên tỉnh |
-| Thêm huyện | POST | `/api/locations/districts` | Yêu cầu: `{ma_huyen, ten_huyen, ma_tinh, la_vung_sau_vung_xa}` |
-| Sửa huyện | PUT | `/api/locations/districts/:id` | Cập nhật thông tin, đặc biệt flag vùng sâu/xa |
-| Xóa huyện | DELETE | `/api/locations/districts/:id` | Kiểm tra không có sinh viên nào thuộc huyện |
+| Lấy danh sách phường/xã | GET | `/api/locations/wards` | Trả về tất cả phường/xã, hỗ trợ filter theo tỉnh và khu vực |
+| Lấy phường/xã theo tỉnh | GET | `/api/locations/wards/province/:id` | Lọc phường/xã theo mã tỉnh |
+| Lấy chi tiết phường/xã | GET | `/api/locations/wards/:id` | Thông tin phường/xã kèm tên tỉnh |
+| Thêm phường/xã | POST | `/api/locations/wards` | Yêu cầu: `{ma_phuong_xa, ten_phuong_xa, ma_tinh, loai, khu_vuc}` |
+| Sửa phường/xã | PUT | `/api/locations/wards/:id` | Cập nhật thông tin, đặc biệt khu vực ưu tiên (KV1-KV3) |
+| Xóa phường/xã | DELETE | `/api/locations/wards/:id` | Kiểm tra không có sinh viên nào thuộc phường/xã |
+
+**Phân loại khu vực ưu tiên (theo tra-cuu-khu-vuc-uu-tien-2025.docx):**
+- **KV1**: Thành phố, thị xã, vùng đồng bằng
+- **KV2**: Vùng nông thôn, ngoại thành
+- **KV2-NT**: Vùng nông thôn đặc biệt
+- **KV3**: Vùng sâu, vùng xa, biên giới, hải đảo, vùng đồng bào dân tộc thiểu số
 
 **Business Logic quan trọng:**
-- Khi cập nhật `la_vung_sau_vung_xa` từ FALSE → TRUE: Cần trigger cập nhật tỷ lệ giảm HP cho các SV thuộc huyện này
-- Khi cập nhật từ TRUE → FALSE: Cần tính lại tỷ lệ giảm cho SV (có thể mất ưu đãi)
+- Đối tượng "vùng sâu vùng xa" = sinh viên có `ma_phuong_xa` thuộc KV3 **VÀ** có `ma_dan_toc` là dân tộc thiểu số
+- Khi cập nhật `khu_vuc` của phường/xã: Cần kiểm tra và cập nhật tỷ lệ giảm HP cho các SV thuộc vùng này
 
-##### 3. API Quản lý Đối tượng ưu tiên
+##### 3. API Quản lý Dân tộc
+
+| API | Method | Endpoint | Mô tả chi tiết |
+|-----|--------|----------|----------------|
+| Lấy danh sách dân tộc | GET | `/api/ethnicities` | Danh sách dân tộc, có filter dân tộc thiểu số |
+| Lấy chi tiết dân tộc | GET | `/api/ethnicities/:id` | Thông tin chi tiết 1 dân tộc |
+| Thêm dân tộc | POST | `/api/ethnicities` | Yêu cầu: `{ma_dan_toc, ten_dan_toc, la_dan_toc_thieu_so}` |
+| Sửa dân tộc | PUT | `/api/ethnicities/:id` | Cập nhật thông tin dân tộc |
+| Xóa dân tộc | DELETE | `/api/ethnicities/:id` | Kiểm tra không có sinh viên nào thuộc dân tộc |
+
+##### 4. API Quản lý Đối tượng ưu tiên
 
 | API | Method | Endpoint | Mô tả chi tiết |
 |-----|--------|----------|----------------|
@@ -131,9 +147,10 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
   "ho_ten": "Nguyễn Văn An",
   "ngay_sinh": "2003-05-15",
   "gioi_tinh": "Nam",
-  "ma_huyen": "Q1",           // Quê quán
-  "ma_nganh": "KTPM",         // Ngành học
-  "ma_doi_tuong": "DT03",     // Đối tượng ưu tiên (optional)
+  "ma_phuong_xa": "2659",      // Quê quán (phường/xã)
+  "ma_dan_toc": "KINH",        // Dân tộc
+  "ma_nganh": "KTPM",          // Ngành học
+  "ma_doi_tuong": "DT03",      // Đối tượng ưu tiên (optional)
   "cccd": "001203012345",
   "sdt": "0901234567",
   "email": "an.nv@email.com"
@@ -147,10 +164,12 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
     "ma_sv": "SV001",
     "ho_ten": "Nguyễn Văn An",
     "que_quan": {
-      "huyen": "Quận 1",
-      "tinh": "TP. Hồ Chí Minh",
-      "la_vung_sau_vung_xa": false
+      "phuong_xa": "Vũng Tàu",
+      "tinh": "Hồ Chí Minh",
+      "khu_vuc": "KV1"
     },
+    "dan_toc": { "ma_dan_toc": "KINH", "ten_dan_toc": "Kinh", "la_dan_toc_thieu_so": false },
+    "la_vung_sau_vung_xa": false,  // true nếu: khu_vuc = KV3 VÀ la_dan_toc_thieu_so = true
     "nganh": { "ma_nganh": "KTPM", "ten_nganh": "Kỹ thuật Phần mềm" },
     "doi_tuong": [{ "ma_doi_tuong": "DT03", "ten_doi_tuong": "Hộ nghèo", "ti_le_giam": 70 }],
     "ti_le_giam_hoc_phi": 70,
@@ -172,35 +191,38 @@ const [formData, setFormData] = useState({
   ho_ten: '',
   ngay_sinh: '',
   gioi_tinh: 'Nam',
-  ma_tinh: '',        // Dropdown tỉnh
-  ma_huyen: '',       // Dropdown huyện (load theo tỉnh)
-  ma_nganh: '',       // Dropdown ngành
-  ma_doi_tuong: '',   // Dropdown đối tượng (optional)
+  ma_tinh: '',          // Dropdown tỉnh
+  ma_phuong_xa: '',     // Dropdown phường/xã (load theo tỉnh)
+  ma_dan_toc: 'KINH',   // Dropdown dân tộc (mặc định Kinh)
+  ma_nganh: '',         // Dropdown ngành
+  ma_doi_tuong: '',     // Dropdown đối tượng (optional)
   cccd: '',
   sdt: '',
   email: '',
   anh_dai_dien: null
 });
 const [tinhList, setTinhList] = useState([]);
-const [huyenList, setHuyenList] = useState([]);
+const [phuongXaList, setPhuongXaList] = useState([]);
+const [danTocList, setDanTocList] = useState([]);
 const [nganhList, setNganhList] = useState([]);
 const [doiTuongList, setDoiTuongList] = useState([]);
 const [errors, setErrors] = useState({});
 ```
 
 **Behavior:**
-- Khi chọn Tỉnh → Load danh sách Huyện tương ứng (cascade dropdown)
-- Hiển thị badge "Vùng sâu/xa" nếu huyện được chọn là vùng sâu/xa
+- Khi chọn Tỉnh → Load danh sách Phường/Xã tương ứng (cascade dropdown)
+- Hiển thị badge khu vực ưu tiên (KV1/KV2/KV2-NT/KV3) khi chọn phường/xã
+- Hiển thị badge "Vùng sâu vùng xa" nếu phường/xã thuộc KV3 VÀ dân tộc là dân tộc thiểu số
 - Hiển thị tỷ lệ giảm HP dự kiến khi chọn đối tượng
 - Validation: Mã SV không trùng, email đúng format, ngày sinh hợp lệ
 
-##### 2. Trang quản lý Tỉnh/Huyện
+##### 2. Trang quản lý Tỉnh/Phường xã
 
 **Component:** `LocationManagement.jsx`
 
 **Features:**
-- Tab Tỉnh/Thành phố | Tab Huyện/Quận
-- Table với columns: Mã, Tên, Trạng thái, Số huyện (tab Tỉnh) / Vùng sâu xa (tab Huyện)
+- Tab Tỉnh/Thành phố | Tab Phường/Xã | Tab Dân tộc
+- Table với columns: Mã, Tên, Trạng thái, Số phường/xã (tab Tỉnh) / Khu vực ưu tiên (tab Phường/Xã) / DTTS (tab Dân tộc)
 - Modal thêm/sửa
 - Checkbox "Vùng sâu vùng xa" với cảnh báo khi thay đổi
 - Search và filter
@@ -223,30 +245,36 @@ const [errors, setErrors] = useState({});
 <Badge color={discountRate > 0 ? 'green' : 'gray'}>
   Giảm {discountRate}% học phí
 </Badge>
-{isVungSauXa && <Tag color="orange">Vùng sâu/xa</Tag>}
+{isVungSauXa && <Tag color="orange">Vùng sâu/xa (KV3 + DTTS)</Tag>}
 ```
 
 ### ✅ Acceptance Criteria:
 
 1. **API Sinh viên:**
-   - [ ] Có thể tạo sinh viên với đầy đủ thông tin theo BM1
+   - [ ] Có thể tạo sinh viên với đầy đủ thông tin theo BM1 (bao gồm dân tộc)
    - [ ] Tự động tạo tài khoản đăng nhập sau khi tạo sinh viên
    - [ ] API trả về tỷ lệ giảm HP chính xác theo đối tượng ưu tiên cao nhất
+   - [ ] Xác định đúng đối tượng "vùng sâu vùng xa" (KV3 + dân tộc thiểu số)
 
 2. **API Địa danh:**
-   - [ ] Dropdown Tỉnh → Huyện hoạt động đúng (cascade)
-   - [ ] Có thể đánh dấu huyện vùng sâu/xa
-   - [ ] Khi cập nhật vùng sâu/xa, tự động tính lại tỷ lệ giảm cho SV
+   - [ ] Dropdown Tỉnh → Phường/Xã hoạt động đúng (cascade)
+   - [ ] Phân loại khu vực ưu tiên đúng (KV1, KV2, KV2-NT, KV3)
+   - [ ] Khi cập nhật khu vực, tự động tính lại tỷ lệ giảm cho SV
 
-3. **API Đối tượng:**
+3. **API Dân tộc:**
+   - [ ] CRUD dân tộc hoạt động đúng
+   - [ ] Phân biệt dân tộc Kinh và dân tộc thiểu số
+
+4. **API Đối tượng:**
    - [ ] CRUD đối tượng ưu tiên hoạt động đúng
    - [ ] Gán/xóa đối tượng cho SV hoạt động đúng
    - [ ] Tỷ lệ giảm luôn lấy từ đối tượng có độ ưu tiên cao nhất
 
-4. **Frontend:**
-   - [ ] Form tạo SV theo đúng BM1
-   - [ ] Dropdown cascade Tỉnh → Huyện
+5. **Frontend:**
+   - [ ] Form tạo SV theo đúng BM1 (có thêm dropdown dân tộc)
+   - [ ] Dropdown cascade Tỉnh → Phường/Xã
    - [ ] Hiển thị rõ ràng tỷ lệ giảm HP của từng sinh viên
+   - [ ] Hiển thị khu vực ưu tiên (KV1-KV3) và badge "Vùng sâu vùng xa"
 
 ---
 
