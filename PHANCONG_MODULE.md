@@ -13,18 +13,21 @@ Tài liệu này mô tả cấu trúc module của hệ thống và liệt kê c
 ## 🗂️ MODULE 1: QUẢN LÝ ĐỊA DANH (QĐ1)
 
 ### Mô tả:
-Quản lý danh sách Tỉnh/Thành phố và Huyện/Quận. Xác định vùng sâu/vùng xa để áp dụng chính sách miễn giảm học phí.
+Quản lý danh sách Tỉnh/Thành phố và Phường/Xã. Phân loại khu vực ưu tiên (KV1, KV2, KV2-NT, KV3) để áp dụng chính sách miễn giảm học phí. Dữ liệu từ file ITExpressLocation.sql.
 
 ### Bảng Database:
-- `tinh` - Tỉnh/Thành phố
-- `huyen` - Huyện/Quận (có cột `la_vung_sau_vung_xa`)
+- `tinh` - Tỉnh/Thành phố (từ ITExpressLocation.sql - 34 tỉnh)
+- `phuong_xa` - Phường/Xã (từ ITExpressLocation.sql - 3319 phường/xã, có cột `khu_vuc`)
+- `dan_toc` - Dân tộc (54 dân tộc, có cột `la_dan_toc_thieu_so`)
+
+> ⚠️ **Lưu ý:** Đối tượng "vùng sâu vùng xa" = KV3 + dân tộc thiểu số
 
 ### Files liên quan:
 
 | Loại | File | Mô tả |
 |------|------|-------|
-| **SQL** | `backend/src/config/init.sql` | Bảng `tinh`, `huyen`, dữ liệu mẫu |
-| **Backend** | `backend/src/controllers/locationController.js` | API CRUD Tỉnh/Huyện |
+| **SQL** | `backend/src/config/init.sql` | Bảng `tinh`, `phuong_xa`, `dan_toc`, dữ liệu mẫu |
+| **Backend** | `backend/src/controllers/locationController.js` | API CRUD Tỉnh/Phường xã/Dân tộc |
 | **Backend** | `backend/src/routes/locationRoutes.js` | Routes cho địa danh |
 | **Frontend** | `frontend/src/pages/admin/LocationManagement.jsx` | Giao diện quản lý |
 | **Frontend** | `frontend/src/pages/admin/LocationManagement.css` | Styles |
@@ -37,12 +40,14 @@ GET    /api/locations/provinces/:id      - Chi tiết tỉnh
 POST   /api/locations/provinces          - Thêm tỉnh
 PUT    /api/locations/provinces/:id      - Sửa tỉnh
 DELETE /api/locations/provinces/:id      - Xóa tỉnh
-GET    /api/locations/districts          - Lấy danh sách huyện
-GET    /api/locations/districts/:id      - Chi tiết huyện
-GET    /api/locations/districts/province/:id - Huyện theo tỉnh
-POST   /api/locations/districts          - Thêm huyện
-PUT    /api/locations/districts/:id      - Sửa huyện
-DELETE /api/locations/districts/:id      - Xóa huyện
+GET    /api/locations/wards              - Lấy danh sách phường/xã
+GET    /api/locations/wards/:id          - Chi tiết phường/xã
+GET    /api/locations/wards/province/:id - Phường/xã theo tỉnh
+POST   /api/locations/wards              - Thêm phường/xã
+PUT    /api/locations/wards/:id          - Sửa phường/xã (khu vực ưu tiên)
+DELETE /api/locations/wards/:id          - Xóa phường/xã
+GET    /api/ethnicities                  - Lấy danh sách dân tộc
+GET    /api/ethnicities/:id              - Chi tiết dân tộc
 ```
 
 ---

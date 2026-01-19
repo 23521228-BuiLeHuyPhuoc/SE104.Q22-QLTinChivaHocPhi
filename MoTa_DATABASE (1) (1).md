@@ -18,31 +18,32 @@
 
 | STT | Nhóm | Bảng | Mô tả |
 |-----|------|------|-------|
-| 1 | Địa danh | `tinh` | Danh sách tỉnh/thành phố |
-| 2 | Địa danh | `huyen` | Danh sách huyện/quận |
-| 3 | Đối tượng | `doi_tuong` | Danh mục đối tượng ưu tiên |
-| 4 | Đối tượng | `doi_tuong_sinh_vien` | Liên kết SV với đối tượng |
-| 5 | Tổ chức | `khoa` | Danh sách khoa |
-| 6 | Tổ chức | `nganh_hoc` | Danh sách ngành học |
-| 7 | Nhân sự | `sinh_vien` | Thông tin sinh viên |
-| 8 | Môn học | `mon_hoc` | Danh sách môn học (thuộc khoa quản lý) |
-| 9 | Môn học | `dieu_kien_mon_hoc` | Điều kiện môn học (tiên quyết, học trước) |
-| 10 | Môn học | `lop` | Danh sách lớp học (một môn có nhiều lớp) |
-| 11 | Đào tạo | `chuong_trinh_hoc` | Chương trình đào tạo |
-| 12 | Thời gian | `nam_hoc` | Danh sách năm học |
-| 13 | Thời gian | `hoc_ky` | Danh sách học kỳ |
-| 14 | Thời gian | `tiet_hoc` | Danh sách tiết học (Tiết 1-10, Buổi tối) |
-| 15 | Đào tạo | `lop_mo` | Lớp mở trong học kỳ |
-| 16 | Đào tạo | `lich_hoc_lop` | Lịch học chi tiết của lớp mở |
-| 17 | Đăng ký | `phieu_dang_ky` | Phiếu đăng ký học phần (có thống kê theo loại học) |
-| 18 | Đăng ký | `chi_tiet_dang_ky` | Chi tiết lớp đăng ký |
-| 19 | Điểm số | `diem_sinh_vien` | Điểm các môn học của sinh viên |
-| 20 | Học phí | `phieu_thu_hoc_phi` | Phiếu thu học phí |
-| 21 | Cấu hình | `don_gia_tin_chi` | Đơn giá tín chỉ theo loại học |
-| 22 | Cấu hình | `cau_hinh_dang_ky` | Cấu hình quy định đăng ký (số TC tối đa, GPA vượt) |
-| 23 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền trực tiếp) |
-| 24 | Quản trị | `quan_tri_vien` | Thông tin quản trị viên |
-| 25 | Thông báo | `thong_bao` | Thông báo (gộp chung và cá nhân, phân biệt qua thuộc tính `loai`) |
+| 1 | Địa danh | `tinh` | Danh sách tỉnh/thành phố (từ ITExpressLocation.sql) |
+| 2 | Địa danh | `phuong_xa` | Danh sách phường/xã (từ ITExpressLocation.sql, thay thế `huyen`) |
+| 3 | Dân tộc | `dan_toc` | Danh sách dân tộc (54 dân tộc Việt Nam) |
+| 4 | Đối tượng | `doi_tuong` | Danh mục đối tượng ưu tiên |
+| 5 | Đối tượng | `doi_tuong_sinh_vien` | Liên kết SV với đối tượng |
+| 6 | Tổ chức | `khoa` | Danh sách khoa |
+| 7 | Tổ chức | `nganh_hoc` | Danh sách ngành học |
+| 8 | Nhân sự | `sinh_vien` | Thông tin sinh viên (bao gồm dân tộc) |
+| 9 | Môn học | `mon_hoc` | Danh sách môn học (thuộc khoa quản lý) |
+| 10 | Môn học | `dieu_kien_mon_hoc` | Điều kiện môn học (tiên quyết, học trước) |
+| 11 | Môn học | `lop` | Danh sách lớp học (một môn có nhiều lớp) |
+| 12 | Đào tạo | `chuong_trinh_hoc` | Chương trình đào tạo |
+| 13 | Thời gian | `nam_hoc` | Danh sách năm học |
+| 14 | Thời gian | `hoc_ky` | Danh sách học kỳ |
+| 15 | Thời gian | `tiet_hoc` | Danh sách tiết học (Tiết 1-10, Buổi tối) |
+| 16 | Đào tạo | `lop_mo` | Lớp mở trong học kỳ |
+| 17 | Đào tạo | `lich_hoc_lop` | Lịch học chi tiết của lớp mở |
+| 18 | Đăng ký | `phieu_dang_ky` | Phiếu đăng ký học phần (có thống kê theo loại học) |
+| 19 | Đăng ký | `chi_tiet_dang_ky` | Chi tiết lớp đăng ký |
+| 20 | Điểm số | `diem_sinh_vien` | Điểm các môn học của sinh viên |
+| 21 | Học phí | `phieu_thu_hoc_phi` | Phiếu thu học phí |
+| 22 | Cấu hình | `don_gia_tin_chi` | Đơn giá tín chỉ theo loại học |
+| 23 | Cấu hình | `cau_hinh_dang_ky` | Cấu hình quy định đăng ký (số TC tối đa, GPA vượt) |
+| 24 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền trực tiếp) |
+| 25 | Quản trị | `quan_tri_vien` | Thông tin quản trị viên |
+| 26 | Thông báo | `thong_bao` | Thông báo (gộp chung và cá nhân, phân biệt qua thuộc tính `loai`) |
 
 ---
 
@@ -78,35 +79,71 @@
 
 ---
 
-### 2.2. BẢNG `huyen` - Huyện/Quận
+### 2.2. BẢNG `phuong_xa` - Phường/Xã
 
-**Mô tả:** Lưu trữ danh sách huyện/quận, đánh dấu vùng sâu/vùng xa (QĐ1)
+**Mô tả:** Lưu trữ danh sách phường/xã (thay thế bảng `huyen`), phân loại khu vực ưu tiên theo QĐ1 và tra-cuu-khu-vuc-uu-tien-2025.docx. Dữ liệu từ file ITExpressLocation.sql.
+
+> ⚠️ **Lưu ý:** Đối tượng "vùng sâu vùng xa" = sinh viên có `ma_phuong_xa` thuộc KV3 **VÀ** có `ma_dan_toc` là dân tộc thiểu số.
 
 **Cấu trúc:**
 
 | Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
 |---------|--------------|------|----------|-------|
-| `ma_huyen` | VARCHAR(10) | NO | - | **PK** - Mã huyện |
-| `ten_huyen` | VARCHAR(100) | NO | - | Tên huyện/quận |
+| `ma_phuong_xa` | VARCHAR(20) | NO | - | **PK** - Mã phường/xã |
+| `ten_phuong_xa` | VARCHAR(100) | NO | - | Tên phường/xã |
 | `ma_tinh` | VARCHAR(10) | NO | - | **FK** → `tinh.ma_tinh` |
-| `la_vung_sau_vung_xa` | BOOLEAN | YES | FALSE | Đánh dấu vùng sâu/xa (QĐ1) |
+| `loai` | VARCHAR(30) | YES | 'Xã' | Loại: 'Phường', 'Xã', 'Thị trấn' |
+| `khu_vuc` | VARCHAR(10) | YES | 'KV1' | Khu vực ưu tiên: 'KV1', 'KV2', 'KV2-NT', 'KV3' |
 | `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái |
 | `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
 
-**Khóa chính:** `ma_huyen`
+**Khóa chính:** `ma_phuong_xa`
 
 **Khóa ngoại:**
 
 | Tên FK | Cột | Tham chiếu | Mô tả |
 |--------|-----|------------|-------|
-| `fk_huyen_tinh` | `ma_tinh` | `tinh(ma_tinh)` | Huyện thuộc tỉnh |
+| `fk_phuong_xa_tinh` | `ma_tinh` | `tinh(ma_tinh)` | Phường/xã thuộc tỉnh |
+
+**Phân loại khu vực ưu tiên:**
+- **KV1**: Thành phố, thị xã, vùng đồng bằng
+- **KV2**: Vùng nông thôn, ngoại thành
+- **KV2-NT**: Vùng nông thôn đặc biệt
+- **KV3**: Vùng sâu, vùng xa, biên giới, hải đảo, vùng đồng bào dân tộc thiểu số
 
 **Ví dụ dữ liệu:**
 ```sql
-| ma_huyen | ten_huyen          | ma_tinh | la_vung_sau_vung_xa |
-|----------|--------------------|---------|--------------------|
-| Q1       | Quận 1             | HCM     | false              |
-| KRONG    | Huyện Krông Bông   | DL      | true               |
+| ma_phuong_xa | ten_phuong_xa      | ma_tinh | loai    | khu_vuc |
+|--------------|--------------------|---------|---------| --------|
+| 2659         | Vũng Tàu           | 29      | Phường  | KV1     |
+| 1045         | Xã Mường Tè        | 14      | Xã      | KV3     |
+```
+
+---
+
+### 2.2.1. BẢNG `dan_toc` - Dân tộc
+
+**Mô tả:** Danh sách 54 dân tộc Việt Nam, phân biệt dân tộc Kinh và dân tộc thiểu số.
+
+**Cấu trúc:**
+
+| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
+|---------|--------------|------|----------|-------|
+| `ma_dan_toc` | VARCHAR(10) | NO | - | **PK** - Mã dân tộc |
+| `ten_dan_toc` | VARCHAR(100) | NO | - | Tên dân tộc |
+| `la_dan_toc_thieu_so` | BOOLEAN | YES | FALSE | TRUE nếu là dân tộc thiểu số |
+| `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái |
+| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
+
+**Khóa chính:** `ma_dan_toc`
+
+**Ví dụ dữ liệu:**
+```sql
+| ma_dan_toc | ten_dan_toc | la_dan_toc_thieu_so |
+|------------|-------------|---------------------|
+| KINH       | Kinh        | false               |
+| TAY        | Tày         | true                |
+| MONG       | Mông        | true                |
 ```
 
 ---
