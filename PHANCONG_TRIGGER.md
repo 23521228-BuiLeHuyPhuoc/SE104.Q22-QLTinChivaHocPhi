@@ -569,16 +569,17 @@ SELECT fn_validate_cccd('');              -- TRUE (không bắt buộc)
 
 **Logic xử lý:**
 1. Nếu `p_sdt` là NULL hoặc rỗng → trả về TRUE (SĐT không bắt buộc)
-2. Kiểm tra độ dài 10-11 ký tự
-3. Kiểm tra bắt đầu bằng số 0
-4. Kiểm tra tất cả ký tự là số (regex: `^0[0-9]{9,10}$`)
+2. Kiểm tra bắt đầu bằng số 0
+3. Kiểm tra tổng độ dài 10-11 ký tự (số 0 đầu + 9-10 số tiếp theo)
+4. Kiểm tra tất cả ký tự là số (regex: `^0[0-9]{9,10}$` nghĩa là: 1 số 0 đầu + 9-10 số tiếp theo = tổng 10-11 số)
 5. Trả về TRUE nếu hợp lệ, FALSE nếu không
 
 **Output:** BOOLEAN - TRUE nếu SĐT hợp lệ hoặc rỗng, FALSE nếu không hợp lệ
 
 **Ví dụ:**
 ```sql
-SELECT fn_validate_sdt('0901234567');   -- TRUE (10 số, bắt đầu bằng 0)
+SELECT fn_validate_sdt('0901234567');   -- TRUE (10 số tổng cộng: 0 + 9 số)
+SELECT fn_validate_sdt('09012345678');  -- TRUE (11 số tổng cộng: 0 + 10 số)
 SELECT fn_validate_sdt('84901234567');  -- FALSE (không bắt đầu bằng 0)
 SELECT fn_validate_sdt('090123456');    -- FALSE (9 số, quá ngắn)
 SELECT fn_validate_sdt(NULL);           -- TRUE (không bắt buộc)
@@ -2293,7 +2294,7 @@ Bảng này liệt kê tất cả các trigger và tầm ảnh hưởng của ch
 
 | Bảng | INSERT | UPDATE | DELETE | Ghi chú |
 |------|--------|--------|--------|---------|
-| `sinh_vien` | ✅ `trg_sinh_vien_before_insert`, `trg_sinh_vien_after_insert` | ✅ `trg_sinh_vien_before_update`, `trg_sinh_vien_after_update` | ✅ `trg_sinh_vien_before_delete` | Kiểm tra CCCD 12 số, SĐT, email |
+| `sinh_vien` | ✅ `trg_sinh_vien_before_insert`, `trg_sinh_vien_after_insert` | ✅ `trg_sinh_vien_before_update`, `trg_sinh_vien_after_update` | ✅ `trg_sinh_vien_before_delete` (kiểm tra ràng buộc + xóa tài khoản liên kết) | Kiểm tra CCCD 12 số, SĐT, email |
 | `doi_tuong_sinh_vien` | ✅ `trg_doi_tuong_sinh_vien_before_insert`, `trg_doi_tuong_sinh_vien_after_insert` | ✅ `trg_doi_tuong_sinh_vien_before_update`, `trg_doi_tuong_sinh_vien_after_update` | ✅ `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật tỷ lệ giảm HP |
 | `doi_tuong` | ✅ `trg_doi_tuong_before_insert` | ✅ `trg_doi_tuong_before_update`, `trg_doi_tuong_after_update` | ✅ `trg_doi_tuong_before_delete` | Kiểm tra tỷ lệ giảm 0-100% |
 | `phuong_xa` | ❌ | ✅ `trg_phuong_xa_before_update` | ❌ | Cập nhật HP khi đổi khu vực |
