@@ -32,12 +32,16 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 | 14 | `trg_doi_tuong_after_update` | Cập nhật tỷ lệ giảm HP cho tất cả SV khi sửa tỷ lệ giảm | `doi_tuong`, `doi_tuong_sinh_vien`, `phieu_dang_ky` |
 | 15 | `trg_phuong_xa_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi khu vực ưu tiên | `phuong_xa`, `sinh_vien`, `phieu_dang_ky` |
 | 16 | `trg_dan_toc_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi thuộc tính DTTS | `dan_toc`, `sinh_vien`, `phieu_dang_ky` |
-| 17 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
-| 18 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
-| 19 | `fn_validate_cccd(cccd)` | Kiểm tra CCCD có đúng 12 ký tự số không | - |
-| 20 | `fn_validate_sdt(sdt)` | Kiểm tra SĐT có hợp lệ không (10-11 số, bắt đầu bằng 0) | - |
-| 21 | `fn_validate_email(email)` | Kiểm tra email có định dạng hợp lệ không | - |
-| 22 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
+| 17 | `trg_phuong_xa_before_delete` | Kiểm tra có sinh viên tham chiếu không trước khi xóa | `phuong_xa`, `sinh_vien` |
+| 18 | `trg_dan_toc_before_delete` | Kiểm tra có sinh viên tham chiếu không trước khi xóa | `dan_toc`, `sinh_vien` |
+| 19 | `trg_nganh_hoc_before_delete` | Kiểm tra có sinh viên/CTĐT tham chiếu không trước khi xóa | `nganh_hoc`, `sinh_vien`, `chuong_trinh_hoc` |
+| 20 | `trg_quan_huyen_before_delete` | Kiểm tra có phường/xã tham chiếu không trước khi xóa | `quan_huyen`, `phuong_xa` |
+| 21 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
+| 22 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
+| 23 | `fn_validate_cccd(cccd)` | Kiểm tra CCCD có đúng 12 ký tự số không | - |
+| 24 | `fn_validate_sdt(sdt)` | Kiểm tra SĐT có hợp lệ không (10-11 số, bắt đầu bằng 0) | - |
+| 25 | `fn_validate_email(email)` | Kiểm tra email có định dạng hợp lệ không | - |
+| 26 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -743,7 +747,10 @@ UPDATE doi_tuong SET ti_le_giam_hoc_phi = 60 WHERE ma_doi_tuong = 'DT03';
 | 13 | `sp_nhap_chuong_trinh_hoc(ma_nganh, ...)` | Procedure nhập chương trình học theo ngành (BM3) | `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc` |
 | 14 | `trg_dieu_kien_mon_hoc_before_insert` | Kiểm tra điều kiện tiên quyết/học trước hợp lệ | `dieu_kien_mon_hoc`, `mon_hoc` |
 | 15 | `trg_dieu_kien_mon_hoc_before_update` | Kiểm tra điều kiện khi cập nhật, tránh vòng lặp | `dieu_kien_mon_hoc`, `mon_hoc` |
-| 16 | `fn_lay_chuong_trinh_hoc_theo_nganh(ma_nganh)` | Lấy danh sách môn học của ngành theo học kỳ (BM3) | `chuong_trinh_hoc` |
+| 16 | `trg_dieu_kien_mon_hoc_before_delete` | Kiểm tra ảnh hưởng trước khi xóa điều kiện môn học | `dieu_kien_mon_hoc`, `mon_hoc` |
+| 17 | `trg_khoa_before_delete` | Kiểm tra có môn học/ngành học tham chiếu không trước khi xóa | `khoa`, `mon_hoc`, `nganh_hoc` |
+| 18 | `trg_chuong_trinh_hoc_before_delete` | Kiểm tra ràng buộc trước khi xóa môn trong CTĐT | `chuong_trinh_hoc`, `chi_tiet_dang_ky` |
+| 19 | `fn_lay_chuong_trinh_hoc_theo_nganh(ma_nganh)` | Lấy danh sách môn học của ngành theo học kỳ (BM3) | `chuong_trinh_hoc` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -1215,7 +1222,16 @@ SELECT * FROM fn_lay_chuong_trinh_hoc_theo_nganh('KTPM');
 | 20 | `trg_lich_hoc_lop_before_insert` | Kiểm tra lịch học hợp lệ khi thêm | `lich_hoc_lop`, `tiet_hoc`, `lop_mo` |
 | 21 | `trg_lich_hoc_lop_before_update` | Kiểm tra lịch học khi cập nhật | `lich_hoc_lop`, `tiet_hoc`, `lop_mo` |
 | 22 | `trg_lich_hoc_lop_before_delete` | Kiểm tra ràng buộc trước khi xóa lịch học | `lich_hoc_lop`, `chi_tiet_dang_ky` |
-| 23 | `sp_them_lich_hoc_lop(lop_mo_id, thu, tiet_bd, tiet_kt, phong)` | Procedure thêm lịch học cho lớp mở | `lich_hoc_lop`, `tiet_hoc` |
+| 23 | `trg_hoc_ky_before_delete` | Kiểm tra có phiếu đăng ký/lớp mở không trước khi xóa | `hoc_ky`, `phieu_dang_ky`, `lop_mo` |
+| 24 | `trg_nam_hoc_before_delete` | Kiểm tra có học kỳ tham chiếu không trước khi xóa | `nam_hoc`, `hoc_ky` |
+| 25 | `trg_nam_hoc_before_update` | Cập nhật mã học kỳ nếu đổi năm học | `nam_hoc`, `hoc_ky` |
+| 26 | `trg_phieu_dang_ky_before_delete` | Kiểm tra có chi tiết đăng ký/phiếu thu không trước khi xóa | `phieu_dang_ky`, `chi_tiet_dang_ky`, `phieu_thu_hoc_phi` |
+| 27 | `trg_chi_tiet_dang_ky_before_insert` | Kiểm tra điều kiện tiên quyết, trùng lịch trước khi đăng ký | `chi_tiet_dang_ky`, `dieu_kien_mon_hoc`, `lich_hoc_lop` |
+| 28 | `trg_don_gia_tin_chi_before_delete` | Kiểm tra có chi tiết đăng ký tham chiếu không | `don_gia_tin_chi`, `chi_tiet_dang_ky` |
+| 29 | `trg_don_gia_tin_chi_after_update` | Cập nhật thành tiền trong chi tiết đăng ký khi đổi giá | `don_gia_tin_chi`, `chi_tiet_dang_ky`, `phieu_dang_ky` |
+| 30 | `trg_tiet_hoc_before_delete` | Kiểm tra có lịch học tham chiếu không | `tiet_hoc`, `lich_hoc_lop` |
+| 31 | `trg_tiet_hoc_before_update` | Cập nhật lịch học khi đổi thông tin tiết | `tiet_hoc`, `lich_hoc_lop` |
+| 32 | `sp_them_lich_hoc_lop(lop_mo_id, thu, tiet_bd, tiet_kt, phong)` | Procedure thêm lịch học cho lớp mở | `lich_hoc_lop`, `tiet_hoc` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -2612,41 +2628,9 @@ Bảng này xét với mỗi trigger, các **thao tác Thêm/Xóa/Sửa trên c�
 
 ---
 
-## 📝 DANH SÁCH TRIGGER CẦN BỔ SUNG
+## 📝 MÔ TẢ CHI TIẾT TRIGGER BỔ SUNG
 
-Dựa trên phân tích bảng tầm ảnh hưởng, các trigger sau cần được bổ sung:
-
-### Thành viên 1 bổ sung:
-| STT | Trigger | Mô tả | Bảng |
-|-----|---------|-------|------|
-| 1 | `trg_phuong_xa_before_delete` | Kiểm tra có sinh viên tham chiếu không trước khi xóa | `phuong_xa` |
-| 2 | `trg_dan_toc_before_delete` | Kiểm tra có sinh viên tham chiếu không trước khi xóa | `dan_toc` |
-| 3 | `trg_nganh_hoc_before_delete` | Kiểm tra có sinh viên/CTĐT tham chiếu không trước khi xóa | `nganh_hoc` |
-| 4 | `trg_quan_huyen_before_delete` | Kiểm tra có phường/xã tham chiếu không trước khi xóa | `quan_huyen` |
-
-### Thành viên 2 bổ sung:
-| STT | Trigger | Mô tả | Bảng |
-|-----|---------|-------|------|
-| 1 | `trg_khoa_before_delete` | Kiểm tra có môn học tham chiếu không trước khi xóa | `khoa` |
-| 2 | `trg_chuong_trinh_hoc_before_delete` | Kiểm tra ràng buộc trước khi xóa môn trong CTĐT | `chuong_trinh_hoc` |
-| 3 | `trg_dieu_kien_mon_hoc_before_delete` | Kiểm tra ảnh hưởng trước khi xóa điều kiện môn học | `dieu_kien_mon_hoc` |
-
-### Thành viên 3 bổ sung:
-| STT | Trigger | Mô tả | Bảng |
-|-----|---------|-------|------|
-| 1 | `trg_hoc_ky_before_delete` | Kiểm tra có phiếu đăng ký/lớp mở không trước khi xóa | `hoc_ky` |
-| 2 | `trg_nam_hoc_before_delete` | Kiểm tra có học kỳ tham chiếu không trước khi xóa | `nam_hoc` |
-| 3 | `trg_nam_hoc_before_update` | Cập nhật mã học kỳ nếu đổi năm học | `nam_hoc` |
-| 4 | `trg_phieu_dang_ky_before_delete` | Kiểm tra có chi tiết đăng ký/phiếu thu không trước khi xóa | `phieu_dang_ky` |
-| 5 | `trg_chi_tiet_dang_ky_before_insert` | Kiểm tra điều kiện tiên quyết, trùng lịch trước khi đăng ký | `chi_tiet_dang_ky` |
-| 6 | `trg_don_gia_tin_chi_before_delete` | Kiểm tra có chi tiết đăng ký tham chiếu không | `don_gia_tin_chi` |
-| 7 | `trg_don_gia_tin_chi_after_update` | Cập nhật thành tiền trong chi tiết đăng ký khi đổi giá | `don_gia_tin_chi` |
-| 8 | `trg_tiet_hoc_before_delete` | Kiểm tra có lịch học tham chiếu không | `tiet_hoc` |
-| 9 | `trg_tiet_hoc_before_update` | Cập nhật lịch học khi đổi thông tin tiết | `tiet_hoc` |
-
----
-
-## 📝 MÔ TẢ CHI TIẾT CÁC TRIGGER CẦN BỔ SUNG
+> **Lưu ý:** Các trigger bổ sung sau đã được thêm vào bảng công việc chính của từng thành viên tương ứng ở trên.
 
 ### Thành viên 1 - Trigger bổ sung
 
