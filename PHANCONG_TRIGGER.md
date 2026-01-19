@@ -2267,428 +2267,382 @@ diem_tb = diem_qt * 0.2 + diem_gk * 0.3 + diem_ck * 0.5
 
 | Thành viên | BM | QĐ | Số Trigger | Số Function | Số Procedure |
 |------------|----|----|------------|-------------|--------------|
-| **TV1** | BM1 | QĐ1 | 16 | 5 | 1 |
-| **TV2** | BM2, BM3 | QĐ2, QĐ3 | 10 | 2 | 2 |
-| **TV3** | BM4, BM5 | QĐ4, QĐ5 | 13 | 5 | 4 |
+| **TV1** | BM1 | QĐ1 | 20 | 5 | 1 |
+| **TV2** | BM2, BM3 | QĐ2, QĐ3 | 13 | 2 | 2 |
+| **TV3** | BM4, BM5 | QĐ4, QĐ5 | 22 | 5 | 4 |
 | **TV4** | BM6, BM7 | QĐ6, QĐ7 | 11 | 6 | 5 |
 
-### Chi tiết số lượng TV1:
-- **Trigger (16):**
+### Chi tiết số lượng TV1 (sau bổ sung):
+- **Trigger (20):**
   - `sinh_vien`: before_insert, before_update, before_delete, after_insert, after_update (5)
   - `doi_tuong_sinh_vien`: before_insert, before_update, after_insert, after_update, after_delete (5)
   - `doi_tuong`: before_insert, before_update, before_delete, after_update (4)
-  - `phuong_xa`: before_update (1)
-  - `dan_toc`: before_update (1)
+  - `phuong_xa`: before_update, **before_delete** (2)
+  - `dan_toc`: before_update, **before_delete** (2)
+  - `nganh_hoc`: **before_delete** (1)
+  - `quan_huyen`: **before_delete** (1)
 - **Function (5):**
   - `fn_lay_ti_le_giam_hoc_phi`, `fn_kiem_tra_vung_sau_vung_xa`, `fn_validate_cccd`, `fn_validate_sdt`, `fn_validate_email`
 - **Procedure (1):**
   - `sp_lap_ho_so_sinh_vien`
+
+### Chi tiết số lượng TV2 (sau bổ sung):
+- **Trigger (13):**
+  - `mon_hoc`: before_insert, before_update, before_delete, after_insert, after_update (5)
+  - `lop`: before_insert, before_update, before_delete (3)
+  - `chuong_trinh_hoc`: before_insert, before_update, **before_delete** (3)
+  - `dieu_kien_mon_hoc`: before_insert, before_update, **before_delete** (3)
+  - `khoa`: **before_delete** (1) → cần thêm
+
+### Chi tiết số lượng TV3 (sau bổ sung):
+- **Trigger (22):**
+  - `hoc_ky`: before_insert, before_update, **before_delete** (3)
+  - `nam_hoc`: **before_delete**, **before_update** (2)
+  - `lop_mo`: before_insert, before_update, before_delete (3)
+  - `phieu_dang_ky`: before_insert, before_update, **before_delete** (3)
+  - `chi_tiet_dang_ky`: **before_insert**, after_insert, after_update, after_delete (4)
+  - `lich_hoc_lop`: before_insert, before_update, before_delete (3)
+  - `don_gia_tin_chi`: **before_delete**, **after_update** (2)
+  - `tiet_hoc`: **before_delete**, **before_update** (2)
 
 ---
 
 ## 📋 BẢNG TẦM ẢNH HƯỞNG CỦA TRIGGER
 
 > **Chú thích:**
-> - **R** = Read/SELECT (đọc dữ liệu để kiểm tra)
-> - **I** = INSERT (thêm mới dữ liệu)
-> - **U** = UPDATE (cập nhật dữ liệu)
-> - **D** = DELETE (xóa dữ liệu)
+> - **+** = Có ảnh hưởng, cần có trigger xử lý
+> - **-** = Không ảnh hưởng, không cần trigger
+> - ✅ = Đã có trigger xử lý
+> - ⚠️ = Thiếu trigger, cần bổ sung
 
-Bảng này liệt kê **tất cả các bảng bị ảnh hưởng** khi mỗi trigger được kích hoạt:
+Bảng này xét với mỗi trigger, các **thao tác Thêm/Xóa/Sửa trên các bảng liên quan** có ảnh hưởng đến logic của trigger không. Nếu có ảnh hưởng thì cần có trigger xử lý.
+
+---
 
 ### Thành viên 1 - Sinh viên & Đối tượng ưu tiên
 
-#### Trigger trên bảng `sinh_vien`
+#### Trigger `trg_sinh_vien_before_insert` + `trg_sinh_vien_after_insert`
 
-| Trigger | Kích hoạt bởi | sinh_vien | phuong_xa | dan_toc | nganh_hoc | tai_khoan | phieu_dang_ky | doi_tuong_sinh_vien |
-|---------|---------------|-----------|-----------|---------|-----------|-----------|---------------|---------------------|
-| `trg_sinh_vien_before_insert` | INSERT | I | R | R | R | - | - | - |
-| `trg_sinh_vien_before_update` | UPDATE | U | R | R | R | - | - | - |
-| `trg_sinh_vien_before_delete` | DELETE | D | - | - | - | R,D | R | R |
-| `trg_sinh_vien_after_insert` | INSERT | - | - | - | - | I,U | - | - |
-| `trg_sinh_vien_after_update` | UPDATE | - | R | R | - | - | R,U | - |
+**Bảng liên quan:** `sinh_vien`, `phuong_xa`, `dan_toc`, `nganh_hoc`, `tai_khoan`
 
-**Chi tiết tầm ảnh hưởng `trg_sinh_vien_before_insert`:**
-- `sinh_vien`: INSERT - bảng chính được thao tác
-- `phuong_xa`: SELECT - kiểm tra ma_phuong_xa tồn tại
-- `dan_toc`: SELECT - kiểm tra ma_dan_toc tồn tại (nếu có)
-- `nganh_hoc`: SELECT - kiểm tra ma_nganh tồn tại
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `sinh_vien` | ✅ | - | - | `trg_sinh_vien_before_insert`, `trg_sinh_vien_after_insert` |
+| `phuong_xa` | - | + | + | ⚠️ `trg_phuong_xa_before_delete` (thiếu), ✅ `trg_phuong_xa_before_update` |
+| `dan_toc` | - | + | + | ⚠️ `trg_dan_toc_before_delete` (thiếu), ✅ `trg_dan_toc_before_update` |
+| `nganh_hoc` | - | + | - | ⚠️ `trg_nganh_hoc_before_delete` (thiếu) |
+| `tai_khoan` | - | - | - | - |
 
-**Chi tiết tầm ảnh hưởng `trg_sinh_vien_before_update`:**
-- `sinh_vien`: UPDATE - bảng chính được thao tác
-- `phuong_xa`: SELECT - kiểm tra ma_phuong_xa mới (nếu thay đổi)
-- `dan_toc`: SELECT - kiểm tra ma_dan_toc mới (nếu thay đổi)
-- `nganh_hoc`: SELECT - kiểm tra ma_nganh mới (nếu thay đổi)
-
-**Chi tiết tầm ảnh hưởng `trg_sinh_vien_before_delete`:**
-- `sinh_vien`: DELETE - bảng chính được thao tác
-- `phieu_dang_ky`: SELECT - kiểm tra còn phiếu đăng ký không
-- `tai_khoan`: SELECT + DELETE - kiểm tra và xóa tài khoản liên kết
-- `doi_tuong_sinh_vien`: SELECT - kiểm tra còn đối tượng gán không
-
-**Chi tiết tầm ảnh hưởng `trg_sinh_vien_after_insert`:**
-- `tai_khoan`: INSERT + UPDATE - tạo tài khoản mới, cập nhật liên kết với sinh viên
-
-**Chi tiết tầm ảnh hưởng `trg_sinh_vien_after_update`:**
-- `phuong_xa`: SELECT - lấy thông tin khu vực mới
-- `dan_toc`: SELECT - lấy thông tin dân tộc mới
-- `phieu_dang_ky`: SELECT + UPDATE - tìm và cập nhật tỷ lệ giảm HP nếu đổi phường/xã hoặc dân tộc
+**Giải thích:**
+- Xóa `phuong_xa`/`dan_toc`/`nganh_hoc` đang được sinh viên tham chiếu → cần ngăn chặn hoặc cập nhật dữ liệu
 
 ---
 
-#### Trigger trên bảng `doi_tuong_sinh_vien`
+#### Trigger `trg_sinh_vien_before_update` + `trg_sinh_vien_after_update`
 
-| Trigger | Kích hoạt bởi | doi_tuong_sinh_vien | sinh_vien | doi_tuong | phieu_dang_ky |
-|---------|---------------|---------------------|-----------|-----------|---------------|
-| `trg_doi_tuong_sinh_vien_before_insert` | INSERT | I | R | R | - |
-| `trg_doi_tuong_sinh_vien_before_update` | UPDATE | U | R | R | - |
-| `trg_doi_tuong_sinh_vien_after_insert` | INSERT | - | - | R | R,U |
-| `trg_doi_tuong_sinh_vien_after_update` | UPDATE | - | - | R | R,U |
-| `trg_doi_tuong_sinh_vien_after_delete` | DELETE | - | - | R | R,U |
+**Bảng liên quan:** `sinh_vien`, `phuong_xa`, `dan_toc`, `nganh_hoc`, `phieu_dang_ky`
 
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_sinh_vien_before_insert`:**
-- `doi_tuong_sinh_vien`: INSERT - bảng chính được thao tác
-- `sinh_vien`: SELECT - kiểm tra ma_sv tồn tại và đang hoạt động
-- `doi_tuong`: SELECT - kiểm tra ma_doi_tuong tồn tại và đang hoạt động
-
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_sinh_vien_before_update`:**
-- `doi_tuong_sinh_vien`: UPDATE - bảng chính được thao tác
-- `sinh_vien`: SELECT - kiểm tra ma_sv mới (nếu thay đổi)
-- `doi_tuong`: SELECT - kiểm tra ma_doi_tuong mới (nếu thay đổi)
-
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_sinh_vien_after_insert/update/delete`:**
-- `doi_tuong`: SELECT - lấy tỷ lệ giảm của đối tượng mới
-- `phieu_dang_ky`: SELECT + UPDATE - tìm phiếu đăng ký của SV và cập nhật tỷ lệ giảm HP
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `sinh_vien` | - | - | ✅ | `trg_sinh_vien_before_update`, `trg_sinh_vien_after_update` |
+| `phuong_xa` | - | + | + | ⚠️ `trg_phuong_xa_before_delete` (thiếu), ✅ `trg_phuong_xa_before_update` |
+| `dan_toc` | - | + | + | ⚠️ `trg_dan_toc_before_delete` (thiếu), ✅ `trg_dan_toc_before_update` |
+| `nganh_hoc` | - | + | - | ⚠️ `trg_nganh_hoc_before_delete` (thiếu) |
+| `phieu_dang_ky` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `doi_tuong`
+#### Trigger `trg_sinh_vien_before_delete`
 
-| Trigger | Kích hoạt bởi | doi_tuong | doi_tuong_sinh_vien | phieu_dang_ky |
-|---------|---------------|-----------|---------------------|---------------|
-| `trg_doi_tuong_before_insert` | INSERT | I | - | - |
-| `trg_doi_tuong_before_update` | UPDATE | U | - | - |
-| `trg_doi_tuong_before_delete` | DELETE | D | R | - |
-| `trg_doi_tuong_after_update` | UPDATE | - | R | R,U |
+**Bảng liên quan:** `sinh_vien`, `tai_khoan`, `phieu_dang_ky`, `doi_tuong_sinh_vien`
 
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_before_insert`:**
-- `doi_tuong`: INSERT - kiểm tra ti_le_giam_hoc_phi trong 0-100%, do_uu_tien > 0
-
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_before_update`:**
-- `doi_tuong`: UPDATE - kiểm tra ti_le_giam_hoc_phi, do_uu_tien hợp lệ
-
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_before_delete`:**
-- `doi_tuong`: DELETE - bảng chính được thao tác
-- `doi_tuong_sinh_vien`: SELECT - kiểm tra còn SV thuộc đối tượng này không
-
-**Chi tiết tầm ảnh hưởng `trg_doi_tuong_after_update`:**
-- `doi_tuong_sinh_vien`: SELECT - tìm tất cả SV thuộc đối tượng này
-- `phieu_dang_ky`: SELECT + UPDATE - cập nhật tỷ lệ giảm cho phiếu đăng ký của các SV
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `sinh_vien` | - | ✅ | - | `trg_sinh_vien_before_delete` |
+| `tai_khoan` | - | - | - | - |
+| `phieu_dang_ky` | - | - | - | - |
+| `doi_tuong_sinh_vien` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `phuong_xa`
+#### Trigger `trg_doi_tuong_sinh_vien_before_insert/update` + `after_insert/update/delete`
 
-| Trigger | Kích hoạt bởi | phuong_xa | sinh_vien | dan_toc | phieu_dang_ky | doi_tuong_sinh_vien |
-|---------|---------------|-----------|-----------|---------|---------------|---------------------|
-| `trg_phuong_xa_before_update` | UPDATE | U | R | R | R,U | R,I,D |
+**Bảng liên quan:** `doi_tuong_sinh_vien`, `sinh_vien`, `doi_tuong`, `phieu_dang_ky`
 
-**Chi tiết tầm ảnh hưởng `trg_phuong_xa_before_update`:**
-- `phuong_xa`: UPDATE - bảng chính được thao tác
-- `sinh_vien`: SELECT - tìm SV có ma_phuong_xa này
-- `dan_toc`: SELECT - kiểm tra SV có phải DTTS không
-- `phieu_dang_ky`: SELECT + UPDATE - cập nhật tỷ lệ giảm HP
-- `doi_tuong_sinh_vien`: SELECT + INSERT/DELETE - gán/xóa đối tượng "Vùng sâu vùng xa" nếu đủ/không đủ điều kiện
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `doi_tuong_sinh_vien` | ✅ | ✅ | ✅ | `trg_doi_tuong_sinh_vien_before_insert`, `after_insert`, `before_update`, `after_update`, `after_delete` |
+| `sinh_vien` | - | + | - | Xử lý qua FK cascade hoặc `trg_sinh_vien_before_delete` |
+| `doi_tuong` | - | + | + | ✅ `trg_doi_tuong_before_delete`, ✅ `trg_doi_tuong_after_update` |
+| `phieu_dang_ky` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `dan_toc`
+#### Trigger `trg_doi_tuong_before_insert/update/delete` + `after_update`
 
-| Trigger | Kích hoạt bởi | dan_toc | sinh_vien | phuong_xa | phieu_dang_ky | doi_tuong_sinh_vien |
-|---------|---------------|---------|-----------|-----------|---------------|---------------------|
-| `trg_dan_toc_before_update` | UPDATE | U | R | R | R,U | R,I,D |
+**Bảng liên quan:** `doi_tuong`, `doi_tuong_sinh_vien`, `phieu_dang_ky`
 
-**Chi tiết tầm ảnh hưởng `trg_dan_toc_before_update`:**
-- `dan_toc`: UPDATE - bảng chính được thao tác
-- `sinh_vien`: SELECT - tìm SV có ma_dan_toc này
-- `phuong_xa`: SELECT - kiểm tra SV có thuộc KV3 không
-- `phieu_dang_ky`: SELECT + UPDATE - cập nhật tỷ lệ giảm HP
-- `doi_tuong_sinh_vien`: SELECT + INSERT/DELETE - gán/xóa đối tượng "Vùng sâu vùng xa"
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `doi_tuong` | ✅ | ✅ | ✅ | `trg_doi_tuong_before_insert`, `before_update`, `before_delete`, `after_update` |
+| `doi_tuong_sinh_vien` | - | - | - | - |
+| `phieu_dang_ky` | - | - | - | - |
+
+---
+
+#### Trigger `trg_phuong_xa_before_update`
+
+**Bảng liên quan:** `phuong_xa`, `sinh_vien`, `dan_toc`, `phieu_dang_ky`, `doi_tuong_sinh_vien`, `quan_huyen`
+
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `phuong_xa` | - | + | ✅ | ⚠️ `trg_phuong_xa_before_delete` (thiếu), ✅ `trg_phuong_xa_before_update` |
+| `sinh_vien` | - | - | - | - |
+| `dan_toc` | - | - | - | - |
+| `phieu_dang_ky` | - | - | - | - |
+| `doi_tuong_sinh_vien` | - | - | - | - |
+| `quan_huyen` | - | + | - | ⚠️ `trg_quan_huyen_before_delete` (thiếu) |
+
+---
+
+#### Trigger `trg_dan_toc_before_update`
+
+**Bảng liên quan:** `dan_toc`, `sinh_vien`, `phuong_xa`, `phieu_dang_ky`, `doi_tuong_sinh_vien`
+
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `dan_toc` | - | + | ✅ | ⚠️ `trg_dan_toc_before_delete` (thiếu), ✅ `trg_dan_toc_before_update` |
+| `sinh_vien` | - | - | - | - |
+| `phuong_xa` | - | - | - | - |
+| `phieu_dang_ky` | - | - | - | - |
+| `doi_tuong_sinh_vien` | - | - | - | - |
 
 ---
 
 ### Thành viên 2 - Môn học & Chương trình học
 
-#### Trigger trên bảng `mon_hoc`
+#### Trigger `trg_mon_hoc_before_insert` + `trg_mon_hoc_after_insert`
 
-| Trigger | Kích hoạt bởi | mon_hoc | khoa | lop | chuong_trinh_hoc | dieu_kien_mon_hoc | chi_tiet_dang_ky |
-|---------|---------------|---------|------|-----|------------------|-------------------|------------------|
-| `trg_mon_hoc_before_insert` | INSERT | I | R | - | - | - | - |
-| `trg_mon_hoc_before_update` | UPDATE | U | R | - | - | - | - |
-| `trg_mon_hoc_before_delete` | DELETE | D | - | R | R | R | R |
-| `trg_mon_hoc_after_insert` | INSERT | - | - | I | - | - | - |
-| `trg_mon_hoc_after_update` | UPDATE | - | - | U | - | - | R,U |
+**Bảng liên quan:** `mon_hoc`, `khoa`, `lop`
 
-**Chi tiết tầm ảnh hưởng `trg_mon_hoc_before_insert`:**
-- `mon_hoc`: INSERT - kiểm tra loại môn (LT/TH), tính số tín chỉ
-- `khoa`: SELECT - kiểm tra ma_khoa tồn tại
-
-**Chi tiết tầm ảnh hưởng `trg_mon_hoc_before_update`:**
-- `mon_hoc`: UPDATE - tính lại số tín chỉ nếu đổi loại môn hoặc số tiết
-- `khoa`: SELECT - kiểm tra ma_khoa mới (nếu thay đổi)
-
-**Chi tiết tầm ảnh hưởng `trg_mon_hoc_before_delete`:**
-- `mon_hoc`: DELETE - bảng chính được thao tác
-- `lop`: SELECT - kiểm tra còn lớp thuộc môn này không
-- `chuong_trinh_hoc`: SELECT - kiểm tra còn trong CTĐT không
-- `dieu_kien_mon_hoc`: SELECT - kiểm tra còn là điều kiện của môn khác không
-- `chi_tiet_dang_ky`: SELECT - kiểm tra còn SV đăng ký không
-
-**Chi tiết tầm ảnh hưởng `trg_mon_hoc_after_insert`:**
-- `lop`: INSERT - tự động tạo lớp mặc định cho môn mới
-
-**Chi tiết tầm ảnh hưởng `trg_mon_hoc_after_update`:**
-- `lop`: UPDATE - cập nhật tên lớp nếu đổi tên môn
-- `chi_tiet_dang_ky`: SELECT + UPDATE - cập nhật số tín chỉ và thanh tiền nếu thay đổi
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `mon_hoc` | ✅ | - | - | `trg_mon_hoc_before_insert`, `trg_mon_hoc_after_insert` |
+| `khoa` | - | + | - | ⚠️ `trg_khoa_before_delete` (thiếu) |
+| `lop` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `lop`
+#### Trigger `trg_mon_hoc_before_update` + `trg_mon_hoc_after_update`
 
-| Trigger | Kích hoạt bởi | lop | mon_hoc | lop_mo | chi_tiet_dang_ky |
-|---------|---------------|-----|---------|--------|------------------|
-| `trg_lop_before_insert` | INSERT | I | R | - | - |
-| `trg_lop_before_update` | UPDATE | U | R | R | R |
-| `trg_lop_before_delete` | DELETE | D | - | R | R |
+**Bảng liên quan:** `mon_hoc`, `khoa`, `lop`, `chi_tiet_dang_ky`
 
-**Chi tiết tầm ảnh hưởng `trg_lop_before_insert`:**
-- `lop`: INSERT - tự động đặt mã lớp
-- `mon_hoc`: SELECT - kiểm tra ma_mon_hoc tồn tại
-
-**Chi tiết tầm ảnh hưởng `trg_lop_before_update`:**
-- `lop`: UPDATE - bảng chính được thao tác
-- `mon_hoc`: SELECT - kiểm tra ma_mon_hoc mới (nếu thay đổi)
-- `lop_mo`: SELECT - kiểm tra sức chứa >= số đã đăng ký
-- `chi_tiet_dang_ky`: SELECT - kiểm tra có SV đăng ký không (không cho đổi mon_hoc)
-
-**Chi tiết tầm ảnh hưởng `trg_lop_before_delete`:**
-- `lop`: DELETE - bảng chính được thao tác
-- `lop_mo`: SELECT - kiểm tra lớp có đang mở không
-- `chi_tiet_dang_ky`: SELECT - kiểm tra có SV đăng ký không
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `mon_hoc` | - | - | ✅ | `trg_mon_hoc_before_update`, `trg_mon_hoc_after_update` |
+| `khoa` | - | + | - | ⚠️ `trg_khoa_before_delete` (thiếu) |
+| `lop` | - | - | - | - |
+| `chi_tiet_dang_ky` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `chuong_trinh_hoc`
+#### Trigger `trg_mon_hoc_before_delete`
 
-| Trigger | Kích hoạt bởi | chuong_trinh_hoc | nganh_hoc | mon_hoc | dieu_kien_mon_hoc |
-|---------|---------------|------------------|-----------|---------|-------------------|
-| `trg_chuong_trinh_hoc_before_insert` | INSERT | I | R | R | R |
-| `trg_chuong_trinh_hoc_before_update` | UPDATE | U | R | R | R |
+**Bảng liên quan:** `mon_hoc`, `lop`, `chuong_trinh_hoc`, `dieu_kien_mon_hoc`, `chi_tiet_dang_ky`
 
-**Chi tiết tầm ảnh hưởng:**
-- `chuong_trinh_hoc`: INSERT/UPDATE - bảng chính được thao tác
-- `nganh_hoc`: SELECT - kiểm tra ma_nganh tồn tại
-- `mon_hoc`: SELECT - kiểm tra ma_mon_hoc tồn tại
-- `dieu_kien_mon_hoc`: SELECT - kiểm tra không có vòng lặp điều kiện tiên quyết
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `mon_hoc` | - | ✅ | - | `trg_mon_hoc_before_delete` |
+| `lop` | - | - | - | - |
+| `chuong_trinh_hoc` | - | - | - | - |
+| `dieu_kien_mon_hoc` | - | - | - | - |
+| `chi_tiet_dang_ky` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `dieu_kien_mon_hoc`
+#### Trigger `trg_lop_before_insert/update/delete`
 
-| Trigger | Kích hoạt bởi | dieu_kien_mon_hoc | mon_hoc |
-|---------|---------------|-------------------|---------|
-| `trg_dieu_kien_mon_hoc_before_insert` | INSERT | I | R |
-| `trg_dieu_kien_mon_hoc_before_update` | UPDATE | U | R |
+**Bảng liên quan:** `lop`, `mon_hoc`, `lop_mo`, `chi_tiet_dang_ky`
 
-**Chi tiết tầm ảnh hưởng:**
-- `dieu_kien_mon_hoc`: INSERT/UPDATE - kiểm tra vòng lặp điều kiện (A tiên quyết B, B tiên quyết A)
-- `mon_hoc`: SELECT - kiểm tra ma_mon_hoc và ma_mon_dieu_kien tồn tại
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `lop` | ✅ | ✅ | ✅ | `trg_lop_before_insert`, `trg_lop_before_update`, `trg_lop_before_delete` |
+| `mon_hoc` | - | + | + | ✅ `trg_mon_hoc_before_delete`, ⚠️ `trg_mon_hoc_after_update` ảnh hưởng |
+| `lop_mo` | - | - | - | - |
+| `chi_tiet_dang_ky` | - | - | - | - |
+
+---
+
+#### Trigger `trg_chuong_trinh_hoc_before_insert/update`
+
+**Bảng liên quan:** `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc`, `dieu_kien_mon_hoc`
+
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `chuong_trinh_hoc` | ✅ | - | ✅ | `trg_chuong_trinh_hoc_before_insert`, `trg_chuong_trinh_hoc_before_update` |
+| `nganh_hoc` | - | + | - | ⚠️ `trg_nganh_hoc_before_delete` (thiếu) |
+| `mon_hoc` | - | + | + | ✅ `trg_mon_hoc_before_delete` |
+| `dieu_kien_mon_hoc` | - | - | - | - |
+
+**⚠️ Thiếu trigger:** `trg_chuong_trinh_hoc_before_delete` - kiểm tra ràng buộc trước khi xóa
+
+---
+
+#### Trigger `trg_dieu_kien_mon_hoc_before_insert/update`
+
+**Bảng liên quan:** `dieu_kien_mon_hoc`, `mon_hoc`
+
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `dieu_kien_mon_hoc` | ✅ | - | ✅ | `trg_dieu_kien_mon_hoc_before_insert`, `trg_dieu_kien_mon_hoc_before_update` |
+| `mon_hoc` | - | + | - | ✅ `trg_mon_hoc_before_delete` kiểm tra ràng buộc |
+
+**⚠️ Thiếu trigger:** `trg_dieu_kien_mon_hoc_before_delete` - kiểm tra ảnh hưởng trước khi xóa
 
 ---
 
 ### Thành viên 3 - Học kỳ & Đăng ký môn học
 
-#### Trigger trên bảng `hoc_ky`
+#### Trigger `trg_hoc_ky_before_insert/update`
 
-| Trigger | Kích hoạt bởi | hoc_ky | nam_hoc | phieu_dang_ky |
-|---------|---------------|--------|---------|---------------|
-| `trg_hoc_ky_before_insert` | INSERT | I | R | - |
-| `trg_hoc_ky_before_update` | UPDATE | U | R | R |
+**Bảng liên quan:** `hoc_ky`, `nam_hoc`, `phieu_dang_ky`
 
-**Chi tiết tầm ảnh hưởng:**
-- `hoc_ky`: INSERT/UPDATE - kiểm tra loại học kỳ, thứ tự, ngày hợp lệ
-- `nam_hoc`: SELECT - kiểm tra ma_nam_hoc tồn tại
-- `phieu_dang_ky`: SELECT - kiểm tra có phiếu đăng ký không (không cho đổi loại HK)
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `hoc_ky` | ✅ | - | ✅ | `trg_hoc_ky_before_insert`, `trg_hoc_ky_before_update` |
+| `nam_hoc` | - | + | + | ⚠️ `trg_nam_hoc_before_delete` (thiếu), ⚠️ `trg_nam_hoc_before_update` (thiếu) |
+| `phieu_dang_ky` | - | - | - | - |
 
----
-
-#### Trigger trên bảng `lop_mo`
-
-| Trigger | Kích hoạt bởi | lop_mo | hoc_ky | lop | chi_tiet_dang_ky | lich_hoc_lop |
-|---------|---------------|--------|--------|-----|------------------|--------------|
-| `trg_lop_mo_before_insert` | INSERT | I | R | R | - | - |
-| `trg_lop_mo_before_update` | UPDATE | U | R | R | R | - |
-| `trg_lop_mo_before_delete` | DELETE | D | - | - | R | R |
-
-**Chi tiết tầm ảnh hưởng `trg_lop_mo_before_insert`:**
-- `lop_mo`: INSERT - bảng chính được thao tác
-- `hoc_ky`: SELECT - kiểm tra ma_hoc_ky tồn tại
-- `lop`: SELECT - kiểm tra ma_lop tồn tại
-
-**Chi tiết tầm ảnh hưởng `trg_lop_mo_before_update`:**
-- `lop_mo`: UPDATE - bảng chính được thao tác
-- `hoc_ky`: SELECT - kiểm tra ma_hoc_ky mới
-- `lop`: SELECT - kiểm tra ma_lop mới
-- `chi_tiet_dang_ky`: SELECT - kiểm tra có SV đăng ký không (không cho đổi ma_hoc_ky, ma_lop)
-
-**Chi tiết tầm ảnh hưởng `trg_lop_mo_before_delete`:**
-- `lop_mo`: DELETE - bảng chính được thao tác
-- `chi_tiet_dang_ky`: SELECT - kiểm tra còn SV đăng ký không
-- `lich_hoc_lop`: SELECT - kiểm tra còn lịch học không
+**⚠️ Thiếu trigger:** 
+- `trg_hoc_ky_before_delete` - kiểm tra có phiếu đăng ký/lớp mở không
+- `trg_nam_hoc_before_delete` - không cho xóa năm học nếu còn học kỳ
 
 ---
 
-#### Trigger trên bảng `phieu_dang_ky`
+#### Trigger `trg_lop_mo_before_insert/update/delete`
 
-| Trigger | Kích hoạt bởi | phieu_dang_ky | sinh_vien | hoc_ky | doi_tuong_sinh_vien | doi_tuong | phuong_xa | dan_toc | chi_tiet_dang_ky |
-|---------|---------------|---------------|-----------|--------|---------------------|-----------|-----------|---------|------------------|
-| `trg_phieu_dang_ky_before_insert` | INSERT | I | R | R | R | R | R | R | - |
-| `trg_phieu_dang_ky_before_update` | UPDATE | U | R | R | - | - | - | - | R |
+**Bảng liên quan:** `lop_mo`, `hoc_ky`, `lop`, `chi_tiet_dang_ky`, `lich_hoc_lop`
 
-**Chi tiết tầm ảnh hưởng `trg_phieu_dang_ky_before_insert`:**
-- `phieu_dang_ky`: INSERT - bảng chính được thao tác
-- `sinh_vien`: SELECT - kiểm tra ma_sv tồn tại và đang học
-- `hoc_ky`: SELECT - kiểm tra ma_hoc_ky tồn tại và đang trong thời gian đăng ký
-- `doi_tuong_sinh_vien`: SELECT - lấy đối tượng của SV
-- `doi_tuong`: SELECT - lấy tỷ lệ giảm
-- `phuong_xa`: SELECT - kiểm tra KV3
-- `dan_toc`: SELECT - kiểm tra DTTS
-
-**Chi tiết tầm ảnh hưởng `trg_phieu_dang_ky_before_update`:**
-- `phieu_dang_ky`: UPDATE - bảng chính được thao tác
-- `sinh_vien`: SELECT - kiểm tra ma_sv
-- `hoc_ky`: SELECT - kiểm tra ma_hoc_ky
-- `chi_tiet_dang_ky`: SELECT - kiểm tra có chi tiết nào chưa hủy không (nếu đổi trạng thái)
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `lop_mo` | ✅ | ✅ | ✅ | `trg_lop_mo_before_insert`, `trg_lop_mo_before_update`, `trg_lop_mo_before_delete` |
+| `hoc_ky` | - | + | + | ⚠️ `trg_hoc_ky_before_delete` (thiếu), ⚠️ ảnh hưởng khi sửa ngày |
+| `lop` | - | + | + | ✅ `trg_lop_before_delete` |
+| `chi_tiet_dang_ky` | - | - | - | - |
+| `lich_hoc_lop` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `chi_tiet_dang_ky`
+#### Trigger `trg_phieu_dang_ky_before_insert/update`
 
-| Trigger | Kích hoạt bởi | chi_tiet_dang_ky | phieu_dang_ky | lop_mo | lop | mon_hoc | don_gia_tin_chi |
-|---------|---------------|------------------|---------------|--------|-----|---------|-----------------|
-| `trg_chi_tiet_dang_ky_after_insert` | INSERT | - | R,U | R,U | R | R | R |
-| `trg_chi_tiet_dang_ky_after_update` | UPDATE | - | R,U | R,U | - | - | - |
-| `trg_chi_tiet_dang_ky_after_delete` | DELETE | - | R,U | R,U | - | - | - |
+**Bảng liên quan:** `phieu_dang_ky`, `sinh_vien`, `hoc_ky`, `doi_tuong_sinh_vien`, `doi_tuong`, `phuong_xa`, `dan_toc`, `chi_tiet_dang_ky`
 
-**Chi tiết tầm ảnh hưởng `trg_chi_tiet_dang_ky_after_insert`:**
-- `phieu_dang_ky`: SELECT + UPDATE - tính lại tổng tín chỉ, tổng tiền, tiền miễn giảm
-- `lop_mo`: SELECT + UPDATE - tăng số lượng đã đăng ký
-- `lop`: SELECT - lấy thông tin lớp
-- `mon_hoc`: SELECT - lấy số tín chỉ, loại môn
-- `don_gia_tin_chi`: SELECT - lấy đơn giá theo loại môn và loại học
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `phieu_dang_ky` | ✅ | - | ✅ | `trg_phieu_dang_ky_before_insert`, `trg_phieu_dang_ky_before_update` |
+| `sinh_vien` | - | + | + | ✅ `trg_sinh_vien_before_delete`, ✅ `trg_sinh_vien_after_update` |
+| `hoc_ky` | - | + | + | ⚠️ `trg_hoc_ky_before_delete` (thiếu) |
+| `doi_tuong_sinh_vien` | + | + | + | ✅ `trg_doi_tuong_sinh_vien_after_*` |
+| `doi_tuong` | - | + | + | ✅ `trg_doi_tuong_before_delete`, ✅ `trg_doi_tuong_after_update` |
+| `phuong_xa` | - | + | + | ⚠️ `trg_phuong_xa_before_delete` (thiếu), ✅ `trg_phuong_xa_before_update` |
+| `dan_toc` | - | + | + | ⚠️ `trg_dan_toc_before_delete` (thiếu), ✅ `trg_dan_toc_before_update` |
+| `chi_tiet_dang_ky` | - | - | - | - |
 
-**Chi tiết tầm ảnh hưởng `trg_chi_tiet_dang_ky_after_update`:**
-- `phieu_dang_ky`: SELECT + UPDATE - tính lại tổng tiền nếu đổi trạng thái sang 'Đã hủy'
-- `lop_mo`: SELECT + UPDATE - giảm số lượng đã đăng ký nếu hủy
-
-**Chi tiết tầm ảnh hưởng `trg_chi_tiet_dang_ky_after_delete`:**
-- `phieu_dang_ky`: SELECT + UPDATE - tính lại tổng tiền
-- `lop_mo`: SELECT + UPDATE - giảm số lượng đã đăng ký
+**⚠️ Thiếu trigger:** `trg_phieu_dang_ky_before_delete` - kiểm tra có chi tiết đăng ký và phiếu thu không
 
 ---
 
-#### Trigger trên bảng `lich_hoc_lop`
+#### Trigger `trg_chi_tiet_dang_ky_after_insert/update/delete`
 
-| Trigger | Kích hoạt bởi | lich_hoc_lop | lop_mo | tiet_hoc | chi_tiet_dang_ky |
-|---------|---------------|--------------|--------|----------|------------------|
-| `trg_lich_hoc_lop_before_insert` | INSERT | I | R | R | R |
-| `trg_lich_hoc_lop_before_update` | UPDATE | U | R | R | R |
-| `trg_lich_hoc_lop_before_delete` | DELETE | D | - | - | R |
+**Bảng liên quan:** `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo`, `lop`, `mon_hoc`, `don_gia_tin_chi`
 
-**Chi tiết tầm ảnh hưởng:**
-- `lich_hoc_lop`: INSERT/UPDATE/DELETE - bảng chính được thao tác
-- `lop_mo`: SELECT - kiểm tra lop_mo_id tồn tại
-- `tiet_hoc`: SELECT - kiểm tra tiết học hợp lệ
-- `chi_tiet_dang_ky`: SELECT - kiểm tra trùng lịch với các lớp SV đã đăng ký
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `chi_tiet_dang_ky` | ✅ | ✅ | ✅ | `trg_chi_tiet_dang_ky_after_insert`, `after_update`, `after_delete` |
+| `phieu_dang_ky` | - | + | - | ⚠️ `trg_phieu_dang_ky_before_delete` (thiếu) |
+| `lop_mo` | - | + | + | ✅ `trg_lop_mo_before_delete` |
+| `lop` | - | + | + | ✅ `trg_lop_before_delete` |
+| `mon_hoc` | - | + | + | ✅ `trg_mon_hoc_before_delete` |
+| `don_gia_tin_chi` | - | + | + | ⚠️ `trg_don_gia_tin_chi_before_delete` (thiếu), ⚠️ `trg_don_gia_tin_chi_after_update` (thiếu) |
+
+**⚠️ Thiếu trigger:** `trg_chi_tiet_dang_ky_before_insert` - kiểm tra điều kiện tiên quyết, trùng lịch
+
+---
+
+#### Trigger `trg_lich_hoc_lop_before_insert/update/delete`
+
+**Bảng liên quan:** `lich_hoc_lop`, `lop_mo`, `tiet_hoc`, `chi_tiet_dang_ky`
+
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `lich_hoc_lop` | ✅ | ✅ | ✅ | `trg_lich_hoc_lop_before_insert`, `before_update`, `before_delete` |
+| `lop_mo` | - | + | - | ✅ `trg_lop_mo_before_delete` |
+| `tiet_hoc` | - | + | + | ⚠️ `trg_tiet_hoc_before_delete` (thiếu), ⚠️ `trg_tiet_hoc_before_update` (thiếu) |
+| `chi_tiet_dang_ky` | - | - | - | - |
 
 ---
 
 ### Thành viên 4 - Học phí & Điểm số
 
-#### Trigger trên bảng `phieu_thu_hoc_phi`
+#### Trigger `trg_phieu_thu_hoc_phi_before_insert/update` + `after_insert/update/delete`
 
-| Trigger | Kích hoạt bởi | phieu_thu_hoc_phi | phieu_dang_ky | sinh_vien | thong_bao_ca_nhan |
-|---------|---------------|-------------------|---------------|-----------|-------------------|
-| `trg_phieu_thu_hoc_phi_before_insert` | INSERT | I | R | R | - |
-| `trg_phieu_thu_hoc_phi_before_update` | UPDATE | U | R | - | - |
-| `trg_phieu_thu_hoc_phi_after_insert` | INSERT | - | R,U | - | I |
-| `trg_phieu_thu_hoc_phi_after_update` | UPDATE | - | R,U | - | I |
-| `trg_phieu_thu_hoc_phi_after_delete` | DELETE | - | R,U | - | - |
+**Bảng liên quan:** `phieu_thu_hoc_phi`, `phieu_dang_ky`, `sinh_vien`, `thong_bao_ca_nhan`
 
-**Chi tiết tầm ảnh hưởng `trg_phieu_thu_hoc_phi_before_insert`:**
-- `phieu_thu_hoc_phi`: INSERT - kiểm tra số tiền thu > 0, <= số tiền còn lại
-- `phieu_dang_ky`: SELECT - lấy thông tin phiếu đăng ký, số tiền phải đóng
-- `sinh_vien`: SELECT - kiểm tra ma_sv khớp với phiếu đăng ký
-
-**Chi tiết tầm ảnh hưởng `trg_phieu_thu_hoc_phi_before_update`:**
-- `phieu_thu_hoc_phi`: UPDATE - kiểm tra số tiền mới hợp lệ
-- `phieu_dang_ky`: SELECT - lấy số tiền phải đóng
-
-**Chi tiết tầm ảnh hưởng `trg_phieu_thu_hoc_phi_after_insert`:**
-- `phieu_dang_ky`: SELECT + UPDATE - kiểm tra và cập nhật trạng thái đã đóng đủ
-- `thong_bao_ca_nhan`: INSERT - gửi thông báo nếu đã đóng đủ
-
-**Chi tiết tầm ảnh hưởng `trg_phieu_thu_hoc_phi_after_update`:**
-- `phieu_dang_ky`: SELECT + UPDATE - tính lại tổng đã thu nếu đổi số tiền hoặc hủy phiếu
-- `thong_bao_ca_nhan`: INSERT - gửi thông báo về việc hủy phiếu thu
-
-**Chi tiết tầm ảnh hưởng `trg_phieu_thu_hoc_phi_after_delete`:**
-- `phieu_dang_ky`: SELECT + UPDATE - tính lại tổng đã thu
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `phieu_thu_hoc_phi` | ✅ | ✅ | ✅ | `trg_phieu_thu_hoc_phi_before_insert`, `before_update`, `after_insert`, `after_update`, `after_delete` |
+| `phieu_dang_ky` | - | + | + | ⚠️ `trg_phieu_dang_ky_before_delete` (thiếu), ảnh hưởng khi sửa số tiền |
+| `sinh_vien` | - | + | - | ✅ `trg_sinh_vien_before_delete` |
+| `thong_bao_ca_nhan` | - | - | - | - |
 
 ---
 
-#### Trigger trên bảng `diem_sinh_vien`
+#### Trigger `trg_diem_sinh_vien_before_insert/update` + `after_insert/update/delete`
 
-| Trigger | Kích hoạt bởi | diem_sinh_vien | sinh_vien | mon_hoc | hoc_ky | chi_tiet_dang_ky | cau_hinh_dang_ky |
-|---------|---------------|----------------|-----------|---------|--------|------------------|------------------|
-| `trg_diem_sinh_vien_before_insert` | INSERT | I | R | R | R | R | - |
-| `trg_diem_sinh_vien_before_update` | UPDATE | U | - | - | - | - | - |
-| `trg_diem_sinh_vien_after_insert` | INSERT | U | - | R | - | - | U |
-| `trg_diem_sinh_vien_after_update` | UPDATE | U | - | R | - | - | U |
-| `trg_diem_sinh_vien_after_delete` | DELETE | - | - | R | - | - | U |
+**Bảng liên quan:** `diem_sinh_vien`, `sinh_vien`, `mon_hoc`, `hoc_ky`, `chi_tiet_dang_ky`, `cau_hinh_dang_ky`
 
-**Chi tiết tầm ảnh hưởng `trg_diem_sinh_vien_before_insert`:**
-- `diem_sinh_vien`: INSERT - kiểm tra điểm 0-10, tính điểm TB tự động
-- `sinh_vien`: SELECT - kiểm tra ma_sv tồn tại
-- `mon_hoc`: SELECT - kiểm tra ma_mon_hoc tồn tại
-- `hoc_ky`: SELECT - kiểm tra ma_hoc_ky tồn tại
-- `chi_tiet_dang_ky`: SELECT - kiểm tra SV đã đăng ký môn này trong HK
-
-**Chi tiết tầm ảnh hưởng `trg_diem_sinh_vien_before_update`:**
-- `diem_sinh_vien`: UPDATE - kiểm tra điểm 0-10, tính lại điểm TB
-
-**Chi tiết tầm ảnh hưởng `trg_diem_sinh_vien_after_insert/update/delete`:**
-- `diem_sinh_vien`: UPDATE - cập nhật ket_qua (Đậu/Rớt)
-- `mon_hoc`: SELECT - lấy số tín chỉ để tính GPA
-- `cau_hinh_dang_ky`: UPDATE - cập nhật GPA tích lũy của sinh viên
+| Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
+|------|------|-----|-----|---------------|
+| `diem_sinh_vien` | ✅ | ✅ | ✅ | `trg_diem_sinh_vien_before_insert`, `before_update`, `after_insert`, `after_update`, `after_delete` |
+| `sinh_vien` | - | + | - | ✅ `trg_sinh_vien_before_delete` |
+| `mon_hoc` | - | + | + | ✅ `trg_mon_hoc_before_delete`, ảnh hưởng khi sửa số tín chỉ |
+| `hoc_ky` | - | + | - | ⚠️ `trg_hoc_ky_before_delete` (thiếu) |
+| `chi_tiet_dang_ky` | - | - | - | - |
+| `cau_hinh_dang_ky` | - | - | - | - |
 
 ---
 
-### TỔNG HỢP BẢNG TẦM ẢNH HƯỞNG THEO BẢNG DỮ LIỆU
+## 📝 DANH SÁCH TRIGGER CẦN BỔ SUNG
 
-Bảng này tổng hợp **tất cả các bảng bị ảnh hưởng** (có thao tác INSERT/UPDATE/DELETE) bởi các trigger:
+Dựa trên phân tích bảng tầm ảnh hưởng, các trigger sau cần được bổ sung:
 
-| Bảng bị ảnh hưởng | Trigger gây ảnh hưởng (ghi I/U/D) |
-|-------------------|-----------------------------------|
-| `sinh_vien` | - |
-| `tai_khoan` | `trg_sinh_vien_before_delete` (D), `trg_sinh_vien_after_insert` (I,U) |
-| `phieu_dang_ky` | `trg_sinh_vien_after_update` (U), `trg_doi_tuong_sinh_vien_after_*` (U), `trg_doi_tuong_after_update` (U), `trg_phuong_xa_before_update` (U), `trg_dan_toc_before_update` (U), `trg_chi_tiet_dang_ky_after_*` (U), `trg_phieu_thu_hoc_phi_after_*` (U) |
-| `doi_tuong_sinh_vien` | `trg_phuong_xa_before_update` (I,D), `trg_dan_toc_before_update` (I,D) |
-| `lop` | `trg_mon_hoc_after_insert` (I), `trg_mon_hoc_after_update` (U) |
-| `chi_tiet_dang_ky` | `trg_mon_hoc_after_update` (U) |
-| `lop_mo` | `trg_chi_tiet_dang_ky_after_insert` (U), `trg_chi_tiet_dang_ky_after_update` (U), `trg_chi_tiet_dang_ky_after_delete` (U) |
-| `thong_bao_ca_nhan` | `trg_phieu_thu_hoc_phi_after_insert` (I), `trg_phieu_thu_hoc_phi_after_update` (I) |
-| `cau_hinh_dang_ky` | `trg_diem_sinh_vien_after_*` (U) |
+### Thành viên 1 bổ sung:
+| STT | Trigger | Mô tả | Bảng |
+|-----|---------|-------|------|
+| 1 | `trg_phuong_xa_before_delete` | Kiểm tra có sinh viên tham chiếu không trước khi xóa | `phuong_xa` |
+| 2 | `trg_dan_toc_before_delete` | Kiểm tra có sinh viên tham chiếu không trước khi xóa | `dan_toc` |
+| 3 | `trg_nganh_hoc_before_delete` | Kiểm tra có sinh viên/CTĐT tham chiếu không trước khi xóa | `nganh_hoc` |
+| 4 | `trg_quan_huyen_before_delete` | Kiểm tra có phường/xã tham chiếu không trước khi xóa | `quan_huyen` |
+
+### Thành viên 2 bổ sung:
+| STT | Trigger | Mô tả | Bảng |
+|-----|---------|-------|------|
+| 1 | `trg_khoa_before_delete` | Kiểm tra có môn học tham chiếu không trước khi xóa | `khoa` |
+| 2 | `trg_chuong_trinh_hoc_before_delete` | Kiểm tra ràng buộc trước khi xóa môn trong CTĐT | `chuong_trinh_hoc` |
+| 3 | `trg_dieu_kien_mon_hoc_before_delete` | Kiểm tra ảnh hưởng trước khi xóa điều kiện môn học | `dieu_kien_mon_hoc` |
+
+### Thành viên 3 bổ sung:
+| STT | Trigger | Mô tả | Bảng |
+|-----|---------|-------|------|
+| 1 | `trg_hoc_ky_before_delete` | Kiểm tra có phiếu đăng ký/lớp mở không trước khi xóa | `hoc_ky` |
+| 2 | `trg_nam_hoc_before_delete` | Kiểm tra có học kỳ tham chiếu không trước khi xóa | `nam_hoc` |
+| 3 | `trg_nam_hoc_before_update` | Cập nhật mã học kỳ nếu đổi năm học | `nam_hoc` |
+| 4 | `trg_phieu_dang_ky_before_delete` | Kiểm tra có chi tiết đăng ký/phiếu thu không trước khi xóa | `phieu_dang_ky` |
+| 5 | `trg_chi_tiet_dang_ky_before_insert` | Kiểm tra điều kiện tiên quyết, trùng lịch trước khi đăng ký | `chi_tiet_dang_ky` |
+| 6 | `trg_don_gia_tin_chi_before_delete` | Kiểm tra có chi tiết đăng ký tham chiếu không | `don_gia_tin_chi` |
+| 7 | `trg_don_gia_tin_chi_after_update` | Cập nhật thành tiền trong chi tiết đăng ký khi đổi giá | `don_gia_tin_chi` |
+| 8 | `trg_tiet_hoc_before_delete` | Kiểm tra có lịch học tham chiếu không | `tiet_hoc` |
+| 9 | `trg_tiet_hoc_before_update` | Cập nhật lịch học khi đổi thông tin tiết | `tiet_hoc` |
 
 ---
 
