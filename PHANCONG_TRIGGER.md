@@ -16,18 +16,28 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
-| 1 | `trg_sinh_vien_before_insert` | Kiểm tra và chuẩn hóa dữ liệu trước khi thêm sinh viên | `sinh_vien` |
-| 2 | `trg_sinh_vien_before_update` | Kiểm tra và chuẩn hóa dữ liệu trước khi sửa sinh viên | `sinh_vien` |
-| 3 | `trg_sinh_vien_after_insert` | Tự động tạo tài khoản cho sinh viên mới | `sinh_vien`, `tai_khoan` |
-| 4 | `trg_sinh_vien_after_update` | Cập nhật tỷ lệ giảm HP khi thay đổi phường/xã hoặc dân tộc của sinh viên | `sinh_vien`, `phieu_dang_ky` |
-| 5 | `trg_doi_tuong_sinh_vien_after_insert` | Cập nhật tỷ lệ giảm HP khi gán đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
-| 6 | `trg_doi_tuong_sinh_vien_after_update` | Cập nhật tỷ lệ giảm HP khi sửa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
-| 7 | `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật lại tỷ lệ giảm khi xóa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
-| 8 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
-| 9 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
-| 10 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
-| 11 | `trg_phuong_xa_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi khu vực ưu tiên | `phuong_xa`, `sinh_vien`, `phieu_dang_ky` |
-| 12 | `trg_doi_tuong_after_update` | Cập nhật tỷ lệ giảm HP cho tất cả SV khi sửa tỷ lệ giảm của đối tượng | `doi_tuong`, `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 1 | `trg_sinh_vien_before_insert` | Kiểm tra và chuẩn hóa dữ liệu (bao gồm CCCD 12 số, SĐT, email) | `sinh_vien` |
+| 2 | `trg_sinh_vien_before_update` | Kiểm tra và chuẩn hóa dữ liệu khi sửa (bao gồm CCCD 12 số, SĐT, email) | `sinh_vien` |
+| 3 | `trg_sinh_vien_before_delete` | Kiểm tra ràng buộc trước khi xóa sinh viên | `sinh_vien`, `phieu_dang_ky`, `tai_khoan` |
+| 4 | `trg_sinh_vien_after_insert` | Tự động tạo tài khoản cho sinh viên mới | `sinh_vien`, `tai_khoan` |
+| 5 | `trg_sinh_vien_after_update` | Cập nhật tỷ lệ giảm HP khi thay đổi phường/xã hoặc dân tộc | `sinh_vien`, `phieu_dang_ky` |
+| 6 | `trg_doi_tuong_sinh_vien_before_insert` | Kiểm tra dữ liệu đối tượng sinh viên hợp lệ | `doi_tuong_sinh_vien`, `sinh_vien`, `doi_tuong` |
+| 7 | `trg_doi_tuong_sinh_vien_before_update` | Kiểm tra dữ liệu khi cập nhật đối tượng sinh viên | `doi_tuong_sinh_vien`, `sinh_vien`, `doi_tuong` |
+| 8 | `trg_doi_tuong_sinh_vien_after_insert` | Cập nhật tỷ lệ giảm HP khi gán đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 9 | `trg_doi_tuong_sinh_vien_after_update` | Cập nhật tỷ lệ giảm HP khi sửa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 10 | `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật lại tỷ lệ giảm khi xóa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 11 | `trg_doi_tuong_before_insert` | Kiểm tra tỷ lệ giảm và độ ưu tiên hợp lệ | `doi_tuong` |
+| 12 | `trg_doi_tuong_before_update` | Kiểm tra dữ liệu khi cập nhật đối tượng | `doi_tuong` |
+| 13 | `trg_doi_tuong_before_delete` | Kiểm tra ràng buộc trước khi xóa đối tượng | `doi_tuong`, `doi_tuong_sinh_vien` |
+| 14 | `trg_doi_tuong_after_update` | Cập nhật tỷ lệ giảm HP cho tất cả SV khi sửa tỷ lệ giảm | `doi_tuong`, `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 15 | `trg_phuong_xa_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi khu vực ưu tiên | `phuong_xa`, `sinh_vien`, `phieu_dang_ky` |
+| 16 | `trg_dan_toc_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi thuộc tính DTTS | `dan_toc`, `sinh_vien`, `phieu_dang_ky` |
+| 17 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
+| 18 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
+| 19 | `fn_validate_cccd(cccd)` | Kiểm tra CCCD có đúng 12 ký tự số không | - |
+| 20 | `fn_validate_sdt(sdt)` | Kiểm tra SĐT có hợp lệ không (10-11 số, bắt đầu bằng 0) | - |
+| 21 | `fn_validate_email(email)` | Kiểm tra email có định dạng hợp lệ không | - |
+| 22 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -41,10 +51,20 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 - Kiểm tra `ho_ten` không được rỗng, chuẩn hóa (trim, capitalize)
 - Kiểm tra `ngay_sinh` hợp lệ (không được là ngày trong tương lai, tuổi >= 16)
 - Kiểm tra `gioi_tinh` phải là 'Nam' hoặc 'Nữ'
+- **Kiểm tra `cccd` (nếu có):**
+  - Phải có đúng 12 ký tự số
+  - Không được chứa ký tự đặc biệt hoặc chữ cái
+  - Regex: `^[0-9]{12}$`
+- **Kiểm tra `sdt` (nếu có):**
+  - Phải có 10-11 ký tự số
+  - Bắt đầu bằng số 0
+  - Regex: `^0[0-9]{9,10}$`
+- **Kiểm tra `email` (nếu có):**
+  - Phải có định dạng email hợp lệ (có @ và domain)
+  - Chuẩn hóa email về dạng lowercase
 - Kiểm tra `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
 - Kiểm tra `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
 - Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc`
-- Chuẩn hóa email về dạng lowercase
 - Tự động set `ngay_tao = CURRENT_TIMESTAMP`
 - Tự động set `trang_thai = 'Đang học'` nếu không được cung cấp
 
@@ -53,9 +73,17 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 **Ví dụ:**
 ```sql
 -- Trigger sẽ chạy khi thực hiện:
-INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, ma_phuong_xa, ma_dan_toc, ma_nganh)
-VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'KTPM');
--- Kết quả: ho_ten được chuẩn hóa thành 'Nguyễn Văn An'
+INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, cccd, sdt, email, ma_phuong_xa, ma_dan_toc, ma_nganh)
+VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '079203012345', '0901234567', 'An.NV@email.com', '2659', 'KINH', 'KTPM');
+-- Kết quả: 
+-- - ho_ten được chuẩn hóa thành 'Nguyễn Văn An'
+-- - email được chuẩn hóa thành 'an.nv@email.com'
+-- - cccd được kiểm tra có đúng 12 số
+
+-- INSERT với cccd không hợp lệ:
+INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, cccd, ma_phuong_xa, ma_nganh)
+VALUES ('SV002', 'Trần Văn B', '2003-05-15', 'Nam', '07920301', '2659', 'KTPM');
+-- Kết quả: Error - CCCD phải có đúng 12 ký tự số
 ```
 
 ---
@@ -69,10 +97,20 @@ VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'K
 - Kiểm tra `ho_ten` không được rỗng, chuẩn hóa (trim, capitalize)
 - Kiểm tra `ngay_sinh` hợp lệ (không được là ngày trong tương lai, tuổi >= 16)
 - Kiểm tra `gioi_tinh` phải là 'Nam' hoặc 'Nữ'
+- **Kiểm tra `cccd` (nếu thay đổi):**
+  - Phải có đúng 12 ký tự số
+  - Không được chứa ký tự đặc biệt hoặc chữ cái
+  - Regex: `^[0-9]{12}$`
+- **Kiểm tra `sdt` (nếu thay đổi):**
+  - Phải có 10-11 ký tự số
+  - Bắt đầu bằng số 0
+  - Regex: `^0[0-9]{9,10}$`
+- **Kiểm tra `email` (nếu thay đổi):**
+  - Phải có định dạng email hợp lệ (có @ và domain)
+  - Chuẩn hóa email về dạng lowercase
 - Kiểm tra `ma_phuong_xa` tồn tại trong bảng `phuong_xa` (nếu thay đổi)
 - Kiểm tra `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu thay đổi)
 - Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc` (nếu thay đổi)
-- Chuẩn hóa email về dạng lowercase
 - Tự động set `ngay_cap_nhat = CURRENT_TIMESTAMP`
 - Không cho phép thay đổi `ma_sv` (primary key)
 
@@ -80,14 +118,49 @@ VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'K
 
 **Ví dụ:**
 ```sql
--- Trigger sẽ chạy khi thực hiện:
-UPDATE sinh_vien SET ho_ten = '  trần văn bình  ' WHERE ma_sv = 'SV001';
--- Kết quả: ho_ten được chuẩn hóa thành 'Trần Văn Bình'
+-- Cập nhật thông tin SV hợp lệ:
+UPDATE sinh_vien SET ho_ten = '  trần văn bình  ', cccd = '079203012346' WHERE ma_sv = 'SV001';
+-- Kết quả: ho_ten được chuẩn hóa thành 'Trần Văn Bình', cccd được kiểm tra hợp lệ
+
+-- Cập nhật CCCD không hợp lệ:
+UPDATE sinh_vien SET cccd = '12345' WHERE ma_sv = 'SV001';
+-- Kết quả: Error - CCCD phải có đúng 12 ký tự số
+
+-- Cập nhật email không hợp lệ:
+UPDATE sinh_vien SET email = 'invalid-email' WHERE ma_sv = 'SV001';
+-- Kết quả: Error - Email không hợp lệ
 ```
 
 ---
 
-#### 3. `trg_sinh_vien_after_insert`
+#### 3. `trg_sinh_vien_before_delete`
+**Mục đích:** Kiểm tra ràng buộc trước khi xóa sinh viên, đảm bảo không còn dữ liệu liên quan.
+
+**Input:** Dữ liệu sinh viên sắp bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Kiểm tra không còn phiếu đăng ký nào của sinh viên này có `trang_thai = 'Đã đăng ký'`
+2. Kiểm tra không còn phiếu thu học phí nào có `trang_thai = 'Thành công'`
+3. Kiểm tra không còn điểm số của sinh viên
+4. Nếu còn dữ liệu liên quan → raise exception với thông báo chi tiết
+5. Nếu không còn ràng buộc → xóa tài khoản liên kết trước, sau đó cho phép xóa sinh viên
+
+**Output:** Cho phép DELETE nếu không còn ràng buộc, raise exception nếu còn
+
+**Ví dụ:**
+```sql
+-- Xóa sinh viên không còn ràng buộc:
+DELETE FROM sinh_vien WHERE ma_sv = 'SV999';
+-- Kết quả: Xóa thành công (tài khoản liên kết cũng bị xóa theo)
+
+-- Xóa sinh viên còn phiếu đăng ký:
+DELETE FROM sinh_vien WHERE ma_sv = 'SV001';
+-- Kết quả: Error - Không thể xóa: sinh viên còn 2 phiếu đăng ký chưa xử lý
+```
+
+---
+
+#### 4. `trg_sinh_vien_after_insert`
 **Mục đích:** Tự động tạo tài khoản đăng nhập cho sinh viên mới.
 
 **Input:** Dữ liệu sinh viên vừa được INSERT (NEW.*)
@@ -114,7 +187,7 @@ UPDATE sinh_vien SET ho_ten = '  trần văn bình  ' WHERE ma_sv = 'SV001';
 
 ---
 
-#### 4. `trg_sinh_vien_after_update`
+#### 5. `trg_sinh_vien_after_update`
 **Mục đích:** Cập nhật tỷ lệ giảm học phí cho các phiếu đăng ký khi thay đổi phường/xã hoặc dân tộc của sinh viên.
 
 **Input:** Dữ liệu sinh viên trước và sau khi UPDATE (OLD.*, NEW.*)
@@ -139,7 +212,57 @@ UPDATE sinh_vien SET ma_phuong_xa = '12345' WHERE ma_sv = 'SV001';
 
 ---
 
-#### 5. `trg_doi_tuong_sinh_vien_after_insert`
+#### 6. `trg_doi_tuong_sinh_vien_before_insert`
+**Mục đích:** Kiểm tra dữ liệu đối tượng sinh viên hợp lệ trước khi INSERT.
+
+**Input:** Dữ liệu đối tượng sinh viên mới (NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_sv` tồn tại trong bảng `sinh_vien` và đang hoạt động
+2. Kiểm tra `ma_doi_tuong` tồn tại trong bảng `doi_tuong` và đang hoạt động
+3. Kiểm tra không trùng lặp `(ma_sv, ma_doi_tuong)` - một SV không được gán cùng một đối tượng hai lần
+4. Kiểm tra sinh viên có trạng thái 'Đang học' (không cho phép gán đối tượng cho SV đã nghỉ/tốt nghiệp)
+5. Set `ngay_tao = CURRENT_TIMESTAMP`
+
+**Output:** Cho phép INSERT nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Gán đối tượng hợp lệ:
+INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
+-- Kết quả: INSERT thành công
+
+-- Gán đối tượng đã có:
+INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
+-- Kết quả: Error - Sinh viên đã có đối tượng này
+```
+
+---
+
+#### 7. `trg_doi_tuong_sinh_vien_before_update`
+**Mục đích:** Kiểm tra dữ liệu khi cập nhật đối tượng sinh viên.
+
+**Input:** Dữ liệu đối tượng sinh viên trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_sv` tồn tại (nếu thay đổi - thường không nên cho phép)
+2. Kiểm tra `ma_doi_tuong` tồn tại (nếu thay đổi)
+3. Kiểm tra không trùng lặp `(ma_sv, ma_doi_tuong)` với bản ghi khác
+4. Không cho phép thay đổi `id` (primary key)
+5. Cho phép cập nhật `file_minh_chung`, `ghi_chu`
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Cập nhật file minh chứng:
+UPDATE doi_tuong_sinh_vien SET file_minh_chung = '/uploads/mc_sv001.pdf' WHERE id = 1;
+-- Kết quả: OK
+```
+
+---
+
+#### 8. `trg_doi_tuong_sinh_vien_after_insert`
 **Mục đích:** Cập nhật tỷ lệ giảm học phí cho các phiếu đăng ký của sinh viên khi được gán đối tượng ưu tiên mới.
 
 **Input:** Dữ liệu gán đối tượng mới (NEW.ma_sv, NEW.ma_doi_tuong)
@@ -165,7 +288,7 @@ INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
 
 ---
 
-#### 6. `trg_doi_tuong_sinh_vien_after_update`
+#### 9. `trg_doi_tuong_sinh_vien_after_update`
 **Mục đích:** Cập nhật tỷ lệ giảm học phí khi thay đổi thông tin đối tượng của sinh viên.
 
 **Input:** Dữ liệu đối tượng trước và sau khi UPDATE (OLD.*, NEW.*)
@@ -203,7 +326,150 @@ UPDATE doi_tuong_sinh_vien SET ma_doi_tuong = 'DT03' WHERE ma_sv = 'SV001' AND m
 
 ---
 
-#### 8. `fn_lay_ti_le_giam_hoc_phi(p_ma_sv VARCHAR)`
+#### 11. `trg_doi_tuong_before_insert`
+**Mục đích:** Kiểm tra dữ liệu đối tượng ưu tiên hợp lệ trước khi INSERT.
+
+**Input:** Dữ liệu đối tượng mới (NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_doi_tuong` không được NULL và không trùng lặp
+2. Kiểm tra `ten_doi_tuong` không được rỗng
+3. Kiểm tra `ti_le_giam_hoc_phi` trong khoảng [0, 100]
+4. Kiểm tra `do_uu_tien` > 0
+5. Kiểm tra không trùng `do_uu_tien` với đối tượng khác (mỗi mức ưu tiên chỉ có 1 đối tượng)
+6. Set `ngay_tao = CURRENT_TIMESTAMP`
+7. Set `trang_thai = TRUE` nếu không được cung cấp
+
+**Output:** Cho phép INSERT nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Thêm đối tượng mới:
+INSERT INTO doi_tuong (ma_doi_tuong, ten_doi_tuong, ti_le_giam_hoc_phi, do_uu_tien)
+VALUES ('DT10', 'Sinh viên khuyết tật', 100, 2);
+-- Kết quả: INSERT thành công
+
+-- Thêm với tỷ lệ giảm không hợp lệ:
+INSERT INTO doi_tuong (ma_doi_tuong, ten_doi_tuong, ti_le_giam_hoc_phi, do_uu_tien)
+VALUES ('DT11', 'Đối tượng mới', 150, 5);
+-- Kết quả: Error - Tỷ lệ giảm phải trong khoảng 0-100
+```
+
+---
+
+#### 12. `trg_doi_tuong_before_update`
+**Mục đích:** Kiểm tra dữ liệu đối tượng ưu tiên hợp lệ trước khi UPDATE.
+
+**Input:** Dữ liệu đối tượng trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ten_doi_tuong` không được rỗng
+2. Kiểm tra `ti_le_giam_hoc_phi` trong khoảng [0, 100]
+3. Kiểm tra `do_uu_tien` > 0
+4. Kiểm tra không trùng `do_uu_tien` với đối tượng khác (nếu thay đổi)
+5. Không cho phép thay đổi `ma_doi_tuong` (primary key)
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Cập nhật tỷ lệ giảm:
+UPDATE doi_tuong SET ti_le_giam_hoc_phi = 60 WHERE ma_doi_tuong = 'DT03';
+-- Kết quả: OK (trigger trg_doi_tuong_after_update sẽ cập nhật phiếu đăng ký)
+```
+
+---
+
+#### 13. `trg_doi_tuong_before_delete`
+**Mục đích:** Kiểm tra ràng buộc trước khi xóa đối tượng ưu tiên.
+
+**Input:** Dữ liệu đối tượng sắp bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Kiểm tra không còn sinh viên nào được gán đối tượng này trong bảng `doi_tuong_sinh_vien`
+2. Nếu còn sinh viên có đối tượng này → raise exception với danh sách sinh viên
+3. Nếu không còn ràng buộc → cho phép xóa
+
+**Output:** Cho phép DELETE nếu không còn ràng buộc, raise exception nếu còn
+
+**Ví dụ:**
+```sql
+-- Xóa đối tượng không có sinh viên:
+DELETE FROM doi_tuong WHERE ma_doi_tuong = 'DT99';
+-- Kết quả: Xóa thành công
+
+-- Xóa đối tượng đang có sinh viên:
+DELETE FROM doi_tuong WHERE ma_doi_tuong = 'DT03';
+-- Kết quả: Error - Không thể xóa: có 15 sinh viên đang thuộc đối tượng này
+```
+
+---
+
+#### 14. `trg_doi_tuong_after_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên thuộc đối tượng khi sửa tỷ lệ giảm.
+
+**Input:** Dữ liệu đối tượng trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `ti_le_giam_hoc_phi` hoặc `do_uu_tien` thay đổi
+2. Tìm tất cả sinh viên có đối tượng này từ bảng `doi_tuong_sinh_vien`
+3. Với mỗi sinh viên:
+   - Gọi `fn_lay_ti_le_giam_hoc_phi(ma_sv)` để tính lại tỷ lệ giảm (cao nhất)
+   - Cập nhật lại các phiếu đăng ký có `trang_thai = 'Đã đăng ký'`:
+     - `ti_le_giam` = tỷ lệ mới
+     - `tien_mien_giam` = `tong_tien_dang_ky * ti_le_giam / 100`
+     - `tong_tien_phai_dong` = `tong_tien_dang_ky - tien_mien_giam`
+
+**Output:** Cập nhật các phiếu đăng ký của tất cả sinh viên liên quan
+
+**Ví dụ:**
+```sql
+-- Đối tượng "Hộ nghèo" (DT03) được điều chỉnh từ 50% lên 60%:
+UPDATE doi_tuong SET ti_le_giam_hoc_phi = 60 WHERE ma_doi_tuong = 'DT03';
+-- Kết quả: Tất cả phiếu đăng ký của sinh viên thuộc hộ nghèo được cập nhật
+```
+
+---
+
+#### 15. `trg_phuong_xa_before_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên khi thay đổi khu vực ưu tiên của phường/xã.
+
+**Input:** Dữ liệu phường/xã trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `khu_vuc` thay đổi
+2. Nếu thay đổi thành `KV3`:
+   - Tìm sinh viên có `ma_phuong_xa = NEW.ma_phuong_xa` VÀ là dân tộc thiểu số
+   - Kiểm tra và gán đối tượng "Vùng sâu vùng xa" nếu đủ điều kiện
+   - Cập nhật tỷ lệ giảm cho các phiếu đăng ký
+3. Nếu thay đổi từ `KV3` sang khu vực khác:
+   - Tìm sinh viên có đối tượng "Vùng sâu vùng xa" từ khu vực này
+   - Xóa đối tượng "Vùng sâu vùng xa" (không còn đủ điều kiện)
+   - Tính lại tỷ lệ giảm (có thể = 0 nếu không còn đối tượng khác)
+
+**Output:** Cập nhật phiếu đăng ký của sinh viên liên quan
+
+---
+
+#### 16. `trg_dan_toc_before_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên khi thay đổi thuộc tính dân tộc thiểu số.
+
+**Input:** Dữ liệu dân tộc trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `la_dan_toc_thieu_so` thay đổi
+2. Nếu thay đổi từ FALSE → TRUE:
+   - Tìm sinh viên có `ma_dan_toc = NEW.ma_dan_toc` VÀ ở khu vực KV3
+   - Cập nhật tỷ lệ giảm cho các phiếu đăng ký (thêm vào đối tượng vùng sâu vùng xa)
+3. Nếu thay đổi từ TRUE → FALSE:
+   - Tìm sinh viên không còn đủ điều kiện vùng sâu vùng xa
+   - Tính lại tỷ lệ giảm
+
+**Output:** Cập nhật phiếu đăng ký của sinh viên liên quan
+
+---
+
+#### 17. `fn_lay_ti_le_giam_hoc_phi(p_ma_sv VARCHAR)`
 **Mục đích:** Lấy tỷ lệ giảm học phí của sinh viên dựa trên đối tượng ưu tiên có độ ưu tiên cao nhất.
 
 **Input:** 
@@ -270,7 +536,82 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 
 ---
 
-#### 10. `sp_lap_ho_so_sinh_vien(...)`
+#### 19. `fn_validate_cccd(p_cccd VARCHAR)`
+**Mục đích:** Kiểm tra số CCCD có hợp lệ hay không (phải có đúng 12 ký tự số).
+
+**Input:**
+- `p_cccd`: Số CCCD cần kiểm tra (VARCHAR(20))
+
+**Logic xử lý:**
+1. Nếu `p_cccd` là NULL hoặc rỗng → trả về TRUE (CCCD không bắt buộc)
+2. Kiểm tra độ dài = 12 ký tự
+3. Kiểm tra tất cả ký tự là số (regex: `^[0-9]{12}$`)
+4. Trả về TRUE nếu hợp lệ, FALSE nếu không
+
+**Output:** BOOLEAN - TRUE nếu CCCD hợp lệ hoặc rỗng, FALSE nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+SELECT fn_validate_cccd('079203012345');  -- TRUE (12 số)
+SELECT fn_validate_cccd('07920301234');   -- FALSE (11 số)
+SELECT fn_validate_cccd('0792030123AB');  -- FALSE (có chữ cái)
+SELECT fn_validate_cccd(NULL);            -- TRUE (không bắt buộc)
+SELECT fn_validate_cccd('');              -- TRUE (không bắt buộc)
+```
+
+---
+
+#### 20. `fn_validate_sdt(p_sdt VARCHAR)`
+**Mục đích:** Kiểm tra số điện thoại có hợp lệ hay không.
+
+**Input:**
+- `p_sdt`: Số điện thoại cần kiểm tra (VARCHAR(15))
+
+**Logic xử lý:**
+1. Nếu `p_sdt` là NULL hoặc rỗng → trả về TRUE (SĐT không bắt buộc)
+2. Kiểm tra độ dài 10-11 ký tự
+3. Kiểm tra bắt đầu bằng số 0
+4. Kiểm tra tất cả ký tự là số (regex: `^0[0-9]{9,10}$`)
+5. Trả về TRUE nếu hợp lệ, FALSE nếu không
+
+**Output:** BOOLEAN - TRUE nếu SĐT hợp lệ hoặc rỗng, FALSE nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+SELECT fn_validate_sdt('0901234567');   -- TRUE (10 số, bắt đầu bằng 0)
+SELECT fn_validate_sdt('84901234567');  -- FALSE (không bắt đầu bằng 0)
+SELECT fn_validate_sdt('090123456');    -- FALSE (9 số, quá ngắn)
+SELECT fn_validate_sdt(NULL);           -- TRUE (không bắt buộc)
+```
+
+---
+
+#### 21. `fn_validate_email(p_email VARCHAR)`
+**Mục đích:** Kiểm tra email có định dạng hợp lệ hay không.
+
+**Input:**
+- `p_email`: Email cần kiểm tra (VARCHAR(100))
+
+**Logic xử lý:**
+1. Nếu `p_email` là NULL hoặc rỗng → trả về TRUE (email không bắt buộc)
+2. Kiểm tra có chứa ký tự `@`
+3. Kiểm tra có domain sau `@`
+4. Kiểm tra định dạng cơ bản (regex: `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+5. Trả về TRUE nếu hợp lệ, FALSE nếu không
+
+**Output:** BOOLEAN - TRUE nếu email hợp lệ hoặc rỗng, FALSE nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+SELECT fn_validate_email('an.nguyen@student.edu.vn');  -- TRUE
+SELECT fn_validate_email('invalid-email');             -- FALSE (thiếu @)
+SELECT fn_validate_email('test@');                     -- FALSE (thiếu domain)
+SELECT fn_validate_email(NULL);                        -- TRUE (không bắt buộc)
+```
+
+---
+
+#### 22. `sp_lap_ho_so_sinh_vien(...)`
 **Mục đích:** Procedure tạo hồ sơ sinh viên đầy đủ bao gồm: sinh viên, tài khoản, và gán đối tượng (nếu có).
 
 **Input:**
@@ -1925,10 +2266,64 @@ diem_tb = diem_qt * 0.2 + diem_gk * 0.3 + diem_ck * 0.5
 
 | Thành viên | BM | QĐ | Số Trigger | Số Function | Số Procedure |
 |------------|----|----|------------|-------------|--------------|
-| **TV1** | BM1 | QĐ1 | 7 | 2 | 1 |
+| **TV1** | BM1 | QĐ1 | 16 | 5 | 1 |
 | **TV2** | BM2, BM3 | QĐ2, QĐ3 | 10 | 2 | 2 |
 | **TV3** | BM4, BM5 | QĐ4, QĐ5 | 13 | 5 | 4 |
 | **TV4** | BM6, BM7 | QĐ6, QĐ7 | 11 | 6 | 5 |
+
+### Chi tiết số lượng TV1:
+- **Trigger (16):**
+  - `sinh_vien`: before_insert, before_update, before_delete, after_insert, after_update (5)
+  - `doi_tuong_sinh_vien`: before_insert, before_update, after_insert, after_update, after_delete (5)
+  - `doi_tuong`: before_insert, before_update, before_delete, after_update (4)
+  - `phuong_xa`: before_update (1)
+  - `dan_toc`: before_update (1)
+- **Function (5):**
+  - `fn_lay_ti_le_giam_hoc_phi`, `fn_kiem_tra_vung_sau_vung_xa`, `fn_validate_cccd`, `fn_validate_sdt`, `fn_validate_email`
+- **Procedure (1):**
+  - `sp_lap_ho_so_sinh_vien`
+
+---
+
+## 📋 BẢNG TẦM ẢNH HƯỞNG CỦA TRIGGER
+
+Bảng này liệt kê tất cả các trigger và tầm ảnh hưởng của chúng (INSERT/UPDATE/DELETE):
+
+### Thành viên 1 - Sinh viên & Đối tượng ưu tiên
+
+| Bảng | INSERT | UPDATE | DELETE | Ghi chú |
+|------|--------|--------|--------|---------|
+| `sinh_vien` | ✅ `trg_sinh_vien_before_insert`, `trg_sinh_vien_after_insert` | ✅ `trg_sinh_vien_before_update`, `trg_sinh_vien_after_update` | ✅ `trg_sinh_vien_before_delete` | Kiểm tra CCCD 12 số, SĐT, email |
+| `doi_tuong_sinh_vien` | ✅ `trg_doi_tuong_sinh_vien_before_insert`, `trg_doi_tuong_sinh_vien_after_insert` | ✅ `trg_doi_tuong_sinh_vien_before_update`, `trg_doi_tuong_sinh_vien_after_update` | ✅ `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật tỷ lệ giảm HP |
+| `doi_tuong` | ✅ `trg_doi_tuong_before_insert` | ✅ `trg_doi_tuong_before_update`, `trg_doi_tuong_after_update` | ✅ `trg_doi_tuong_before_delete` | Kiểm tra tỷ lệ giảm 0-100% |
+| `phuong_xa` | ❌ | ✅ `trg_phuong_xa_before_update` | ❌ | Cập nhật HP khi đổi khu vực |
+| `dan_toc` | ❌ | ✅ `trg_dan_toc_before_update` | ❌ | Cập nhật HP khi đổi DTTS |
+
+### Thành viên 2 - Môn học & Chương trình học
+
+| Bảng | INSERT | UPDATE | DELETE | Ghi chú |
+|------|--------|--------|--------|---------|
+| `mon_hoc` | ✅ `trg_mon_hoc_before_insert`, `trg_mon_hoc_after_insert` | ✅ `trg_mon_hoc_before_update`, `trg_mon_hoc_after_update` | ✅ `trg_mon_hoc_before_delete` | Tự động tính tín chỉ |
+| `lop` | ✅ `trg_lop_before_insert` | ✅ `trg_lop_before_update` | ✅ `trg_lop_before_delete` | Kiểm tra sức chứa |
+| `chuong_trinh_hoc` | ✅ `trg_chuong_trinh_hoc_before_insert` | ✅ `trg_chuong_trinh_hoc_before_update` | ❌ | Kiểm tra học kỳ dự kiến |
+| `dieu_kien_mon_hoc` | ✅ `trg_dieu_kien_mon_hoc_before_insert` | ✅ `trg_dieu_kien_mon_hoc_before_update` | ❌ | Tránh vòng lặp điều kiện |
+
+### Thành viên 3 - Học kỳ & Đăng ký môn học
+
+| Bảng | INSERT | UPDATE | DELETE | Ghi chú |
+|------|--------|--------|--------|---------|
+| `hoc_ky` | ✅ `trg_hoc_ky_before_insert` | ✅ `trg_hoc_ky_before_update` | ❌ | Kiểm tra loại học kỳ |
+| `lop_mo` | ✅ `trg_lop_mo_before_insert` | ✅ `trg_lop_mo_before_update` | ✅ `trg_lop_mo_before_delete` | Kiểm tra sĩ số |
+| `phieu_dang_ky` | ✅ `trg_phieu_dang_ky_before_insert` | ✅ `trg_phieu_dang_ky_before_update` | ❌ | Tự động tính tỷ lệ giảm |
+| `chi_tiet_dang_ky` | ✅ `trg_chi_tiet_dang_ky_after_insert` | ✅ `trg_chi_tiet_dang_ky_after_update` | ✅ `trg_chi_tiet_dang_ky_after_delete` | Cập nhật tổng tiền |
+| `lich_hoc_lop` | ✅ `trg_lich_hoc_lop_before_insert` | ✅ `trg_lich_hoc_lop_before_update` | ✅ `trg_lich_hoc_lop_before_delete` | Kiểm tra trùng lịch |
+
+### Thành viên 4 - Học phí & Điểm số
+
+| Bảng | INSERT | UPDATE | DELETE | Ghi chú |
+|------|--------|--------|--------|---------|
+| `phieu_thu_hoc_phi` | ✅ `trg_phieu_thu_hoc_phi_before_insert`, `trg_phieu_thu_hoc_phi_after_insert` | ✅ `trg_phieu_thu_hoc_phi_before_update`, `trg_phieu_thu_hoc_phi_after_update` | ✅ `trg_phieu_thu_hoc_phi_after_delete` | Kiểm tra số tiền thu |
+| `diem_sinh_vien` | ✅ `trg_diem_sinh_vien_before_insert`, `trg_diem_sinh_vien_after_insert` | ✅ `trg_diem_sinh_vien_before_update`, `trg_diem_sinh_vien_after_update` | ✅ `trg_diem_sinh_vien_after_delete` | Tự động tính GPA |
 
 ---
 
