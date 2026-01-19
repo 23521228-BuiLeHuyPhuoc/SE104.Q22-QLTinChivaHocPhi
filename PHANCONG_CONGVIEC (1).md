@@ -20,8 +20,8 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
 |-----|------|-----------|
 | 1 | `backend/src/controllers/studentController.js` | Thêm/sửa API CRUD sinh viên, lấy tỷ lệ giảm HP |
 | 2 | `backend/src/routes/studentRoutes.js` | Định nghĩa routes cho sinh viên |
-| 3 | `backend/src/controllers/locationController.js` | **Tạo mới** - API quản lý Tỉnh/Huyện |
-| 4 | `backend/src/routes/locationRoutes.js` | **Tạo mới** - Routes cho Tỉnh/Huyện |
+| 3 | `backend/src/controllers/locationController.js` | **Tạo mới** - API quản lý Tỉnh và Phường/Xã |
+| 4 | `backend/src/routes/locationRoutes.js` | **Tạo mới** - Routes cho Tỉnh và Phường/Xã |
 | 5 | `backend/src/controllers/priorityObjectController.js` | **Tạo mới** - API quản lý đối tượng ưu tiên |
 | 6 | `backend/src/routes/priorityObjectRoutes.js` | **Tạo mới** - Routes đối tượng ưu tiên |
 | 7 | `backend/src/index.js` | Đăng ký routes mới |
@@ -32,7 +32,7 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
 |-----|------|-----------|
 | 1 | `frontend/src/pages/Students.jsx` | Cập nhật giao diện quản lý sinh viên theo BM1 |
 | 2 | `frontend/src/pages/Students.css` | Styles cho trang sinh viên |
-| 3 | `frontend/src/pages/admin/LocationManagement.jsx` | **Tạo mới** - Quản lý Tỉnh/Huyện |
+| 3 | `frontend/src/pages/admin/LocationManagement.jsx` | **Tạo mới** - Quản lý Tỉnh và Phường/Xã |
 | 4 | `frontend/src/pages/admin/LocationManagement.css` | **Tạo mới** - Styles |
 | 5 | `frontend/src/pages/admin/PriorityObjects.jsx` | **Tạo mới** - Quản lý đối tượng ưu tiên |
 | 6 | `frontend/src/pages/admin/PriorityObjects.css` | **Tạo mới** - Styles |
