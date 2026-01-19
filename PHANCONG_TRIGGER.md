@@ -8,6 +8,13 @@
 
 Tài liệu này phân chia công việc viết Trigger và Stored Procedures cho **4 thành viên** trong nhóm, đảm bảo đáp ứng đầy đủ các yêu cầu từ BM1-BM7 và QĐ1-QĐ7.
 
+### ⚠️ LƯU Ý QUAN TRỌNG
+
+1. **Thiết kế trigger dựa trên init.sql**: Tất cả trigger/function/procedure phải được thiết kế dựa trên cấu trúc bảng và constraint được định nghĩa trong `backend/src/config/init.sql`
+2. **Quy định nghiệp vụ bổ sung**: Một số trường có thể cho phép NULL trong database (VD: `cccd`) nhưng **BẮT BUỘC** theo quy định nghiệp vụ - trigger cần kiểm tra các điều kiện này
+3. **Phân chia công việc theo logic nghiệp vụ**: Phân chia dựa trên chức năng và yêu cầu BM/QĐ, không dựa vào cấu trúc thư mục hiện tại của code
+4. **Database constraints**: Các constraint đã được định nghĩa trong init.sql (NOT NULL, CHECK, FOREIGN KEY...) sẽ được PostgreSQL tự động kiểm tra, trigger chỉ cần xử lý logic nghiệp vụ bổ sung
+
 ---
 
 ## 👤 THÀNH VIÊN 1: Quản lý Sinh viên & Đối tượng ưu tiên
@@ -37,6 +44,10 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 - Kiểm tra `ho_ten` không được rỗng, chuẩn hóa (trim, capitalize)
 - Kiểm tra `ngay_sinh` hợp lệ (không được là ngày trong tương lai, tuổi >= 16)
 - Kiểm tra `gioi_tinh` phải là 'Nam' hoặc 'Nữ'
+- **Kiểm tra `cccd` theo quy định nghiệp vụ:**
+  - Bắt buộc nhập (dù database cho phép NULL vì có UNIQUE constraint)
+  - Format đúng (12 số cho CCCD mới hoặc 9/12 số cho CMND cũ)
+  - Không trùng lặp với sinh viên khác
 - Kiểm tra `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
 - Kiểm tra `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
 - Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc`
@@ -49,8 +60,8 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 **Ví dụ:**
 ```sql
 -- Trigger sẽ chạy khi thực hiện:
-INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, ma_phuong_xa, ma_dan_toc, ma_nganh)
-VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'KTPM');
+INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, cccd, ma_phuong_xa, ma_dan_toc, ma_nganh)
+VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '079204001234', '2659', 'KINH', 'KTPM');
 -- Kết quả: ho_ten được chuẩn hóa thành 'Nguyễn Văn An'
 ```
 
@@ -200,10 +211,10 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 | `p_ho_ten` | VARCHAR(100) | Có | Họ tên sinh viên |
 | `p_ngay_sinh` | DATE | Có | Ngày sinh |
 | `p_gioi_tinh` | VARCHAR(5) | Có | 'Nam' hoặc 'Nữ' |
+| `p_cccd` | VARCHAR(20) | **Có** | Số CCCD (bắt buộc theo quy định nghiệp vụ) |
 | `p_ma_phuong_xa` | VARCHAR(20) | Có | Mã phường/xã (quê quán) |
 | `p_ma_dan_toc` | VARCHAR(10) | Không | Mã dân tộc (mặc định 'KINH') |
 | `p_ma_nganh` | VARCHAR(10) | Có | Mã ngành học |
-| `p_cccd` | VARCHAR(20) | Không | Số CCCD |
 | `p_sdt` | VARCHAR(15) | Không | Số điện thoại |
 | `p_email` | VARCHAR(100) | Không | Email |
 | `p_dia_chi` | VARCHAR(200) | Không | Địa chỉ liên hệ |
@@ -213,6 +224,7 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 1. Bắt đầu TRANSACTION
 2. Kiểm tra dữ liệu đầu vào:
    - `ma_sv` không tồn tại
+   - `cccd` không được NULL và không trùng lặp (bắt buộc theo nghiệp vụ)
    - `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
    - `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
    - `ma_nganh` tồn tại trong bảng `nganh_hoc`
@@ -231,10 +243,10 @@ SELECT sp_lap_ho_so_sinh_vien(
     'Nguyễn Văn An',   -- ho_ten
     '2003-05-15',      -- ngay_sinh
     'Nam',             -- gioi_tinh
+    '079204001234',    -- cccd (BẮT BUỘC)
     '2659',            -- ma_phuong_xa (Phường Vũng Tàu, TP.HCM)
     'KINH',            -- ma_dan_toc (Dân tộc Kinh)
     'KTPM',            -- ma_nganh (Kỹ thuật phần mềm)
-    '001203012345',    -- cccd
     '0901234567',      -- sdt
     'an.nv@email.com', -- email
     '123 Lê Lợi, Q1',  -- dia_chi
