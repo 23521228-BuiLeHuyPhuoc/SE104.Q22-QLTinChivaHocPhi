@@ -86,7 +86,7 @@ CREATE TABLE tinh (
 );
 
 -- =====================================================
--- 1.1. BẢNG dan_toc - Dân tộc
+-- 1.5. BẢNG dan_toc - Dân tộc (54 dân tộc Việt Nam)
 -- =====================================================
 CREATE TABLE dan_toc (
     ma_dan_toc VARCHAR(10) NOT NULL,
@@ -100,6 +100,8 @@ CREATE TABLE dan_toc (
 -- =====================================================
 -- 2. BẢNG phuong_xa - Phường/Xã (thay thế bảng Huyện - QĐ1)
 -- Ghi chú: Đối tượng "vùng sâu vùng xa" = thuộc KV3 VÀ là dân tộc thiểu số
+-- Quy tắc này được thực hiện trong function fn_kiem_tra_vung_sau_vung_xa()
+-- và fn_lay_ti_le_giam_hoc_phi() trong mã ứng dụng (theo QĐ1)
 -- =====================================================
 CREATE TABLE phuong_xa (
     ma_phuong_xa VARCHAR(20) NOT NULL,
@@ -1010,10 +1012,12 @@ INSERT INTO tinh (ma_tinh, ten_tinh, loai_tinh) VALUES
 
 -- =====================================================
 -- INSERT DATA - Phường/Xã (từ ITExpressLocation.sql)
--- Ghi chú: khu_vuc = KV3 cho các tỉnh vùng núi cao, vùng sâu
--- Các tỉnh KV3: Cao Bằng(7), Tuyên Quang(8), Lào Cai(9), Lạng Sơn(11),
---               Phú Thọ(12), Điện Biên(13), Lai Châu(14), Sơn La(15),
---               Gia Lai(24), Đắk Lắk(25)
+-- Ghi chú: khu_vuc được phân loại theo tra-cuu-khu-vuc-uu-tien-2025.docx
+-- Trong bản mẫu này, các tỉnh miền núi phía Bắc và Tây Nguyên được đánh dấu KV3:
+--   - Cao Bằng(7), Tuyên Quang(8), Lào Cai(9), Lạng Sơn(11)
+--   - Phú Thọ(12), Điện Biên(13), Lai Châu(14), Sơn La(15)
+--   - Gia Lai(24), Đắk Lắk(25)
+-- Lưu ý: Danh sách này cần được cập nhật theo quy định chính thức năm 2025
 -- =====================================================
 INSERT INTO phuong_xa (ma_phuong_xa, ten_phuong_xa, ma_tinh, loai, khu_vuc) VALUES
 ('1', 'Hoàn Kiếm', '1', 'Phường', 'KV1'),
@@ -6305,8 +6309,13 @@ INSERT INTO tai_khoan (ten_dang_nhap, mat_khau, role, ho_ten, email, trang_thai)
 
 -- =====================================================
 -- Bước 2: Tạo sinh viên với ma_tai_khoan (dùng subquery)
--- ma_phuong_xa: Sử dụng ID phường/xã từ ITExpressLocation.sql (HCM province_id=29)
--- ma_dan_toc: KINH (dân tộc Kinh) hoặc DTTS (dân tộc thiểu số)
+-- ma_phuong_xa: Sử dụng ID phường/xã từ ITExpressLocation.sql
+--   - 2659 = Phường Vũng Tàu (HCM, province_id=29)
+--   - 2660 = Phường Tam Thắng (HCM)
+--   - 2661 = Phường Rạch Dừa (HCM)
+--   - 2662 = Phường Phước Thắng (HCM)
+--   - 2663 = Phường Bà Rịa (HCM)
+-- ma_dan_toc: KINH (dân tộc Kinh), MONG (dân tộc Mông - DTTS)
 -- ma_nganh: KTPM, KHMT, HTTT, MMT, ATTT
 -- =====================================================
 INSERT INTO sinh_vien (ma_sv, ma_tai_khoan, ho_ten, ngay_sinh, gioi_tinh, cccd, ma_phuong_xa, ma_dan_toc, ma_nganh, sdt, email, trang_thai)
@@ -6325,6 +6334,7 @@ INSERT INTO sinh_vien (ma_sv, ma_tai_khoan, ho_ten, ngay_sinh, gioi_tinh, cccd, 
 SELECT '22520004', ma_tai_khoan, 'Phạm Thị Dung', '2004-11-25', 'Nữ', '079204003456', '2662', 'KINH', 'KTPM', '0923456789', 'dung.pham@student.edu.vn', 'Đang học'
 FROM tai_khoan WHERE ten_dang_nhap = '22520004';
 
+-- Sinh viên này là dân tộc Mông (DTTS) để test chức năng vùng sâu vùng xa
 INSERT INTO sinh_vien (ma_sv, ma_tai_khoan, ho_ten, ngay_sinh, gioi_tinh, cccd, ma_phuong_xa, ma_dan_toc, ma_nganh, sdt, email, trang_thai)
 SELECT '22520005', ma_tai_khoan, 'Hoàng Minh Đức', '2004-07-08', 'Nam', '079204007890', '2663', 'MONG', 'MMT', '0934567890', 'duc.hoang@student.edu.vn', 'Đang học'
 FROM tai_khoan WHERE ten_dang_nhap = '22520005';
