@@ -2646,6 +2646,364 @@ Dựa trên phân tích bảng tầm ảnh hưởng, các trigger sau cần đư
 
 ---
 
+## 📝 MÔ TẢ CHI TIẾT CÁC TRIGGER CẦN BỔ SUNG
+
+### Thành viên 1 - Trigger bổ sung
+
+#### `trg_phuong_xa_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa phường/xã nếu còn sinh viên đang tham chiếu.
+
+**Input:** Dữ liệu phường/xã cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `sinh_vien` có sinh viên nào có `ma_phuong_xa = OLD.ma_phuong_xa` không
+- Nếu có: RAISE EXCEPTION 'Không thể xóa phường/xã vì còn sinh viên đang tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có sinh viên tham chiếu
+
+**Ví dụ:**
+```sql
+-- Nếu có sinh viên thuộc phường/xã '2659':
+DELETE FROM phuong_xa WHERE ma_phuong_xa = '2659';
+-- Kết quả: Error - Không thể xóa phường/xã vì còn sinh viên đang tham chiếu
+```
+
+---
+
+#### `trg_dan_toc_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa dân tộc nếu còn sinh viên đang tham chiếu.
+
+**Input:** Dữ liệu dân tộc cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `sinh_vien` có sinh viên nào có `ma_dan_toc = OLD.ma_dan_toc` không
+- Nếu có: RAISE EXCEPTION 'Không thể xóa dân tộc vì còn sinh viên đang tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có sinh viên tham chiếu
+
+**Ví dụ:**
+```sql
+-- Nếu có sinh viên thuộc dân tộc 'KINH':
+DELETE FROM dan_toc WHERE ma_dan_toc = 'KINH';
+-- Kết quả: Error - Không thể xóa dân tộc vì còn sinh viên đang tham chiếu
+```
+
+---
+
+#### `trg_nganh_hoc_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa ngành học nếu còn sinh viên hoặc chương trình đào tạo đang tham chiếu.
+
+**Input:** Dữ liệu ngành học cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `sinh_vien` có sinh viên nào có `ma_nganh = OLD.ma_nganh` không
+- Kiểm tra trong bảng `chuong_trinh_hoc` có CTĐT nào có `ma_nganh = OLD.ma_nganh` không
+- Nếu có bất kỳ ràng buộc nào: RAISE EXCEPTION 'Không thể xóa ngành học vì còn dữ liệu tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có dữ liệu tham chiếu
+
+**Ví dụ:**
+```sql
+-- Nếu có sinh viên thuộc ngành 'KTPM':
+DELETE FROM nganh_hoc WHERE ma_nganh = 'KTPM';
+-- Kết quả: Error - Không thể xóa ngành học vì còn sinh viên đang tham chiếu
+```
+
+---
+
+#### `trg_quan_huyen_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa quận/huyện nếu còn phường/xã đang tham chiếu.
+
+**Input:** Dữ liệu quận/huyện cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `phuong_xa` có phường/xã nào có `ma_quan_huyen = OLD.ma_quan_huyen` không
+- Nếu có: RAISE EXCEPTION 'Không thể xóa quận/huyện vì còn phường/xã đang tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có phường/xã tham chiếu
+
+**Ví dụ:**
+```sql
+-- Nếu có phường/xã thuộc quận/huyện '001':
+DELETE FROM quan_huyen WHERE ma_quan_huyen = '001';
+-- Kết quả: Error - Không thể xóa quận/huyện vì còn phường/xã đang tham chiếu
+```
+
+---
+
+### Thành viên 2 - Trigger bổ sung
+
+#### `trg_khoa_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa khoa nếu còn môn học đang tham chiếu.
+
+**Input:** Dữ liệu khoa cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `mon_hoc` có môn học nào có `ma_khoa = OLD.ma_khoa` không
+- Kiểm tra trong bảng `nganh_hoc` có ngành học nào có `ma_khoa = OLD.ma_khoa` không
+- Nếu có bất kỳ ràng buộc nào: RAISE EXCEPTION 'Không thể xóa khoa vì còn dữ liệu tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có dữ liệu tham chiếu
+
+**Ví dụ:**
+```sql
+-- Nếu có môn học thuộc khoa 'CNTT':
+DELETE FROM khoa WHERE ma_khoa = 'CNTT';
+-- Kết quả: Error - Không thể xóa khoa vì còn môn học đang tham chiếu
+```
+
+---
+
+#### `trg_chuong_trinh_hoc_before_delete`
+**Mục đích:** Kiểm tra ràng buộc trước khi xóa môn trong chương trình đào tạo.
+
+**Input:** Dữ liệu CTĐT cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra xem môn này có phải là môn bắt buộc không
+- Kiểm tra xem có sinh viên nào đang học theo CTĐT này và đã đăng ký môn không
+- Nếu có ràng buộc: RAISE EXCEPTION 'Không thể xóa môn khỏi CTĐT vì có ràng buộc'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có
+
+**Ví dụ:**
+```sql
+-- Nếu môn 'IT001' trong CTĐT 'KTPM' đã có sinh viên đăng ký:
+DELETE FROM chuong_trinh_hoc WHERE ma_nganh = 'KTPM' AND ma_mon_hoc = 'IT001';
+-- Kết quả: Error - Không thể xóa môn khỏi CTĐT vì có sinh viên đã đăng ký
+```
+
+---
+
+#### `trg_dieu_kien_mon_hoc_before_delete`
+**Mục đích:** Kiểm tra ảnh hưởng trước khi xóa điều kiện môn học.
+
+**Input:** Dữ liệu điều kiện môn học cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Ghi log việc xóa điều kiện môn học
+- Kiểm tra xem việc xóa có ảnh hưởng đến sinh viên đang chờ đăng ký không (cảnh báo)
+- Cho phép xóa nhưng ghi nhận lịch sử thay đổi
+
+**Output:** Cho phép DELETE và ghi log
+
+**Ví dụ:**
+```sql
+DELETE FROM dieu_kien_mon_hoc WHERE ma_mon_hoc = 'IT002' AND ma_mon_dieu_kien = 'IT001';
+-- Kết quả: Xóa thành công, ghi log 'Đã xóa điều kiện IT001 cho môn IT002'
+```
+
+---
+
+### Thành viên 3 - Trigger bổ sung
+
+#### `trg_hoc_ky_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa học kỳ nếu còn phiếu đăng ký hoặc lớp mở.
+
+**Input:** Dữ liệu học kỳ cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `phieu_dang_ky` có phiếu nào có `ma_hoc_ky = OLD.ma_hoc_ky` không
+- Kiểm tra trong bảng `lop_mo` có lớp nào có `ma_hoc_ky = OLD.ma_hoc_ky` không
+- Nếu có bất kỳ ràng buộc nào: RAISE EXCEPTION 'Không thể xóa học kỳ vì còn dữ liệu tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có
+
+**Ví dụ:**
+```sql
+-- Nếu có lớp mở trong học kỳ 'HK1_2024':
+DELETE FROM hoc_ky WHERE ma_hoc_ky = 'HK1_2024';
+-- Kết quả: Error - Không thể xóa học kỳ vì còn lớp mở tham chiếu
+```
+
+---
+
+#### `trg_nam_hoc_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa năm học nếu còn học kỳ đang tham chiếu.
+
+**Input:** Dữ liệu năm học cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `hoc_ky` có học kỳ nào có `ma_nam_hoc = OLD.ma_nam_hoc` không
+- Nếu có: RAISE EXCEPTION 'Không thể xóa năm học vì còn học kỳ đang tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có học kỳ tham chiếu
+
+**Ví dụ:**
+```sql
+-- Nếu có học kỳ thuộc năm học '2024':
+DELETE FROM nam_hoc WHERE ma_nam_hoc = '2024';
+-- Kết quả: Error - Không thể xóa năm học vì còn học kỳ đang tham chiếu
+```
+
+---
+
+#### `trg_nam_hoc_before_update`
+**Mục đích:** Cập nhật thông tin học kỳ khi thay đổi thông tin năm học.
+
+**Input:** Dữ liệu năm học trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+- Nếu `ma_nam_hoc` thay đổi: kiểm tra không có học kỳ tham chiếu
+- Nếu `ten_nam_hoc` thay đổi: cập nhật tên tương ứng trong `hoc_ky` (nếu cần)
+- Nếu `ngay_bat_dau` hoặc `ngay_ket_thuc` thay đổi: kiểm tra và cập nhật ngày tương ứng trong học kỳ
+
+**Output:** Cho phép UPDATE và cascade nếu cần
+
+**Ví dụ:**
+```sql
+-- Cập nhật ngày kết thúc năm học:
+UPDATE nam_hoc SET ngay_ket_thuc = '2024-08-31' WHERE ma_nam_hoc = '2024';
+-- Kết quả: Cập nhật thành công, các học kỳ liên quan được kiểm tra ngày hợp lệ
+```
+
+---
+
+#### `trg_phieu_dang_ky_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa phiếu đăng ký nếu còn chi tiết đăng ký hoặc phiếu thu học phí.
+
+**Input:** Dữ liệu phiếu đăng ký cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `chi_tiet_dang_ky` có chi tiết nào có `ma_phieu_dk = OLD.ma_phieu_dk` không
+- Kiểm tra trong bảng `phieu_thu_hoc_phi` có phiếu thu nào có `ma_phieu_dk = OLD.ma_phieu_dk` không
+- Nếu có bất kỳ ràng buộc nào: RAISE EXCEPTION 'Không thể xóa phiếu đăng ký vì còn dữ liệu tham chiếu'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có
+
+**Ví dụ:**
+```sql
+-- Nếu có chi tiết đăng ký trong phiếu 'PDK001':
+DELETE FROM phieu_dang_ky WHERE ma_phieu_dk = 'PDK001';
+-- Kết quả: Error - Không thể xóa phiếu đăng ký vì còn chi tiết đăng ký
+```
+
+---
+
+#### `trg_chi_tiet_dang_ky_before_insert`
+**Mục đích:** Kiểm tra điều kiện tiên quyết và trùng lịch trước khi đăng ký môn học.
+
+**Input:** Dữ liệu chi tiết đăng ký mới (NEW.*)
+
+**Logic xử lý:**
+- Lấy thông tin sinh viên và lớp mở từ `phieu_dang_ky` và `lop_mo`
+- Kiểm tra sinh viên đã hoàn thành các môn tiên quyết trong `dieu_kien_mon_hoc` chưa
+- Kiểm tra lịch học của lớp mới có trùng với các lớp đã đăng ký không
+- Kiểm tra số lượng đăng ký không vượt quá sức chứa của lớp
+- Nếu không đạt điều kiện: RAISE EXCEPTION với thông báo lỗi cụ thể
+- Nếu đạt: Cho phép INSERT
+
+**Output:** Cho phép INSERT nếu đủ điều kiện, raise exception nếu không
+
+**Ví dụ:**
+```sql
+-- Nếu sinh viên chưa hoàn thành môn tiên quyết:
+INSERT INTO chi_tiet_dang_ky (ma_phieu_dk, lop_mo_id) VALUES ('PDK001', 10);
+-- Kết quả: Error - Sinh viên chưa hoàn thành môn tiên quyết 'IT001'
+
+-- Nếu bị trùng lịch:
+INSERT INTO chi_tiet_dang_ky (ma_phieu_dk, lop_mo_id) VALUES ('PDK001', 11);
+-- Kết quả: Error - Trùng lịch học với lớp đã đăng ký (Thứ 2, tiết 1-3)
+```
+
+---
+
+#### `trg_don_gia_tin_chi_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa đơn giá tín chỉ nếu còn chi tiết đăng ký đang sử dụng.
+
+**Input:** Dữ liệu đơn giá tín chỉ cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `chi_tiet_dang_ky` có chi tiết nào đang sử dụng đơn giá này không
+- Nếu có: RAISE EXCEPTION 'Không thể xóa đơn giá vì còn chi tiết đăng ký đang sử dụng'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có
+
+**Ví dụ:**
+```sql
+-- Nếu có chi tiết đăng ký đang sử dụng đơn giá:
+DELETE FROM don_gia_tin_chi WHERE id = 1;
+-- Kết quả: Error - Không thể xóa đơn giá vì còn chi tiết đăng ký đang sử dụng
+```
+
+---
+
+#### `trg_don_gia_tin_chi_after_update`
+**Mục đích:** Cập nhật thành tiền trong chi tiết đăng ký khi đổi đơn giá tín chỉ.
+
+**Input:** Dữ liệu đơn giá trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+- Nếu `don_gia` thay đổi:
+  - Tìm tất cả chi tiết đăng ký đang sử dụng đơn giá này
+  - Tính lại `thanh_tien = so_tin_chi * NEW.don_gia`
+  - Cập nhật `tong_tien_phai_dong` trong `phieu_dang_ky` tương ứng
+  - Ghi log thay đổi
+
+**Output:** Cập nhật thành tiền trong các chi tiết đăng ký liên quan
+
+**Ví dụ:**
+```sql
+-- Cập nhật đơn giá tín chỉ:
+UPDATE don_gia_tin_chi SET don_gia = 500000 WHERE id = 1;
+-- Kết quả: Tất cả chi tiết đăng ký sử dụng đơn giá này được tính lại thành tiền
+```
+
+---
+
+#### `trg_tiet_hoc_before_delete`
+**Mục đích:** Kiểm tra và ngăn chặn xóa tiết học nếu còn lịch học đang sử dụng.
+
+**Input:** Dữ liệu tiết học cần xóa (OLD.*)
+
+**Logic xử lý:**
+- Kiểm tra trong bảng `lich_hoc_lop` có lịch nào có `ma_tiet = OLD.ma_tiet` không
+- Nếu có: RAISE EXCEPTION 'Không thể xóa tiết học vì còn lịch học đang sử dụng'
+- Nếu không: Cho phép xóa
+
+**Output:** Cho phép DELETE nếu không có ràng buộc, raise exception nếu có
+
+**Ví dụ:**
+```sql
+-- Nếu có lịch học sử dụng tiết 1:
+DELETE FROM tiet_hoc WHERE ma_tiet = 1;
+-- Kết quả: Error - Không thể xóa tiết học vì còn lịch học đang sử dụng
+```
+
+---
+
+#### `trg_tiet_hoc_before_update`
+**Mục đích:** Kiểm tra và cập nhật lịch học khi thay đổi thông tin tiết học.
+
+**Input:** Dữ liệu tiết học trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+- Nếu `gio_bat_dau` hoặc `gio_ket_thuc` thay đổi:
+  - Kiểm tra không có xung đột với các tiết khác
+  - Kiểm tra thời gian hợp lệ (gio_bat_dau < gio_ket_thuc)
+  - Cảnh báo nếu có lịch học đang sử dụng tiết này
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không
+
+**Ví dụ:**
+```sql
+-- Cập nhật giờ bắt đầu tiết học:
+UPDATE tiet_hoc SET gio_bat_dau = '07:30:00' WHERE ma_tiet = 1;
+-- Kết quả: Cập nhật thành công, cảnh báo nếu có lịch học đang sử dụng
+```
+
+---
+
 ## 📝 QUY TẮC ĐẶT TÊN
 
 ### Trigger
