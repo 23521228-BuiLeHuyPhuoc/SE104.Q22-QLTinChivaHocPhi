@@ -20,10 +20,10 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 | 2 | `trg_sinh_vien_after_insert` | Tự động tạo tài khoản cho sinh viên mới | `sinh_vien`, `tai_khoan` |
 | 3 | `trg_doi_tuong_sinh_vien_after_insert` | Cập nhật tỷ lệ giảm HP khi gán đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
 | 4 | `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật lại tỷ lệ giảm khi xóa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
-| 5 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `huyen` |
-| 6 | `fn_kiem_tra_vung_sau_vung_xa(ma_huyen)` | Kiểm tra huyện có thuộc vùng sâu/xa không (QĐ1) | `huyen` |
+| 5 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
+| 6 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
 | 7 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
-| 8 | `trg_huyen_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi vùng sâu/xa | `huyen`, `sinh_vien`, `phieu_dang_ky` |
+| 8 | `trg_phuong_xa_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi khu vực ưu tiên | `phuong_xa`, `sinh_vien`, `phieu_dang_ky` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -37,7 +37,8 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 - Kiểm tra `ho_ten` không được rỗng, chuẩn hóa (trim, capitalize)
 - Kiểm tra `ngay_sinh` hợp lệ (không được là ngày trong tương lai, tuổi >= 16)
 - Kiểm tra `gioi_tinh` phải là 'Nam' hoặc 'Nữ'
-- Kiểm tra `ma_huyen` tồn tại trong bảng `huyen`
+- Kiểm tra `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
+- Kiểm tra `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
 - Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc`
 - Chuẩn hóa email về dạng lowercase
 - Tự động set `ngay_tao = CURRENT_TIMESTAMP`
@@ -48,8 +49,8 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 **Ví dụ:**
 ```sql
 -- Trigger sẽ chạy khi thực hiện:
-INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, ma_huyen, ma_nganh)
-VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', 'Q1', 'KTPM');
+INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, ma_phuong_xa, ma_dan_toc, ma_nganh)
+VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'KTPM');
 -- Kết quả: ho_ten được chuẩn hóa thành 'Nguyễn Văn An'
 ```
 
@@ -133,9 +134,11 @@ INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
 2. JOIN với `doi_tuong` để lấy `ti_le_giam_hoc_phi` và `do_uu_tien`
 3. Sắp xếp theo `do_uu_tien ASC` (nhỏ nhất = ưu tiên cao nhất)
 4. Lấy `ti_le_giam_hoc_phi` của đối tượng có ưu tiên cao nhất
-5. Nếu sinh viên không có đối tượng nào, kiểm tra quê quán có thuộc vùng sâu/xa không:
-   - Nếu có → trả về tỷ lệ giảm của đối tượng "Vùng sâu vùng xa" (50%)
-   - Nếu không → trả về 0
+5. Nếu sinh viên không có đối tượng nào, kiểm tra điều kiện "vùng sâu vùng xa":
+   - Kiểm tra phường/xã của sinh viên có `khu_vuc = 'KV3'` không
+   - Kiểm tra dân tộc của sinh viên có `la_dan_toc_thieu_so = TRUE` không
+   - Nếu **CẢ HAI** điều kiện đều đúng → trả về tỷ lệ giảm của đối tượng "Vùng sâu vùng xa" (50%)
+   - Ngược lại → trả về 0
 
 **Output:** DECIMAL(5,2) - Tỷ lệ giảm học phí (0-100)
 
@@ -144,31 +147,45 @@ INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
 -- Sinh viên có 2 đối tượng: "Con liệt sĩ" (100%, độ ưu tiên 1) và "Vùng sâu" (50%, độ ưu tiên 4)
 SELECT fn_lay_ti_le_giam_hoc_phi('SV001'); -- Kết quả: 100.00
 
--- Sinh viên không có đối tượng nhưng quê ở vùng sâu/xa
+-- Sinh viên không có đối tượng nhưng ở KV3 VÀ là dân tộc thiểu số
 SELECT fn_lay_ti_le_giam_hoc_phi('SV002'); -- Kết quả: 50.00
 
--- Sinh viên không có đối tượng và quê không ở vùng sâu/xa
+-- Sinh viên ở KV3 nhưng là dân tộc Kinh (không đủ điều kiện vùng sâu xa)
 SELECT fn_lay_ti_le_giam_hoc_phi('SV003'); -- Kết quả: 0.00
+
+-- Sinh viên là dân tộc thiểu số nhưng ở KV1 (không đủ điều kiện vùng sâu xa)
+SELECT fn_lay_ti_le_giam_hoc_phi('SV004'); -- Kết quả: 0.00
 ```
 
 ---
 
-#### 6. `fn_kiem_tra_vung_sau_vung_xa(p_ma_huyen VARCHAR)`
-**Mục đích:** Kiểm tra một huyện có thuộc vùng sâu/vùng xa hay không.
+#### 6. `fn_kiem_tra_vung_sau_vung_xa(p_ma_sv VARCHAR)`
+**Mục đích:** Kiểm tra một sinh viên có thuộc đối tượng vùng sâu/vùng xa hay không.
+
+> ⚠️ **Điều kiện "vùng sâu vùng xa":** Sinh viên thuộc khu vực KV3 **VÀ** là dân tộc thiểu số.
 
 **Input:**
-- `p_ma_huyen`: Mã huyện (VARCHAR(10))
+- `p_ma_sv`: Mã sinh viên (VARCHAR(15))
 
 **Logic xử lý:**
-1. Truy vấn bảng `huyen` với `ma_huyen = p_ma_huyen`
-2. Trả về giá trị cột `la_vung_sau_vung_xa`
+1. Lấy thông tin phường/xã của sinh viên từ bảng `sinh_vien` và `phuong_xa`
+2. Kiểm tra `khu_vuc = 'KV3'`
+3. Lấy thông tin dân tộc của sinh viên từ bảng `dan_toc`
+4. Kiểm tra `la_dan_toc_thieu_so = TRUE`
+5. Trả về TRUE nếu **CẢ HAI** điều kiện đều thỏa mãn
 
 **Output:** BOOLEAN - TRUE nếu là vùng sâu/xa, FALSE nếu không
 
 **Ví dụ:**
 ```sql
-SELECT fn_kiem_tra_vung_sau_vung_xa('KRONG'); -- TRUE (Huyện Krông Bông, Đắk Lắk)
-SELECT fn_kiem_tra_vung_sau_vung_xa('Q1');    -- FALSE (Quận 1, TP.HCM)
+-- Sinh viên ở KV3 và là người Mông (dân tộc thiểu số)
+SELECT fn_kiem_tra_vung_sau_vung_xa('SV001'); -- TRUE
+
+-- Sinh viên ở KV3 nhưng là người Kinh
+SELECT fn_kiem_tra_vung_sau_vung_xa('SV002'); -- FALSE
+
+-- Sinh viên là người Thái (DTTS) nhưng ở KV1
+SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 ```
 
 ---
@@ -183,7 +200,8 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('Q1');    -- FALSE (Quận 1, TP.HCM)
 | `p_ho_ten` | VARCHAR(100) | Có | Họ tên sinh viên |
 | `p_ngay_sinh` | DATE | Có | Ngày sinh |
 | `p_gioi_tinh` | VARCHAR(5) | Có | 'Nam' hoặc 'Nữ' |
-| `p_ma_huyen` | VARCHAR(10) | Có | Mã huyện (quê quán) |
+| `p_ma_phuong_xa` | VARCHAR(20) | Có | Mã phường/xã (quê quán) |
+| `p_ma_dan_toc` | VARCHAR(10) | Không | Mã dân tộc (mặc định 'KINH') |
 | `p_ma_nganh` | VARCHAR(10) | Có | Mã ngành học |
 | `p_cccd` | VARCHAR(20) | Không | Số CCCD |
 | `p_sdt` | VARCHAR(15) | Không | Số điện thoại |
@@ -195,7 +213,8 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('Q1');    -- FALSE (Quận 1, TP.HCM)
 1. Bắt đầu TRANSACTION
 2. Kiểm tra dữ liệu đầu vào:
    - `ma_sv` không tồn tại
-   - `ma_huyen` tồn tại trong bảng `huyen`
+   - `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
+   - `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
    - `ma_nganh` tồn tại trong bảng `nganh_hoc`
    - `ma_doi_tuong` (nếu có) tồn tại trong bảng `doi_tuong`
 3. INSERT vào bảng `sinh_vien`
@@ -212,7 +231,8 @@ SELECT sp_lap_ho_so_sinh_vien(
     'Nguyễn Văn An',   -- ho_ten
     '2003-05-15',      -- ngay_sinh
     'Nam',             -- gioi_tinh
-    'Q1',              -- ma_huyen (Quận 1, TP.HCM)
+    '2659',            -- ma_phuong_xa (Phường Vũng Tàu, TP.HCM)
+    'KINH',            -- ma_dan_toc (Dân tộc Kinh)
     'KTPM',            -- ma_nganh (Kỹ thuật phần mềm)
     '001203012345',    -- cccd
     '0901234567',      -- sdt
@@ -225,27 +245,30 @@ SELECT sp_lap_ho_so_sinh_vien(
 
 ---
 
-#### 8. `trg_huyen_before_update`
-**Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên của huyện khi thay đổi trạng thái vùng sâu/xa.
+#### 8. `trg_phuong_xa_before_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên khi thay đổi khu vực ưu tiên của phường/xã.
 
-**Input:** Dữ liệu huyện trước và sau khi UPDATE (OLD.*, NEW.*)
+**Input:** Dữ liệu phường/xã trước và sau khi UPDATE (OLD.*, NEW.*)
 
 **Logic xử lý:**
-1. Kiểm tra nếu `la_vung_sau_vung_xa` thay đổi
-2. Nếu thay đổi từ FALSE → TRUE:
-   - Tìm sinh viên có `ma_huyen = NEW.ma_huyen` và chưa có đối tượng "Vùng sâu vùng xa"
+1. Kiểm tra nếu `khu_vuc` thay đổi
+2. Nếu thay đổi thành `KV3`:
+   - Tìm sinh viên có `ma_phuong_xa = NEW.ma_phuong_xa` VÀ là dân tộc thiểu số
+   - Kiểm tra và gán đối tượng "Vùng sâu vùng xa" nếu đủ điều kiện
    - Cập nhật tỷ lệ giảm cho các phiếu đăng ký
-3. Nếu thay đổi từ TRUE → FALSE:
-   - Tìm sinh viên chỉ có đối tượng từ vùng sâu/xa
+3. Nếu thay đổi từ `KV3` sang khu vực khác:
+   - Tìm sinh viên có đối tượng "Vùng sâu vùng xa" từ khu vực này
+   - Xóa đối tượng "Vùng sâu vùng xa" (không còn đủ điều kiện)
    - Tính lại tỷ lệ giảm (có thể = 0 nếu không còn đối tượng khác)
 
 **Output:** Cập nhật phiếu đăng ký của sinh viên liên quan
 
 ### Chi tiết yêu cầu:
-- **BM1**: Lập hồ sơ sinh viên (Họ tên, Ngày sinh, Giới tính, Quê quán, Đối tượng, Ngành học)
+- **BM1**: Lập hồ sơ sinh viên (Họ tên, Ngày sinh, Giới tính, Quê quán, Dân tộc, Đối tượng, Ngành học)
 - **QĐ1**: 
-  - Quê quán gồm Huyện và Tỉnh
-  - Lưu danh sách vùng sâu/vùng xa
+  - Quê quán gồm Phường/Xã và Tỉnh (dữ liệu từ ITExpressLocation.sql)
+  - Khu vực ưu tiên: KV1, KV2, KV2-NT, KV3 (theo tra-cuu-khu-vuc-uu-tien-2025.docx)
+  - Đối tượng "vùng sâu vùng xa" = KV3 + dân tộc thiểu số
   - Xác định đối tượng ưu tiên có độ ưu tiên cao nhất
   - Tỷ lệ giảm HP: 100%, 80%, 50%, 30%...
 
