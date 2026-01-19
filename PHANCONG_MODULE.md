@@ -480,17 +480,16 @@ GET    /api/reports/export/:type         - Xuất báo cáo Excel/PDF
 ## 🗂️ MODULE 15: THÔNG BÁO
 
 ### Mô tả:
-Quản lý thông báo chung và thông báo cá nhân cho sinh viên.
+Quản lý thông báo chung và thông báo cá nhân cho sinh viên. Bảng `thong_bao` được gộp cả hai loại, phân biệt qua thuộc tính `loai` ('chung' hoặc 'ca_nhan').
 
 ### Bảng Database:
-- `thong_bao` - Thông báo chung
-- `thong_bao_ca_nhan` - Thông báo cá nhân
+- `thong_bao` - Thông báo (gộp chung và cá nhân, phân biệt qua cột `loai`)
 
 ### Files liên quan:
 
 | Loại | File | Mô tả |
 |------|------|-------|
-| **SQL** | `backend/src/config/init.sql` | Bảng `thong_bao`, `thong_bao_ca_nhan` |
+| **SQL** | `backend/src/config/init.sql` | Bảng `thong_bao` (gộp chung và cá nhân) |
 | **Backend** | `backend/src/controllers/notificationController.js` | API thông báo |
 | **Backend** | `backend/src/routes/notificationRoutes.js` | Routes |
 | **Frontend** | `frontend/src/components/Notification.jsx` | Component thông báo |
@@ -498,8 +497,8 @@ Quản lý thông báo chung và thông báo cá nhân cho sinh viên.
 
 ### API Endpoints:
 ```
-GET    /api/notifications                - Lấy thông báo chung
-GET    /api/notifications/personal       - Thông báo cá nhân
+GET    /api/notifications                - Lấy thông báo chung (loai='chung')
+GET    /api/notifications/personal       - Thông báo cá nhân (loai='ca_nhan')
 POST   /api/notifications                - Tạo thông báo
 PUT    /api/notifications/:id/read       - Đánh dấu đã đọc
 ```
