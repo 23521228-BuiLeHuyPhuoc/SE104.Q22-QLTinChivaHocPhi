@@ -10,11 +10,11 @@
 
 ## 📋 TỔNG QUAN CÁC BẢNG
 
-Hệ thống bao gồm **25 bảng** được chia thành 9 nhóm chức năng:
+Hệ thống bao gồm **26 bảng** được chia thành 9 nhóm chức năng:
 
 | Nhóm | Bảng | Mục đích |
 |------|------|----------|
-| **Địa danh** | `tinh`, `huyen` | Quản lý thông tin địa lý |
+| **Địa danh & Dân tộc** | `tinh`, `phuong_xa`, `dan_toc` | Quản lý thông tin địa lý và dân tộc |
 | **Đối tượng ưu tiên** | `doi_tuong`, `doi_tuong_sinh_vien` | Quản lý chính sách miễn giảm học phí |
 | **Tổ chức - Đào tạo** | `khoa`, `nganh_hoc`, `chuong_trinh_hoc` | Quản lý khoa, ngành, chương trình học |
 | **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống |
@@ -27,6 +27,17 @@ Hệ thống bao gồm **25 bảng** được chia thành 9 nhóm chức năng:
 ---
 
 ## 🆕 CÁC BẢNG MỚI BỔ SUNG
+
+### BẢNG `dan_toc` - Dân tộc
+Quản lý danh sách 54 dân tộc Việt Nam, phân biệt dân tộc Kinh và dân tộc thiểu số.
+
+| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
+|------------|--------------|-----------|-------|
+| `ma_dan_toc` | VARCHAR(10) | **PRIMARY KEY** | Mã dân tộc (KINH, TAY, THAI...) |
+| `ten_dan_toc` | VARCHAR(100) | NOT NULL | Tên dân tộc |
+| `la_dan_toc_thieu_so` | BOOLEAN | DEFAULT FALSE | Đánh dấu dân tộc thiểu số |
+| `trang_thai` | BOOLEAN | DEFAULT TRUE | Trạng thái hoạt động |
+| `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
 
 ### BẢNG `tiet_hoc` - Tiết học
 Quản lý các tiết học trong ngày (Tiết 1-10, Buổi tối). Trường hoạt động từ Thứ 2 đến Thứ 7.
@@ -74,33 +85,43 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 
 ### 1. BẢNG `tinh` - Tỉnh/Thành phố
 
-**Mục đích:** Lưu trữ danh sách các tỉnh/thành phố của Việt Nam.
+**Mục đích:** Lưu trữ danh sách các tỉnh/thành phố của Việt Nam (dữ liệu từ ITExpressLocation.sql).
 
 | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |------------|--------------|-----------|-------|
-| `ma_tinh` | VARCHAR(10) | **PRIMARY KEY**, NOT NULL | Mã tỉnh (VD: 'HCM', 'HN') |
+| `ma_tinh` | VARCHAR(10) | **PRIMARY KEY**, NOT NULL | Mã tỉnh (ID số) |
 | `ten_tinh` | VARCHAR(100) | NOT NULL | Tên đầy đủ của tỉnh/thành phố |
+| `loai_tinh` | VARCHAR(30) | DEFAULT 'Tỉnh', CHECK | Loại: 'Tỉnh' hoặc 'Thành phố' |
 | `trang_thai` | BOOLEAN | DEFAULT TRUE | Trạng thái hoạt động |
 | `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo bản ghi |
 
-**Ví dụ dữ liệu:** `('HCM', 'TP. Hồ Chí Minh', TRUE, '2026-01-16')`
+**Ví dụ dữ liệu:** `('29', 'Hồ Chí Minh', 'Thành phố', TRUE)`
 
 ---
 
-### 2. BẢNG `huyen` - Huyện/Quận
+### 2. BẢNG `phuong_xa` - Phường/Xã
 
-**Mục đích:** Lưu trữ danh sách huyện/quận thuộc các tỉnh, kèm thông tin vùng sâu/vùng xa.
+**Mục đích:** Lưu trữ danh sách phường/xã thuộc các tỉnh, kèm thông tin khu vực ưu tiên (KV1, KV2, KV2-NT, KV3).
+
+> ⚠️ **Lưu ý:** Bảng này thay thế bảng `huyen` cũ. Đối tượng "vùng sâu vùng xa" được xác định bằng điều kiện: **thuộc khu vực KV3 VÀ là dân tộc thiểu số**.
 
 | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |------------|--------------|-----------|-------|
-| `ma_huyen` | VARCHAR(10) | **PRIMARY KEY**, NOT NULL | Mã huyện/quận |
-| `ten_huyen` | VARCHAR(100) | NOT NULL | Tên huyện/quận |
+| `ma_phuong_xa` | VARCHAR(20) | **PRIMARY KEY**, NOT NULL | Mã phường/xã |
+| `ten_phuong_xa` | VARCHAR(100) | NOT NULL | Tên phường/xã |
 | `ma_tinh` | VARCHAR(10) | **FOREIGN KEY** → `tinh(ma_tinh)`, NOT NULL | Mã tỉnh trực thuộc |
-| `la_vung_sau_vung_xa` | BOOLEAN | DEFAULT FALSE | Đánh dấu vùng sâu/xa (ảnh hưởng đến học phí) |
+| `loai` | VARCHAR(30) | DEFAULT 'Xã', CHECK | Loại: 'Phường', 'Xã', 'Thị trấn' |
+| `khu_vuc` | VARCHAR(10) | DEFAULT 'KV1', CHECK | Khu vực ưu tiên: 'KV1', 'KV2', 'KV2-NT', 'KV3' |
 | `trang_thai` | BOOLEAN | DEFAULT TRUE | Trạng thái hoạt động |
 | `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo bản ghi |
 
-**Quan hệ:** Mỗi huyện thuộc đúng 1 tỉnh. Một tỉnh có nhiều huyện.
+**Phân loại khu vực ưu tiên (theo tra-cuu-khu-vuc-uu-tien-2025.docx):**
+- **KV1**: Thành phố, thị xã, vùng đồng bằng
+- **KV2**: Vùng nông thôn, ngoại thành
+- **KV2-NT**: Vùng nông thôn đặc biệt
+- **KV3**: Vùng sâu, vùng xa, biên giới, hải đảo, vùng đồng bào dân tộc thiểu số
+
+**Quan hệ:** Mỗi phường/xã thuộc đúng 1 tỉnh. Một tỉnh có nhiều phường/xã.
 
 ---
 
@@ -188,6 +209,8 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 
 **Mục đích:** Lưu trữ thông tin đầy đủ của sinh viên.
 
+> ⚠️ **Lưu ý:** Đối tượng "vùng sâu vùng xa" được xác định bằng điều kiện: **sinh viên có ma_phuong_xa thuộc khu vực KV3 VÀ có ma_dan_toc là dân tộc thiểu số**.
+
 | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
 |------------|--------------|-----------|-------|
 | `ma_sv` | VARCHAR(15) | **PRIMARY KEY**, NOT NULL | Mã số sinh viên |
@@ -196,7 +219,8 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 | `ngay_sinh` | DATE | NOT NULL | Ngày sinh |
 | `gioi_tinh` | VARCHAR(5) | NOT NULL, CHECK ('Nam', 'Nữ') | Giới tính |
 | `cccd` | VARCHAR(20) | **UNIQUE** | Số CCCD |
-| `ma_huyen` | VARCHAR(10) | **FOREIGN KEY** → `huyen(ma_huyen)`, NOT NULL | Quê quán (huyện) |
+| `ma_phuong_xa` | VARCHAR(20) | **FOREIGN KEY** → `phuong_xa(ma_phuong_xa)`, NOT NULL | Quê quán (phường/xã) |
+| `ma_dan_toc` | VARCHAR(10) | **FOREIGN KEY** → `dan_toc(ma_dan_toc)` | Dân tộc |
 | `ma_nganh` | VARCHAR(10) | **FOREIGN KEY** → `nganh_hoc(ma_nganh)`, NOT NULL | Ngành học |
 | `dia_chi_lien_he` | VARCHAR(200) | NULL | Địa chỉ hiện tại |
 | `sdt` | VARCHAR(15) | NULL | Số điện thoại |
@@ -530,10 +554,10 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 ## 🔗 SƠ ĐỒ QUAN HỆ GIỮA CÁC BẢNG
 
 ```
-┌─────────┐     1:n     ┌─────────┐     1:n     ┌──────────────┐
-│  tinh   │────────────►│  huyen  │────────────►│  sinh_vien   │
-└─────────┘             └─────────┘             └───────┬──────┘
-                                                       │
+┌─────────┐     1:n     ┌───────────┐     1:n     ┌──────────────┐
+│  tinh   │────────────►│ phuong_xa │────────────►│  sinh_vien   │◄────┌──────────┐
+└─────────┘             └───────────┘             └───────┬──────┘     │ dan_toc  │
+                                                         │       n:1  └──────────┘
                         ┌──────────────────────────────┤
                         │                              │
                         ▼ n:n                          ▼ 1:1
@@ -581,12 +605,12 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 
 | Loại | Số lượng |
 |------|----------|
-| Tổng số bảng | 20 |
-| Bảng có khóa ngoại | 15 |
+| Tổng số bảng | 26 |
+| Bảng có khóa ngoại | 17 |
 | Cột tính toán (computed) | 1 (`mon_hoc.so_tin_chi`) |
 | Ràng buộc UNIQUE | 10 |
-| Ràng buộc CHECK | 12 |
-| Index | 32+ |
+| Ràng buộc CHECK | 14 |
+| Index | 35+ |
 | Views | 3 |
 
 ---
@@ -596,8 +620,25 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 - **Mã hóa:** UTF-8 để hỗ trợ tiếng Việt có dấu
 - **Phiên bản PostgreSQL:** 12+ (yêu cầu cho generated columns)
 - **Tham khảo chi tiết:** Xem file `MoTa_DATABASE.md` để biết thêm về functions, triggers, và hướng dẫn sử dụng
+- **Dữ liệu địa lý:** Sử dụng dữ liệu từ file `ITExpressLocation.sql` (34 tỉnh/thành phố, 3319 phường/xã)
 
 ## 📋 THAY ĐỔI SO VỚI PHIÊN BẢN TRƯỚC
+
+### Thay đổi cấu trúc địa lý (theo tra-cuu-khu-vuc-uu-tien-2025.docx)
+- **Trước:** Bảng `huyen` với cột `la_vung_sau_vung_xa` (BOOLEAN)
+- **Sau:** Bảng `phuong_xa` với cột `khu_vuc` (KV1, KV2, KV2-NT, KV3)
+- **Lý do:** Theo chuẩn tra cứu khu vực ưu tiên tuyển sinh 2025, cần phân loại chi tiết theo 4 khu vực (KV1, KV2, KV2-NT, KV3) thay vì chỉ đánh dấu vùng sâu vùng xa
+
+### Bổ sung bảng dân tộc
+- **Mới:** Bảng `dan_toc` với cột `la_dan_toc_thieu_so`
+- **Lý do:** Đối tượng "vùng sâu vùng xa" được xác định bằng điều kiện: thuộc khu vực KV3 **VÀ** là dân tộc thiểu số
+
+### Cập nhật bảng sinh viên
+- **Trước:** Cột `ma_huyen` tham chiếu đến bảng `huyen`
+- **Sau:** 
+  - Cột `ma_phuong_xa` tham chiếu đến bảng `phuong_xa`
+  - Bổ sung cột `ma_dan_toc` tham chiếu đến bảng `dan_toc`
+- **Lý do:** Hỗ trợ xác định đối tượng ưu tiên theo khu vực và dân tộc
 
 ### Tối ưu hóa bảng thông báo
 - **Trước:** 2 bảng riêng biệt (`thong_bao` cho thông báo chung, `thong_bao_ca_nhan` cho thông báo cá nhân)
