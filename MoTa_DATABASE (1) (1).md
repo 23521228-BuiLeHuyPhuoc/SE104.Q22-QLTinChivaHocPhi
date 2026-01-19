@@ -271,7 +271,8 @@
 | `ngay_sinh` | DATE | NO | - | Ngày sinh (BM1) |
 | `gioi_tinh` | VARCHAR(5) | NO | - | Giới tính:  'Nam'/'Nữ' (BM1) |
 | `cccd` | VARCHAR(20) | YES | - | Số CCCD (UNIQUE) |
-| `ma_huyen` | VARCHAR(10) | NO | - | **FK** → `huyen.ma_huyen` (Quê quán - BM1) |
+| `ma_phuong_xa` | VARCHAR(20) | NO | - | **FK** → `phuong_xa.ma_phuong_xa` (Quê quán - BM1, QĐ1) |
+| `ma_dan_toc` | VARCHAR(10) | YES | - | **FK** → `dan_toc.ma_dan_toc` (Dân tộc - QĐ1) |
 | `ma_nganh` | VARCHAR(10) | NO | - | **FK** → `nganh_hoc.ma_nganh` (Ngành học - BM1) |
 | `dia_chi_lien_he` | VARCHAR(200) | YES | - | Địa chỉ liên hệ |
 | `sdt` | VARCHAR(15) | YES | - | Số điện thoại |
@@ -293,7 +294,8 @@
 
 | Tên FK | Cột | Tham chiếu | Mô tả |
 |--------|-----|------------|-------|
-| `fk_sv_huyen` | `ma_huyen` | `huyen(ma_huyen)` | Quê quán (QĐ1) |
+| `fk_sv_phuong_xa` | `ma_phuong_xa` | `phuong_xa(ma_phuong_xa)` | Quê quán (QĐ1) |
+| `fk_sv_dan_toc` | `ma_dan_toc` | `dan_toc(ma_dan_toc)` | Dân tộc (QĐ1) |
 | `fk_sv_nganh` | `ma_nganh` | `nganh_hoc(ma_nganh)` | Ngành học (QĐ1) |
 | `fk_sv_tk` | `ma_tai_khoan` | `tai_khoan(ma_tai_khoan)` | Tài khoản đăng nhập của sinh viên |
 
@@ -1115,47 +1117,48 @@ Ghi chú bảng thong_bao:
 
 | STT | Bảng cha | Bảng con | Quan hệ | Mô tả |
 |-----|----------|----------|---------|-------|
-| 1 | `tinh` | `huyen` | 1 - n | Mỗi tỉnh có nhiều huyện |
-| 2 | `huyen` | `sinh_vien` | 1 - n | Mỗi huyện có nhiều SV (quê quán) |
-| 3 | `khoa` | `nganh_hoc` | 1 - n | Mỗi khoa có nhiều ngành |
-| 4 | `khoa` | `mon_hoc` | 1 - n | Mỗi khoa quản lý nhiều môn học |
-| 5 | `nganh_hoc` | `sinh_vien` | 1 - n | Mỗi ngành có nhiều SV |
-| 6 | `nganh_hoc` | `chuong_trinh_hoc` | 1 - n | Mỗi ngành có nhiều môn trong CTĐT |
-| 7 | `doi_tuong` | `doi_tuong_sinh_vien` | 1 - n | Mỗi đối tượng gán cho nhiều SV |
-| 8 | `sinh_vien` | `doi_tuong_sinh_vien` | 1 - n | Mỗi SV có thể thuộc nhiều đối tượng |
-| 9 | `sinh_vien` | `phieu_dang_ky` | 1 - n | Mỗi SV có nhiều phiếu ĐK (qua các HK) |
-| 10 | `sinh_vien` | `phieu_thu_hoc_phi` | 1 - n | Mỗi SV có nhiều phiếu thu |
-| 11 | `tai_khoan` | `sinh_vien` | 1 - 1 | Mỗi tài khoản SV có 1 thông tin sinh viên (qua fk_sv_tk) |
-| 12 | `sinh_vien` | `tai_khoan` | 1 - 1 | Mỗi SV có 1 tài khoản (qua fk_tk_sv) |
-| 13 | `nam_hoc` | `hoc_ky` | 1 - n | Mỗi năm học có nhiều học kỳ |
-| 14 | `hoc_ky` | `lop_mo` | 1 - n | Mỗi HK mở nhiều lớp |
-| 15 | `hoc_ky` | `phieu_dang_ky` | 1 - n | Mỗi HK có nhiều phiếu ĐK |
-| 16 | `mon_hoc` | `lop` | 1 - n | Mỗi môn có nhiều lớp |
-| 17 | `mon_hoc` | `chuong_trinh_hoc` | 1 - n | Mỗi môn thuộc nhiều CTĐT |
-| 18 | `lop` | `lop_mo` | 1 - n | Mỗi lớp có thể mở ở nhiều HK |
-| 19 | `lop` | `chi_tiet_dang_ky` | 1 - n | Mỗi lớp được ĐK nhiều lần |
-| 20 | `phieu_dang_ky` | `chi_tiet_dang_ky` | 1 - n | Mỗi phiếu ĐK có nhiều chi tiết (lớp) |
-| 21 | `phieu_dang_ky` | `phieu_thu_hoc_phi` | 1 - n | Mỗi phiếu ĐK có nhiều phiếu thu (QĐ6) |
-| 22 | `tai_khoan` | `thong_bao` (loai='ca_nhan') | 1 - n | Mỗi TK nhận nhiều thông báo cá nhân |
-| 23 | `tai_khoan` | `quan_tri_vien` | 1 - 1 | Mỗi TK admin có 1 thông tin quản trị viên |
+| 1 | `tinh` | `phuong_xa` | 1 - n | Mỗi tỉnh có nhiều phường/xã |
+| 2 | `phuong_xa` | `sinh_vien` | 1 - n | Mỗi phường/xã có nhiều SV (quê quán) |
+| 3 | `dan_toc` | `sinh_vien` | 1 - n | Mỗi dân tộc có nhiều SV |
+| 4 | `khoa` | `nganh_hoc` | 1 - n | Mỗi khoa có nhiều ngành |
+| 5 | `khoa` | `mon_hoc` | 1 - n | Mỗi khoa quản lý nhiều môn học |
+| 6 | `nganh_hoc` | `sinh_vien` | 1 - n | Mỗi ngành có nhiều SV |
+| 7 | `nganh_hoc` | `chuong_trinh_hoc` | 1 - n | Mỗi ngành có nhiều môn trong CTĐT |
+| 8 | `doi_tuong` | `doi_tuong_sinh_vien` | 1 - n | Mỗi đối tượng gán cho nhiều SV |
+| 9 | `sinh_vien` | `doi_tuong_sinh_vien` | 1 - n | Mỗi SV có thể thuộc nhiều đối tượng |
+| 10 | `sinh_vien` | `phieu_dang_ky` | 1 - n | Mỗi SV có nhiều phiếu ĐK (qua các HK) |
+| 11 | `sinh_vien` | `phieu_thu_hoc_phi` | 1 - n | Mỗi SV có nhiều phiếu thu |
+| 12 | `tai_khoan` | `sinh_vien` | 1 - 1 | Mỗi tài khoản SV có 1 thông tin sinh viên (qua fk_sv_tk) |
+| 13 | `sinh_vien` | `tai_khoan` | 1 - 1 | Mỗi SV có 1 tài khoản (qua fk_tk_sv) |
+| 14 | `nam_hoc` | `hoc_ky` | 1 - n | Mỗi năm học có nhiều học kỳ |
+| 15 | `hoc_ky` | `lop_mo` | 1 - n | Mỗi HK mở nhiều lớp |
+| 16 | `hoc_ky` | `phieu_dang_ky` | 1 - n | Mỗi HK có nhiều phiếu ĐK |
+| 17 | `mon_hoc` | `lop` | 1 - n | Mỗi môn có nhiều lớp |
+| 18 | `mon_hoc` | `chuong_trinh_hoc` | 1 - n | Mỗi môn thuộc nhiều CTĐT |
+| 19 | `lop` | `lop_mo` | 1 - n | Mỗi lớp có thể mở ở nhiều HK |
+| 20 | `lop` | `chi_tiet_dang_ky` | 1 - n | Mỗi lớp được ĐK nhiều lần |
+| 21 | `phieu_dang_ky` | `chi_tiet_dang_ky` | 1 - n | Mỗi phiếu ĐK có nhiều chi tiết (lớp) |
+| 22 | `phieu_dang_ky` | `phieu_thu_hoc_phi` | 1 - n | Mỗi phiếu ĐK có nhiều phiếu thu (QĐ6) |
+| 23 | `tai_khoan` | `thong_bao` (loai='ca_nhan') | 1 - n | Mỗi TK nhận nhiều thông báo cá nhân |
+| 24 | `tai_khoan` | `quan_tri_vien` | 1 - 1 | Mỗi TK admin có 1 thông tin quản trị viên |
 
 ---
 ## 4. TỔNG HỢP KHÓA NGOẠI
 
 | STT | Bảng | Tên FK | Cột | Tham chiếu | ON DELETE | ON UPDATE |
 |-----|------|--------|-----|------------|-----------|-----------|
-| 1 | `huyen` | `fk_huyen_tinh` | `ma_tinh` | `tinh(ma_tinh)` | RESTRICT | CASCADE |
+| 1 | `phuong_xa` | `fk_phuong_xa_tinh` | `ma_tinh` | `tinh(ma_tinh)` | RESTRICT | CASCADE |
 | 2 | `nganh_hoc` | `fk_nganh_khoa` | `ma_khoa` | `khoa(ma_khoa)` | RESTRICT | CASCADE |
-| 3 | `sinh_vien` | `fk_sv_huyen` | `ma_huyen` | `huyen(ma_huyen)` | RESTRICT | CASCADE |
-| 4 | `sinh_vien` | `fk_sv_nganh` | `ma_nganh` | `nganh_hoc(ma_nganh)` | RESTRICT | CASCADE |
-| 5 | `sinh_vien` | `fk_sv_tk` | `ma_tai_khoan` | `tai_khoan(ma_tai_khoan)` | SET NULL | CASCADE |
-| 6 | `doi_tuong_sinh_vien` | `fk_dtsv_sv` | `ma_sv` | `sinh_vien(ma_sv)` | CASCADE | CASCADE |
-| 7 | `doi_tuong_sinh_vien` | `fk_dtsv_dt` | `ma_doi_tuong` | `doi_tuong(ma_doi_tuong)` | RESTRICT | CASCADE |
-| 8 | `mon_hoc` | `fk_monhoc_khoa` | `ma_khoa` | `khoa(ma_khoa)` | RESTRICT | CASCADE |
-| 9 | `dieu_kien_mon_hoc` | `fk_dkmh_monhoc` | `ma_mon_hoc` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
-| 10 | `dieu_kien_mon_hoc` | `fk_dkmh_monhoc_dk` | `ma_mon_dieu_kien` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
-| 11 | `lop` | `fk_lop_monhoc` | `ma_mon_hoc` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
-| 12 | `chuong_trinh_hoc` | `fk_cth_nganh` | `ma_nganh` | `nganh_hoc(ma_nganh)` | CASCADE | CASCADE |
+| 3 | `sinh_vien` | `fk_sv_phuong_xa` | `ma_phuong_xa` | `phuong_xa(ma_phuong_xa)` | RESTRICT | CASCADE |
+| 4 | `sinh_vien` | `fk_sv_dan_toc` | `ma_dan_toc` | `dan_toc(ma_dan_toc)` | SET NULL | CASCADE |
+| 5 | `sinh_vien` | `fk_sv_nganh` | `ma_nganh` | `nganh_hoc(ma_nganh)` | RESTRICT | CASCADE |
+| 6 | `sinh_vien` | `fk_sv_tk` | `ma_tai_khoan` | `tai_khoan(ma_tai_khoan)` | SET NULL | CASCADE |
+| 7 | `doi_tuong_sinh_vien` | `fk_dtsv_sv` | `ma_sv` | `sinh_vien(ma_sv)` | CASCADE | CASCADE |
+| 8 | `doi_tuong_sinh_vien` | `fk_dtsv_dt` | `ma_doi_tuong` | `doi_tuong(ma_doi_tuong)` | RESTRICT | CASCADE |
+| 9 | `mon_hoc` | `fk_monhoc_khoa` | `ma_khoa` | `khoa(ma_khoa)` | RESTRICT | CASCADE |
+| 10 | `dieu_kien_mon_hoc` | `fk_dkmh_monhoc` | `ma_mon_hoc` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
+| 11 | `dieu_kien_mon_hoc` | `fk_dkmh_monhoc_dk` | `ma_mon_dieu_kien` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
+| 12 | `lop` | `fk_lop_monhoc` | `ma_mon_hoc` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
 | 13 | `chuong_trinh_hoc` | `fk_cth_mon` | `ma_mon_hoc` | `mon_hoc(ma_mon_hoc)` | CASCADE | CASCADE |
 | 14 | `hoc_ky` | `fk_hk_namhoc` | `ma_nam_hoc` | `nam_hoc(ma_nam_hoc)` | RESTRICT | CASCADE |
 | 15 | `lop_mo` | `fk_lopmo_hocky` | `ma_hoc_ky` | `hoc_ky(ma_hoc_ky)` | CASCADE | CASCADE |
@@ -1170,7 +1173,7 @@ Ghi chú bảng thong_bao:
 | 24 | `tai_khoan` | `fk_tk_sv` | `ma_sv` | `sinh_vien(ma_sv)` | SET NULL | CASCADE |
 | 25 | `quan_tri_vien` | `fk_qtv_tk` | `ma_tai_khoan` | `tai_khoan(ma_tai_khoan)` | CASCADE | CASCADE |
 | 26 | `thong_bao` | `fk_tb_nguoitao` | `nguoi_tao` | `tai_khoan(ma_tai_khoan)` | SET NULL | CASCADE |
-| 27 | `thong_bao_ca_nhan` | `fk_tbcn_tk` | `ma_tai_khoan` | `tai_khoan(ma_tai_khoan)` | CASCADE | CASCADE |
+| 27 | `thong_bao` | `fk_tb_ma_tk_nhan` | `ma_tai_khoan_nhan` | `tai_khoan(ma_tai_khoan)` | CASCADE | CASCADE |
 
 ---
 
@@ -1181,27 +1184,27 @@ Ghi chú bảng thong_bao:
 | STT | Bảng | Tên PK | Cột | Kiểu |
 |-----|------|--------|-----|------|
 | 1 | `tinh` | `tinh_pkey` | `ma_tinh` | VARCHAR(10) |
-| 2 | `huyen` | `huyen_pkey` | `ma_huyen` | VARCHAR(10) |
-| 3 | `doi_tuong` | `doi_tuong_pkey` | `ma_doi_tuong` | VARCHAR(10) |
-| 4 | `doi_tuong_sinh_vien` | `doi_tuong_sinh_vien_pkey` | `id` | SERIAL |
-| 5 | `khoa` | `khoa_pkey` | `ma_khoa` | VARCHAR(10) |
-| 6 | `nganh_hoc` | `nganh_hoc_pkey` | `ma_nganh` | VARCHAR(10) |
-| 7 | `sinh_vien` | `sinh_vien_pkey` | `ma_sv` | VARCHAR(15) |
-| 8 | `mon_hoc` | `mon_hoc_pkey` | `ma_mon_hoc` | VARCHAR(15) |
-| 9 | `dieu_kien_mon_hoc` | `dieu_kien_mon_hoc_pkey` | `id` | SERIAL |
-| 10 | `lop` | `lop_pkey` | `ma_lop` | VARCHAR(20) |
-| 11 | `chuong_trinh_hoc` | `chuong_trinh_hoc_pkey` | `id` | SERIAL |
-| 12 | `nam_hoc` | `nam_hoc_pkey` | `ma_nam_hoc` | VARCHAR(15) |
-| 13 | `hoc_ky` | `hoc_ky_pkey` | `ma_hoc_ky` | VARCHAR(15) |
-| 14 | `lop_mo` | `lop_mo_pkey` | `id` | SERIAL |
-| 15 | `phieu_dang_ky` | `phieu_dang_ky_pkey` | `so_phieu` | SERIAL |
-| 16 | `chi_tiet_dang_ky` | `chi_tiet_dang_ky_pkey` | `id` | SERIAL |
-| 17 | `phieu_thu_hoc_phi` | `phieu_thu_hoc_phi_pkey` | `so_phieu_thu` | SERIAL |
-| 18 | `don_gia_tin_chi` | `don_gia_tin_chi_pkey` | `id` | SERIAL |
-| 19 | `tai_khoan` | `tai_khoan_pkey` | `ma_tai_khoan` | SERIAL |
-| 20 | `quan_tri_vien` | `quan_tri_vien_pkey` | `ma_quan_tri_vien` | SERIAL |
-| 21 | `thong_bao` | `thong_bao_pkey` | `ma_thong_bao` | SERIAL |
-| 22 | `thong_bao_ca_nhan` | `thong_bao_ca_nhan_pkey` | `id` | BIGSERIAL |
+| 2 | `phuong_xa` | `phuong_xa_pkey` | `ma_phuong_xa` | VARCHAR(20) |
+| 3 | `dan_toc` | `dan_toc_pkey` | `ma_dan_toc` | VARCHAR(10) |
+| 4 | `doi_tuong` | `doi_tuong_pkey` | `ma_doi_tuong` | VARCHAR(10) |
+| 5 | `doi_tuong_sinh_vien` | `doi_tuong_sinh_vien_pkey` | `id` | SERIAL |
+| 6 | `khoa` | `khoa_pkey` | `ma_khoa` | VARCHAR(10) |
+| 7 | `nganh_hoc` | `nganh_hoc_pkey` | `ma_nganh` | VARCHAR(10) |
+| 8 | `sinh_vien` | `sinh_vien_pkey` | `ma_sv` | VARCHAR(15) |
+| 9 | `mon_hoc` | `mon_hoc_pkey` | `ma_mon_hoc` | VARCHAR(15) |
+| 10 | `dieu_kien_mon_hoc` | `dieu_kien_mon_hoc_pkey` | `id` | SERIAL |
+| 11 | `lop` | `lop_pkey` | `ma_lop` | VARCHAR(20) |
+| 12 | `chuong_trinh_hoc` | `chuong_trinh_hoc_pkey` | `id` | SERIAL |
+| 13 | `nam_hoc` | `nam_hoc_pkey` | `ma_nam_hoc` | VARCHAR(15) |
+| 14 | `hoc_ky` | `hoc_ky_pkey` | `ma_hoc_ky` | VARCHAR(15) |
+| 15 | `lop_mo` | `lop_mo_pkey` | `id` | SERIAL |
+| 16 | `phieu_dang_ky` | `phieu_dang_ky_pkey` | `so_phieu` | SERIAL |
+| 17 | `chi_tiet_dang_ky` | `chi_tiet_dang_ky_pkey` | `id` | SERIAL |
+| 18 | `phieu_thu_hoc_phi` | `phieu_thu_hoc_phi_pkey` | `so_phieu_thu` | SERIAL |
+| 19 | `don_gia_tin_chi` | `don_gia_tin_chi_pkey` | `id` | SERIAL |
+| 20 | `tai_khoan` | `tai_khoan_pkey` | `ma_tai_khoan` | SERIAL |
+| 21 | `quan_tri_vien` | `quan_tri_vien_pkey` | `ma_quan_tri_vien` | SERIAL |
+| 22 | `thong_bao` | `thong_bao_pkey` | `ma_thong_bao` | SERIAL |
 
 ### 5.2. Unique Constraints (Ràng buộc duy nhất)
 
@@ -1252,23 +1255,24 @@ Ghi chú bảng thong_bao:
 | STT | Tên Index | Bảng | Cột | Mục đích |
 |-----|-----------|------|-----|----------|
 | 1 | `idx_sv_ma_nganh` | `sinh_vien` | `ma_nganh` | Tìm SV theo ngành |
-| 2 | `idx_sv_ma_huyen` | `sinh_vien` | `ma_huyen` | Tìm SV theo quê quán |
-| 3 | `idx_sv_trang_thai` | `sinh_vien` | `trang_thai` | Lọc SV theo trạng thái |
-| 4 | `idx_dtsv_ma_sv` | `doi_tuong_sinh_vien` | `ma_sv` | Tìm đối tượng của SV |
-| 5 | `idx_cth_ma_nganh` | `chuong_trinh_hoc` | `ma_nganh` | Tìm CTĐT theo ngành |
-| 6 | `idx_monhoc_ma_khoa` | `mon_hoc` | `ma_khoa` | Tìm môn học theo khoa |
-| 7 | `idx_lop_ma_mon` | `lop` | `ma_mon_hoc` | Tìm lớp theo môn học |
-| 8 | `idx_lopmo_ma_hoc_ky` | `lop_mo` | `ma_hoc_ky` | Tìm lớp mở theo HK |
-| 9 | `idx_pdk_ma_sv` | `phieu_dang_ky` | `ma_sv` | Tìm phiếu ĐK theo SV |
-| 10 | `idx_pdk_ma_hoc_ky` | `phieu_dang_ky` | `ma_hoc_ky` | Tìm phiếu ĐK theo HK |
-| 11 | `idx_ctdk_so_phieu` | `chi_tiet_dang_ky` | `so_phieu` | Tìm chi tiết theo phiếu |
-| 12 | `idx_ctdk_ma_lop` | `chi_tiet_dang_ky` | `ma_lop` | Tìm chi tiết theo lớp |
-| 13 | `idx_pthp_so_phieu_dk` | `phieu_thu_hoc_phi` | `so_phieu_dang_ky` | Tìm phiếu thu theo phiếu ĐK |
-| 14 | `idx_pthp_ma_sv` | `phieu_thu_hoc_phi` | `ma_sv` | Tìm phiếu thu theo SV |
-| 15 | `idx_tk_ma_sv` | `tai_khoan` | `ma_sv` | Tìm TK theo SV |
-| 16 | `idx_tbcn_ma_tk` | `thong_bao_ca_nhan` | `ma_tai_khoan` | Tìm TB theo TK |
-| 17 | `idx_tbcn_da_doc` | `thong_bao_ca_nhan` | `da_doc` | Lọc TB chưa đọc |
-| 18 | `idx_qtv_ma_tk` | `quan_tri_vien` | `ma_tai_khoan` | Tìm quản trị viên theo TK |
+| 2 | `idx_sv_ma_phuong_xa` | `sinh_vien` | `ma_phuong_xa` | Tìm SV theo quê quán |
+| 3 | `idx_sv_ma_dan_toc` | `sinh_vien` | `ma_dan_toc` | Tìm SV theo dân tộc |
+| 4 | `idx_sv_trang_thai` | `sinh_vien` | `trang_thai` | Lọc SV theo trạng thái |
+| 5 | `idx_dtsv_ma_sv` | `doi_tuong_sinh_vien` | `ma_sv` | Tìm đối tượng của SV |
+| 6 | `idx_cth_ma_nganh` | `chuong_trinh_hoc` | `ma_nganh` | Tìm CTĐT theo ngành |
+| 7 | `idx_monhoc_ma_khoa` | `mon_hoc` | `ma_khoa` | Tìm môn học theo khoa |
+| 8 | `idx_lop_ma_mon` | `lop` | `ma_mon_hoc` | Tìm lớp theo môn học |
+| 9 | `idx_lopmo_ma_hoc_ky` | `lop_mo` | `ma_hoc_ky` | Tìm lớp mở theo HK |
+| 10 | `idx_pdk_ma_sv` | `phieu_dang_ky` | `ma_sv` | Tìm phiếu ĐK theo SV |
+| 11 | `idx_pdk_ma_hoc_ky` | `phieu_dang_ky` | `ma_hoc_ky` | Tìm phiếu ĐK theo HK |
+| 12 | `idx_ctdk_so_phieu` | `chi_tiet_dang_ky` | `so_phieu` | Tìm chi tiết theo phiếu |
+| 13 | `idx_ctdk_ma_lop` | `chi_tiet_dang_ky` | `ma_lop` | Tìm chi tiết theo lớp |
+| 14 | `idx_pthp_so_phieu_dk` | `phieu_thu_hoc_phi` | `so_phieu_dang_ky` | Tìm phiếu thu theo phiếu ĐK |
+| 15 | `idx_pthp_ma_sv` | `phieu_thu_hoc_phi` | `ma_sv` | Tìm phiếu thu theo SV |
+| 16 | `idx_tk_ma_sv` | `tai_khoan` | `ma_sv` | Tìm TK theo SV |
+| 17 | `idx_tb_ma_tk_nhan` | `thong_bao` | `ma_tai_khoan_nhan` | Tìm TB cá nhân theo TK |
+| 18 | `idx_tb_da_doc` | `thong_bao` | `da_doc` | Lọc TB chưa đọc |
+| 19 | `idx_qtv_ma_tk` | `quan_tri_vien` | `ma_tai_khoan` | Tìm quản trị viên theo TK |
 
 ---
 
@@ -1297,9 +1301,12 @@ SELECT
     sv.ma_sv,
     sv.ho_ten,
     sv.ngay_sinh,
-    sv. gioi_tinh,
-    h.ten_huyen || ', ' || t.ten_tinh AS que_quan,
-    h.la_vung_sau_vung_xa,
+    sv.gioi_tinh,
+    px.ten_phuong_xa || ', ' || t.ten_tinh AS que_quan,
+    px.khu_vuc,
+    dt_ethnic.la_dan_toc_thieu_so,
+    -- Kiểm tra vùng sâu vùng xa (KV3 + dân tộc thiểu số)
+    CASE WHEN px.khu_vuc = 'KV3' AND dt_ethnic.la_dan_toc_thieu_so = TRUE THEN TRUE ELSE FALSE END AS la_vung_sau_vung_xa,
     -- Lấy đối tượng ưu tiên cao nhất (QĐ1)
     (SELECT dt.ten_doi_tuong 
      FROM doi_tuong_sinh_vien dtsv 
@@ -1317,12 +1324,13 @@ SELECT
     nh.ma_nganh,
     nh.ten_nganh AS nganh_hoc,
     k.ma_khoa,
-    k. ten_khoa,
+    k.ten_khoa,
     sv.trang_thai
 FROM sinh_vien sv
-JOIN huyen h ON sv.ma_huyen = h.ma_huyen
-JOIN tinh t ON h.ma_tinh = t.ma_tinh
-JOIN nganh_hoc nh ON sv.ma_nganh = nh. ma_nganh
+JOIN phuong_xa px ON sv.ma_phuong_xa = px.ma_phuong_xa
+JOIN tinh t ON px.ma_tinh = t.ma_tinh
+LEFT JOIN dan_toc dt_ethnic ON sv.ma_dan_toc = dt_ethnic.ma_dan_toc
+JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
 JOIN khoa k ON nh.ma_khoa = k.ma_khoa;
 ```
 
@@ -1573,7 +1581,8 @@ CREATE OR REPLACE FUNCTION fn_lay_ti_le_giam_hoc_phi(p_ma_sv VARCHAR)
 RETURNS DECIMAL(5,2) AS $$
 DECLARE
     v_ti_le DECIMAL(5,2) := 0;
-    v_la_vsvx BOOLEAN;
+    v_khu_vuc VARCHAR(10);
+    v_la_dtts BOOLEAN;
 BEGIN
     -- Lấy từ đối tượng ưu tiên cao nhất (do_uu_tien nhỏ nhất)
     SELECT dt.ti_le_giam_hoc_phi INTO v_ti_le
@@ -1583,14 +1592,16 @@ BEGIN
     ORDER BY dt.do_uu_tien
     LIMIT 1;
     
-    -- Nếu chưa có, kiểm tra vùng sâu/vùng xa (QĐ1)
+    -- Nếu chưa có, kiểm tra vùng sâu/vùng xa (QĐ1: KV3 + dân tộc thiểu số)
     IF v_ti_le IS NULL OR v_ti_le = 0 THEN
-        SELECT h.la_vung_sau_vung_xa INTO v_la_vsvx
+        SELECT px.khu_vuc, dt_ethnic.la_dan_toc_thieu_so 
+        INTO v_khu_vuc, v_la_dtts
         FROM sinh_vien sv
-        JOIN huyen h ON sv.ma_huyen = h.ma_huyen
+        JOIN phuong_xa px ON sv.ma_phuong_xa = px.ma_phuong_xa
+        LEFT JOIN dan_toc dt_ethnic ON sv.ma_dan_toc = dt_ethnic.ma_dan_toc
         WHERE sv.ma_sv = p_ma_sv;
         
-        IF v_la_vsvx = TRUE THEN
+        IF v_khu_vuc = 'KV3' AND v_la_dtts = TRUE THEN
             SELECT ti_le_giam_hoc_phi INTO v_ti_le
             FROM doi_tuong
             WHERE ten_doi_tuong ILIKE '%vùng sâu%' 
@@ -1604,7 +1615,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-**Mô tả:** 
+**Mô tả:**
 - Lấy tỷ lệ giảm học phí của sinh viên dựa trên đối tượng ưu tiên
 - Ưu tiên đối tượng có `do_uu_tien` nhỏ nhất (QĐ1)
 - Nếu SV ở vùng sâu/vùng xa mà chưa có đối tượng → tự động áp dụng
@@ -1865,7 +1876,7 @@ $$ LANGUAGE plpgsql;
 
 | Mã | Quy định | Bảng liên quan | Cách triển khai |
 |----|----------|----------------|-----------------|
-| QĐ1 | Quê quán gồm Huyện và Tỉnh. Huyện có thuộc vùng sâu/xa hay không. SV có thể thuộc nhiều đối tượng, lấy đối tượng ưu tiên cao nhất | `tinh`, `huyen`, `doi_tuong`, `doi_tuong_sinh_vien` | Cột `la_vung_sau_vung_xa` trong `huyen`. Function `fn_lay_ti_le_giam_hoc_phi` |
+| QĐ1 | Quê quán gồm Phường/Xã và Tỉnh. Khu vực ưu tiên (KV1, KV2, KV2-NT, KV3). Vùng sâu/xa = KV3 + dân tộc thiểu số. SV có thể thuộc nhiều đối tượng, lấy đối tượng ưu tiên cao nhất | `tinh`, `phuong_xa`, `dan_toc`, `doi_tuong`, `doi_tuong_sinh_vien` | Cột `khu_vuc` trong `phuong_xa`, cột `la_dan_toc_thieu_so` trong `dan_toc`. Function `fn_lay_ti_le_giam_hoc_phi` |
 | QĐ2 | Loại môn LT/TH. Số tín chỉ = số tiết/15 (LT) hoặc /30 (TH). Môn học thuộc khoa quản lý | `mon_hoc`, `khoa` | Computed column `so_tin_chi`, FK `ma_khoa` |
 | QĐ3 | Chương trình học theo ngành để mở lớp trong học kỳ | `chuong_trinh_hoc`, `lop`, `lop_mo` | FK liên kết |
 | QĐ4 | Có HK I, HK II (chính) và có thể có HK Hè | `hoc_ky` | Cột `loai_hoc_ky` |
@@ -1925,48 +1936,49 @@ $$ LANGUAGE plpgsql;
                                          │ 1
                                          │
                                          │ n
-                                ┌────────┴────────┐
-                                │      huyen      │
-                                │─────────────────│
-                                │ * ma_huyen (PK) │
-                                │   ten_huyen     │
-                                │ # ma_tinh (FK)  │
-                                │   la_vung_sau..  │
-                                └────────┬────────┘
-                                         │ 1
-          ┌──────────────────────────────┼──────────────────────────────┐
-          │                              │                              │
-          │ n                            │                              │
-┌─────────┴─────────┐                    │                    ┌─────────┴─────────┐
-│       khoa        │                    │                    │    doi_tuong      │
-│───────────────────│                    │                    │───────────────────│
-│ * ma_khoa (PK)    │                    │                    │ * ma_doi_tuong(PK)│
-│   ten_khoa        │                    │                    │   ten_doi_tuong   │
-└─────────┬─────────┘                    │                    │   ti_le_giam_hp   │
-          │ 1                            │                    │   do_uu_tien      │
-          │                              │                    └─────────┬─────────┘
-          │ n                            │                              │ 1
-┌─────────┴─────────┐                    │                              │
-│    nganh_hoc      │                    │                              │ n
-│───────────────────│                    │                    ┌─────────┴─────────┐
-│ * ma_nganh (PK)   │                    │                    │ doi_tuong_sv      │
-│   ten_nganh       │                    │                    │───────────────────│
-│ # ma_khoa (FK)    │                    │                    │ * id (PK)         │
-└─────────┬─────────┘                    │                    │ # ma_sv (FK)      │
-          │ 1                            │                    │ # ma_doi_tuong(FK)│
-          │                              │                    └─────────┬─────────┘
-          │ n                   n        │                              │ n
-          └──────────────────────────────┼──────────────────────────────┘
-                                         │
-                                ┌────────┴────────┐
-                                │   sinh_vien     │
-                                │─────────────────│
-                                │ * ma_sv (PK)    │
-                                │ # ma_tai_khoan  │
-                                │   ho_ten        │
-                                │   ngay_sinh     │
-                                │   gioi_tinh     │
-                                │ # ma_huyen (FK) │
+                                ┌────────┴────────┐        ┌─────────────────┐
+                                │    phuong_xa    │        │    dan_toc      │
+                                │─────────────────│        │─────────────────│
+                                │ * ma_phuong_xa  │        │ * ma_dan_toc(PK)│
+                                │   ten_phuong_xa │        │   ten_dan_toc   │
+                                │ # ma_tinh (FK)  │        │   la_dtts       │
+                                │   khu_vuc       │        └────────┬────────┘
+                                └────────┬────────┘                 │ 1
+                                         │ 1                        │
+          ┌──────────────────────────────┼──────────────────────────┼─────────────────┐
+          │                              │                          │                 │
+          │ n                            │                          │                 │
+┌─────────┴─────────┐                    │                          │       ┌─────────┴─────────┐
+│       khoa        │                    │                          │       │    doi_tuong      │
+│───────────────────│                    │                          │       │───────────────────│
+│ * ma_khoa (PK)    │                    │                          │       │ * ma_doi_tuong(PK)│
+│   ten_khoa        │                    │                          │       │   ten_doi_tuong   │
+└─────────┬─────────┘                    │                          │       │   ti_le_giam_hp   │
+          │ 1                            │                          │       │   do_uu_tien      │
+          │                              │                          │       └─────────┬─────────┘
+          │ n                            │                          │                 │ 1
+┌─────────┴─────────┐                    │                          │                 │
+│    nganh_hoc      │                    │                          │                 │ n
+│───────────────────│                    │                          │       ┌─────────┴─────────┐
+│ * ma_nganh (PK)   │                    │                          │       │ doi_tuong_sv      │
+│   ten_nganh       │                    │                          │       │───────────────────│
+│ # ma_khoa (FK)    │                    │                          │       │ * id (PK)         │
+└─────────┬─────────┘                    │                          │       │ # ma_sv (FK)      │
+          │ 1                            │                          │       │ # ma_doi_tuong(FK)│
+          │                              │                          │       └─────────┬─────────┘
+          │ n                   n        │                   n      │                 │ n
+          └──────────────────────────────┼──────────────────────────┼─────────────────┘
+                                         │                          │
+                                ┌────────┴──────────────────────────┴┐
+                                │           sinh_vien                │
+                                │────────────────────────────────────│
+                                │ * ma_sv (PK)                       │
+                                │ # ma_tai_khoan                     │
+                                │   ho_ten                           │
+                                │   ngay_sinh                        │
+                                │   gioi_tinh                        │
+                                │ # ma_phuong_xa (FK)                │
+                                │ # ma_dan_toc (FK)                  │
                                 │ # ma_nganh (FK) │
                                 │   trang_thai    │
                                 └────────┬────────┘
@@ -2050,8 +2062,9 @@ Chú thích:
 
 | Bảng | Số bản ghi đề xuất | Ghi chú |
 |------|-------------------|---------|
-| `tinh` | 63 | 63 tỉnh/thành Việt Nam |
-| `huyen` | 100+ | Các huyện/quận phổ biến |
+| `tinh` | 63 | 63 tỉnh/thành Việt Nam (từ ITExpressLocation.sql) |
+| `phuong_xa` | 3319 | Phường/xã từ ITExpressLocation.sql (có cột khu_vuc) |
+| `dan_toc` | 54 | 54 dân tộc Việt Nam (có cột la_dan_toc_thieu_so) |
 | `doi_tuong` | 6-10 | Các đối tượng ưu tiên theo QĐ1 |
 | `khoa` | 5-10 | Các khoa trong trường |
 | `nganh_hoc` | 15-20 | Các ngành đào tạo |
@@ -2134,9 +2147,11 @@ INSERT INTO tai_khoan (ten_dang_nhap, mat_khau, role, email) VALUES
 
 -- Bước 2: Tạo sinh viên với ma_tai_khoan tham chiếu tới tài khoản vừa tạo
 -- (Giả sử ma_tai_khoan của SV001 = 2, SV002 = 3)
-INSERT INTO sinh_vien (ma_sv, ma_tai_khoan, ho_ten, ngay_sinh, gioi_tinh, ma_huyen, ma_nganh, email) VALUES 
-('SV001', 2, 'Nguyễn Văn An', '2003-05-15', 'Nam', 'Q1', 'KTPM', 'sv001@student.edu.vn'),
-('SV002', 3, 'Trần Thị Bích', '2003-08-20', 'Nữ', 'Q1', 'KTPM', 'sv002@student.edu.vn');
+-- ma_phuong_xa: sử dụng mã phường/xã từ ITExpressLocation.sql
+-- ma_dan_toc: sử dụng mã dân tộc (VD: KINH, TAY, MONG...)
+INSERT INTO sinh_vien (ma_sv, ma_tai_khoan, ho_ten, ngay_sinh, gioi_tinh, ma_phuong_xa, ma_dan_toc, ma_nganh, email) VALUES 
+('SV001', 2, 'Nguyễn Văn An', '2003-05-15', 'Nam', '2659', 'KINH', 'KTPM', 'sv001@student.edu.vn'),
+('SV002', 3, 'Trần Thị Bích', '2003-08-20', 'Nữ', '2660', 'KINH', 'KTPM', 'sv002@student.edu.vn');
 
 -- Bước 3: Cập nhật lại tài khoản để liên kết ngược với sinh viên
 UPDATE tai_khoan SET ma_sv = 'SV001' WHERE ma_tai_khoan = 2;
@@ -2183,12 +2198,14 @@ RETURNING ma_tai_khoan;
 -- Giả sử trả về ma_tai_khoan = 10
 
 -- Bước 2: Thêm sinh viên với ma_tai_khoan
+-- ma_phuong_xa: mã phường/xã từ ITExpressLocation.sql
+-- ma_dan_toc: mã dân tộc (VD: KINH, TAY, MONG...)
 INSERT INTO sinh_vien (
     ma_sv, ma_tai_khoan, ho_ten, ngay_sinh, gioi_tinh, 
-    ma_huyen, ma_nganh, sdt, email
+    ma_phuong_xa, ma_dan_toc, ma_nganh, sdt, email
 ) VALUES (
     'SV001', 10, 'Nguyễn Văn An', '2003-05-15', 'Nam',
-    'Q1', 'KTPM', '0901234567', 'an.nv@email.com'
+    '2659', 'KINH', 'KTPM', '0901234567', 'an.nv@email.com'
 );
 
 -- Bước 3: Cập nhật lại tài khoản để liên kết với sinh viên (tùy chọn, để hỗ trợ truy vấn 2 chiều)
@@ -2381,17 +2398,20 @@ SELECT
     sv.ho_ten,
     nh.ten_nganh,
     dt.ten_doi_tuong,
-    dt. ti_le_giam_hoc_phi,
-    h.ten_huyen || ', ' || t.ten_tinh AS que_quan,
-    CASE WHEN h.la_vung_sau_vung_xa THEN 'Có' ELSE 'Không' END AS vung_sau_xa
+    dt.ti_le_giam_hoc_phi,
+    px.ten_phuong_xa || ', ' || t.ten_tinh AS que_quan,
+    px.khu_vuc,
+    dt_ethnic.ten_dan_toc,
+    CASE WHEN px.khu_vuc = 'KV3' AND dt_ethnic.la_dan_toc_thieu_so = TRUE THEN 'Có' ELSE 'Không' END AS vung_sau_xa
 FROM sinh_vien sv
 JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-JOIN huyen h ON sv.ma_huyen = h.ma_huyen
-JOIN tinh t ON h.ma_tinh = t.ma_tinh
+JOIN phuong_xa px ON sv.ma_phuong_xa = px.ma_phuong_xa
+JOIN tinh t ON px.ma_tinh = t.ma_tinh
+LEFT JOIN dan_toc dt_ethnic ON sv.ma_dan_toc = dt_ethnic.ma_dan_toc
 LEFT JOIN doi_tuong_sinh_vien dtsv ON sv.ma_sv = dtsv.ma_sv
 LEFT JOIN doi_tuong dt ON dtsv.ma_doi_tuong = dt.ma_doi_tuong
-WHERE dtsv.id IS NOT NULL OR h.la_vung_sau_vung_xa = TRUE
-ORDER BY dt. do_uu_tien NULLS LAST, sv.ma_sv;
+WHERE dtsv.id IS NOT NULL OR (px.khu_vuc = 'KV3' AND dt_ethnic.la_dan_toc_thieu_so = TRUE)
+ORDER BY dt.do_uu_tien NULLS LAST, sv.ma_sv;
 ```
 
 ---
