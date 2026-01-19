@@ -8,6 +8,13 @@
 
 Tài liệu này phân chia công việc viết Trigger và Stored Procedures cho **4 thành viên** trong nhóm, đảm bảo đáp ứng đầy đủ các yêu cầu từ BM1-BM7 và QĐ1-QĐ7.
 
+### ⚠️ LƯU Ý QUAN TRỌNG
+
+1. **Thiết kế trigger dựa trên init.sql**: Tất cả trigger/function/procedure phải được thiết kế dựa trên cấu trúc bảng và constraint được định nghĩa trong `backend/src/config/init.sql`
+2. **Quy định nghiệp vụ bổ sung**: Một số trường có thể cho phép NULL trong database (VD: `cccd`) nhưng **BẮT BUỘC** theo quy định nghiệp vụ - trigger cần kiểm tra các điều kiện này
+3. **Phân chia công việc theo logic nghiệp vụ**: Phân chia dựa trên chức năng và yêu cầu BM/QĐ, không dựa vào cấu trúc thư mục hiện tại của code
+4. **Database constraints**: Các constraint đã được định nghĩa trong init.sql (NOT NULL, CHECK, FOREIGN KEY...) sẽ được PostgreSQL tự động kiểm tra, trigger chỉ cần xử lý logic nghiệp vụ bổ sung
+
 ---
 
 ## 👤 THÀNH VIÊN 1: Quản lý Sinh viên & Đối tượng ưu tiên
@@ -37,6 +44,10 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 - Kiểm tra `ho_ten` không được rỗng, chuẩn hóa (trim, capitalize)
 - Kiểm tra `ngay_sinh` hợp lệ (không được là ngày trong tương lai, tuổi >= 16)
 - Kiểm tra `gioi_tinh` phải là 'Nam' hoặc 'Nữ'
+- **Kiểm tra `cccd` theo quy định nghiệp vụ:**
+  - Bắt buộc nhập (dù database cho phép NULL vì có UNIQUE constraint)
+  - Format đúng (12 số cho CCCD mới hoặc 9/12 số cho CMND cũ)
+  - Không trùng lặp với sinh viên khác
 - Kiểm tra `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
 - Kiểm tra `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
 - Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc`
@@ -49,8 +60,8 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 **Ví dụ:**
 ```sql
 -- Trigger sẽ chạy khi thực hiện:
-INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, ma_phuong_xa, ma_dan_toc, ma_nganh)
-VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'KTPM');
+INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, cccd, ma_phuong_xa, ma_dan_toc, ma_nganh)
+VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '079204001234', '2659', 'KINH', 'KTPM');
 -- Kết quả: ho_ten được chuẩn hóa thành 'Nguyễn Văn An'
 ```
 
@@ -200,10 +211,10 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 | `p_ho_ten` | VARCHAR(100) | Có | Họ tên sinh viên |
 | `p_ngay_sinh` | DATE | Có | Ngày sinh |
 | `p_gioi_tinh` | VARCHAR(5) | Có | 'Nam' hoặc 'Nữ' |
+| `p_cccd` | VARCHAR(20) | **Có** | Số CCCD (bắt buộc theo quy định nghiệp vụ) |
 | `p_ma_phuong_xa` | VARCHAR(20) | Có | Mã phường/xã (quê quán) |
 | `p_ma_dan_toc` | VARCHAR(10) | Không | Mã dân tộc (mặc định 'KINH') |
 | `p_ma_nganh` | VARCHAR(10) | Có | Mã ngành học |
-| `p_cccd` | VARCHAR(20) | Không | Số CCCD |
 | `p_sdt` | VARCHAR(15) | Không | Số điện thoại |
 | `p_email` | VARCHAR(100) | Không | Email |
 | `p_dia_chi` | VARCHAR(200) | Không | Địa chỉ liên hệ |
@@ -213,6 +224,7 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 1. Bắt đầu TRANSACTION
 2. Kiểm tra dữ liệu đầu vào:
    - `ma_sv` không tồn tại
+   - `cccd` không được NULL và không trùng lặp (bắt buộc theo nghiệp vụ)
    - `ma_phuong_xa` tồn tại trong bảng `phuong_xa`
    - `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu có)
    - `ma_nganh` tồn tại trong bảng `nganh_hoc`
@@ -231,10 +243,10 @@ SELECT sp_lap_ho_so_sinh_vien(
     'Nguyễn Văn An',   -- ho_ten
     '2003-05-15',      -- ngay_sinh
     'Nam',             -- gioi_tinh
+    '079204001234',    -- cccd (BẮT BUỘC)
     '2659',            -- ma_phuong_xa (Phường Vũng Tàu, TP.HCM)
     'KINH',            -- ma_dan_toc (Dân tộc Kinh)
     'KTPM',            -- ma_nganh (Kỹ thuật phần mềm)
-    '001203012345',    -- cccd
     '0901234567',      -- sdt
     'an.nv@email.com', -- email
     '123 Lê Lợi, Q1',  -- dia_chi
@@ -293,7 +305,9 @@ SELECT sp_lap_ho_so_sinh_vien(
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
 #### 1. `trg_mon_hoc_before_insert`
-**Mục đích:** Kiểm tra và chuẩn hóa dữ liệu môn học trước khi INSERT, tự động tính số tín chỉ.
+**Mục đích:** Kiểm tra và chuẩn hóa dữ liệu môn học trước khi INSERT.
+
+**Lưu ý:** Cột `so_tin_chi` trong database được định nghĩa là `GENERATED ALWAYS AS` (computed column), tự động tính từ `loai_mon` và `so_tiet`. Trigger này chỉ cần validate dữ liệu đầu vào.
 
 **Input:** Dữ liệu môn học mới từ lệnh INSERT (NEW.*)
 
@@ -303,9 +317,8 @@ SELECT sp_lap_ho_so_sinh_vien(
 3. Kiểm tra `loai_mon` phải là 'LT' hoặc 'TH'
 4. Kiểm tra `so_tiet` > 0
 5. Kiểm tra `ma_khoa` tồn tại trong bảng `khoa`
-6. **Tự động tính số tín chỉ:**
-   - Nếu `loai_mon = 'LT'` → `so_tin_chi = so_tiet / 15` (làm tròn xuống)
-   - Nếu `loai_mon = 'TH'` → `so_tin_chi = so_tiet / 30` (làm tròn xuống)
+6. **Số tín chỉ được tự động tính bởi database:**
+   - Cột `so_tin_chi` trong database: `GENERATED ALWAYS AS (CASE WHEN loai_mon = 'LT' THEN so_tiet / 15 WHEN loai_mon = 'TH' THEN so_tiet / 30 ELSE 0 END) STORED`
 7. Set `ngay_tao = CURRENT_TIMESTAMP`
 8. Set `trang_thai = TRUE` nếu không được cung cấp
 
@@ -354,6 +367,8 @@ VALUES ('TH001', 'Thực hành CSDL', 'CNTT', 'TH', 60);
 
 #### 3. `fn_tinh_so_tin_chi(p_loai_mon VARCHAR, p_so_tiet INTEGER)`
 **Mục đích:** Tính số tín chỉ dựa trên loại môn và số tiết theo QĐ2.
+
+**Lưu ý quan trọng:** Trong database init.sql, cột `so_tin_chi` của bảng `mon_hoc` được định nghĩa là cột GENERATED ALWAYS AS (computed column), nghĩa là giá trị được tính tự động. Function này vẫn hữu ích cho validation và các tính toán khác trong ứng dụng.
 
 **Input:**
 | Tham số | Kiểu | Mô tả |
@@ -907,6 +922,168 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 -- Kết quả: 'Thành công: Đã hủy đăng ký lớp CS106_01. Hoàn trả 81,000đ vào phiếu.'
 ```
 
+---
+
+#### 12. `fn_kiem_tra_gioi_han_tin_chi(p_ma_sv, p_ma_hoc_ky, p_so_tin_chi_moi)`
+**Mục đích:** Kiểm tra sinh viên có vượt quá giới hạn tín chỉ đăng ký trong học kỳ không.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `p_ma_sv` | VARCHAR(15) | Mã sinh viên |
+| `p_ma_hoc_ky` | VARCHAR(15) | Mã học kỳ |
+| `p_so_tin_chi_moi` | INTEGER | Số tín chỉ muốn đăng ký thêm |
+
+**Logic xử lý:**
+1. Lấy cấu hình `MAX_TIN_CHI_HOC_KY` từ bảng `cau_hinh_dang_ky` (mặc định: 24)
+2. Lấy cấu hình `GPA_VUOT_TC` từ bảng `cau_hinh_dang_ky` (mặc định: 8.5)
+3. Tính tổng tín chỉ hiện tại của sinh viên trong học kỳ từ `phieu_dang_ky`
+4. Tính tổng mới = tổng hiện tại + `p_so_tin_chi_moi`
+5. Nếu tổng mới <= `MAX_TIN_CHI_HOC_KY` → Trả về TRUE (được đăng ký)
+6. Nếu tổng mới > `MAX_TIN_CHI_HOC_KY`:
+   - Gọi `fn_tinh_gpa_tich_luy(p_ma_sv)` để lấy GPA
+   - Nếu GPA >= `GPA_VUOT_TC` → Trả về TRUE (được vượt)
+   - Ngược lại → Trả về FALSE (không được đăng ký)
+
+**Output:** BOOLEAN - TRUE nếu được phép đăng ký, FALSE nếu không
+
+**Ví dụ:**
+```sql
+-- Sinh viên đã đăng ký 20 TC, muốn đăng ký thêm 3 TC
+SELECT fn_kiem_tra_gioi_han_tin_chi('SV001', 'HK1-2526', 3);  -- TRUE (23 <= 24)
+
+-- Sinh viên đã đăng ký 22 TC, muốn đăng ký thêm 4 TC, GPA = 8.6
+SELECT fn_kiem_tra_gioi_han_tin_chi('SV002', 'HK1-2526', 4);  -- TRUE (vượt nhưng GPA đủ)
+
+-- Sinh viên đã đăng ký 22 TC, muốn đăng ký thêm 4 TC, GPA = 7.5
+SELECT fn_kiem_tra_gioi_han_tin_chi('SV003', 'HK1-2526', 4);  -- FALSE (vượt và GPA không đủ)
+```
+
+---
+
+#### 13. `fn_tinh_gpa_tich_luy(p_ma_sv)`
+**Mục đích:** Tính điểm trung bình tích lũy (GPA) của sinh viên dựa trên tất cả các môn đã học.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `p_ma_sv` | VARCHAR(15) | Mã sinh viên |
+
+**Logic xử lý:**
+1. Truy vấn bảng `diem_sinh_vien` với `ma_sv = p_ma_sv` và `ket_qua IN ('Đậu', 'Rớt')`
+2. Tính tổng: SUM(diem_trung_binh * so_tin_chi)
+3. Tính tổng tín chỉ: SUM(so_tin_chi)
+4. GPA = Tổng điểm / Tổng tín chỉ
+
+**Công thức:**
+```
+GPA = Σ(điểm_TB_môn × số_TC_môn) / Σ(số_TC_môn)
+```
+
+**Output:** DECIMAL(4,2) - Điểm GPA tích lũy (0.00 - 10.00)
+
+**Ví dụ:**
+```sql
+SELECT fn_tinh_gpa_tich_luy('SV001');  -- Kết quả: 7.85
+SELECT fn_tinh_gpa_tich_luy('SV002');  -- Kết quả: 8.60
+```
+
+---
+
+#### 14. `fn_kiem_tra_trung_lich(p_ma_sv, p_ma_hoc_ky, p_lop_mo_id)`
+**Mục đích:** Kiểm tra sinh viên có bị trùng lịch học khi đăng ký lớp mới không.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `p_ma_sv` | VARCHAR(15) | Mã sinh viên |
+| `p_ma_hoc_ky` | VARCHAR(15) | Mã học kỳ |
+| `p_lop_mo_id` | INTEGER | ID lớp mở muốn đăng ký |
+
+**Logic xử lý:**
+1. Lấy lịch học của lớp mới từ bảng `lich_hoc_lop` với `lop_mo_id = p_lop_mo_id`
+2. Lấy danh sách lớp đã đăng ký của sinh viên trong học kỳ từ `chi_tiet_dang_ky` và `phieu_dang_ky`
+3. Với mỗi lớp đã đăng ký, lấy lịch học từ `lich_hoc_lop`
+4. Kiểm tra xung đột:
+   - Cùng `thu_trong_tuan`
+   - Tiết học bị chồng lấn (VD: Lớp A tiết 1-3, Lớp B tiết 2-4 → Trùng tiết 2,3)
+5. Trả về TRUE nếu có xung đột, FALSE nếu không
+
+**Output:** BOOLEAN - TRUE nếu trùng lịch, FALSE nếu không trùng
+
+**Ví dụ:**
+```sql
+-- Lớp mới học Thứ 2, Tiết 1-3. Sinh viên đã đăng ký lớp học Thứ 2, Tiết 2-4
+SELECT fn_kiem_tra_trung_lich('SV001', 'HK1-2526', 5);  -- TRUE (trùng tiết 2,3)
+
+-- Lớp mới học Thứ 3, Tiết 6-8. Không trùng với lịch hiện có
+SELECT fn_kiem_tra_trung_lich('SV001', 'HK1-2526', 10); -- FALSE
+```
+
+---
+
+#### 15. `trg_lich_hoc_lop_before_insert`
+**Mục đích:** Kiểm tra dữ liệu lịch học hợp lệ trước khi INSERT vào bảng `lich_hoc_lop`.
+
+**Input:** Dữ liệu lịch học mới (NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `lop_mo_id` tồn tại trong bảng `lop_mo`
+2. Kiểm tra `thu_trong_tuan` hợp lệ (2-7, tương ứng Thứ 2 - Thứ 7)
+3. Kiểm tra `ma_tiet_bat_dau` và `ma_tiet_ket_thuc` tồn tại trong bảng `tiet_hoc`
+4. Kiểm tra `ma_tiet_bat_dau` <= `ma_tiet_ket_thuc` (tiết bắt đầu phải trước tiết kết thúc)
+5. Kiểm tra không trùng lịch với các lịch học khác của cùng lớp mở
+6. Set `trang_thai = TRUE` nếu không được cung cấp
+
+**Output:** Cho phép INSERT nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- INSERT hợp lệ
+INSERT INTO lich_hoc_lop (lop_mo_id, thu_trong_tuan, ma_tiet_bat_dau, ma_tiet_ket_thuc, phong_hoc)
+VALUES (1, 2, 'T1', 'T3', 'B1.01');
+-- Kết quả: INSERT thành công
+
+-- INSERT không hợp lệ (tiết bắt đầu > tiết kết thúc)
+INSERT INTO lich_hoc_lop (lop_mo_id, thu_trong_tuan, ma_tiet_bat_dau, ma_tiet_ket_thuc, phong_hoc)
+VALUES (1, 2, 'T5', 'T3', 'B1.01');
+-- Kết quả: Error - Tiết bắt đầu phải trước tiết kết thúc
+```
+
+---
+
+#### 16. `sp_them_lich_hoc_lop(p_lop_mo_id, p_thu, p_tiet_bd, p_tiet_kt, p_phong)`
+**Mục đích:** Procedure thêm lịch học cho một lớp mở.
+
+**Input:**
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---------|------|----------|-------|
+| `p_lop_mo_id` | INTEGER | Có | ID lớp mở |
+| `p_thu` | INTEGER | Có | Thứ trong tuần (2-7) |
+| `p_tiet_bd` | VARCHAR(10) | Có | Mã tiết bắt đầu (VD: 'T1') |
+| `p_tiet_kt` | VARCHAR(10) | Có | Mã tiết kết thúc (VD: 'T3') |
+| `p_phong` | VARCHAR(50) | Không | Phòng học |
+
+**Logic xử lý:**
+1. Kiểm tra `p_lop_mo_id` tồn tại
+2. Kiểm tra `p_tiet_bd` và `p_tiet_kt` hợp lệ
+3. Kiểm tra không trùng lịch với các buổi khác của cùng lớp
+4. INSERT vào bảng `lich_hoc_lop`
+5. Trigger `trg_lich_hoc_lop_before_insert` sẽ thực hiện validation
+
+**Output:** TEXT - Thông báo kết quả
+
+**Ví dụ:**
+```sql
+-- Thêm lịch học: Thứ 2, Tiết 1-3, Phòng B1.01
+SELECT sp_them_lich_hoc_lop(1, 2, 'T1', 'T3', 'B1.01');
+-- Kết quả: 'Thành công: Đã thêm lịch học Thứ 2, Tiết 1-3 cho lớp IT001.N01'
+
+-- Thêm thêm buổi học khác: Thứ 4, Tiết 6-8, Phòng PM.01
+SELECT sp_them_lich_hoc_lop(1, 4, 'T6', 'T8', 'PM.01');
+-- Kết quả: 'Thành công: Đã thêm lịch học Thứ 4, Tiết 6-8 cho lớp IT001.N01'
+```
+
 ### Chi tiết yêu cầu:
 - **BM4**: Danh sách môn học mở trong học kỳ (Học kỳ, Năm học, Môn học)
 - **QĐ4**: 
@@ -932,9 +1109,9 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 | 4 | `fn_tinh_so_tien_con_lai(ma_sv, ma_hoc_ky)` | Tính số tiền còn lại phải đóng (QĐ7) | `phieu_dang_ky`, `phieu_thu_hoc_phi` |
 | 5 | `fn_tinh_tong_tien_da_thu(so_phieu_dang_ky)` | Tính tổng tiền đã thu cho 1 phiếu đăng ký | `phieu_thu_hoc_phi` |
 | 6 | `sp_lap_bao_cao_sv_chua_dong_hp(ma_hoc_ky)` | Procedure lập báo cáo SV chưa đóng đủ HP (BM7) | `phieu_dang_ky`, `phieu_thu_hoc_phi`, `sinh_vien`, `hoc_ky` |
-| 7 | `trg_hoc_ky_check_han_dong_hp` | Kiểm tra và cảnh báo SV chưa đóng HP khi đến hạn | `hoc_ky`, `phieu_dang_ky`, `thong_bao_ca_nhan` |
+| 7 | `trg_hoc_ky_check_han_dong_hp` | Kiểm tra và cảnh báo SV chưa đóng HP khi đến hạn | `hoc_ky`, `phieu_dang_ky`, `thong_bao` (loai='ca_nhan') |
 | 8 | `fn_kiem_tra_qua_han_dong_hp(ma_sv, ma_hoc_ky)` | Kiểm tra SV đã quá hạn đóng HP chưa (QĐ6) | `phieu_dang_ky`, `hoc_ky` |
-| 9 | `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)` | Gửi thông báo nhắc nộp HP cho SV chưa đóng đủ | `thong_bao_ca_nhan`, `sinh_vien`, `tai_khoan` |
+| 9 | `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)` | Gửi thông báo nhắc nộp HP cho SV chưa đóng đủ | `thong_bao`, `sinh_vien`, `tai_khoan` |
 | 10 | `trg_phieu_thu_hoc_phi_after_update` | Xử lý khi hủy phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
 | 11 | `trg_diem_sinh_vien_before_insert` | **MỚI** - Kiểm tra điểm hợp lệ (0-10), tính điểm TB tự động | `diem_sinh_vien` |
 | 12 | `trg_diem_sinh_vien_after_insert` | **MỚI** - Cập nhật kết quả đậu/rớt (< 5.0 = Rớt) | `diem_sinh_vien` |
@@ -996,7 +1173,7 @@ VALUES (1, 'SV001', 300000, 'Tiền mặt', 'Nguyễn Thị A');
 **Ví dụ:**
 ```sql
 -- Sau khi sinh viên đóng đủ học phí:
--- Tự động gửi thông báo vào bảng thong_bao_ca_nhan:
+-- Tự động gửi thông báo vào bảng thong_bao với loai='ca_nhan':
 -- "Bạn đã hoàn thành đóng học phí HK1-2526. Tổng đã đóng: 500,000đ"
 ```
 
@@ -1169,12 +1346,12 @@ SELECT * FROM sp_lap_bao_cao_sv_chua_dong_hp('HK1-2526');
 **Logic xử lý:**
 1. Kiểm tra nếu `CURRENT_DATE` gần `han_dong_hoc_phi` (VD: còn 7 ngày):
    - Tìm tất cả sinh viên chưa đóng đủ HP
-   - Gửi thông báo nhắc nhở vào `thong_bao_ca_nhan`
+   - Gửi thông báo nhắc nhở vào bảng `thong_bao` với `loai = 'ca_nhan'`
 2. Kiểm tra nếu `CURRENT_DATE > han_dong_hoc_phi`:
    - Tìm sinh viên chưa đóng đủ HP
    - Gửi thông báo cảnh báo "Đã quá hạn đóng học phí"
 
-**Output:** Gửi thông báo vào `thong_bao_ca_nhan`
+**Output:** Gửi thông báo vào bảng `thong_bao` với `loai = 'ca_nhan'`
 
 **Lưu ý:** Trigger này có thể được kích hoạt bởi một job định kỳ (scheduled job) thay vì trigger trực tiếp.
 
@@ -1232,7 +1409,7 @@ SELECT fn_kiem_tra_qua_han_dong_hp('SV003', 'HK2-2526');  -- FALSE
      Nội dung: "Bạn còn nợ [300,000đ] học phí. Hạn đóng: [31/10/2025]. 
                Vui lòng đóng học phí đúng hạn để tránh bị hạn chế đăng ký thi."
      ```
-   - INSERT vào `thong_bao_ca_nhan`
+   - INSERT vào bảng `thong_bao` với `loai = 'ca_nhan'` và `ma_tai_khoan_nhan = ma_tai_khoan`
 3. Ghi log số lượng thông báo đã gửi
 
 **Output:** TEXT - Thông báo kết quả
@@ -1271,6 +1448,239 @@ WHERE so_phieu_thu = 1;
 -- Kết quả: Tự động tính lại số tiền còn nợ cho phiếu đăng ký
 ```
 
+---
+
+#### 11. `trg_diem_sinh_vien_before_insert`
+**Mục đích:** Kiểm tra dữ liệu điểm hợp lệ trước khi INSERT, tính điểm trung bình tự động.
+
+**Input:** Dữ liệu điểm mới (NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_sv` tồn tại trong bảng `sinh_vien`
+2. Kiểm tra `ma_mon_hoc` tồn tại trong bảng `mon_hoc`
+3. Kiểm tra `ma_hoc_ky` tồn tại trong bảng `hoc_ky`
+4. Kiểm tra các điểm thành phần (nếu có) nằm trong khoảng 0-10:
+   - `diem_qua_trinh` >= 0 AND <= 10
+   - `diem_giua_ky` >= 0 AND <= 10
+   - `diem_cuoi_ky` >= 0 AND <= 10
+5. **Tự động tính điểm trung bình nếu có đủ điểm thành phần:**
+   - Gọi `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)`
+   - Set `NEW.diem_trung_binh` = kết quả
+6. **Tự động chuyển đổi sang điểm chữ:**
+   - Gọi `fn_chuyen_diem_sang_chu(diem_trung_binh)`
+   - Set `NEW.diem_chu` = kết quả
+7. Lấy `so_tin_chi` từ bảng `mon_hoc` nếu không được cung cấp
+8. Set `ngay_tao = CURRENT_TIMESTAMP`
+
+**Output:** Cho phép INSERT nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- INSERT điểm với đầy đủ thông tin
+INSERT INTO diem_sinh_vien (ma_sv, ma_mon_hoc, ma_hoc_ky, diem_qua_trinh, diem_giua_ky, diem_cuoi_ky, so_tin_chi)
+VALUES ('22520001', 'IT001', 'HK1-2526', 8.0, 7.5, 8.5, 4);
+-- Kết quả: diem_trung_binh và diem_chu tự động được tính
+```
+
+---
+
+#### 12. `trg_diem_sinh_vien_after_insert`
+**Mục đích:** Cập nhật kết quả đậu/rớt sau khi INSERT điểm.
+
+**Input:** Dữ liệu điểm vừa được INSERT (NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `diem_trung_binh` != NULL:
+   - Nếu `diem_trung_binh >= 5.0` → UPDATE `ket_qua = 'Đậu'`
+   - Nếu `diem_trung_binh < 5.0` → UPDATE `ket_qua = 'Rớt'`
+2. Nếu `diem_trung_binh` = NULL → Giữ `ket_qua = 'Chưa có'`
+
+**Output:** Cập nhật kết quả học tập
+
+**Ví dụ:**
+```sql
+-- Sau khi INSERT điểm TB = 8.17 → ket_qua = 'Đậu'
+-- Sau khi INSERT điểm TB = 3.92 → ket_qua = 'Rớt'
+```
+
+---
+
+#### 13. `trg_diem_sinh_vien_after_update`
+**Mục đích:** Cập nhật lại GPA tích lũy khi sửa điểm sinh viên.
+
+**Input:** Dữ liệu điểm trước và sau UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `diem_trung_binh` thay đổi:
+   - Cập nhật lại `diem_chu` theo điểm TB mới
+   - Cập nhật lại `ket_qua` (Đậu/Rớt)
+2. Gọi `fn_cap_nhat_gpa_tich_luy(NEW.ma_sv)` để cập nhật GPA tích lũy (nếu cần lưu trữ)
+3. Set `ngay_cap_nhat = CURRENT_TIMESTAMP`
+
+**Output:** Cập nhật điểm chữ, kết quả và GPA
+
+---
+
+#### 14. `sp_nhap_diem(p_ma_sv, p_ma_mon, p_ma_hk, p_diem_qt, p_diem_gk, p_diem_ck)`
+**Mục đích:** Procedure nhập điểm cho sinh viên, bao gồm validation và tính toán tự động.
+
+**Input:**
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---------|------|----------|-------|
+| `p_ma_sv` | VARCHAR(15) | Có | Mã sinh viên |
+| `p_ma_mon` | VARCHAR(15) | Có | Mã môn học |
+| `p_ma_hk` | VARCHAR(15) | Có | Mã học kỳ |
+| `p_diem_qt` | DECIMAL(4,2) | Không | Điểm quá trình (0-10) |
+| `p_diem_gk` | DECIMAL(4,2) | Không | Điểm giữa kỳ (0-10) |
+| `p_diem_ck` | DECIMAL(4,2) | Không | Điểm cuối kỳ (0-10) |
+| `p_nguoi_nhap` | INTEGER | Không | ID tài khoản người nhập |
+
+**Logic xử lý:**
+1. Kiểm tra sinh viên có đăng ký môn học này trong học kỳ không (từ `chi_tiet_dang_ky`)
+2. Kiểm tra điểm đã tồn tại chưa → UPDATE nếu có, INSERT nếu chưa
+3. Lấy `so_tin_chi` và `ma_lop` từ thông tin đăng ký
+4. Tính `diem_trung_binh` = `fn_tinh_diem_trung_binh_mon()`
+5. Chuyển `diem_chu` = `fn_chuyen_diem_sang_chu()`
+6. Xác định `ket_qua` dựa trên điểm TB
+7. INSERT hoặc UPDATE vào bảng `diem_sinh_vien`
+
+**Output:** TEXT - Thông báo kết quả
+
+**Ví dụ:**
+```sql
+SELECT sp_nhap_diem('22520001', 'IT001', 'HK1-2526', 8.0, 7.5, 8.5, 1);
+-- Kết quả: 'Thành công: Đã nhập điểm môn IT001 cho SV 22520001. ĐTB: 8.17 (B+) - Đậu'
+```
+
+---
+
+#### 15. `fn_tinh_diem_trung_binh_mon(p_diem_qt, p_diem_gk, p_diem_ck)`
+**Mục đích:** Tính điểm trung bình môn học theo công thức chuẩn.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `p_diem_qt` | DECIMAL(4,2) | Điểm quá trình |
+| `p_diem_gk` | DECIMAL(4,2) | Điểm giữa kỳ |
+| `p_diem_ck` | DECIMAL(4,2) | Điểm cuối kỳ |
+
+**Logic xử lý:**
+```
+Công thức: ĐTB = (Điểm QT × 20% + Điểm GK × 30% + Điểm CK × 50%)
+         = p_diem_qt × 0.2 + p_diem_gk × 0.3 + p_diem_ck × 0.5
+```
+- Nếu thiếu một trong các điểm → Trả về NULL
+- Làm tròn đến 2 chữ số thập phân
+
+**Output:** DECIMAL(4,2) - Điểm trung bình (0.00 - 10.00)
+
+**Ví dụ:**
+```sql
+SELECT fn_tinh_diem_trung_binh_mon(8.0, 7.5, 8.5);
+-- Kết quả: 8.0*0.2 + 7.5*0.3 + 8.5*0.5 = 1.6 + 2.25 + 4.25 = 8.10
+
+SELECT fn_tinh_diem_trung_binh_mon(7.0, 6.5, 7.0);
+-- Kết quả: 7.0*0.2 + 6.5*0.3 + 7.0*0.5 = 1.4 + 1.95 + 3.5 = 6.85
+```
+
+---
+
+#### 16. `fn_chuyen_diem_sang_chu(p_diem_tb)`
+**Mục đích:** Chuyển đổi điểm số sang điểm chữ theo thang điểm chuẩn.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `p_diem_tb` | DECIMAL(4,2) | Điểm trung bình (0-10) |
+
+**Logic xử lý:**
+| Điểm số | Điểm chữ |
+|---------|----------|
+| 9.0 - 10.0 | A+ |
+| 8.5 - 8.9 | A |
+| 8.0 - 8.4 | B+ |
+| 7.0 - 7.9 | B |
+| 6.5 - 6.9 | C+ |
+| 5.5 - 6.4 | C |
+| 5.0 - 5.4 | D+ |
+| 4.0 - 4.9 | D |
+| 0.0 - 3.9 | F |
+
+**Output:** VARCHAR(2) - Điểm chữ (A+, A, B+, B, C+, C, D+, D, F)
+
+**Ví dụ:**
+```sql
+SELECT fn_chuyen_diem_sang_chu(8.17);  -- Kết quả: 'B+'
+SELECT fn_chuyen_diem_sang_chu(9.08);  -- Kết quả: 'A+'
+SELECT fn_chuyen_diem_sang_chu(3.92);  -- Kết quả: 'F'
+SELECT fn_chuyen_diem_sang_chu(5.08);  -- Kết quả: 'D+'
+```
+
+---
+
+#### 17. `sp_lap_bang_diem_sinh_vien(p_ma_sv)`
+**Mục đích:** Procedure lập bảng điểm toàn khóa của sinh viên.
+
+**Input:**
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---------|------|----------|-------|
+| `p_ma_sv` | VARCHAR(15) | Có | Mã sinh viên |
+
+**Logic xử lý:**
+1. Truy vấn bảng `diem_sinh_vien` với `ma_sv = p_ma_sv`
+2. JOIN với `mon_hoc` để lấy tên môn, số tín chỉ
+3. JOIN với `hoc_ky` để lấy tên học kỳ
+4. Sắp xếp theo `hoc_ky.thu_tu` và `ngay_nhap_diem`
+5. Tính tổng tín chỉ tích lũy
+6. Tính GPA tích lũy
+
+**Output:** TABLE - Bảng điểm chi tiết
+
+| Cột | Kiểu | Mô tả |
+|-----|------|-------|
+| `hoc_ky` | VARCHAR | Tên học kỳ |
+| `ma_mon_hoc` | VARCHAR | Mã môn học |
+| `ten_mon_hoc` | VARCHAR | Tên môn học |
+| `so_tin_chi` | INTEGER | Số tín chỉ |
+| `diem_qt` | DECIMAL | Điểm quá trình |
+| `diem_gk` | DECIMAL | Điểm giữa kỳ |
+| `diem_ck` | DECIMAL | Điểm cuối kỳ |
+| `diem_tb` | DECIMAL | Điểm trung bình |
+| `diem_chu` | VARCHAR | Điểm chữ |
+| `ket_qua` | VARCHAR | Kết quả (Đậu/Rớt) |
+
+**Ví dụ:**
+```sql
+SELECT * FROM sp_lap_bang_diem_sinh_vien('22520001');
+-- Kết quả: Bảng điểm toàn khóa của sinh viên
+```
+
+---
+
+#### 18. `fn_cap_nhat_gpa_tich_luy(p_ma_sv)`
+**Mục đích:** Cập nhật và trả về GPA tích lũy của sinh viên sau khi thay đổi điểm.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `p_ma_sv` | VARCHAR(15) | Mã sinh viên |
+
+**Logic xử lý:**
+1. Truy vấn bảng `diem_sinh_vien` với `ma_sv = p_ma_sv`
+2. Chỉ tính các môn có `ket_qua IN ('Đậu', 'Rớt')` và `diem_trung_binh IS NOT NULL`
+3. Tính tổng điểm có trọng số: SUM(diem_trung_binh * so_tin_chi)
+4. Tính tổng tín chỉ: SUM(so_tin_chi)
+5. GPA = Tổng điểm có trọng số / Tổng tín chỉ
+6. Cập nhật vào bảng `cau_hinh_dang_ky` hoặc cache (nếu cần)
+
+**Output:** DECIMAL(4,2) - GPA tích lũy mới
+
+**Ví dụ:**
+```sql
+SELECT fn_cap_nhat_gpa_tich_luy('22520001');
+-- Kết quả: 7.85 (GPA tích lũy sau khi tính lại)
+```
+
 ### Chi tiết yêu cầu:
 - **BM6**: Phiếu thu học phí (Số phiếu, Ngày lập, MSSV, Số tiền thu)
 - **QĐ6**: 
@@ -1289,8 +1699,10 @@ WHERE so_phieu_thu = 1;
 |------------|----|----|------------|-------------|--------------|
 | **TV1** | BM1 | QĐ1 | 4 | 2 | 1 |
 | **TV2** | BM2, BM3 | QĐ2, QĐ3 | 4 | 2 | 2 |
-| **TV3** | BM4, BM5 | QĐ4, QĐ5 | 4 | 3 | 3 |
-| **TV4** | BM6, BM7 | QĐ6, QĐ7 | 3 | 3 | 3 |
+| **TV3** | BM4, BM5 | QĐ4, QĐ5 | 6 | 5 | 4 |
+| **TV4** | BM6, BM7 | QĐ6, QĐ7 | 6 | 5 | 3 |
+
+**Ghi chú:** Số lượng đã được cập nhật bao gồm các trigger/function mới về Lịch học, Giới hạn tín chỉ (TV3) và Quản lý Điểm sinh viên (TV4).
 
 ---
 
