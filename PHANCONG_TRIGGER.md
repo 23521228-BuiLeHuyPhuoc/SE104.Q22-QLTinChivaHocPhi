@@ -17,13 +17,17 @@ Tài liệu này phân chia công việc viết Trigger và Stored Procedures ch
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
 | 1 | `trg_sinh_vien_before_insert` | Kiểm tra và chuẩn hóa dữ liệu trước khi thêm sinh viên | `sinh_vien` |
-| 2 | `trg_sinh_vien_after_insert` | Tự động tạo tài khoản cho sinh viên mới | `sinh_vien`, `tai_khoan` |
-| 3 | `trg_doi_tuong_sinh_vien_after_insert` | Cập nhật tỷ lệ giảm HP khi gán đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
-| 4 | `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật lại tỷ lệ giảm khi xóa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
-| 5 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
-| 6 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
-| 7 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
-| 8 | `trg_phuong_xa_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi khu vực ưu tiên | `phuong_xa`, `sinh_vien`, `phieu_dang_ky` |
+| 2 | `trg_sinh_vien_before_update` | Kiểm tra và chuẩn hóa dữ liệu trước khi sửa sinh viên | `sinh_vien` |
+| 3 | `trg_sinh_vien_after_insert` | Tự động tạo tài khoản cho sinh viên mới | `sinh_vien`, `tai_khoan` |
+| 4 | `trg_sinh_vien_after_update` | Cập nhật tỷ lệ giảm HP khi thay đổi phường/xã hoặc dân tộc của sinh viên | `sinh_vien`, `phieu_dang_ky` |
+| 5 | `trg_doi_tuong_sinh_vien_after_insert` | Cập nhật tỷ lệ giảm HP khi gán đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 6 | `trg_doi_tuong_sinh_vien_after_update` | Cập nhật tỷ lệ giảm HP khi sửa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 7 | `trg_doi_tuong_sinh_vien_after_delete` | Cập nhật lại tỷ lệ giảm khi xóa đối tượng | `doi_tuong_sinh_vien`, `phieu_dang_ky` |
+| 8 | `fn_lay_ti_le_giam_hoc_phi(ma_sv)` | Lấy tỷ lệ giảm học phí theo đối tượng ưu tiên cao nhất (QĐ1) | `doi_tuong`, `doi_tuong_sinh_vien`, `phuong_xa`, `dan_toc` |
+| 9 | `fn_kiem_tra_vung_sau_vung_xa(ma_sv)` | Kiểm tra sinh viên có thuộc đối tượng vùng sâu/xa không (KV3 + DTTS) (QĐ1) | `sinh_vien`, `phuong_xa`, `dan_toc` |
+| 10 | `sp_lap_ho_so_sinh_vien(...)` | Procedure tạo hồ sơ sinh viên đầy đủ (BM1) | `sinh_vien`, `tai_khoan`, `doi_tuong_sinh_vien` |
+| 11 | `trg_phuong_xa_before_update` | Cập nhật tỷ lệ giảm cho SV khi thay đổi khu vực ưu tiên | `phuong_xa`, `sinh_vien`, `phieu_dang_ky` |
+| 12 | `trg_doi_tuong_after_update` | Cập nhật tỷ lệ giảm HP cho tất cả SV khi sửa tỷ lệ giảm của đối tượng | `doi_tuong`, `doi_tuong_sinh_vien`, `phieu_dang_ky` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -56,7 +60,34 @@ VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'K
 
 ---
 
-#### 2. `trg_sinh_vien_after_insert`
+#### 2. `trg_sinh_vien_before_update`
+**Mục đích:** Kiểm tra và chuẩn hóa dữ liệu trước khi cập nhật thông tin sinh viên.
+
+**Input:** Dữ liệu sinh viên trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+- Kiểm tra `ho_ten` không được rỗng, chuẩn hóa (trim, capitalize)
+- Kiểm tra `ngay_sinh` hợp lệ (không được là ngày trong tương lai, tuổi >= 16)
+- Kiểm tra `gioi_tinh` phải là 'Nam' hoặc 'Nữ'
+- Kiểm tra `ma_phuong_xa` tồn tại trong bảng `phuong_xa` (nếu thay đổi)
+- Kiểm tra `ma_dan_toc` tồn tại trong bảng `dan_toc` (nếu thay đổi)
+- Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc` (nếu thay đổi)
+- Chuẩn hóa email về dạng lowercase
+- Tự động set `ngay_cap_nhat = CURRENT_TIMESTAMP`
+- Không cho phép thay đổi `ma_sv` (primary key)
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Trigger sẽ chạy khi thực hiện:
+UPDATE sinh_vien SET ho_ten = '  trần văn bình  ' WHERE ma_sv = 'SV001';
+-- Kết quả: ho_ten được chuẩn hóa thành 'Trần Văn Bình'
+```
+
+---
+
+#### 3. `trg_sinh_vien_after_insert`
 **Mục đích:** Tự động tạo tài khoản đăng nhập cho sinh viên mới.
 
 **Input:** Dữ liệu sinh viên vừa được INSERT (NEW.*)
@@ -83,7 +114,32 @@ VALUES ('SV001', '  nguyễn văn an  ', '2003-05-15', 'Nam', '2659', 'KINH', 'K
 
 ---
 
-#### 3. `trg_doi_tuong_sinh_vien_after_insert`
+#### 4. `trg_sinh_vien_after_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí cho các phiếu đăng ký khi thay đổi phường/xã hoặc dân tộc của sinh viên.
+
+**Input:** Dữ liệu sinh viên trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `ma_phuong_xa` hoặc `ma_dan_toc` thay đổi:
+   - Gọi `fn_lay_ti_le_giam_hoc_phi(NEW.ma_sv)` để tính lại tỷ lệ giảm
+   - Tìm tất cả phiếu đăng ký của sinh viên có `trang_thai = 'Đã đăng ký'`
+   - Cập nhật lại:
+     - `ti_le_giam` = tỷ lệ mới
+     - `tien_mien_giam` = `tong_tien_dang_ky * ti_le_giam / 100`
+     - `tong_tien_phai_dong` = `tong_tien_dang_ky - tien_mien_giam`
+
+**Output:** Cập nhật các phiếu đăng ký của sinh viên nếu có thay đổi liên quan
+
+**Ví dụ:**
+```sql
+-- Sinh viên SV001 đổi địa chỉ từ KV1 sang KV3 và là dân tộc thiểu số:
+UPDATE sinh_vien SET ma_phuong_xa = '12345' WHERE ma_sv = 'SV001';
+-- Kết quả: phiếu đăng ký được cập nhật với tỷ lệ giảm mới (50% cho vùng sâu xa)
+```
+
+---
+
+#### 5. `trg_doi_tuong_sinh_vien_after_insert`
 **Mục đích:** Cập nhật tỷ lệ giảm học phí cho các phiếu đăng ký của sinh viên khi được gán đối tượng ưu tiên mới.
 
 **Input:** Dữ liệu gán đối tượng mới (NEW.ma_sv, NEW.ma_doi_tuong)
@@ -109,7 +165,31 @@ INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
 
 ---
 
-#### 4. `trg_doi_tuong_sinh_vien_after_delete`
+#### 6. `trg_doi_tuong_sinh_vien_after_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí khi thay đổi thông tin đối tượng của sinh viên.
+
+**Input:** Dữ liệu đối tượng trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `ma_doi_tuong` thay đổi
+2. Gọi `fn_lay_ti_le_giam_hoc_phi(NEW.ma_sv)` để tính lại tỷ lệ giảm
+3. Cập nhật lại các phiếu đăng ký:
+   - `ti_le_giam` = tỷ lệ mới
+   - `tien_mien_giam` = `tong_tien_dang_ky * ti_le_giam / 100`
+   - `tong_tien_phai_dong` = `tong_tien_dang_ky - tien_mien_giam`
+
+**Output:** Cập nhật các phiếu đăng ký của sinh viên
+
+**Ví dụ:**
+```sql
+-- Sinh viên SV001 có đối tượng "Con thương binh" (80%), đổi sang "Hộ nghèo" (50%):
+UPDATE doi_tuong_sinh_vien SET ma_doi_tuong = 'DT03' WHERE ma_sv = 'SV001' AND ma_doi_tuong = 'DT02';
+-- Kết quả: phiếu đăng ký được cập nhật với tỷ lệ giảm mới
+```
+
+---
+
+#### 7. `trg_doi_tuong_sinh_vien_after_delete`
 **Mục đích:** Cập nhật lại tỷ lệ giảm học phí khi xóa đối tượng ưu tiên của sinh viên.
 
 **Input:** Dữ liệu đối tượng bị xóa (OLD.ma_sv, OLD.ma_doi_tuong)
@@ -123,7 +203,7 @@ INSERT INTO doi_tuong_sinh_vien (ma_sv, ma_doi_tuong) VALUES ('SV001', 'DT02');
 
 ---
 
-#### 5. `fn_lay_ti_le_giam_hoc_phi(p_ma_sv VARCHAR)`
+#### 8. `fn_lay_ti_le_giam_hoc_phi(p_ma_sv VARCHAR)`
 **Mục đích:** Lấy tỷ lệ giảm học phí của sinh viên dựa trên đối tượng ưu tiên có độ ưu tiên cao nhất.
 
 **Input:** 
@@ -159,7 +239,7 @@ SELECT fn_lay_ti_le_giam_hoc_phi('SV004'); -- Kết quả: 0.00
 
 ---
 
-#### 6. `fn_kiem_tra_vung_sau_vung_xa(p_ma_sv VARCHAR)`
+#### 9. `fn_kiem_tra_vung_sau_vung_xa(p_ma_sv VARCHAR)`
 **Mục đích:** Kiểm tra một sinh viên có thuộc đối tượng vùng sâu/vùng xa hay không.
 
 > ⚠️ **Điều kiện "vùng sâu vùng xa":** Sinh viên thuộc khu vực KV3 **VÀ** là dân tộc thiểu số.
@@ -190,7 +270,7 @@ SELECT fn_kiem_tra_vung_sau_vung_xa('SV003'); -- FALSE
 
 ---
 
-#### 7. `sp_lap_ho_so_sinh_vien(...)`
+#### 10. `sp_lap_ho_so_sinh_vien(...)`
 **Mục đích:** Procedure tạo hồ sơ sinh viên đầy đủ bao gồm: sinh viên, tài khoản, và gán đối tượng (nếu có).
 
 **Input:**
@@ -245,7 +325,7 @@ SELECT sp_lap_ho_so_sinh_vien(
 
 ---
 
-#### 8. `trg_phuong_xa_before_update`
+#### 11. `trg_phuong_xa_before_update`
 **Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên khi thay đổi khu vực ưu tiên của phường/xã.
 
 **Input:** Dữ liệu phường/xã trước và sau khi UPDATE (OLD.*, NEW.*)
@@ -262,6 +342,32 @@ SELECT sp_lap_ho_so_sinh_vien(
    - Tính lại tỷ lệ giảm (có thể = 0 nếu không còn đối tượng khác)
 
 **Output:** Cập nhật phiếu đăng ký của sinh viên liên quan
+
+---
+
+#### 12. `trg_doi_tuong_after_update`
+**Mục đích:** Cập nhật tỷ lệ giảm học phí cho tất cả sinh viên thuộc đối tượng khi sửa tỷ lệ giảm của đối tượng ưu tiên.
+
+**Input:** Dữ liệu đối tượng trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `ti_le_giam_hoc_phi` hoặc `do_uu_tien` thay đổi
+2. Tìm tất cả sinh viên có đối tượng này từ bảng `doi_tuong_sinh_vien`
+3. Với mỗi sinh viên:
+   - Gọi `fn_lay_ti_le_giam_hoc_phi(ma_sv)` để tính lại tỷ lệ giảm (cao nhất)
+   - Cập nhật lại các phiếu đăng ký có `trang_thai = 'Đã đăng ký'`:
+     - `ti_le_giam` = tỷ lệ mới
+     - `tien_mien_giam` = `tong_tien_dang_ky * ti_le_giam / 100`
+     - `tong_tien_phai_dong` = `tong_tien_dang_ky - tien_mien_giam`
+
+**Output:** Cập nhật các phiếu đăng ký của tất cả sinh viên liên quan
+
+**Ví dụ:**
+```sql
+-- Đối tượng "Hộ nghèo" (DT03) được điều chỉnh từ 50% lên 60%:
+UPDATE doi_tuong SET ti_le_giam_hoc_phi = 60 WHERE ma_doi_tuong = 'DT03';
+-- Kết quả: Tất cả phiếu đăng ký của sinh viên thuộc hộ nghèo được cập nhật
+```
 
 ### Chi tiết yêu cầu:
 - **BM1**: Lập hồ sơ sinh viên (Họ tên, Ngày sinh, Giới tính, Quê quán, Dân tộc, Đối tượng, Ngành học)
@@ -281,14 +387,21 @@ SELECT sp_lap_ho_so_sinh_vien(
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
 | 1 | `trg_mon_hoc_before_insert` | Kiểm tra loại môn (LT/TH) và số tiết hợp lệ | `mon_hoc` |
-| 2 | `trg_mon_hoc_after_insert` | Tự động tạo lớp học mặc định cho môn mới | `mon_hoc`, `lop` |
-| 3 | `fn_tinh_so_tin_chi(loai_mon, so_tiet)` | Tính số tín chỉ theo QĐ2 (LT: số tiết/15, TH: số tiết/30) | - |
-| 4 | `trg_lop_before_insert` | Kiểm tra môn học tồn tại, đặt mã lớp | `lop`, `mon_hoc` |
-| 5 | `sp_nhap_danh_sach_mon_hoc(...)` | Procedure nhập danh sách môn học (BM2) | `mon_hoc` |
-| 6 | `trg_chuong_trinh_hoc_before_insert` | Kiểm tra ngành và môn học hợp lệ | `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc` |
-| 7 | `sp_nhap_chuong_trinh_hoc(ma_nganh, ...)` | Procedure nhập chương trình học theo ngành (BM3) | `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc` |
-| 8 | `trg_dieu_kien_mon_hoc_before_insert` | Kiểm tra điều kiện tiên quyết/học trước hợp lệ | `dieu_kien_mon_hoc`, `mon_hoc` |
-| 9 | `fn_lay_chuong_trinh_hoc_theo_nganh(ma_nganh)` | Lấy danh sách môn học của ngành theo học kỳ (BM3) | `chuong_trinh_hoc` |
+| 2 | `trg_mon_hoc_before_update` | Kiểm tra dữ liệu khi cập nhật môn học | `mon_hoc` |
+| 3 | `trg_mon_hoc_after_insert` | Tự động tạo lớp học mặc định cho môn mới | `mon_hoc`, `lop` |
+| 4 | `trg_mon_hoc_after_update` | Cập nhật thông tin lớp học khi thay đổi môn học | `mon_hoc`, `lop`, `chi_tiet_dang_ky` |
+| 5 | `trg_mon_hoc_before_delete` | Kiểm tra ràng buộc trước khi xóa môn học | `mon_hoc`, `lop`, `chuong_trinh_hoc`, `dieu_kien_mon_hoc` |
+| 6 | `fn_tinh_so_tin_chi(loai_mon, so_tiet)` | Tính số tín chỉ theo QĐ2 (LT: số tiết/15, TH: số tiết/30) | - |
+| 7 | `trg_lop_before_insert` | Kiểm tra môn học tồn tại, đặt mã lớp | `lop`, `mon_hoc` |
+| 8 | `trg_lop_before_update` | Kiểm tra dữ liệu khi cập nhật lớp học | `lop`, `mon_hoc` |
+| 9 | `trg_lop_before_delete` | Kiểm tra ràng buộc trước khi xóa lớp học | `lop`, `lop_mo`, `chi_tiet_dang_ky` |
+| 10 | `sp_nhap_danh_sach_mon_hoc(...)` | Procedure nhập danh sách môn học (BM2) | `mon_hoc` |
+| 11 | `trg_chuong_trinh_hoc_before_insert` | Kiểm tra ngành và môn học hợp lệ | `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc` |
+| 12 | `trg_chuong_trinh_hoc_before_update` | Kiểm tra dữ liệu khi cập nhật chương trình học | `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc` |
+| 13 | `sp_nhap_chuong_trinh_hoc(ma_nganh, ...)` | Procedure nhập chương trình học theo ngành (BM3) | `chuong_trinh_hoc`, `nganh_hoc`, `mon_hoc` |
+| 14 | `trg_dieu_kien_mon_hoc_before_insert` | Kiểm tra điều kiện tiên quyết/học trước hợp lệ | `dieu_kien_mon_hoc`, `mon_hoc` |
+| 15 | `trg_dieu_kien_mon_hoc_before_update` | Kiểm tra điều kiện khi cập nhật, tránh vòng lặp | `dieu_kien_mon_hoc`, `mon_hoc` |
+| 16 | `fn_lay_chuong_trinh_hoc_theo_nganh(ma_nganh)` | Lấy danh sách môn học của ngành theo học kỳ (BM3) | `chuong_trinh_hoc` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -326,7 +439,31 @@ VALUES ('TH001', 'Thực hành CSDL', 'CNTT', 'TH', 60);
 
 ---
 
-#### 2. `trg_mon_hoc_after_insert`
+#### 2. `trg_mon_hoc_before_update`
+**Mục đích:** Kiểm tra và chuẩn hóa dữ liệu môn học trước khi UPDATE.
+
+**Input:** Dữ liệu môn học trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ten_mon_hoc` không được rỗng, chuẩn hóa (trim)
+2. Kiểm tra `loai_mon` phải là 'LT' hoặc 'TH'
+3. Kiểm tra `so_tiet` > 0
+4. Kiểm tra `ma_khoa` tồn tại trong bảng `khoa` (nếu thay đổi)
+5. **Tự động tính lại số tín chỉ** nếu `loai_mon` hoặc `so_tiet` thay đổi
+6. Không cho phép thay đổi `ma_mon_hoc` (primary key)
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Cập nhật số tiết môn học
+UPDATE mon_hoc SET so_tiet = 60 WHERE ma_mon_hoc = 'LT001';
+-- Kết quả: so_tin_chi tự động được tính lại = 60/15 = 4 tín chỉ
+```
+
+---
+
+#### 3. `trg_mon_hoc_after_insert`
 **Mục đích:** Tự động tạo một lớp học mặc định cho môn học mới.
 
 **Input:** Dữ liệu môn học vừa được INSERT (NEW.*)
@@ -352,7 +489,59 @@ VALUES ('TH001', 'Thực hành CSDL', 'CNTT', 'TH', 60);
 
 ---
 
-#### 3. `fn_tinh_so_tin_chi(p_loai_mon VARCHAR, p_so_tiet INTEGER)`
+#### 4. `trg_mon_hoc_after_update`
+**Mục đích:** Cập nhật thông tin liên quan khi thay đổi môn học.
+
+**Input:** Dữ liệu môn học trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Nếu `ten_mon_hoc` thay đổi:
+   - Cập nhật `ten_lop` của các lớp thuộc môn học này
+2. Nếu `so_tiet` hoặc `loai_mon` thay đổi (làm thay đổi `so_tin_chi`):
+   - Cập nhật lại `so_tin_chi` trong `chi_tiet_dang_ky` cho các phiếu đăng ký có `trang_thai = 'Đã đăng ký'`
+   - Tính lại `thanh_tien = so_tin_chi * don_gia`
+   - Cập nhật tổng tiền của phiếu đăng ký
+
+**Output:** Cập nhật các bảng liên quan
+
+**Ví dụ:**
+```sql
+-- Cập nhật số tiết môn LT001 từ 45 lên 60 (từ 3 TC lên 4 TC):
+UPDATE mon_hoc SET so_tiet = 60 WHERE ma_mon_hoc = 'LT001';
+-- Kết quả: Các chi tiết đăng ký môn LT001 được cập nhật so_tin_chi và thanh_tien
+```
+
+---
+
+#### 5. `trg_mon_hoc_before_delete`
+**Mục đích:** Kiểm tra ràng buộc trước khi xóa môn học, đảm bảo không còn dữ liệu liên quan.
+
+**Input:** Dữ liệu môn học sắp bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Kiểm tra không còn lớp nào thuộc môn học này trong bảng `lop`
+2. Kiểm tra không còn trong chương trình học (`chuong_trinh_hoc`)
+3. Kiểm tra không còn trong điều kiện môn học (`dieu_kien_mon_hoc`)
+4. Kiểm tra không còn sinh viên đang đăng ký môn này (`chi_tiet_dang_ky` với `trang_thai = 'Đã đăng ký'`)
+5. Nếu còn dữ liệu liên quan → raise exception với thông báo chi tiết
+6. Nếu không còn ràng buộc → cho phép xóa
+
+**Output:** Cho phép DELETE nếu không còn ràng buộc, raise exception nếu còn
+
+**Ví dụ:**
+```sql
+-- Xóa môn học không còn ràng buộc
+DELETE FROM mon_hoc WHERE ma_mon_hoc = 'LT001';
+-- Kết quả: Xóa thành công nếu không còn lớp, CTĐT, điều kiện môn học liên quan
+
+-- Xóa môn học còn lớp mở
+DELETE FROM mon_hoc WHERE ma_mon_hoc = 'IT001';
+-- Kết quả: Error - Không thể xóa: còn 3 lớp thuộc môn học này
+```
+
+---
+
+#### 6. `fn_tinh_so_tin_chi(p_loai_mon VARCHAR, p_so_tiet INTEGER)`
 **Mục đích:** Tính số tín chỉ dựa trên loại môn và số tiết theo QĐ2.
 
 **Input:**
@@ -384,7 +573,7 @@ SELECT fn_tinh_so_tin_chi('TH', 300); -- Kết quả: 10 (đồ án tốt nghi�
 
 ---
 
-#### 4. `trg_lop_before_insert`
+#### 7. `trg_lop_before_insert`
 **Mục đích:** Kiểm tra dữ liệu lớp học trước khi INSERT, đảm bảo môn học tồn tại.
 
 **Input:** Dữ liệu lớp mới từ lệnh INSERT (NEW.*)
@@ -410,7 +599,60 @@ VALUES ('Toán cao cấp - Lớp 02', 'LT001', 'TS. Nguyễn Văn A');
 
 ---
 
-#### 5. `sp_nhap_danh_sach_mon_hoc(...)`
+#### 8. `trg_lop_before_update`
+**Mục đích:** Kiểm tra dữ liệu lớp học trước khi UPDATE.
+
+**Input:** Dữ liệu lớp trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_mon_hoc` tồn tại trong bảng `mon_hoc` (nếu thay đổi)
+2. Kiểm tra `so_luong_toi_da` > 0
+3. Kiểm tra `so_luong_toi_da >= so_luong_da_dang_ky` (từ lop_mo) nếu giảm sức chứa
+4. Không cho phép thay đổi `ma_lop` (primary key)
+5. Không cho phép thay đổi `ma_mon_hoc` nếu đã có sinh viên đăng ký
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không hợp lệ
+
+**Ví dụ:**
+```sql
+-- Giảm sức chứa lớp khi chưa có ai đăng ký
+UPDATE lop SET so_luong_toi_da = 30 WHERE ma_lop = 'LT001_02';
+-- Kết quả: OK
+
+-- Giảm sức chứa lớp xuống thấp hơn số đã đăng ký (40 người đã đăng ký)
+UPDATE lop SET so_luong_toi_da = 30 WHERE ma_lop = 'IT001.N01';
+-- Kết quả: Error - Không thể giảm sức chứa: đã có 40 sinh viên đăng ký
+```
+
+---
+
+#### 9. `trg_lop_before_delete`
+**Mục đích:** Kiểm tra ràng buộc trước khi xóa lớp học.
+
+**Input:** Dữ liệu lớp sắp bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Kiểm tra không còn trong danh sách lớp mở (`lop_mo`)
+2. Kiểm tra không còn sinh viên đang đăng ký lớp này (`chi_tiet_dang_ky` với `trang_thai = 'Đã đăng ký'`)
+3. Nếu còn dữ liệu liên quan → raise exception
+4. Nếu không còn ràng buộc → cho phép xóa
+
+**Output:** Cho phép DELETE nếu không còn ràng buộc
+
+**Ví dụ:**
+```sql
+-- Xóa lớp chưa được mở
+DELETE FROM lop WHERE ma_lop = 'LT001_02';
+-- Kết quả: Xóa thành công
+
+-- Xóa lớp đang có sinh viên đăng ký
+DELETE FROM lop WHERE ma_lop = 'IT001.N01';
+-- Kết quả: Error - Không thể xóa: lớp đang có 45 sinh viên đăng ký
+```
+
+---
+
+#### 10. `sp_nhap_danh_sach_mon_hoc(...)`
 **Mục đích:** Procedure nhập danh sách môn học từ dữ liệu JSON hoặc từng môn một.
 
 **Input:**
@@ -447,7 +689,7 @@ SELECT sp_nhap_danh_sach_mon_hoc(
 
 ---
 
-#### 6. `trg_chuong_trinh_hoc_before_insert`
+#### 11. `trg_chuong_trinh_hoc_before_insert`
 **Mục đích:** Kiểm tra dữ liệu chương trình học trước khi INSERT.
 
 **Input:** Dữ liệu chương trình học mới (NEW.*)
@@ -463,7 +705,30 @@ SELECT sp_nhap_danh_sach_mon_hoc(
 
 ---
 
-#### 7. `sp_nhap_chuong_trinh_hoc(ma_nganh, ...)`
+#### 12. `trg_chuong_trinh_hoc_before_update`
+**Mục đích:** Kiểm tra dữ liệu chương trình học trước khi UPDATE.
+
+**Input:** Dữ liệu chương trình học trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_nganh` tồn tại trong bảng `nganh_hoc` (nếu thay đổi)
+2. Kiểm tra `ma_mon_hoc` tồn tại trong bảng `mon_hoc` (nếu thay đổi)
+3. Kiểm tra `hoc_ky_du_kien` hợp lệ (1-10)
+4. Kiểm tra không trùng lặp `(ma_nganh, ma_mon_hoc)` với bản ghi khác
+5. Không cho phép thay đổi `ma_nganh` hoặc `ma_mon_hoc` nếu đã có sinh viên đăng ký môn này
+
+**Output:** Cho phép UPDATE nếu hợp lệ
+
+**Ví dụ:**
+```sql
+-- Đổi học kỳ dự kiến của môn CS106 trong ngành KTPM
+UPDATE chuong_trinh_hoc SET hoc_ky_du_kien = 6 WHERE ma_nganh = 'KTPM' AND ma_mon_hoc = 'CS106';
+-- Kết quả: OK
+```
+
+---
+
+#### 13. `sp_nhap_chuong_trinh_hoc(ma_nganh, ...)`
 **Mục đích:** Procedure nhập chương trình đào tạo cho một ngành học.
 
 **Input:**
@@ -492,7 +757,7 @@ SELECT sp_nhap_chuong_trinh_hoc('KTPM', 'CS106', 5, TRUE, 'Môn chuyên ngành')
 
 ---
 
-#### 8. `trg_dieu_kien_mon_hoc_before_insert`
+#### 14. `trg_dieu_kien_mon_hoc_before_insert`
 **Mục đích:** Kiểm tra điều kiện tiên quyết/học trước hợp lệ, tránh vòng lặp.
 
 **Input:** Dữ liệu điều kiện môn học mới (NEW.*)
@@ -519,7 +784,31 @@ VALUES ('CS106', 'IT003', 'hoc_truoc');
 
 ---
 
-#### 9. `fn_lay_chuong_trinh_hoc_theo_nganh(p_ma_nganh VARCHAR)`
+#### 15. `trg_dieu_kien_mon_hoc_before_update`
+**Mục đích:** Kiểm tra điều kiện tiên quyết/học trước hợp lệ khi UPDATE, tránh vòng lặp.
+
+**Input:** Dữ liệu điều kiện môn học trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_mon_hoc` và `ma_mon_dieu_kien` tồn tại (nếu thay đổi)
+2. Kiểm tra `ma_mon_hoc != ma_mon_dieu_kien`
+3. Kiểm tra `loai_dieu_kien` là 'tien_quyet' hoặc 'hoc_truoc'
+4. **Kiểm tra vòng lặp:** tương tự trigger INSERT
+5. Kiểm tra không trùng lặp `(ma_mon_hoc, ma_mon_dieu_kien, loai_dieu_kien)` với bản ghi khác
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu phát hiện vòng lặp
+
+**Ví dụ:**
+```sql
+-- Đổi loại điều kiện từ 'hoc_truoc' sang 'tien_quyet'
+UPDATE dieu_kien_mon_hoc SET loai_dieu_kien = 'tien_quyet' 
+WHERE ma_mon_hoc = 'CS106' AND ma_mon_dieu_kien = 'IT003';
+-- Kết quả: OK nếu không tạo vòng lặp
+```
+
+---
+
+#### 16. `fn_lay_chuong_trinh_hoc_theo_nganh(p_ma_nganh VARCHAR)`
 **Mục đích:** Lấy danh sách môn học của một ngành, sắp xếp theo học kỳ dự kiến.
 
 **Input:**
@@ -563,21 +852,28 @@ SELECT * FROM fn_lay_chuong_trinh_hoc_theo_nganh('KTPM');
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
 | 1 | `trg_hoc_ky_before_insert` | Kiểm tra năm học, loại học kỳ (Chính/Hè) | `hoc_ky`, `nam_hoc` |
-| 2 | `sp_mo_lop_trong_hoc_ky(ma_hoc_ky, ...)` | Procedure mở lớp học trong học kỳ (BM4) | `lop_mo`, `hoc_ky`, `lop` |
-| 3 | `trg_lop_mo_before_insert` | Kiểm tra lớp và học kỳ hợp lệ | `lop_mo`, `lop`, `hoc_ky` |
-| 4 | `fn_lay_don_gia(loai_mon, loai_hoc, ma_hoc_ky)` | Lấy đơn giá tín chỉ theo loại môn và loại học (QĐ5) | `don_gia_tin_chi`, `hoc_ky` |
-| 5 | `trg_phieu_dang_ky_before_insert` | Kiểm tra SV và học kỳ hợp lệ, tính tỷ lệ giảm | `phieu_dang_ky`, `sinh_vien`, `hoc_ky` |
-| 6 | `sp_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop, loai_dang_ky)` | Procedure đăng ký lớp học (BM5) | `phieu_dang_ky`, `chi_tiet_dang_ky`, `lop_mo` |
-| 7 | `trg_chi_tiet_dang_ky_after_insert` | Cập nhật tổng tín chỉ và tổng tiền phiếu đăng ký | `chi_tiet_dang_ky`, `phieu_dang_ky` |
-| 8 | `trg_chi_tiet_dang_ky_after_update` | Cập nhật khi hủy môn đăng ký | `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo` |
-| 9 | `fn_kiem_tra_lop_mo(ma_hoc_ky, ma_lop)` | Kiểm tra lớp có mở trong học kỳ không (QĐ5) | `lop_mo` |
-| 10 | `fn_kiem_tra_si_so_lop(ma_lop, ma_hoc_ky)` | Kiểm tra sĩ số còn chỗ trống | `lop_mo`, `lop` |
-| 11 | `sp_huy_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop)` | Procedure hủy đăng ký lớp | `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo` |
-| 12 | `fn_kiem_tra_gioi_han_tin_chi(ma_sv, ma_hoc_ky, so_tin_chi_moi)` | **MỚI** - Kiểm tra giới hạn tín chỉ đăng ký (max 24, vượt cần GPA >= 8.5) | `cau_hinh_dang_ky`, `diem_sinh_vien`, `phieu_dang_ky` |
-| 13 | `fn_tinh_gpa_tich_luy(ma_sv)` | **MỚI** - Tính điểm trung bình tích lũy (GPA) của sinh viên | `diem_sinh_vien` |
-| 14 | `fn_kiem_tra_trung_lich(ma_sv, ma_hoc_ky, lop_mo_id)` | **MỚI** - Kiểm tra trùng lịch học khi đăng ký | `lich_hoc_lop`, `chi_tiet_dang_ky` |
-| 15 | `trg_lich_hoc_lop_before_insert` | **MỚI** - Kiểm tra lịch học hợp lệ khi thêm | `lich_hoc_lop`, `tiet_hoc`, `lop_mo` |
-| 16 | `sp_them_lich_hoc_lop(lop_mo_id, thu, tiet_bd, tiet_kt, phong)` | **MỚI** - Procedure thêm lịch học cho lớp mở | `lich_hoc_lop`, `tiet_hoc` |
+| 2 | `trg_hoc_ky_before_update` | Kiểm tra dữ liệu khi cập nhật học kỳ | `hoc_ky`, `nam_hoc` |
+| 3 | `sp_mo_lop_trong_hoc_ky(ma_hoc_ky, ...)` | Procedure mở lớp học trong học kỳ (BM4) | `lop_mo`, `hoc_ky`, `lop` |
+| 4 | `trg_lop_mo_before_insert` | Kiểm tra lớp và học kỳ hợp lệ | `lop_mo`, `lop`, `hoc_ky` |
+| 5 | `trg_lop_mo_before_update` | Kiểm tra dữ liệu khi cập nhật lớp mở | `lop_mo`, `lop`, `hoc_ky` |
+| 6 | `trg_lop_mo_before_delete` | Kiểm tra ràng buộc trước khi xóa lớp mở | `lop_mo`, `chi_tiet_dang_ky`, `lich_hoc_lop` |
+| 7 | `fn_lay_don_gia(loai_mon, loai_hoc, ma_hoc_ky)` | Lấy đơn giá tín chỉ theo loại môn và loại học (QĐ5) | `don_gia_tin_chi`, `hoc_ky` |
+| 8 | `trg_phieu_dang_ky_before_insert` | Kiểm tra SV và học kỳ hợp lệ, tính tỷ lệ giảm | `phieu_dang_ky`, `sinh_vien`, `hoc_ky` |
+| 9 | `trg_phieu_dang_ky_before_update` | Kiểm tra dữ liệu khi cập nhật phiếu đăng ký | `phieu_dang_ky`, `sinh_vien`, `hoc_ky` |
+| 10 | `sp_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop, loai_dang_ky)` | Procedure đăng ký lớp học (BM5) | `phieu_dang_ky`, `chi_tiet_dang_ky`, `lop_mo` |
+| 11 | `trg_chi_tiet_dang_ky_after_insert` | Cập nhật tổng tín chỉ và tổng tiền phiếu đăng ký | `chi_tiet_dang_ky`, `phieu_dang_ky` |
+| 12 | `trg_chi_tiet_dang_ky_after_update` | Cập nhật khi hủy môn đăng ký | `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo` |
+| 13 | `trg_chi_tiet_dang_ky_after_delete` | Cập nhật tổng tiền phiếu đăng ký khi xóa chi tiết | `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo` |
+| 14 | `fn_kiem_tra_lop_mo(ma_hoc_ky, ma_lop)` | Kiểm tra lớp có mở trong học kỳ không (QĐ5) | `lop_mo` |
+| 15 | `fn_kiem_tra_si_so_lop(ma_lop, ma_hoc_ky)` | Kiểm tra sĩ số còn chỗ trống | `lop_mo`, `lop` |
+| 16 | `sp_huy_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop)` | Procedure hủy đăng ký lớp | `chi_tiet_dang_ky`, `phieu_dang_ky`, `lop_mo` |
+| 17 | `fn_kiem_tra_gioi_han_tin_chi(ma_sv, ma_hoc_ky, so_tin_chi_moi)` | Kiểm tra giới hạn tín chỉ đăng ký (max 24, vượt cần GPA >= 8.5) | `cau_hinh_dang_ky`, `diem_sinh_vien`, `phieu_dang_ky` |
+| 18 | `fn_tinh_gpa_tich_luy(ma_sv)` | Tính điểm trung bình tích lũy (GPA) của sinh viên | `diem_sinh_vien` |
+| 19 | `fn_kiem_tra_trung_lich(ma_sv, ma_hoc_ky, lop_mo_id)` | Kiểm tra trùng lịch học khi đăng ký | `lich_hoc_lop`, `chi_tiet_dang_ky` |
+| 20 | `trg_lich_hoc_lop_before_insert` | Kiểm tra lịch học hợp lệ khi thêm | `lich_hoc_lop`, `tiet_hoc`, `lop_mo` |
+| 21 | `trg_lich_hoc_lop_before_update` | Kiểm tra lịch học khi cập nhật | `lich_hoc_lop`, `tiet_hoc`, `lop_mo` |
+| 22 | `trg_lich_hoc_lop_before_delete` | Kiểm tra ràng buộc trước khi xóa lịch học | `lich_hoc_lop`, `chi_tiet_dang_ky` |
+| 23 | `sp_them_lich_hoc_lop(lop_mo_id, thu, tiet_bd, tiet_kt, phong)` | Procedure thêm lịch học cho lớp mở | `lich_hoc_lop`, `tiet_hoc` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -610,7 +906,32 @@ VALUES ('HK1-2526', 'Học kỳ I - 2025-2026', '2025-2026', 'Chính', 1,
 
 ---
 
-#### 2. `sp_mo_lop_trong_hoc_ky(ma_hoc_ky, ...)`
+#### 2. `trg_hoc_ky_before_update`
+**Mục đích:** Kiểm tra dữ liệu học kỳ trước khi UPDATE.
+
+**Input:** Dữ liệu học kỳ trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_nam_hoc` tồn tại (nếu thay đổi)
+2. Kiểm tra `loai_hoc_ky` hợp lệ
+3. Kiểm tra `thu_tu` hợp lệ theo loại học kỳ
+4. Kiểm tra ngày bắt đầu < ngày kết thúc
+5. Kiểm tra ngày đăng ký hợp lệ
+6. Không cho phép thay đổi `ma_hoc_ky` (primary key)
+7. Không cho phép thay đổi `loai_hoc_ky` nếu đã có phiếu đăng ký
+
+**Output:** Cho phép UPDATE nếu hợp lệ
+
+**Ví dụ:**
+```sql
+-- Cập nhật hạn đóng học phí
+UPDATE hoc_ky SET han_dong_hoc_phi = '2025-11-15' WHERE ma_hoc_ky = 'HK1-2526';
+-- Kết quả: OK
+```
+
+---
+
+#### 3. `sp_mo_lop_trong_hoc_ky(ma_hoc_ky, ...)`
 **Mục đích:** Procedure mở một hoặc nhiều lớp học trong học kỳ theo BM4.
 
 **Input:**
@@ -641,7 +962,7 @@ SELECT sp_mo_lop_trong_hoc_ky('HK1-2526', 'IT003_01', NULL);
 
 ---
 
-#### 3. `trg_lop_mo_before_insert`
+#### 4. `trg_lop_mo_before_insert`
 **Mục đích:** Kiểm tra dữ liệu lớp mở trước khi INSERT.
 
 **Input:** Dữ liệu lớp mở mới (NEW.*)
@@ -657,7 +978,55 @@ SELECT sp_mo_lop_trong_hoc_ky('HK1-2526', 'IT003_01', NULL);
 
 ---
 
-#### 4. `fn_lay_don_gia(p_loai_mon, p_loai_hoc, p_ma_hoc_ky)`
+#### 5. `trg_lop_mo_before_update`
+**Mục đích:** Kiểm tra dữ liệu lớp mở trước khi UPDATE.
+
+**Input:** Dữ liệu lớp mở trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_hoc_ky` tồn tại (nếu thay đổi)
+2. Kiểm tra `ma_lop` tồn tại (nếu thay đổi)
+3. Không cho phép giảm `so_luong_da_dang_ky` thủ công (chỉ được cập nhật qua hệ thống)
+4. Không cho phép thay đổi `ma_hoc_ky` hoặc `ma_lop` nếu đã có sinh viên đăng ký
+
+**Output:** Cho phép UPDATE nếu hợp lệ
+
+**Ví dụ:**
+```sql
+-- Cập nhật ghi chú lớp mở
+UPDATE lop_mo SET ghi_chu = 'Lớp sáng thứ 2-4' WHERE id = 1;
+-- Kết quả: OK
+```
+
+---
+
+#### 6. `trg_lop_mo_before_delete`
+**Mục đích:** Kiểm tra ràng buộc trước khi xóa lớp mở.
+
+**Input:** Dữ liệu lớp mở sắp bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Kiểm tra không còn sinh viên đăng ký lớp này (`chi_tiet_dang_ky` với `trang_thai = 'Đã đăng ký'`)
+2. Kiểm tra không còn lịch học của lớp này (`lich_hoc_lop`)
+3. Nếu còn dữ liệu liên quan → raise exception
+4. Nếu không còn ràng buộc → cho phép xóa và giảm `so_luong_da_dang_ky` nếu cần
+
+**Output:** Cho phép DELETE nếu không còn ràng buộc
+
+**Ví dụ:**
+```sql
+-- Xóa lớp mở không có ai đăng ký
+DELETE FROM lop_mo WHERE id = 100;
+-- Kết quả: OK
+
+-- Xóa lớp mở đang có sinh viên đăng ký
+DELETE FROM lop_mo WHERE id = 1;
+-- Kết quả: Error - Không thể xóa: lớp đang có 45 sinh viên đăng ký
+```
+
+---
+
+#### 7. `fn_lay_don_gia(p_loai_mon, p_loai_hoc, p_ma_hoc_ky)`
 **Mục đích:** Lấy đơn giá tín chỉ theo loại môn, loại học và học kỳ theo QĐ5.
 
 **Input:**
@@ -702,7 +1071,7 @@ SELECT fn_lay_don_gia('LT', 'hoc_moi', 'HKHe-2526'); -- 35,000
 
 ---
 
-#### 5. `trg_phieu_dang_ky_before_insert`
+#### 8. `trg_phieu_dang_ky_before_insert`
 **Mục đích:** Kiểm tra dữ liệu phiếu đăng ký, tự động tính tỷ lệ giảm học phí.
 
 **Input:** Dữ liệu phiếu đăng ký mới (NEW.*)
@@ -723,7 +1092,33 @@ SELECT fn_lay_don_gia('LT', 'hoc_moi', 'HKHe-2526'); -- 35,000
 
 ---
 
-#### 6. `sp_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop, loai_dang_ky)`
+#### 9. `trg_phieu_dang_ky_before_update`
+**Mục đích:** Kiểm tra dữ liệu phiếu đăng ký trước khi UPDATE.
+
+**Input:** Dữ liệu phiếu đăng ký trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `ma_sv` tồn tại và đang học (nếu thay đổi - thường không cho phép)
+2. Kiểm tra `ma_hoc_ky` hợp lệ (nếu thay đổi - thường không cho phép)
+3. Không cho phép thay đổi `so_phieu` (primary key)
+4. Không cho phép thay đổi `ma_sv`, `ma_hoc_ky` nếu đã có chi tiết đăng ký
+5. Nếu `trang_thai` thay đổi sang 'Đã hủy':
+   - Kiểm tra tất cả chi tiết đăng ký đã bị hủy chưa
+   - Nếu còn chi tiết chưa hủy → raise exception
+6. Set `ngay_cap_nhat = CURRENT_TIMESTAMP`
+
+**Output:** Cho phép UPDATE nếu hợp lệ
+
+**Ví dụ:**
+```sql
+-- Cập nhật ghi chú phiếu đăng ký
+UPDATE phieu_dang_ky SET ghi_chu = 'Đã xác nhận' WHERE so_phieu = 1;
+-- Kết quả: OK
+```
+
+---
+
+#### 10. `sp_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop, loai_dang_ky)`
 **Mục đích:** Procedure đăng ký lớp học cho sinh viên theo BM5, QĐ5.
 
 **Input:**
@@ -778,7 +1173,7 @@ SELECT sp_dang_ky_lop('SV003', 'HK1-2526', 'CS106_01', 'hoc_moi');
 
 ---
 
-#### 7. `trg_chi_tiet_dang_ky_after_insert`
+#### 11. `trg_chi_tiet_dang_ky_after_insert`
 **Mục đích:** Cập nhật tổng tín chỉ và tổng tiền của phiếu đăng ký sau khi thêm chi tiết.
 
 **Input:** Dữ liệu chi tiết đăng ký vừa INSERT (NEW.*)
@@ -809,7 +1204,7 @@ SELECT sp_dang_ky_lop('SV003', 'HK1-2526', 'CS106_01', 'hoc_moi');
 
 ---
 
-#### 8. `trg_chi_tiet_dang_ky_after_update`
+#### 12. `trg_chi_tiet_dang_ky_after_update`
 **Mục đích:** Xử lý khi sinh viên hủy đăng ký môn học (UPDATE trang_thai = 'Đã hủy').
 
 **Input:** Dữ liệu chi tiết đăng ký trước và sau UPDATE (OLD.*, NEW.*)
@@ -824,7 +1219,34 @@ SELECT sp_dang_ky_lop('SV003', 'HK1-2526', 'CS106_01', 'hoc_moi');
 
 ---
 
-#### 9. `fn_kiem_tra_lop_mo(p_ma_hoc_ky, p_ma_lop)`
+#### 13. `trg_chi_tiet_dang_ky_after_delete`
+**Mục đích:** Cập nhật tổng tiền phiếu đăng ký khi xóa chi tiết đăng ký.
+
+**Input:** Dữ liệu chi tiết đăng ký bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Tìm phiếu đăng ký tương ứng (OLD.so_phieu)
+2. Giảm `so_luong_da_dang_ky` của lớp mở đi 1 (nếu `OLD.trang_thai = 'Đã đăng ký'`)
+3. Tính lại các tổng từ bảng `chi_tiet_dang_ky`:
+   ```sql
+   tong_tin_chi = SUM(so_tin_chi) WHERE trang_thai = 'Đã đăng ký'
+   tong_tien_dang_ky = SUM(thanh_tien) WHERE trang_thai = 'Đã đăng ký'
+   ```
+4. Tính lại tiền miễn giảm và tiền phải đóng
+5. UPDATE phiếu đăng ký với các giá trị mới
+
+**Output:** Cập nhật phiếu đăng ký và lớp mở
+
+**Ví dụ:**
+```sql
+-- Xóa chi tiết đăng ký (trường hợp admin xử lý lỗi):
+DELETE FROM chi_tiet_dang_ky WHERE id = 100;
+-- Kết quả: Phiếu đăng ký và lớp mở được cập nhật tự động
+```
+
+---
+
+#### 14. `fn_kiem_tra_lop_mo(p_ma_hoc_ky, p_ma_lop)`
 **Mục đích:** Kiểm tra một lớp có được mở trong học kỳ hay không.
 
 **Input:**
@@ -850,7 +1272,7 @@ SELECT fn_kiem_tra_lop_mo('HK1-2526', 'CS999_01');  -- FALSE (lớp không mở)
 
 ---
 
-#### 10. `fn_kiem_tra_si_so_lop(p_ma_lop, p_ma_hoc_ky)`
+#### 15. `fn_kiem_tra_si_so_lop(p_ma_lop, p_ma_hoc_ky)`
 **Mục đích:** Kiểm tra lớp còn chỗ trống để đăng ký không.
 
 **Input:**
@@ -877,7 +1299,7 @@ SELECT fn_kiem_tra_si_so_lop('IT003_01', 'HK1-2526');  -- FALSE
 
 ---
 
-#### 11. `sp_huy_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop)`
+#### 16. `sp_huy_dang_ky_lop(ma_sv, ma_hoc_ky, ma_lop)`
 **Mục đích:** Procedure hủy đăng ký lớp học của sinh viên.
 
 **Input:**
@@ -927,23 +1349,27 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 | STT | Tên Trigger/Function | Mô tả | Bảng liên quan |
 |-----|---------------------|-------|----------------|
 | 1 | `trg_phieu_thu_hoc_phi_before_insert` | Kiểm tra phiếu đăng ký và số tiền thu hợp lệ | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
-| 2 | `trg_phieu_thu_hoc_phi_after_insert` | Cập nhật trạng thái đã đóng đủ nếu cần | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
-| 3 | `sp_thu_hoc_phi(ma_sv, ma_hoc_ky, so_tien, hinh_thuc, nguoi_thu, ghi_chu)` | Procedure thu học phí (BM6) | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
-| 4 | `fn_tinh_so_tien_con_lai(ma_sv, ma_hoc_ky)` | Tính số tiền còn lại phải đóng (QĐ7) | `phieu_dang_ky`, `phieu_thu_hoc_phi` |
-| 5 | `fn_tinh_tong_tien_da_thu(so_phieu_dang_ky)` | Tính tổng tiền đã thu cho 1 phiếu đăng ký | `phieu_thu_hoc_phi` |
-| 6 | `sp_lap_bao_cao_sv_chua_dong_hp(ma_hoc_ky)` | Procedure lập báo cáo SV chưa đóng đủ HP (BM7) | `phieu_dang_ky`, `phieu_thu_hoc_phi`, `sinh_vien`, `hoc_ky` |
-| 7 | `trg_hoc_ky_check_han_dong_hp` | Kiểm tra và cảnh báo SV chưa đóng HP khi đến hạn | `hoc_ky`, `phieu_dang_ky`, `thong_bao_ca_nhan` |
-| 8 | `fn_kiem_tra_qua_han_dong_hp(ma_sv, ma_hoc_ky)` | Kiểm tra SV đã quá hạn đóng HP chưa (QĐ6) | `phieu_dang_ky`, `hoc_ky` |
-| 9 | `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)` | Gửi thông báo nhắc nộp HP cho SV chưa đóng đủ | `thong_bao_ca_nhan`, `sinh_vien`, `tai_khoan` |
-| 10 | `trg_phieu_thu_hoc_phi_after_update` | Xử lý khi hủy phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
-| 11 | `trg_diem_sinh_vien_before_insert` | **MỚI** - Kiểm tra điểm hợp lệ (0-10), tính điểm TB tự động | `diem_sinh_vien` |
-| 12 | `trg_diem_sinh_vien_after_insert` | **MỚI** - Cập nhật kết quả đậu/rớt (< 5.0 = Rớt) | `diem_sinh_vien` |
-| 13 | `trg_diem_sinh_vien_after_update` | **MỚI** - Cập nhật GPA tích lũy khi sửa điểm | `diem_sinh_vien`, `cau_hinh_dang_ky` |
-| 14 | `sp_nhap_diem(ma_sv, ma_mon, ma_hk, diem_qt, diem_gk, diem_ck)` | **MỚI** - Procedure nhập điểm sinh viên | `diem_sinh_vien`, `chi_tiet_dang_ky` |
-| 15 | `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)` | **MỚI** - Tính điểm trung bình môn học | `diem_sinh_vien` |
-| 16 | `fn_chuyen_diem_sang_chu(diem_tb)` | **MỚI** - Chuyển điểm số sang điểm chữ (A+, A, B+...) | `diem_sinh_vien` |
-| 17 | `sp_lap_bang_diem_sinh_vien(ma_sv)` | **MỚI** - Procedure lập bảng điểm toàn khóa của SV | `diem_sinh_vien`, `mon_hoc`, `hoc_ky` |
-| 18 | `fn_cap_nhat_gpa_tich_luy(ma_sv)` | **MỚI** - Cập nhật GPA tích lũy sau khi thay đổi điểm | `diem_sinh_vien` |
+| 2 | `trg_phieu_thu_hoc_phi_before_update` | Kiểm tra dữ liệu khi cập nhật phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
+| 3 | `trg_phieu_thu_hoc_phi_after_insert` | Cập nhật trạng thái đã đóng đủ nếu cần | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
+| 4 | `trg_phieu_thu_hoc_phi_after_update` | Xử lý khi hủy phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
+| 5 | `trg_phieu_thu_hoc_phi_after_delete` | Cập nhật tổng tiền đã thu khi xóa phiếu thu | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
+| 6 | `sp_thu_hoc_phi(ma_sv, ma_hoc_ky, so_tien, hinh_thuc, nguoi_thu, ghi_chu)` | Procedure thu học phí (BM6) | `phieu_thu_hoc_phi`, `phieu_dang_ky` |
+| 7 | `fn_tinh_so_tien_con_lai(ma_sv, ma_hoc_ky)` | Tính số tiền còn lại phải đóng (QĐ7) | `phieu_dang_ky`, `phieu_thu_hoc_phi` |
+| 8 | `fn_tinh_tong_tien_da_thu(so_phieu_dang_ky)` | Tính tổng tiền đã thu cho 1 phiếu đăng ký | `phieu_thu_hoc_phi` |
+| 9 | `sp_lap_bao_cao_sv_chua_dong_hp(ma_hoc_ky)` | Procedure lập báo cáo SV chưa đóng đủ HP (BM7) | `phieu_dang_ky`, `phieu_thu_hoc_phi`, `sinh_vien`, `hoc_ky` |
+| 10 | `trg_hoc_ky_check_han_dong_hp` | Kiểm tra và cảnh báo SV chưa đóng HP khi đến hạn | `hoc_ky`, `phieu_dang_ky`, `thong_bao` |
+| 11 | `fn_kiem_tra_qua_han_dong_hp(ma_sv, ma_hoc_ky)` | Kiểm tra SV đã quá hạn đóng HP chưa (QĐ6) | `phieu_dang_ky`, `hoc_ky` |
+| 12 | `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)` | Gửi thông báo nhắc nộp HP cho SV chưa đóng đủ | `thong_bao`, `sinh_vien`, `tai_khoan` |
+| 13 | `trg_diem_sinh_vien_before_insert` | Kiểm tra điểm hợp lệ (0-10), tính điểm TB tự động | `diem_sinh_vien` |
+| 14 | `trg_diem_sinh_vien_before_update` | Kiểm tra điểm hợp lệ khi cập nhật | `diem_sinh_vien` |
+| 15 | `trg_diem_sinh_vien_after_insert` | Cập nhật kết quả đậu/rớt (< 5.0 = Rớt) | `diem_sinh_vien` |
+| 16 | `trg_diem_sinh_vien_after_update` | Cập nhật GPA tích lũy khi sửa điểm | `diem_sinh_vien`, `cau_hinh_dang_ky` |
+| 17 | `trg_diem_sinh_vien_after_delete` | Cập nhật GPA tích lũy khi xóa điểm | `diem_sinh_vien` |
+| 18 | `sp_nhap_diem(ma_sv, ma_mon, ma_hk, diem_qt, diem_gk, diem_ck)` | Procedure nhập điểm sinh viên | `diem_sinh_vien`, `chi_tiet_dang_ky` |
+| 19 | `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)` | Tính điểm trung bình môn học | `diem_sinh_vien` |
+| 20 | `fn_chuyen_diem_sang_chu(diem_tb)` | Chuyển điểm số sang điểm chữ (A+, A, B+...) | `diem_sinh_vien` |
+| 21 | `sp_lap_bang_diem_sinh_vien(ma_sv)` | Procedure lập bảng điểm toàn khóa của SV | `diem_sinh_vien`, `mon_hoc`, `hoc_ky` |
+| 22 | `fn_cap_nhat_gpa_tich_luy(ma_sv)` | Cập nhật GPA tích lũy sau khi thay đổi điểm | `diem_sinh_vien` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -978,7 +1404,33 @@ VALUES (1, 'SV001', 300000, 'Tiền mặt', 'Nguyễn Thị A');
 
 ---
 
-#### 2. `trg_phieu_thu_hoc_phi_after_insert`
+#### 2. `trg_phieu_thu_hoc_phi_before_update`
+**Mục đích:** Kiểm tra dữ liệu phiếu thu học phí trước khi UPDATE.
+
+**Input:** Dữ liệu phiếu thu trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra `so_phieu_dang_ky` không được thay đổi
+2. Kiểm tra `ma_sv` không được thay đổi
+3. Nếu `trang_thai` thay đổi từ 'Thành công' → 'Đã hủy':
+   - Ghi lại lý do hủy (nếu có)
+   - Cho phép hủy
+4. Nếu `so_tien_thu` thay đổi:
+   - Kiểm tra `so_tien_thu` > 0
+   - Cập nhật tổng tiền đã thu của phiếu đăng ký
+
+**Output:** Cho phép UPDATE nếu hợp lệ
+
+**Ví dụ:**
+```sql
+-- Sửa số tiền thu do nhập sai
+UPDATE phieu_thu_hoc_phi SET so_tien_thu = 250000 WHERE so_phieu_thu = 1;
+-- Kết quả: OK
+```
+
+---
+
+#### 3. `trg_phieu_thu_hoc_phi_after_insert`
 **Mục đích:** Kiểm tra và cập nhật trạng thái phiếu đăng ký sau khi thu học phí.
 
 **Input:** Dữ liệu phiếu thu vừa INSERT (NEW.*)
@@ -1002,7 +1454,47 @@ VALUES (1, 'SV001', 300000, 'Tiền mặt', 'Nguyễn Thị A');
 
 ---
 
-#### 3. `sp_thu_hoc_phi(...)`
+#### 4. `trg_phieu_thu_hoc_phi_after_update`
+**Mục đích:** Xử lý khi cập nhật phiếu thu học phí (đặc biệt khi hủy).
+
+**Input:** Dữ liệu phiếu thu trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra nếu `trang_thai` thay đổi từ 'Thành công' → 'Đã hủy':
+   - Ghi log lý do hủy (nếu có)
+   - Tính lại tổng tiền đã thu cho phiếu đăng ký
+   - Gửi thông báo cho sinh viên về việc hủy phiếu thu
+2. Nếu `so_tien_thu` thay đổi:
+   - Tính lại tổng tiền đã thu cho phiếu đăng ký
+3. Nếu trước đó sinh viên đã đóng đủ, giờ cần cập nhật lại trạng thái
+
+**Output:** Cập nhật thông tin liên quan
+
+---
+
+#### 5. `trg_phieu_thu_hoc_phi_after_delete`
+**Mục đích:** Cập nhật tổng tiền đã thu khi xóa phiếu thu học phí.
+
+**Input:** Dữ liệu phiếu thu bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Tìm phiếu đăng ký tương ứng (OLD.so_phieu_dang_ky)
+2. Nếu `OLD.trang_thai = 'Thành công'`:
+   - Tính lại tổng tiền đã thu cho phiếu đăng ký
+3. Gửi thông báo cho sinh viên (nếu cần)
+
+**Output:** Cập nhật thông tin liên quan
+
+**Ví dụ:**
+```sql
+-- Xóa phiếu thu do nhầm lẫn (trường hợp admin xử lý):
+DELETE FROM phieu_thu_hoc_phi WHERE so_phieu_thu = 100;
+-- Kết quả: Tổng tiền đã thu của phiếu đăng ký được cập nhật tự động
+```
+
+---
+
+#### 6. `sp_thu_hoc_phi(...)`
 **Mục đích:** Procedure thu học phí cho sinh viên theo BM6, QĐ6.
 
 **Input:**
@@ -1054,7 +1546,7 @@ SELECT sp_thu_hoc_phi(
 
 ---
 
-#### 4. `fn_tinh_so_tien_con_lai(p_ma_sv, p_ma_hoc_ky)`
+#### 7. `fn_tinh_so_tien_con_lai(p_ma_sv, p_ma_hoc_ky)`
 **Mục đích:** Tính số tiền học phí còn lại mà sinh viên phải đóng theo QĐ7.
 
 **Input:**
@@ -1086,7 +1578,7 @@ SELECT fn_tinh_so_tien_con_lai('SV003', 'HK1-2526');  -- 500,000 (= tong_tien_ph
 
 ---
 
-#### 5. `fn_tinh_tong_tien_da_thu(p_so_phieu_dang_ky)`
+#### 8. `fn_tinh_tong_tien_da_thu(p_so_phieu_dang_ky)`
 **Mục đích:** Tính tổng số tiền đã thu cho một phiếu đăng ký (hỗ trợ đóng nhiều lần - QĐ6).
 
 **Input:**
@@ -1114,7 +1606,7 @@ SELECT fn_tinh_tong_tien_da_thu(2);  -- 0
 
 ---
 
-#### 6. `sp_lap_bao_cao_sv_chua_dong_hp(ma_hoc_ky)`
+#### 9. `sp_lap_bao_cao_sv_chua_dong_hp(ma_hoc_ky)`
 **Mục đích:** Procedure lập báo cáo danh sách sinh viên chưa hoàn thành đóng học phí theo BM7.
 
 **Input:**
@@ -1161,7 +1653,7 @@ SELECT * FROM sp_lap_bao_cao_sv_chua_dong_hp('HK1-2526');
 
 ---
 
-#### 7. `trg_hoc_ky_check_han_dong_hp`
+#### 10. `trg_hoc_ky_check_han_dong_hp`
 **Mục đích:** Trigger kiểm tra và tự động gửi thông báo cảnh báo khi gần đến hạn đóng HP hoặc đã quá hạn.
 
 **Input:** Dữ liệu học kỳ được UPDATE (OLD.*, NEW.*)
@@ -1180,7 +1672,7 @@ SELECT * FROM sp_lap_bao_cao_sv_chua_dong_hp('HK1-2526');
 
 ---
 
-#### 8. `fn_kiem_tra_qua_han_dong_hp(p_ma_sv, p_ma_hoc_ky)`
+#### 11. `fn_kiem_tra_qua_han_dong_hp(p_ma_sv, p_ma_hoc_ky)`
 **Mục đích:** Kiểm tra sinh viên đã quá hạn đóng học phí hay chưa theo QĐ6.
 
 **Input:**
@@ -1213,7 +1705,7 @@ SELECT fn_kiem_tra_qua_han_dong_hp('SV003', 'HK2-2526');  -- FALSE
 
 ---
 
-#### 9. `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)`
+#### 12. `sp_gui_thong_bao_nhac_hp(ma_hoc_ky)`
 **Mục đích:** Procedure gửi thông báo nhắc nộp học phí cho tất cả sinh viên chưa đóng đủ.
 
 **Input:**
@@ -1248,28 +1740,174 @@ SELECT sp_gui_thong_bao_nhac_hp('HK1-2526', 'canh_bao');
 
 ---
 
-#### 10. `trg_phieu_thu_hoc_phi_after_update`
-**Mục đích:** Xử lý khi hủy phiếu thu học phí (UPDATE trang_thai = 'Đã hủy').
+#### 13. `trg_diem_sinh_vien_before_insert`
+**Mục đích:** Kiểm tra điểm hợp lệ (0-10) và tự động tính điểm trung bình.
 
-**Input:** Dữ liệu phiếu thu trước và sau UPDATE (OLD.*, NEW.*)
+**Input:** Dữ liệu điểm mới (NEW.*)
 
 **Logic xử lý:**
-1. Kiểm tra nếu `trang_thai` thay đổi từ 'Thành công' → 'Đã hủy':
-   - Ghi log lý do hủy (nếu có)
-   - Tính lại tổng tiền đã thu cho phiếu đăng ký
-   - Gửi thông báo cho sinh viên về việc hủy phiếu thu
-2. Nếu trước đó sinh viên đã đóng đủ, giờ cần cập nhật lại trạng thái
+1. Kiểm tra `ma_sv` tồn tại trong bảng `sinh_vien`
+2. Kiểm tra `ma_mon_hoc` tồn tại trong bảng `mon_hoc`
+3. Kiểm tra `ma_hoc_ky` tồn tại trong bảng `hoc_ky`
+4. Kiểm tra điểm trong khoảng [0, 10]:
+   - `diem_qua_trinh` (nếu có)
+   - `diem_giua_ky` (nếu có)
+   - `diem_cuoi_ky` (nếu có)
+5. Tự động tính `diem_trung_binh` nếu có đủ điểm thành phần:
+   - `diem_trung_binh = diem_qua_trinh * 0.2 + diem_giua_ky * 0.3 + diem_cuoi_ky * 0.5`
+6. Tự động chuyển sang `diem_chu` dựa trên `diem_trung_binh`
 
-**Output:** Cập nhật thông tin liên quan
+**Output:** Cho phép INSERT nếu hợp lệ, raise exception nếu không hợp lệ
 
-**Ví dụ:**
-```sql
--- Hủy phiếu thu do nhập sai số tiền
-UPDATE phieu_thu_hoc_phi 
-SET trang_thai = 'Đã hủy', ghi_chu = 'Hủy do nhập sai số tiền'
-WHERE so_phieu_thu = 1;
--- Kết quả: Tự động tính lại số tiền còn nợ cho phiếu đăng ký
+---
+
+#### 14. `trg_diem_sinh_vien_before_update`
+**Mục đích:** Kiểm tra điểm hợp lệ khi cập nhật và tự động tính lại điểm trung bình.
+
+**Input:** Dữ liệu điểm trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Kiểm tra điểm trong khoảng [0, 10] (nếu thay đổi)
+2. Tự động tính lại `diem_trung_binh` nếu điểm thành phần thay đổi
+3. Tự động cập nhật `diem_chu` dựa trên `diem_trung_binh` mới
+4. Set `ngay_cap_nhat = CURRENT_TIMESTAMP`
+
+**Output:** Cho phép UPDATE nếu hợp lệ
+
+---
+
+#### 15. `trg_diem_sinh_vien_after_insert`
+**Mục đích:** Cập nhật kết quả đậu/rớt và GPA tích lũy sau khi nhập điểm.
+
+**Input:** Dữ liệu điểm vừa INSERT (NEW.*)
+
+**Logic xử lý:**
+1. Nếu `diem_trung_binh` đã có:
+   - Nếu `diem_trung_binh < 5.0` → `ket_qua = 'Rớt'`
+   - Nếu `diem_trung_binh >= 5.0` → `ket_qua = 'Đậu'`
+2. Gọi `fn_cap_nhat_gpa_tich_luy(NEW.ma_sv)` để cập nhật GPA
+
+**Output:** Cập nhật kết quả đậu/rớt
+
+---
+
+#### 16. `trg_diem_sinh_vien_after_update`
+**Mục đích:** Cập nhật GPA tích lũy khi sửa điểm.
+
+**Input:** Dữ liệu điểm trước và sau khi UPDATE (OLD.*, NEW.*)
+
+**Logic xử lý:**
+1. Nếu `diem_trung_binh` thay đổi:
+   - Cập nhật lại `ket_qua` (Đậu/Rớt)
+   - Gọi `fn_cap_nhat_gpa_tich_luy(NEW.ma_sv)` để cập nhật GPA
+
+**Output:** Cập nhật GPA tích lũy
+
+---
+
+#### 17. `trg_diem_sinh_vien_after_delete`
+**Mục đích:** Cập nhật GPA tích lũy khi xóa điểm.
+
+**Input:** Dữ liệu điểm bị xóa (OLD.*)
+
+**Logic xử lý:**
+1. Gọi `fn_cap_nhat_gpa_tich_luy(OLD.ma_sv)` để cập nhật GPA tích lũy
+
+**Output:** Cập nhật GPA tích lũy
+
+---
+
+#### 18. `sp_nhap_diem(ma_sv, ma_mon, ma_hk, diem_qt, diem_gk, diem_ck)`
+**Mục đích:** Procedure nhập điểm sinh viên.
+
+**Input:**
+| Tham số | Kiểu | Bắt buộc | Mô tả |
+|---------|------|----------|-------|
+| `p_ma_sv` | VARCHAR(15) | Có | Mã sinh viên |
+| `p_ma_mon_hoc` | VARCHAR(15) | Có | Mã môn học |
+| `p_ma_hoc_ky` | VARCHAR(15) | Có | Mã học kỳ |
+| `p_diem_qt` | DECIMAL(4,2) | Không | Điểm quá trình |
+| `p_diem_gk` | DECIMAL(4,2) | Không | Điểm giữa kỳ |
+| `p_diem_ck` | DECIMAL(4,2) | Không | Điểm cuối kỳ |
+
+**Logic xử lý:**
+1. Kiểm tra sinh viên có đăng ký môn học này trong học kỳ không
+2. Kiểm tra điểm hợp lệ (0-10)
+3. Tính điểm trung bình và điểm chữ
+4. INSERT hoặc UPDATE vào `diem_sinh_vien`
+
+**Output:** TEXT - Thông báo kết quả
+
+---
+
+#### 19. `fn_tinh_diem_trung_binh_mon(diem_qt, diem_gk, diem_ck)`
+**Mục đích:** Tính điểm trung bình môn học.
+
+**Input:**
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| `diem_qt` | DECIMAL(4,2) | Điểm quá trình |
+| `diem_gk` | DECIMAL(4,2) | Điểm giữa kỳ |
+| `diem_ck` | DECIMAL(4,2) | Điểm cuối kỳ |
+
+**Logic xử lý:**
 ```
+diem_tb = diem_qt * 0.2 + diem_gk * 0.3 + diem_ck * 0.5
+```
+
+**Output:** DECIMAL(4,2) - Điểm trung bình
+
+---
+
+#### 20. `fn_chuyen_diem_sang_chu(diem_tb)`
+**Mục đích:** Chuyển điểm số sang điểm chữ.
+
+**Input:** `diem_tb` - Điểm trung bình (DECIMAL(4,2))
+
+**Logic xử lý:**
+| Điểm số | Điểm chữ |
+|---------|----------|
+| 9.0 - 10.0 | A+ |
+| 8.5 - 8.9 | A |
+| 8.0 - 8.4 | B+ |
+| 7.0 - 7.9 | B |
+| 6.5 - 6.9 | C+ |
+| 5.5 - 6.4 | C |
+| 5.0 - 5.4 | D+ |
+| 4.0 - 4.9 | D |
+| < 4.0 | F |
+
+**Output:** VARCHAR(2) - Điểm chữ
+
+---
+
+#### 21. `sp_lap_bang_diem_sinh_vien(ma_sv)`
+**Mục đích:** Lập bảng điểm toàn khóa của sinh viên.
+
+**Input:** `p_ma_sv` - Mã sinh viên (VARCHAR(15))
+
+**Output:** TABLE - Bảng điểm chi tiết
+
+---
+
+#### 22. `fn_cap_nhat_gpa_tich_luy(ma_sv)`
+**Mục đích:** Cập nhật GPA tích lũy sau khi thay đổi điểm.
+
+**Input:** `p_ma_sv` - Mã sinh viên (VARCHAR(15))
+
+**Logic xử lý:**
+1. Tính GPA tích lũy:
+   ```
+   GPA = SUM(diem_trung_binh * so_tin_chi) / SUM(so_tin_chi)
+   ```
+   (Chỉ tính các môn có kết quả 'Đậu')
+
+**Output:** DECIMAL(4,2) - GPA tích lũy
+
+### Chi tiết yêu cầu về Điểm sinh viên:
+- Điểm trong khoảng 0-10
+- Điểm trung bình < 5.0 = Rớt
+- GPA tích lũy được cập nhật tự động khi có thay đổi điểm
 
 ### Chi tiết yêu cầu:
 - **BM6**: Phiếu thu học phí (Số phiếu, Ngày lập, MSSV, Số tiền thu)
@@ -1287,10 +1925,10 @@ WHERE so_phieu_thu = 1;
 
 | Thành viên | BM | QĐ | Số Trigger | Số Function | Số Procedure |
 |------------|----|----|------------|-------------|--------------|
-| **TV1** | BM1 | QĐ1 | 4 | 2 | 1 |
-| **TV2** | BM2, BM3 | QĐ2, QĐ3 | 4 | 2 | 2 |
-| **TV3** | BM4, BM5 | QĐ4, QĐ5 | 4 | 3 | 3 |
-| **TV4** | BM6, BM7 | QĐ6, QĐ7 | 3 | 3 | 3 |
+| **TV1** | BM1 | QĐ1 | 7 | 2 | 1 |
+| **TV2** | BM2, BM3 | QĐ2, QĐ3 | 10 | 2 | 2 |
+| **TV3** | BM4, BM5 | QĐ4, QĐ5 | 13 | 5 | 4 |
+| **TV4** | BM6, BM7 | QĐ6, QĐ7 | 9 | 6 | 4 |
 
 ---
 
