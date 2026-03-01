@@ -11,7 +11,7 @@
 | Tên Database | `ql_dangky_hocphi` |
 | Hệ quản trị CSDL | PostgreSQL |
 | Phiên bản | 12+ |
-| Số lượng bảng | 30 bảng |
+| Số lượng bảng | 26 bảng |
 | Mã hóa | UTF-8 |
 
 ### 1.2. Danh sách các bảng theo nhóm chức năng
@@ -41,13 +41,11 @@
 | 21 | Học phí | `phieu_thu_hoc_phi` | Phiếu thu học phí |
 | 22 | Cấu hình | `don_gia_tin_chi` | Đơn giá tín chỉ theo loại học |
 | 23 | Cấu hình | `cau_hinh_dang_ky` | Cấu hình quy định đăng ký (số TC tối đa, GPA vượt) |
-| 24 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập |
+| 24 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền qua cột `role` bằng phần mềm) |
 | 25 | Quản trị | `quan_tri_vien` | Thông tin quản trị viên |
 | 26 | Thông báo | `thong_bao` | Thông báo (gộp chung và cá nhân, phân biệt qua thuộc tính `loai`) |
-| 27 | Phân quyền | `nhom_nguoi_dung` | Nhóm người dùng (phân quyền bằng phần mềm) |
-| 28 | Phân quyền | `quyen` | Danh sách quyền hạn trong hệ thống |
-| 29 | Phân quyền | `nhom_quyen` | Gán quyền cho nhóm người dùng |
-| 30 | Phân quyền | `tai_khoan_nhom` | Gán tài khoản vào nhóm người dùng |
+
+> **Ghi chú phân quyền:** Phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware), dựa trên cột `role` trong bảng `tai_khoan`. Backend kiểm tra `role` (admin/sinh_vien) để xác định quyền truy cập. Không cần thêm bảng CSDL riêng cho phân quyền.
 
 ---
 
@@ -1046,110 +1044,6 @@ tong_tien_phai_dong = tong_tien_dang_ky - tien_mien_giam  (QĐ7)
 | 22520001 | IT001      | HK1-2425  | 8.17    | B+       | 1       | Đậu     |
 | 22520004 | MA006      | HK1-2425  | 3.92    | F        | 1       | Rớt     |
 ```
-
----
-
-### 2.25. BẢNG `nhom_nguoi_dung` - Nhóm người dùng (Phân quyền bằng phần mềm)
-
-**Mô tả:** Quản lý các nhóm người dùng để phân quyền linh hoạt thông qua phần mềm, không dùng cơ sở dữ liệu để gán quyền trực tiếp. Mỗi nhóm có thể được gán nhiều quyền khác nhau.
-
-**Cấu trúc:**
-
-| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
-|---------|--------------|------|----------|-------|
-| `ma_nhom` | VARCHAR(20) | NO | - | **PK** - Mã nhóm (ADMIN, PHONG_DAO_TAO, SINH_VIEN...) |
-| `ten_nhom` | VARCHAR(100) | NO | - | Tên nhóm người dùng |
-| `mo_ta` | VARCHAR(300) | YES | NULL | Mô tả chức năng của nhóm |
-| `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái hoạt động |
-| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
-| `ngay_cap_nhat` | TIMESTAMP | YES | NULL | Ngày cập nhật |
-
-**Khóa chính:** `ma_nhom`
-
-**Ví dụ dữ liệu:**
-```sql
-| ma_nhom       | ten_nhom               | mo_ta                                        |
-|---------------|------------------------|----------------------------------------------|
-| ADMIN         | Quản trị viên          | Nhóm quản trị hệ thống, có toàn quyền       |
-| PHONG_DAO_TAO | Phòng Đào tạo          | Quản lý chương trình đào tạo, môn học        |
-| PHONG_TCKT    | Phòng Tài chính - KT   | Quản lý học phí, thu phí, báo cáo tài chính  |
-| SINH_VIEN     | Sinh viên              | Xem thông tin cá nhân và đăng ký môn học     |
-```
-
----
-
-### 2.26. BẢNG `quyen` - Quyền hạn
-
-**Mô tả:** Định nghĩa tất cả các quyền (permission) mà phần mềm quản lý. Quyền được phân theo nhóm chức năng và gán cho nhóm người dùng thông qua bảng `nhom_quyen`.
-
-**Cấu trúc:**
-
-| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
-|---------|--------------|------|----------|-------|
-| `ma_quyen` | VARCHAR(50) | NO | - | **PK** - Mã quyền (SV_XEM, SV_THEM, MH_SUA...) |
-| `ten_quyen` | VARCHAR(150) | NO | - | Tên quyền |
-| `nhom_chuc_nang` | VARCHAR(50) | NO | - | Nhóm chức năng (QUAN_LY_SINH_VIEN, PHAN_QUYEN...) |
-| `mo_ta` | VARCHAR(300) | YES | NULL | Mô tả chi tiết quyền |
-| `trang_thai` | BOOLEAN | YES | TRUE | Trạng thái hoạt động |
-| `ngay_tao` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Ngày tạo |
-
-**Khóa chính:** `ma_quyen`
-
-**Các nhóm chức năng:**
-| Nhóm chức năng | Mô tả | Ví dụ quyền |
-|----------------|-------|-------------|
-| QUAN_LY_SINH_VIEN | Quản lý sinh viên (BM1) | SV_XEM, SV_THEM, SV_SUA, SV_XOA |
-| QUAN_LY_DOI_TUONG | Quản lý đối tượng ưu tiên (QĐ1) | DT_XEM, DT_THEM, DT_SUA, DT_XOA, DT_GAN |
-| QUAN_LY_MON_HOC | Quản lý môn học (BM2) | MH_XEM, MH_THEM, MH_SUA, MH_XOA |
-| QUAN_LY_CHUONG_TRINH | Quản lý chương trình học (BM3) | CTH_XEM, CTH_THEM, CTH_SUA, CTH_XOA |
-| QUAN_LY_HOC_KY | Quản lý học kỳ & lớp mở (BM4) | HK_XEM, HK_THEM, LM_XEM, LM_THEM... |
-| DANG_KY_MON_HOC | Đăng ký môn học (BM5) | DK_XEM, DK_THEM, DK_SUA, DK_XOA |
-| QUAN_LY_HOC_PHI | Quản lý học phí (BM6) | HP_XEM, HP_THU, HP_HUY |
-| QUAN_LY_DIEM | Quản lý điểm (BM7) | DIEM_XEM, DIEM_NHAP, DIEM_SUA |
-| BAO_CAO | Báo cáo thống kê | BC_XEM, BC_XUAT |
-| PHAN_QUYEN | Phân quyền hệ thống | PQ_XEM, PQ_GAN, PQ_XOA, PQ_GAN_NHOM |
-| QUAN_LY_TAI_KHOAN | Quản lý tài khoản | TK_XEM, TK_THEM, TK_SUA, TK_XOA |
-| CAU_HINH | Cấu hình hệ thống (QĐ2-QĐ7) | CH_XEM, CH_SUA |
-
----
-
-### 2.27. BẢNG `nhom_quyen` - Gán quyền cho nhóm người dùng
-
-**Mô tả:** Bảng trung gian liên kết nhóm người dùng với quyền hạn. Phân quyền hoàn toàn thực hiện qua phần mềm bằng cách INSERT/DELETE trên bảng này.
-
-**Cấu trúc:**
-
-| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
-|---------|--------------|------|----------|-------|
-| `id` | SERIAL | NO | auto | **PK** - ID tự tăng |
-| `ma_nhom` | VARCHAR(20) | NO | - | **FK** → `nhom_nguoi_dung.ma_nhom` |
-| `ma_quyen` | VARCHAR(50) | NO | - | **FK** → `quyen.ma_quyen` |
-| `ngay_gan` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Thời điểm gán quyền |
-| `nguoi_gan` | VARCHAR(100) | YES | NULL | Người thực hiện gán quyền |
-
-**Khóa chính:** `id`
-**Ràng buộc:** UNIQUE (`ma_nhom`, `ma_quyen`)
-
-**Lưu ý:** Chuỗi phân quyền: `tai_khoan` → `tai_khoan_nhom` → `nhom_nguoi_dung` → `nhom_quyen` → `quyen`
-
----
-
-### 2.28. BẢNG `tai_khoan_nhom` - Gán tài khoản vào nhóm người dùng
-
-**Mô tả:** Liên kết tài khoản với nhóm người dùng. Một tài khoản có thể thuộc nhiều nhóm, mỗi nhóm có nhiều quyền. Phần mềm kiểm tra quyền thông qua chuỗi: `tai_khoan` → `tai_khoan_nhom` → `nhom_quyen` → `quyen`.
-
-**Cấu trúc:**
-
-| Tên cột | Kiểu dữ liệu | Null | Mặc định | Mô tả |
-|---------|--------------|------|----------|-------|
-| `id` | SERIAL | NO | auto | **PK** - ID tự tăng |
-| `ma_tai_khoan` | INTEGER | NO | - | **FK** → `tai_khoan.ma_tai_khoan` |
-| `ma_nhom` | VARCHAR(20) | NO | - | **FK** → `nhom_nguoi_dung.ma_nhom` |
-| `ngay_gan` | TIMESTAMP | YES | CURRENT_TIMESTAMP | Thời điểm gán nhóm |
-| `nguoi_gan` | VARCHAR(100) | YES | NULL | Người thực hiện gán nhóm |
-
-**Khóa chính:** `id`
-**Ràng buộc:** UNIQUE (`ma_tai_khoan`, `ma_nhom`)
 
 ---
 
@@ -2627,7 +2521,7 @@ WHERE sv.ma_sv = 'SV001';
 |-----------|------|----------------|
 | 1.0 | 2026-01-16 | Phiên bản đầu tiên - Đáp ứng BM1-BM7, QĐ1-QĐ7 |
 | 1.1 | 2026-01-16 | Thêm mục 13 - Cấu trúc lưu trữ file (avatar, logo) |
-| 1.2 | 2026-03-01 | Thêm hệ thống phân quyền bằng phần mềm (nhom_nguoi_dung, quyen, nhom_quyen, tai_khoan_nhom) |
+| 1.2 | 2026-03-01 | Cập nhật phân quyền: dùng cột `role` trong `tai_khoan` + backend middleware thay vì thêm bảng CSDL riêng |
 
 ---
 
@@ -2640,4 +2534,4 @@ WHERE sv.ma_sv = 'SV001';
 **Ghi chú:** 
 - Database được thiết kế cho PostgreSQL 12+
 - Đáp ứng đầy đủ 7 biểu mẫu (BM1-BM7) và 7 quy định (QĐ1-QĐ7) theo yêu cầu đề tài
-- Hỗ trợ phân quyền bằng phần mềm thông qua nhóm người dùng (nhom_nguoi_dung, quyen, nhom_quyen, tai_khoan_nhom)
+- Hỗ trợ phân quyền bằng phần mềm thông qua cột `role` trong bảng `tai_khoan` và backend middleware (không cần thêm bảng CSDL riêng)

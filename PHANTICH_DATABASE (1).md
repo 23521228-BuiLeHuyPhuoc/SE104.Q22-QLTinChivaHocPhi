@@ -10,20 +10,21 @@
 
 ## 📋 TỔNG QUAN CÁC BẢNG
 
-Hệ thống bao gồm **30 bảng** được chia thành 10 nhóm chức năng:
+Hệ thống bao gồm **26 bảng** được chia thành 9 nhóm chức năng:
 
 | Nhóm | Bảng | Mục đích |
 |------|------|----------|
 | **Địa danh & Dân tộc** | `tinh`, `phuong_xa`, `dan_toc` | Quản lý thông tin địa lý và dân tộc |
 | **Đối tượng ưu tiên** | `doi_tuong`, `doi_tuong_sinh_vien` | Quản lý chính sách miễn giảm học phí |
 | **Tổ chức - Đào tạo** | `khoa`, `nganh_hoc`, `chuong_trinh_hoc` | Quản lý khoa, ngành, chương trình học |
-| **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống |
-| **Phân quyền** | `nhom_nguoi_dung`, `quyen`, `nhom_quyen`, `tai_khoan_nhom` | Phân quyền bằng phần mềm (không dùng CSDL gán trực tiếp) |
+| **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống (phân quyền qua cột `role` bằng phần mềm) |
 | **Môn học - Lớp** | `mon_hoc`, `dieu_kien_mon_hoc`, `lop` | Quản lý môn học và lớp học |
 | **Thời gian - Đăng ký** | `nam_hoc`, `hoc_ky`, `lop_mo`, `phieu_dang_ky`, `chi_tiet_dang_ky` | Quản lý đăng ký học phần |
 | **Lịch học** | `tiet_hoc`, `lich_hoc_lop` | Quản lý tiết học và thời khóa biểu |
 | **Điểm số** | `diem_sinh_vien` | Quản lý điểm sinh viên (đậu/rớt) |
 | **Học phí - Cấu hình** | `don_gia_tin_chi`, `phieu_thu_hoc_phi`, `cau_hinh_dang_ky`, `thong_bao` | Quản lý học phí, cấu hình và thông báo |
+
+> **Ghi chú phân quyền:** Chức năng phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware), dựa trên cột `role` trong bảng `tai_khoan`. Không cần thêm bảng riêng cho phân quyền — backend code kiểm tra giá trị `role` (admin/sinh_vien) để xác định quyền truy cập các chức năng.
 
 ---
 
@@ -79,52 +80,6 @@ Lưu điểm các môn học, xác định đậu/rớt (< 5.0 = Rớt).
 | `ma_mon_hoc` | VARCHAR(15) | **FK** → `mon_hoc(ma_mon_hoc)` | Môn học |
 | `diem_trung_binh` | DECIMAL(4,2) | CHECK (0-10) | Điểm TB môn |
 | `ket_qua` | VARCHAR(20) | CHECK (Đậu, Rớt, Chưa có...) | Kết quả |
-
-### BẢNG `nhom_nguoi_dung` - Nhóm người dùng
-Quản lý các nhóm người dùng để phân quyền bằng phần mềm. Quyền được gán cho nhóm, không gán trực tiếp trong CSDL.
-
-| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
-|------------|--------------|-----------|-------|
-| `ma_nhom` | VARCHAR(20) | **PRIMARY KEY** | Mã nhóm (ADMIN, PHONG_DAO_TAO, SINH_VIEN...) |
-| `ten_nhom` | VARCHAR(100) | NOT NULL | Tên nhóm người dùng |
-| `mo_ta` | VARCHAR(300) | NULL | Mô tả chức năng của nhóm |
-| `trang_thai` | BOOLEAN | DEFAULT TRUE | Trạng thái hoạt động |
-| `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
-| `ngay_cap_nhat` | TIMESTAMP | NULL | Thời điểm cập nhật |
-
-### BẢNG `quyen` - Quyền hạn
-Định nghĩa tất cả các quyền (permission) mà phần mềm quản lý. Phân theo nhóm chức năng.
-
-| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
-|------------|--------------|-----------|-------|
-| `ma_quyen` | VARCHAR(50) | **PRIMARY KEY** | Mã quyền (SV_XEM, SV_THEM, MH_SUA...) |
-| `ten_quyen` | VARCHAR(150) | NOT NULL | Tên quyền |
-| `nhom_chuc_nang` | VARCHAR(50) | NOT NULL | Nhóm chức năng (QUAN_LY_SINH_VIEN, QUAN_LY_MON_HOC...) |
-| `mo_ta` | VARCHAR(300) | NULL | Mô tả chi tiết quyền |
-| `trang_thai` | BOOLEAN | DEFAULT TRUE | Trạng thái hoạt động |
-| `ngay_tao` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo |
-
-### BẢNG `nhom_quyen` - Gán quyền cho nhóm
-Bảng trung gian liên kết nhóm người dùng với quyền. Phân quyền hoàn toàn qua phần mềm (INSERT/DELETE trên bảng này).
-
-| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
-|------------|--------------|-----------|-------|
-| `id` | SERIAL | **PRIMARY KEY** | ID tự tăng |
-| `ma_nhom` | VARCHAR(20) | **FK** → `nhom_nguoi_dung(ma_nhom)`, UNIQUE(ma_nhom, ma_quyen) | Nhóm người dùng |
-| `ma_quyen` | VARCHAR(50) | **FK** → `quyen(ma_quyen)` | Quyền hạn |
-| `ngay_gan` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm gán |
-| `nguoi_gan` | VARCHAR(100) | NULL | Người thực hiện gán quyền |
-
-### BẢNG `tai_khoan_nhom` - Gán tài khoản vào nhóm
-Liên kết tài khoản với nhóm người dùng. Một tài khoản có thể thuộc nhiều nhóm.
-
-| Thuộc tính | Kiểu dữ liệu | Ràng buộc | Mô tả |
-|------------|--------------|-----------|-------|
-| `id` | SERIAL | **PRIMARY KEY** | ID tự tăng |
-| `ma_tai_khoan` | INTEGER | **FK** → `tai_khoan(ma_tai_khoan)`, UNIQUE(ma_tai_khoan, ma_nhom) | Tài khoản |
-| `ma_nhom` | VARCHAR(20) | **FK** → `nhom_nguoi_dung(ma_nhom)` | Nhóm người dùng |
-| `ngay_gan` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm gán |
-| `nguoi_gan` | VARCHAR(100) | NULL | Người thực hiện gán nhóm |
 
 ---
 

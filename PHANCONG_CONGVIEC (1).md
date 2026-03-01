@@ -1386,74 +1386,23 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 
 ---
 
-## 🔐 CÔNG VIỆC BỔ SUNG: PHÂN QUYỀN NGƯỜI DÙNG BẰNG PHẦN MỀM
+## 🔐 GHI CHÚ VỀ PHÂN QUYỀN
 
-### Phụ trách chính: THÀNH VIÊN 1, hỗ trợ: Tất cả thành viên
-
-> **Yêu cầu:** Phải có chức năng phân quyền: gán quyền cho các nhóm người dùng bằng phần mềm (không dùng cơ sở dữ liệu để gán).
-
-### 📁 Files Backend cần thao tác:
-
-| STT | File | Công việc |
-|-----|------|-----------|
-| 1 | `backend/src/config/init.sql` | Đã cập nhật - Thêm bảng `nhom_nguoi_dung`, `quyen`, `nhom_quyen`, `tai_khoan_nhom` |
-| 2 | `backend/src/controllers/permissionController.js` | **Tạo mới** - API CRUD nhóm người dùng, quyền, gán quyền cho nhóm, gán tài khoản vào nhóm |
-| 3 | `backend/src/routes/permissionRoutes.js` | **Tạo mới** - Routes cho module phân quyền |
-| 4 | `backend/src/middleware/permissionMiddleware.js` | **Tạo mới** - Middleware kiểm tra quyền qua chuỗi: tai_khoan → tai_khoan_nhom → nhom_quyen → quyen |
-| 5 | `backend/src/index.js` | Đăng ký routes phân quyền mới |
-
-### 📁 Files Frontend cần thao tác:
-
-| STT | File | Công việc |
-|-----|------|-----------|
-| 1 | `frontend/src/pages/admin/PermissionManagement.jsx` | **Tạo mới** - Giao diện quản lý nhóm người dùng, gán quyền, gán tài khoản |
-| 2 | `frontend/src/pages/admin/PermissionManagement.css` | **Tạo mới** - Styles |
-| 3 | `frontend/src/services/permissionService.js` | **Tạo mới** - API service cho module phân quyền |
-| 4 | `frontend/src/App.jsx` | Thêm routes cho trang phân quyền |
-
-### 📝 Chi tiết công việc:
-
-#### A. Backend Tasks:
-
-##### 1. API Quản lý nhóm người dùng
-
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|--------|
-| Lấy danh sách nhóm | GET | `/api/permissions/groups` | Danh sách nhóm người dùng (có phân trang) |
-| Chi tiết nhóm | GET | `/api/permissions/groups/:id` | Thông tin nhóm kèm danh sách quyền |
-| Thêm nhóm | POST | `/api/permissions/groups` | Tạo nhóm người dùng mới |
-| Sửa nhóm | PUT | `/api/permissions/groups/:id` | Cập nhật thông tin nhóm |
-| Xóa nhóm | DELETE | `/api/permissions/groups/:id` | Xóa nhóm (kiểm tra không còn tài khoản) |
-
-##### 2. API Gán quyền cho nhóm
-
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|--------|
-| Gán quyền | POST | `/api/permissions/groups/:id/rights` | Gán 1 hoặc nhiều quyền cho nhóm |
-| Xóa quyền | DELETE | `/api/permissions/groups/:gid/rights/:rid` | Xóa quyền khỏi nhóm |
-
-##### 3. API Gán tài khoản vào nhóm
-
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|--------|
-| Lấy nhóm của TK | GET | `/api/permissions/accounts/:id/groups` | Danh sách nhóm của tài khoản |
-| Gán TK vào nhóm | POST | `/api/permissions/accounts/:id/groups` | Gán tài khoản vào nhóm |
-| Xóa TK khỏi nhóm | DELETE | `/api/permissions/accounts/:aid/groups/:gid` | Xóa tài khoản khỏi nhóm |
-
-##### 4. API Kiểm tra quyền
-
-| API | Method | Endpoint | Mô tả |
-|-----|--------|----------|--------|
-| Kiểm tra quyền | GET | `/api/permissions/check/:accountId/:permCode` | Kiểm tra tài khoản có quyền cụ thể |
-| Quyền của tôi | GET | `/api/permissions/my-permissions` | Lấy tất cả quyền của người đang đăng nhập |
-
-##### 5. Middleware kiểm tra quyền
-
-```javascript
-// Ví dụ sử dụng middleware:
-// router.get('/students', authMiddleware, requirePermission('SV_XEM'), studentController.getAll);
-// router.post('/students', authMiddleware, requirePermission('SV_THEM'), studentController.create);
-```
+> **Phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware)**, dựa trên cột `role` trong bảng `tai_khoan`. Không cần thêm bảng CSDL riêng.
+>
+> Mỗi thành viên khi viết API cho module của mình phải thêm middleware kiểm tra quyền:
+> - `role = 'admin'`: Có quyền truy cập tất cả API quản lý
+> - `role = 'sinh_vien'`: Chỉ truy cập API xem thông tin cá nhân, đăng ký, xem điểm, xem học phí
+>
+> **Ví dụ middleware:**
+> ```javascript
+> // Kiểm tra role admin
+> const requireAdmin = (req, res, next) => {
+>   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Không có quyền' });
+>   next();
+> };
+> // Sử dụng: router.post('/students', authMiddleware, requireAdmin, studentController.create);
+> ```
 
 ---
 
