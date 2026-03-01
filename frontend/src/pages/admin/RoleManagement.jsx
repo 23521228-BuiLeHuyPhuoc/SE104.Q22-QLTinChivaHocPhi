@@ -23,6 +23,7 @@ const RoleManagement = () => {
   const [selectedRole, setSelectedRole] = useState('admin');
   const [rolePermissions, setRolePermissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -33,6 +34,8 @@ const RoleManagement = () => {
       const found = roles.find(r => r.role === selectedRole);
       if (found) {
         setRolePermissions(found.permissions.map(p => p.ma_quyen));
+      } else {
+        setRolePermissions([]);
       }
     }
   }, [selectedRole, roles]);
@@ -40,6 +43,7 @@ const RoleManagement = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(false);
       const [rolesRes, permsRes] = await Promise.all([
         roleService.getAll(),
         roleService.getAllPermissions()
@@ -50,7 +54,8 @@ const RoleManagement = () => {
       if (permsRes.success) {
         setAllPermissions(permsRes.grouped);
       }
-    } catch (error) {
+    } catch (err) {
+      setError(true);
       toast.error('Không thể tải dữ liệu phân quyền');
     } finally {
       setLoading(false);
@@ -59,6 +64,10 @@ const RoleManagement = () => {
 
   if (loading) {
     return <div className="role-management loading">Đang tải...</div>;
+  }
+
+  if (error) {
+    return <div className="role-management loading">Không thể tải dữ liệu phân quyền. Vui lòng thử lại sau.</div>;
   }
 
   return (
