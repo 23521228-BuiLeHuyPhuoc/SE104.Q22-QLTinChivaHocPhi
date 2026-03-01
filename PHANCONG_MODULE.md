@@ -665,10 +665,10 @@ GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
 
 ---
 
-## 🗂️ MODULE 20: PHÂN QUYỀN HỆ THỐNG (MỚI)
+## 🗂️ MODULE 20: PHÂN QUYỀN HỆ THỐNG VÀ QUẢN LÝ TÀI KHOẢN (MỚI)
 
 ### Mô tả:
-Phân quyền đơn giản theo 2 vai trò: **admin** (Quản trị viên) và **sinh_vien** (Sinh viên). Admin được truy cập toàn bộ trang quản trị và chỉnh sửa dữ liệu. Sinh viên chỉ truy cập được phần dành cho sinh viên, không vào được trang admin. Sử dụng cột `role` có sẵn trong bảng `tai_khoan`, không cần thêm bảng CSDL.
+Phân quyền đơn giản theo 2 vai trò: **admin** (Quản trị viên) và **sinh_vien** (Sinh viên). Admin được truy cập toàn bộ trang quản trị, chỉnh sửa dữ liệu, và **thay đổi role** của tài khoản khác (nâng sinh viên lên admin hoặc hạ admin xuống sinh viên). Sinh viên chỉ truy cập được phần dành cho sinh viên, không vào được trang admin. Sử dụng cột `role` có sẵn trong bảng `tai_khoan`, không cần thêm bảng CSDL.
 
 ### Bảng Database:
 - Sử dụng cột `role` trong bảng `tai_khoan` (đã có sẵn, CHECK: `admin`, `sinh_vien`)
@@ -679,25 +679,34 @@ Phân quyền đơn giản theo 2 vai trò: **admin** (Quản trị viên) và *
 | Loại | File | Mô tả |
 |------|------|-------|
 | **Backend** | `backend/src/middleware/auth.js` | Middleware `authMiddleware` (xác thực token) và `adminMiddleware` (kiểm tra role admin) |
-| **Backend** | `backend/src/controllers/roleController.js` | API xem danh sách vai trò |
-| **Backend** | `backend/src/routes/roleRoutes.js` | Routes cho vai trò |
+| **Backend** | `backend/src/controllers/roleController.js` | API xem vai trò, danh sách tài khoản, thay đổi role |
+| **Backend** | `backend/src/routes/roleRoutes.js` | Routes cho vai trò và quản lý tài khoản |
+| **Frontend** | `frontend/src/pages/admin/UserManagement.jsx` | Giao diện quản lý tài khoản, thay đổi role |
+| **Frontend** | `frontend/src/pages/admin/UserManagement.css` | Styles cho trang quản lý tài khoản |
+| **Frontend** | `frontend/src/services/index.js` | Service `roleService` gọi API vai trò và tài khoản |
+| **Frontend** | `frontend/src/components/admin/AdminSidebar.jsx` | Menu item "Quản lý tài khoản" |
+| **Frontend** | `frontend/src/App.jsx` | Route `/admin/users` |
 
 ### API Endpoints:
 ```
 GET    /api/roles                    - Lấy danh sách vai trò (admin only)
 GET    /api/roles/my-role            - Lấy vai trò hiện tại
+GET    /api/roles/accounts           - Lấy danh sách tài khoản (admin only, hỗ trợ search, filter, phân trang)
+PUT    /api/roles/accounts/:id/role  - Thay đổi role tài khoản (admin only)
 ```
 
 ### Vai trò:
 | Vai trò | Quyền |
 |---------|-------|
-| **admin** (Quản trị viên) | Truy cập toàn bộ trang quản trị `/admin/*`, CRUD tất cả dữ liệu |
+| **admin** (Quản trị viên) | Truy cập toàn bộ trang quản trị `/admin/*`, CRUD tất cả dữ liệu, thay đổi role tài khoản |
 | **sinh_vien** (Sinh viên) | Chỉ truy cập trang sinh viên `/student/*`, xem thông tin, đăng ký môn, xem học phí |
 
 ### Cách hoạt động:
 1. Frontend: `AdminLayout` kiểm tra `isAdmin` — nếu không phải admin thì redirect về `/student/dashboard`
 2. Backend: `adminMiddleware` kiểm tra `req.user.role === 'admin'` — trả về 403 nếu không phải admin
-3. Không cần bảng quyền phức tạp — chỉ cần kiểm tra role là đủ
+3. Admin vào trang `/admin/users` để xem tất cả tài khoản và thay đổi role (nâng/hạ)
+4. Không cho phép admin tự đổi role chính mình (tránh tự lock out)
+5. Không cần bảng quyền phức tạp — chỉ cần kiểm tra role là đủ
 
 ### Phân công: **THÀNH VIÊN 4**
 

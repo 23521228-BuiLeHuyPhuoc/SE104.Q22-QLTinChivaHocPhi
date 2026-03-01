@@ -9,7 +9,7 @@ import { AdminLayout } from './components/admin';
 import { StudentLayout } from './components/student';
 
 // Import Pages - Admin
-import { AdminDashboard } from './pages/admin';
+import { AdminDashboard, UserManagement } from './pages/admin';
 import Students from './pages/Students';
 import Courses from './pages/Courses';
 import Classes from './pages/Classes';
@@ -67,6 +67,7 @@ function App() {
             <Route path="payments" element={<Payments />} />
             <Route path="semesters" element={<Semesters />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="users" element={<UserManagement />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
           

@@ -12,7 +12,8 @@ import {
   FaSignOutAlt,
   FaGraduationCap,
   FaCog,
-  FaChartBar
+  FaChartBar,
+  FaUserCog
 } from 'react-icons/fa';
 import './AdminSidebar.css';
 
@@ -60,6 +61,10 @@ const AdminSidebar = () => {
         
         <div className="nav-section">
           <span className="nav-section-title">Hệ thống</span>
+          <NavLink to="/admin/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <span className="nav-icon"><FaUserCog /></span>
+            <span className="nav-label">Quản lý tài khoản</span>
+          </NavLink>
           <NavLink to="/admin/settings" className="nav-item">
             <span className="nav-icon"><FaCog /></span>
             <span className="nav-label">Cài đặt</span>

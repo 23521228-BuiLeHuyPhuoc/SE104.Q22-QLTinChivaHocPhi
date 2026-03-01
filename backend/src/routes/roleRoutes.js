@@ -12,4 +12,10 @@ router.get('/my-role', roleController.getMyRole);
 // Lấy tất cả vai trò (admin only)
 router.get('/', adminMiddleware, roleController.getAllRoles);
 
+// Lấy danh sách tài khoản (admin only)
+router.get('/accounts', adminMiddleware, roleController.getAllAccounts);
+
+// Cập nhật role tài khoản (admin only)
+router.put('/accounts/:id/role', adminMiddleware, roleController.updateUserRole);
+
 module.exports = router;

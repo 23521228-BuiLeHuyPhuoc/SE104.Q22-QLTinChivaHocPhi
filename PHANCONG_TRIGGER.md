@@ -2279,9 +2279,12 @@ diem_tb = diem_qt * 0.2 + diem_gk * 0.3 + diem_ck * 0.5
 
 ### Chi tiết yêu cầu về Phân quyền hệ thống:
 - Phân quyền đơn giản: chỉ có 2 vai trò **admin** và **sinh_vien**
-- Admin: truy cập toàn bộ trang quản trị, chỉnh sửa dữ liệu
+- Admin: truy cập toàn bộ trang quản trị, chỉnh sửa dữ liệu, **thay đổi role tài khoản**
 - Sinh viên: chỉ truy cập trang sinh viên, không vào được admin
 - Sử dụng cột `role` trong bảng `tai_khoan`, kiểm tra bằng middleware `adminMiddleware`
+- Admin có thể nâng role sinh viên lên admin hoặc hạ admin xuống sinh viên qua API `PUT /api/roles/accounts/:id/role`
+- Giao diện quản lý tài khoản tại `/admin/users` cho phép tìm kiếm, lọc và thay đổi role
+- Không cho phép admin tự đổi role chính mình
 - Không cần trigger, function hay bảng quyền phức tạp
 
 ---

@@ -925,8 +925,8 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 12 | `backend/src/routes/exportRoutes.js` | **Tạo mới** - Routes xuất báo cáo |
 | 13 | `backend/src/controllers/gradeController.js` | **Tạo mới** - API quản lý điểm sinh viên |
 | 14 | `backend/src/routes/gradeRoutes.js` | **Tạo mới** - Routes điểm sinh viên |
-| 15 | `backend/src/controllers/roleController.js` | **Tạo mới** - API xem danh sách vai trò (admin/sinh_vien) |
-| 16 | `backend/src/routes/roleRoutes.js` | **Tạo mới** - Routes vai trò |
+| 15 | `backend/src/controllers/roleController.js` | **Tạo mới** - API xem vai trò, danh sách tài khoản, thay đổi role |
+| 16 | `backend/src/routes/roleRoutes.js` | **Tạo mới** - Routes vai trò và quản lý tài khoản |
 | 17 | `backend/src/middleware/auth.js` | Cập nhật - Middleware phân quyền admin/sinh_vien |
 | 18 | `backend/src/index.js` | Đăng ký routes mới |
 
@@ -956,7 +956,11 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 20 | `frontend/src/services/statisticsService.js` | **Tạo mới** - API service thống kê |
 | 21 | `frontend/src/services/exportService.js` | **Tạo mới** - API service xuất báo cáo |
 | 22 | `frontend/src/services/gradeService.js` | **Tạo mới** - API service điểm sinh viên |
-| 23 | `frontend/src/App.jsx` | Cập nhật routes |
+| 23 | `frontend/src/pages/admin/UserManagement.jsx` | **Tạo mới** - Giao diện quản lý tài khoản, thay đổi role |
+| 24 | `frontend/src/pages/admin/UserManagement.css` | **Tạo mới** - Styles cho trang quản lý tài khoản |
+| 25 | `frontend/src/services/index.js` | Cập nhật - Thêm `roleService` cho quản lý tài khoản |
+| 26 | `frontend/src/components/admin/AdminSidebar.jsx` | Cập nhật - Thêm menu "Quản lý tài khoản" |
+| 27 | `frontend/src/App.jsx` | Cập nhật routes (bao gồm `/admin/users`) |
 
 ### 📝 Chi tiết công việc:
 
@@ -1370,7 +1374,8 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   │   ├── Departments.jsx 🆕
 │   │   │   │   ├── OpenClasses.jsx 🆕
 │   │   │   │   ├── UnitPrices.jsx 🆕
-│   │   │   │   └── Statistics.jsx 🆕
+│   │   │   │   ├── Statistics.jsx 🆕
+│   │   │   │   └── UserManagement.jsx 🆕
 │   │   │   └── student/
 │   │   ├── services/
 │   │   │   ├── locationService.js 🆕
