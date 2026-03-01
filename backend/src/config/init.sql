@@ -63,7 +63,11 @@ DROP TABLE IF EXISTS mon_hoc CASCADE;
 DROP TABLE IF EXISTS doi_tuong_sinh_vien CASCADE;
 DROP TABLE IF EXISTS quan_tri_vien CASCADE;
 DROP TABLE IF EXISTS sinh_vien CASCADE;
+DROP TABLE IF EXISTS tai_khoan_nhom CASCADE;
 DROP TABLE IF EXISTS tai_khoan CASCADE;
+DROP TABLE IF EXISTS nhom_quyen CASCADE;
+DROP TABLE IF EXISTS quyen CASCADE;
+DROP TABLE IF EXISTS nhom_nguoi_dung CASCADE;
 DROP TABLE IF EXISTS nganh_hoc CASCADE;
 DROP TABLE IF EXISTS khoa CASCADE;
 DROP TABLE IF EXISTS doi_tuong CASCADE;
@@ -167,7 +171,59 @@ CREATE TABLE nganh_hoc (
 );
 
 -- =====================================================
--- 6. BẢNG tai_khoan - Tài khoản đăng nhập
+-- 6a. BẢNG nhom_nguoi_dung - Nhóm người dùng (Phân quyền bằng phần mềm)
+-- Mục đích: Quản lý các nhóm người dùng để phân quyền linh hoạt
+-- thông qua phần mềm, không dùng cơ sở dữ liệu để gán quyền trực tiếp.
+-- =====================================================
+CREATE TABLE nhom_nguoi_dung (
+    ma_nhom VARCHAR(20) NOT NULL,
+    ten_nhom VARCHAR(100) NOT NULL,
+    mo_ta VARCHAR(300),
+    trang_thai BOOLEAN DEFAULT TRUE,
+    ngay_tao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ngay_cap_nhat TIMESTAMP,
+    CONSTRAINT nhom_nguoi_dung_pkey PRIMARY KEY (ma_nhom)
+);
+
+-- =====================================================
+-- 6b. BẢNG quyen - Danh sách quyền hạn trong hệ thống
+-- Mục đích: Định nghĩa tất cả các quyền (permission) mà phần mềm quản lý.
+-- Quyền được gán cho nhóm người dùng, không gán trực tiếp trong CSDL.
+-- =====================================================
+CREATE TABLE quyen (
+    ma_quyen VARCHAR(50) NOT NULL,
+    ten_quyen VARCHAR(150) NOT NULL,
+    nhom_chuc_nang VARCHAR(50) NOT NULL,
+    mo_ta VARCHAR(300),
+    trang_thai BOOLEAN DEFAULT TRUE,
+    ngay_tao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT quyen_pkey PRIMARY KEY (ma_quyen)
+);
+
+-- =====================================================
+-- 6c. BẢNG nhom_quyen - Gán quyền cho nhóm người dùng
+-- Mục đích: Bảng trung gian liên kết nhóm người dùng với quyền hạn.
+-- Việc phân quyền hoàn toàn thực hiện qua phần mềm (INSERT/DELETE trên bảng này).
+-- =====================================================
+CREATE TABLE nhom_quyen (
+    id SERIAL NOT NULL,
+    ma_nhom VARCHAR(20) NOT NULL,
+    ma_quyen VARCHAR(50) NOT NULL,
+    ngay_gan TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    nguoi_gan VARCHAR(100),
+    CONSTRAINT nhom_quyen_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_nhom_quyen UNIQUE (ma_nhom, ma_quyen),
+    CONSTRAINT fk_nq_nhom FOREIGN KEY (ma_nhom)
+        REFERENCES nhom_nguoi_dung(ma_nhom) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_nq_quyen FOREIGN KEY (ma_quyen)
+        REFERENCES quyen(ma_quyen) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- =====================================================
+-- 6d. BẢNG tai_khoan - Tài khoản đăng nhập
+-- Ghi chú: Cột 'role' giữ lại để tương thích ngược, nhưng việc phân quyền
+-- chi tiết được thực hiện qua bảng tai_khoan_nhom -> nhom_quyen -> quyen
+-- (phân quyền bằng phần mềm, không dùng CSDL gán trực tiếp).
 -- =====================================================
 CREATE TABLE tai_khoan (
     ma_tai_khoan SERIAL NOT NULL,
@@ -187,6 +243,26 @@ CREATE TABLE tai_khoan (
     CONSTRAINT tai_khoan_pkey PRIMARY KEY (ma_tai_khoan),
     CONSTRAINT tai_khoan_ten_dang_nhap_key UNIQUE (ten_dang_nhap),
     CONSTRAINT chk_role CHECK (role IN ('admin', 'sinh_vien'))
+);
+
+-- =====================================================
+-- 6e. BẢNG tai_khoan_nhom - Gán tài khoản vào nhóm người dùng
+-- Mục đích: Liên kết tài khoản với nhóm người dùng.
+-- Một tài khoản có thể thuộc nhiều nhóm, mỗi nhóm có nhiều quyền.
+-- Phần mềm sẽ kiểm tra quyền thông qua: tai_khoan -> tai_khoan_nhom -> nhom_quyen -> quyen
+-- =====================================================
+CREATE TABLE tai_khoan_nhom (
+    id SERIAL NOT NULL,
+    ma_tai_khoan INTEGER NOT NULL,
+    ma_nhom VARCHAR(20) NOT NULL,
+    ngay_gan TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    nguoi_gan VARCHAR(100),
+    CONSTRAINT tai_khoan_nhom_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_tai_khoan_nhom UNIQUE (ma_tai_khoan, ma_nhom),
+    CONSTRAINT fk_tkn_tai_khoan FOREIGN KEY (ma_tai_khoan)
+        REFERENCES tai_khoan(ma_tai_khoan) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_tkn_nhom FOREIGN KEY (ma_nhom)
+        REFERENCES nhom_nguoi_dung(ma_nhom) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -687,6 +763,21 @@ CREATE INDEX idx_sv_trang_thai ON sinh_vien(trang_thai);
 CREATE INDEX idx_tk_ten_dang_nhap ON tai_khoan(ten_dang_nhap);
 CREATE INDEX idx_tk_role ON tai_khoan(role);
 
+-- Index cho bảng nhom_nguoi_dung
+CREATE INDEX idx_nnd_trang_thai ON nhom_nguoi_dung(trang_thai);
+
+-- Index cho bảng quyen
+CREATE INDEX idx_quyen_nhom_chuc_nang ON quyen(nhom_chuc_nang);
+CREATE INDEX idx_quyen_trang_thai ON quyen(trang_thai);
+
+-- Index cho bảng nhom_quyen
+CREATE INDEX idx_nq_ma_nhom ON nhom_quyen(ma_nhom);
+CREATE INDEX idx_nq_ma_quyen ON nhom_quyen(ma_quyen);
+
+-- Index cho bảng tai_khoan_nhom
+CREATE INDEX idx_tkn_ma_tai_khoan ON tai_khoan_nhom(ma_tai_khoan);
+CREATE INDEX idx_tkn_ma_nhom ON tai_khoan_nhom(ma_nhom);
+
 -- Index cho bảng doi_tuong_sinh_vien
 CREATE INDEX idx_dtsv_ma_sv ON doi_tuong_sinh_vien(ma_sv);
 CREATE INDEX idx_dtsv_ma_doi_tuong ON doi_tuong_sinh_vien(ma_doi_tuong);
@@ -758,6 +849,25 @@ CREATE INDEX idx_tb_da_doc ON thong_bao(da_doc);
 -- =====================================================
 -- VIEWS - Các view báo cáo
 -- =====================================================
+
+-- View: Quyền hạn của tài khoản (thông qua nhóm người dùng)
+-- Dùng để kiểm tra quyền của tài khoản bằng phần mềm
+CREATE OR REPLACE VIEW v_quyen_tai_khoan AS
+SELECT DISTINCT
+    tk.ma_tai_khoan,
+    tk.ten_dang_nhap,
+    tk.role,
+    nnd.ma_nhom,
+    nnd.ten_nhom,
+    q.ma_quyen,
+    q.ten_quyen,
+    q.nhom_chuc_nang
+FROM tai_khoan tk
+JOIN tai_khoan_nhom tkn ON tk.ma_tai_khoan = tkn.ma_tai_khoan
+JOIN nhom_nguoi_dung nnd ON tkn.ma_nhom = nnd.ma_nhom AND nnd.trang_thai = TRUE
+JOIN nhom_quyen nq ON nnd.ma_nhom = nq.ma_nhom
+JOIN quyen q ON nq.ma_quyen = q.ma_quyen AND q.trang_thai = TRUE
+WHERE tk.trang_thai = TRUE;
 
 -- View: Phiếu đăng ký chi tiết
 CREATE OR REPLACE VIEW v_phieu_dang_ky AS
@@ -6282,6 +6392,147 @@ INSERT INTO thong_bao (loai, tieu_de, noi_dung, loai_thong_bao, doi_tuong, ghim_
 ('chung', 'Đợt xét học bổng HK1 2024-2025', 'Danh sách xét học bổng HK1 đã được công bố. Sinh viên kiểm tra kết quả tại Phòng Công tác sinh viên hoặc qua hệ thống trực tuyến.', 'Học bổng', 'Sinh viên', FALSE, TRUE);
 
 -- =====================================================
+-- INSERT DATA - Nhóm người dùng (User Groups for Permission Management)
+-- Phân quyền bằng phần mềm: Quyền được gán cho nhóm, nhóm được gán cho tài khoản
+-- =====================================================
+INSERT INTO nhom_nguoi_dung (ma_nhom, ten_nhom, mo_ta) VALUES
+('ADMIN', 'Quản trị viên', 'Nhóm quản trị hệ thống, có toàn quyền quản lý'),
+('PHONG_DAO_TAO', 'Phòng Đào tạo', 'Nhóm quản lý chương trình đào tạo, môn học, lớp, lịch học'),
+('PHONG_TCKT', 'Phòng Tài chính - Kế toán', 'Nhóm quản lý học phí, thu phí, báo cáo tài chính'),
+('SINH_VIEN', 'Sinh viên', 'Nhóm sinh viên, chỉ xem thông tin cá nhân và đăng ký môn học');
+
+-- =====================================================
+-- INSERT DATA - Quyền hạn (Permissions)
+-- Định nghĩa các quyền hạn trong hệ thống, phân theo nhóm chức năng
+-- =====================================================
+INSERT INTO quyen (ma_quyen, ten_quyen, nhom_chuc_nang, mo_ta) VALUES
+-- Quyền quản lý sinh viên
+('SV_XEM', 'Xem danh sách sinh viên', 'QUAN_LY_SINH_VIEN', 'Xem thông tin sinh viên'),
+('SV_THEM', 'Thêm sinh viên', 'QUAN_LY_SINH_VIEN', 'Lập hồ sơ sinh viên mới (BM1)'),
+('SV_SUA', 'Sửa thông tin sinh viên', 'QUAN_LY_SINH_VIEN', 'Cập nhật hồ sơ sinh viên'),
+('SV_XOA', 'Xóa sinh viên', 'QUAN_LY_SINH_VIEN', 'Xóa hồ sơ sinh viên'),
+-- Quyền quản lý đối tượng ưu tiên
+('DT_XEM', 'Xem đối tượng ưu tiên', 'QUAN_LY_DOI_TUONG', 'Xem danh sách đối tượng ưu tiên (QĐ1)'),
+('DT_THEM', 'Thêm đối tượng ưu tiên', 'QUAN_LY_DOI_TUONG', 'Thêm loại đối tượng ưu tiên'),
+('DT_SUA', 'Sửa đối tượng ưu tiên', 'QUAN_LY_DOI_TUONG', 'Sửa tỷ lệ giảm, thông tin đối tượng'),
+('DT_XOA', 'Xóa đối tượng ưu tiên', 'QUAN_LY_DOI_TUONG', 'Xóa đối tượng ưu tiên'),
+('DT_GAN', 'Gán đối tượng cho sinh viên', 'QUAN_LY_DOI_TUONG', 'Gán đối tượng ưu tiên cho sinh viên'),
+-- Quyền quản lý môn học
+('MH_XEM', 'Xem danh sách môn học', 'QUAN_LY_MON_HOC', 'Xem thông tin môn học'),
+('MH_THEM', 'Thêm môn học', 'QUAN_LY_MON_HOC', 'Thêm môn học mới (BM2)'),
+('MH_SUA', 'Sửa môn học', 'QUAN_LY_MON_HOC', 'Cập nhật thông tin môn học'),
+('MH_XOA', 'Xóa môn học', 'QUAN_LY_MON_HOC', 'Xóa môn học'),
+-- Quyền quản lý chương trình học
+('CTH_XEM', 'Xem chương trình học', 'QUAN_LY_CHUONG_TRINH', 'Xem chương trình đào tạo (BM3)'),
+('CTH_THEM', 'Thêm chương trình học', 'QUAN_LY_CHUONG_TRINH', 'Thêm môn vào chương trình'),
+('CTH_SUA', 'Sửa chương trình học', 'QUAN_LY_CHUONG_TRINH', 'Sửa chương trình đào tạo'),
+('CTH_XOA', 'Xóa chương trình học', 'QUAN_LY_CHUONG_TRINH', 'Xóa môn khỏi chương trình'),
+-- Quyền quản lý học kỳ & lớp mở
+('HK_XEM', 'Xem học kỳ', 'QUAN_LY_HOC_KY', 'Xem danh sách học kỳ'),
+('HK_THEM', 'Thêm học kỳ', 'QUAN_LY_HOC_KY', 'Tạo học kỳ mới'),
+('HK_SUA', 'Sửa học kỳ', 'QUAN_LY_HOC_KY', 'Cập nhật thông tin học kỳ'),
+('LM_XEM', 'Xem lớp mở', 'QUAN_LY_HOC_KY', 'Xem danh sách lớp mở (BM4)'),
+('LM_THEM', 'Thêm lớp mở', 'QUAN_LY_HOC_KY', 'Mở lớp trong học kỳ'),
+('LM_SUA', 'Sửa lớp mở', 'QUAN_LY_HOC_KY', 'Cập nhật thông tin lớp mở'),
+('LM_XOA', 'Xóa lớp mở', 'QUAN_LY_HOC_KY', 'Đóng/xóa lớp mở'),
+-- Quyền đăng ký môn học
+('DK_XEM', 'Xem phiếu đăng ký', 'DANG_KY_MON_HOC', 'Xem phiếu đăng ký môn học (BM5)'),
+('DK_THEM', 'Đăng ký môn học', 'DANG_KY_MON_HOC', 'Tạo phiếu đăng ký môn học'),
+('DK_SUA', 'Sửa đăng ký', 'DANG_KY_MON_HOC', 'Cập nhật phiếu đăng ký'),
+('DK_XOA', 'Hủy đăng ký', 'DANG_KY_MON_HOC', 'Hủy phiếu đăng ký môn học'),
+-- Quyền quản lý học phí
+('HP_XEM', 'Xem học phí', 'QUAN_LY_HOC_PHI', 'Xem thông tin học phí (BM6)'),
+('HP_THU', 'Thu học phí', 'QUAN_LY_HOC_PHI', 'Lập phiếu thu học phí'),
+('HP_HUY', 'Hủy phiếu thu', 'QUAN_LY_HOC_PHI', 'Hủy phiếu thu học phí'),
+-- Quyền quản lý điểm
+('DIEM_XEM', 'Xem điểm', 'QUAN_LY_DIEM', 'Xem bảng điểm sinh viên (BM7)'),
+('DIEM_NHAP', 'Nhập điểm', 'QUAN_LY_DIEM', 'Nhập điểm cho sinh viên'),
+('DIEM_SUA', 'Sửa điểm', 'QUAN_LY_DIEM', 'Sửa điểm đã nhập'),
+-- Quyền báo cáo
+('BC_XEM', 'Xem báo cáo', 'BAO_CAO', 'Xem các báo cáo thống kê'),
+('BC_XUAT', 'Xuất báo cáo', 'BAO_CAO', 'Xuất báo cáo ra file'),
+-- Quyền quản lý địa danh
+('DD_XEM', 'Xem địa danh', 'QUAN_LY_DIA_DANH', 'Xem tỉnh/phường xã (QĐ1)'),
+('DD_THEM', 'Thêm địa danh', 'QUAN_LY_DIA_DANH', 'Thêm tỉnh/phường xã'),
+('DD_SUA', 'Sửa địa danh', 'QUAN_LY_DIA_DANH', 'Sửa thông tin địa danh'),
+('DD_XOA', 'Xóa địa danh', 'QUAN_LY_DIA_DANH', 'Xóa địa danh'),
+-- Quyền quản lý thông báo
+('TB_XEM', 'Xem thông báo', 'QUAN_LY_THONG_BAO', 'Xem thông báo'),
+('TB_THEM', 'Tạo thông báo', 'QUAN_LY_THONG_BAO', 'Tạo thông báo mới'),
+('TB_SUA', 'Sửa thông báo', 'QUAN_LY_THONG_BAO', 'Sửa thông báo'),
+('TB_XOA', 'Xóa thông báo', 'QUAN_LY_THONG_BAO', 'Xóa thông báo'),
+-- Quyền phân quyền (chỉ dành cho admin)
+('PQ_XEM', 'Xem phân quyền', 'PHAN_QUYEN', 'Xem nhóm người dùng và quyền hạn'),
+('PQ_GAN', 'Gán quyền', 'PHAN_QUYEN', 'Gán quyền cho nhóm người dùng'),
+('PQ_XOA', 'Xóa quyền', 'PHAN_QUYEN', 'Xóa quyền khỏi nhóm người dùng'),
+('PQ_GAN_NHOM', 'Gán nhóm cho tài khoản', 'PHAN_QUYEN', 'Gán tài khoản vào nhóm người dùng'),
+-- Quyền quản lý tài khoản
+('TK_XEM', 'Xem tài khoản', 'QUAN_LY_TAI_KHOAN', 'Xem danh sách tài khoản'),
+('TK_THEM', 'Thêm tài khoản', 'QUAN_LY_TAI_KHOAN', 'Tạo tài khoản mới'),
+('TK_SUA', 'Sửa tài khoản', 'QUAN_LY_TAI_KHOAN', 'Cập nhật thông tin tài khoản'),
+('TK_XOA', 'Xóa tài khoản', 'QUAN_LY_TAI_KHOAN', 'Xóa/khóa tài khoản'),
+-- Quyền cấu hình hệ thống
+('CH_XEM', 'Xem cấu hình', 'CAU_HINH', 'Xem cấu hình hệ thống (QĐ2-QĐ7)'),
+('CH_SUA', 'Sửa cấu hình', 'CAU_HINH', 'Thay đổi cấu hình hệ thống');
+
+-- =====================================================
+-- INSERT DATA - Gán quyền cho nhóm người dùng (Permission Assignment)
+-- Đây là cách phân quyền bằng phần mềm: thêm/xóa dòng trong bảng này
+-- =====================================================
+
+-- Nhóm ADMIN: có tất cả quyền
+INSERT INTO nhom_quyen (ma_nhom, ma_quyen, nguoi_gan) VALUES
+('ADMIN', 'SV_XEM', 'system'), ('ADMIN', 'SV_THEM', 'system'), ('ADMIN', 'SV_SUA', 'system'), ('ADMIN', 'SV_XOA', 'system'),
+('ADMIN', 'DT_XEM', 'system'), ('ADMIN', 'DT_THEM', 'system'), ('ADMIN', 'DT_SUA', 'system'), ('ADMIN', 'DT_XOA', 'system'), ('ADMIN', 'DT_GAN', 'system'),
+('ADMIN', 'MH_XEM', 'system'), ('ADMIN', 'MH_THEM', 'system'), ('ADMIN', 'MH_SUA', 'system'), ('ADMIN', 'MH_XOA', 'system'),
+('ADMIN', 'CTH_XEM', 'system'), ('ADMIN', 'CTH_THEM', 'system'), ('ADMIN', 'CTH_SUA', 'system'), ('ADMIN', 'CTH_XOA', 'system'),
+('ADMIN', 'HK_XEM', 'system'), ('ADMIN', 'HK_THEM', 'system'), ('ADMIN', 'HK_SUA', 'system'),
+('ADMIN', 'LM_XEM', 'system'), ('ADMIN', 'LM_THEM', 'system'), ('ADMIN', 'LM_SUA', 'system'), ('ADMIN', 'LM_XOA', 'system'),
+('ADMIN', 'DK_XEM', 'system'), ('ADMIN', 'DK_THEM', 'system'), ('ADMIN', 'DK_SUA', 'system'), ('ADMIN', 'DK_XOA', 'system'),
+('ADMIN', 'HP_XEM', 'system'), ('ADMIN', 'HP_THU', 'system'), ('ADMIN', 'HP_HUY', 'system'),
+('ADMIN', 'DIEM_XEM', 'system'), ('ADMIN', 'DIEM_NHAP', 'system'), ('ADMIN', 'DIEM_SUA', 'system'),
+('ADMIN', 'BC_XEM', 'system'), ('ADMIN', 'BC_XUAT', 'system'),
+('ADMIN', 'DD_XEM', 'system'), ('ADMIN', 'DD_THEM', 'system'), ('ADMIN', 'DD_SUA', 'system'), ('ADMIN', 'DD_XOA', 'system'),
+('ADMIN', 'TB_XEM', 'system'), ('ADMIN', 'TB_THEM', 'system'), ('ADMIN', 'TB_SUA', 'system'), ('ADMIN', 'TB_XOA', 'system'),
+('ADMIN', 'PQ_XEM', 'system'), ('ADMIN', 'PQ_GAN', 'system'), ('ADMIN', 'PQ_XOA', 'system'), ('ADMIN', 'PQ_GAN_NHOM', 'system'),
+('ADMIN', 'TK_XEM', 'system'), ('ADMIN', 'TK_THEM', 'system'), ('ADMIN', 'TK_SUA', 'system'), ('ADMIN', 'TK_XOA', 'system'),
+('ADMIN', 'CH_XEM', 'system'), ('ADMIN', 'CH_SUA', 'system');
+
+-- Nhóm PHONG_DAO_TAO: quyền quản lý đào tạo
+INSERT INTO nhom_quyen (ma_nhom, ma_quyen, nguoi_gan) VALUES
+('PHONG_DAO_TAO', 'SV_XEM', 'system'), ('PHONG_DAO_TAO', 'SV_THEM', 'system'), ('PHONG_DAO_TAO', 'SV_SUA', 'system'),
+('PHONG_DAO_TAO', 'DT_XEM', 'system'), ('PHONG_DAO_TAO', 'DT_GAN', 'system'),
+('PHONG_DAO_TAO', 'MH_XEM', 'system'), ('PHONG_DAO_TAO', 'MH_THEM', 'system'), ('PHONG_DAO_TAO', 'MH_SUA', 'system'), ('PHONG_DAO_TAO', 'MH_XOA', 'system'),
+('PHONG_DAO_TAO', 'CTH_XEM', 'system'), ('PHONG_DAO_TAO', 'CTH_THEM', 'system'), ('PHONG_DAO_TAO', 'CTH_SUA', 'system'), ('PHONG_DAO_TAO', 'CTH_XOA', 'system'),
+('PHONG_DAO_TAO', 'HK_XEM', 'system'), ('PHONG_DAO_TAO', 'HK_THEM', 'system'), ('PHONG_DAO_TAO', 'HK_SUA', 'system'),
+('PHONG_DAO_TAO', 'LM_XEM', 'system'), ('PHONG_DAO_TAO', 'LM_THEM', 'system'), ('PHONG_DAO_TAO', 'LM_SUA', 'system'), ('PHONG_DAO_TAO', 'LM_XOA', 'system'),
+('PHONG_DAO_TAO', 'DK_XEM', 'system'),
+('PHONG_DAO_TAO', 'DIEM_XEM', 'system'), ('PHONG_DAO_TAO', 'DIEM_NHAP', 'system'), ('PHONG_DAO_TAO', 'DIEM_SUA', 'system'),
+('PHONG_DAO_TAO', 'BC_XEM', 'system'),
+('PHONG_DAO_TAO', 'DD_XEM', 'system'),
+('PHONG_DAO_TAO', 'TB_XEM', 'system'), ('PHONG_DAO_TAO', 'TB_THEM', 'system');
+
+-- Nhóm PHONG_TCKT: quyền quản lý tài chính
+INSERT INTO nhom_quyen (ma_nhom, ma_quyen, nguoi_gan) VALUES
+('PHONG_TCKT', 'SV_XEM', 'system'),
+('PHONG_TCKT', 'DT_XEM', 'system'),
+('PHONG_TCKT', 'DK_XEM', 'system'),
+('PHONG_TCKT', 'HP_XEM', 'system'), ('PHONG_TCKT', 'HP_THU', 'system'), ('PHONG_TCKT', 'HP_HUY', 'system'),
+('PHONG_TCKT', 'BC_XEM', 'system'), ('PHONG_TCKT', 'BC_XUAT', 'system'),
+('PHONG_TCKT', 'TB_XEM', 'system'), ('PHONG_TCKT', 'TB_THEM', 'system');
+
+-- Nhóm SINH_VIEN: quyền cơ bản của sinh viên
+INSERT INTO nhom_quyen (ma_nhom, ma_quyen, nguoi_gan) VALUES
+('SINH_VIEN', 'DK_XEM', 'system'), ('SINH_VIEN', 'DK_THEM', 'system'), ('SINH_VIEN', 'DK_SUA', 'system'), ('SINH_VIEN', 'DK_XOA', 'system'),
+('SINH_VIEN', 'HP_XEM', 'system'),
+('SINH_VIEN', 'DIEM_XEM', 'system'),
+('SINH_VIEN', 'TB_XEM', 'system'),
+('SINH_VIEN', 'MH_XEM', 'system'),
+('SINH_VIEN', 'CTH_XEM', 'system'),
+('SINH_VIEN', 'HK_XEM', 'system'),
+('SINH_VIEN', 'LM_XEM', 'system');
+
+-- =====================================================
 -- INSERT DATA - Tài khoản mẫu (Sample Accounts)
 -- Password: admin123 -> bcrypt hash
 -- Password: student123 -> bcrypt hash
@@ -6347,6 +6598,28 @@ UPDATE tai_khoan SET ma_sv = '22520002' WHERE ten_dang_nhap = '22520002';
 UPDATE tai_khoan SET ma_sv = '22520003' WHERE ten_dang_nhap = '22520003';
 UPDATE tai_khoan SET ma_sv = '22520004' WHERE ten_dang_nhap = '22520004';
 UPDATE tai_khoan SET ma_sv = '22520005' WHERE ten_dang_nhap = '22520005';
+
+-- =====================================================
+-- Bước 4: Gán tài khoản vào nhóm người dùng (Phân quyền bằng phần mềm)
+-- Admin -> nhóm ADMIN, Sinh viên -> nhóm SINH_VIEN
+-- =====================================================
+INSERT INTO tai_khoan_nhom (ma_tai_khoan, ma_nhom, nguoi_gan)
+SELECT ma_tai_khoan, 'ADMIN', 'system' FROM tai_khoan WHERE ten_dang_nhap = 'admin';
+
+INSERT INTO tai_khoan_nhom (ma_tai_khoan, ma_nhom, nguoi_gan)
+SELECT ma_tai_khoan, 'SINH_VIEN', 'system' FROM tai_khoan WHERE ten_dang_nhap = '22520001';
+
+INSERT INTO tai_khoan_nhom (ma_tai_khoan, ma_nhom, nguoi_gan)
+SELECT ma_tai_khoan, 'SINH_VIEN', 'system' FROM tai_khoan WHERE ten_dang_nhap = '22520002';
+
+INSERT INTO tai_khoan_nhom (ma_tai_khoan, ma_nhom, nguoi_gan)
+SELECT ma_tai_khoan, 'SINH_VIEN', 'system' FROM tai_khoan WHERE ten_dang_nhap = '22520003';
+
+INSERT INTO tai_khoan_nhom (ma_tai_khoan, ma_nhom, nguoi_gan)
+SELECT ma_tai_khoan, 'SINH_VIEN', 'system' FROM tai_khoan WHERE ten_dang_nhap = '22520004';
+
+INSERT INTO tai_khoan_nhom (ma_tai_khoan, ma_nhom, nguoi_gan)
+SELECT ma_tai_khoan, 'SINH_VIEN', 'system' FROM tai_khoan WHERE ten_dang_nhap = '22520005';
 
 -- =====================================================
 -- INSERT DATA - Lớp học (Classes)
