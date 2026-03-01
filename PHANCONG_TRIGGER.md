@@ -3095,7 +3095,19 @@ UPDATE tiet_hoc SET gio_bat_dau = '07:30:00' WHERE ma_tiet = 1;
 
 ---
 
-#### 5. `trg_quyen_before_delete`
+#### 5. `trg_quyen_before_update`
+**Mục đích:** Kiểm tra dữ liệu khi cập nhật quyền hạn.
+
+**Logic xử lý:**
+- Không cho phép sửa `ma_quyen` (khóa chính)
+- Kiểm tra `ten_quyen` không được rỗng
+- Kiểm tra `nhom_chuc_nang` không được rỗng
+
+**Output:** Cho phép UPDATE nếu hợp lệ, raise exception nếu không hợp lệ
+
+---
+
+#### 6. `trg_quyen_before_delete`
 **Mục đích:** Kiểm tra quyền chưa được gán cho nhóm nào trước khi xóa.
 
 **Logic xử lý:**
@@ -3106,7 +3118,7 @@ UPDATE tiet_hoc SET gio_bat_dau = '07:30:00' WHERE ma_tiet = 1;
 
 ---
 
-#### 6. `trg_nhom_quyen_before_insert`
+#### 7. `trg_nhom_quyen_before_insert`
 **Mục đích:** Kiểm tra trước khi gán quyền cho nhóm.
 
 **Logic xử lý:**
@@ -3118,7 +3130,7 @@ UPDATE tiet_hoc SET gio_bat_dau = '07:30:00' WHERE ma_tiet = 1;
 
 ---
 
-#### 7. `trg_tai_khoan_nhom_before_insert`
+#### 8. `trg_tai_khoan_nhom_before_insert`
 **Mục đích:** Kiểm tra trước khi gán tài khoản vào nhóm.
 
 **Logic xử lý:**
@@ -3130,7 +3142,7 @@ UPDATE tiet_hoc SET gio_bat_dau = '07:30:00' WHERE ma_tiet = 1;
 
 ---
 
-#### 8. `fn_kiem_tra_quyen(ma_tai_khoan, ma_quyen)`
+#### 9. `fn_kiem_tra_quyen(ma_tai_khoan, ma_quyen)`
 **Mục đích:** Kiểm tra tài khoản có quyền cụ thể không (dùng bởi phần mềm để phân quyền).
 
 **Input:** `ma_tai_khoan INTEGER`, `ma_quyen VARCHAR(50)`
@@ -3152,9 +3164,11 @@ SELECT EXISTS (
 
 **Output:** `BOOLEAN` - TRUE nếu có quyền, FALSE nếu không
 
+> **Lưu ý hiệu suất:** Function này join 4 bảng và được gọi thường xuyên bởi middleware. Các index `idx_tkn_ma_tai_khoan`, `idx_tkn_ma_nhom`, `idx_nq_ma_nhom`, `idx_nq_ma_quyen` đã được tạo để tối ưu hiệu suất. Phần mềm nên cache kết quả quyền khi đăng nhập để giảm số lần gọi.
+
 ---
 
-#### 9. `fn_lay_danh_sach_quyen(ma_tai_khoan)`
+#### 10. `fn_lay_danh_sach_quyen(ma_tai_khoan)`
 **Mục đích:** Lấy tất cả quyền của một tài khoản (phần mềm dùng để xây dựng menu/UI).
 
 **Input:** `ma_tai_khoan INTEGER`
@@ -3163,7 +3177,7 @@ SELECT EXISTS (
 
 ---
 
-#### 10. `sp_gan_quyen_nhom(ma_nhom, ma_quyen, nguoi_gan)`
+#### 11. `sp_gan_quyen_nhom(ma_nhom, ma_quyen, nguoi_gan)`
 **Mục đích:** Stored procedure gán quyền cho nhóm người dùng (giao diện phần mềm gọi procedure này).
 
 **Logic xử lý:**
@@ -3173,7 +3187,7 @@ SELECT EXISTS (
 
 ---
 
-#### 11. `sp_gan_tai_khoan_nhom(ma_tai_khoan, ma_nhom, nguoi_gan)`
+#### 12. `sp_gan_tai_khoan_nhom(ma_tai_khoan, ma_nhom, nguoi_gan)`
 **Mục đích:** Stored procedure gán tài khoản vào nhóm người dùng.
 
 **Logic xử lý:**
