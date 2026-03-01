@@ -665,6 +665,62 @@ GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
 
 ---
 
+## 🗂️ MODULE 20: PHÂN QUYỀN NGƯỜI DÙNG (MỚI)
+
+### Mô tả:
+Quản lý phân quyền bằng phần mềm: tạo nhóm người dùng, định nghĩa quyền hạn, gán quyền cho nhóm, gán tài khoản vào nhóm. **Không dùng cơ sở dữ liệu (database role/grant) để gán quyền trực tiếp.**
+
+Chuỗi phân quyền: `tai_khoan` → `tai_khoan_nhom` → `nhom_nguoi_dung` → `nhom_quyen` → `quyen`
+
+### Bảng Database:
+- `nhom_nguoi_dung` - Nhóm người dùng (ADMIN, PHONG_DAO_TAO, PHONG_TCKT, SINH_VIEN)
+- `quyen` - Danh sách quyền hạn (SV_XEM, SV_THEM, MH_SUA, PQ_GAN...)
+- `nhom_quyen` - Gán quyền cho nhóm
+- `tai_khoan_nhom` - Gán tài khoản vào nhóm
+
+### Files liên quan:
+
+| Loại | File | Mô tả |
+|------|------|-------|
+| **SQL** | `backend/src/config/init.sql` | Bảng `nhom_nguoi_dung`, `quyen`, `nhom_quyen`, `tai_khoan_nhom`, view `v_quyen_tai_khoan` |
+| **Backend** | `backend/src/controllers/permissionController.js` | **Tạo mới** - API CRUD nhóm người dùng, quyền, gán quyền |
+| **Backend** | `backend/src/routes/permissionRoutes.js` | **Tạo mới** - Routes phân quyền |
+| **Backend** | `backend/src/middleware/permissionMiddleware.js` | **Tạo mới** - Middleware kiểm tra quyền |
+| **Frontend** | `frontend/src/pages/admin/PermissionManagement.jsx` | **Tạo mới** - Giao diện quản lý phân quyền |
+| **Frontend** | `frontend/src/pages/admin/PermissionManagement.css` | **Tạo mới** - Styles |
+| **Frontend** | `frontend/src/services/permissionService.js` | **Tạo mới** - API service phân quyền |
+
+### API Endpoints:
+```
+# Nhóm người dùng
+GET    /api/permissions/groups              - Lấy danh sách nhóm người dùng
+GET    /api/permissions/groups/:id          - Chi tiết nhóm (kèm danh sách quyền)
+POST   /api/permissions/groups              - Thêm nhóm người dùng
+PUT    /api/permissions/groups/:id          - Sửa nhóm người dùng
+DELETE /api/permissions/groups/:id          - Xóa nhóm người dùng
+
+# Quyền hạn
+GET    /api/permissions/rights              - Lấy danh sách quyền
+GET    /api/permissions/rights/:id          - Chi tiết quyền
+
+# Gán quyền cho nhóm
+POST   /api/permissions/groups/:id/rights   - Gán quyền cho nhóm
+DELETE /api/permissions/groups/:gid/rights/:rid - Xóa quyền khỏi nhóm
+
+# Gán tài khoản vào nhóm
+GET    /api/permissions/accounts/:id/groups - Lấy nhóm của tài khoản
+POST   /api/permissions/accounts/:id/groups - Gán tài khoản vào nhóm
+DELETE /api/permissions/accounts/:aid/groups/:gid - Xóa tài khoản khỏi nhóm
+
+# Kiểm tra quyền
+GET    /api/permissions/check/:accountId/:permCode - Kiểm tra quyền cụ thể
+GET    /api/permissions/my-permissions      - Lấy danh sách quyền của tài khoản đang đăng nhập
+```
+
+### Phân công: **THÀNH VIÊN 1** (phụ trách chính), hỗ trợ bởi tất cả thành viên
+
+---
+
 ## 📁 SƠ ĐỒ QUAN HỆ MODULE
 
 ```
