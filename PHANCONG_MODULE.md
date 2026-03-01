@@ -665,6 +665,61 @@ GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
 
 ---
 
+## 🗂️ MODULE 20: PHÂN QUYỀN HỆ THỐNG (MỚI)
+
+### Mô tả:
+Quản lý phân quyền (Role-Based Access Control) cho hệ thống. Cho phép admin gán/thu hồi quyền cho từng vai trò (admin, phong_dao_tao, sinh_vien), kiểm soát truy cập các chức năng trên cả backend và frontend.
+
+### Bảng Database:
+- `quyen` - Bảng quyền (ma_quyen, ten_quyen, nhom_quyen, mo_ta)
+- `vai_tro_quyen` - Mapping vai trò - quyền (role, ma_quyen)
+
+### Files liên quan:
+
+| Loại | File | Mô tả |
+|------|------|-------|
+| **SQL** | `backend/src/config/init.sql` | Bảng `quyen`, `vai_tro_quyen`, dữ liệu mặc định |
+| **Backend** | `backend/src/controllers/roleController.js` | **Tạo mới** - CRUD vai trò và quyền |
+| **Backend** | `backend/src/routes/roleRoutes.js` | **Tạo mới** - Routes cho phân quyền |
+| **Backend** | `backend/src/middleware/auth.js` | Cập nhật - Thêm middleware `requirePermission(permission)` |
+| **Frontend** | `frontend/src/pages/admin/RoleManagement.jsx` | **Tạo mới** - Giao diện quản lý phân quyền |
+| **Frontend** | `frontend/src/pages/admin/RoleManagement.css` | **Tạo mới** - Styles |
+| **Frontend** | `frontend/src/services/index.js` | Cập nhật - Thêm `roleService` |
+| **Frontend** | `frontend/src/context/AuthContext.jsx` | Cập nhật - Thêm `hasPermission()` |
+| **Frontend** | `frontend/src/App.jsx` | Cập nhật - Thêm route `/admin/roles` |
+| **Frontend** | `frontend/src/components/admin/AdminSidebar.jsx` | Cập nhật - Thêm menu phân quyền |
+
+### API Endpoints:
+```
+GET    /api/roles                    - Lấy tất cả vai trò và quyền
+GET    /api/roles/permissions        - Lấy tất cả quyền
+GET    /api/roles/my-permissions     - Lấy quyền của user hiện tại
+GET    /api/roles/:role/permissions  - Lấy quyền theo vai trò
+PUT    /api/roles/:role/permissions  - Cập nhật quyền cho vai trò
+```
+
+### Quyền mặc định:
+| Mã quyền | Tên quyền | Nhóm quyền |
+|-----------|-----------|------------|
+| STUDENT_VIEW | Xem danh sách sinh viên | Sinh viên |
+| STUDENT_CREATE | Thêm sinh viên | Sinh viên |
+| STUDENT_EDIT | Sửa sinh viên | Sinh viên |
+| STUDENT_DELETE | Xóa sinh viên | Sinh viên |
+| COURSE_VIEW | Xem danh sách môn học | Môn học |
+| COURSE_CREATE | Thêm môn học | Môn học |
+| REGISTRATION_VIEW | Xem đăng ký | Đăng ký |
+| REGISTRATION_CREATE | Tạo đăng ký | Đăng ký |
+| TUITION_VIEW | Xem học phí | Học phí |
+| TUITION_MANAGE | Quản lý học phí | Học phí |
+| REPORT_VIEW | Xem báo cáo | Báo cáo |
+| REPORT_EXPORT | Xuất báo cáo | Báo cáo |
+| ROLE_VIEW | Xem phân quyền | Hệ thống |
+| ROLE_MANAGE | Quản lý phân quyền | Hệ thống |
+
+### Phân công: **THÀNH VIÊN 4**
+
+---
+
 ## 📁 SƠ ĐỒ QUAN HỆ MODULE
 
 ```
@@ -717,6 +772,11 @@ GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
 │  │   Module 15  │                        │   Module 16  │          │
 │  │   Thông báo  │                        │   Dashboard  │          │
 │  └──────────────┘                        └──────────────┘          │
+│                                                                      │
+│  ┌───────────────────────┐                                          │
+│  │      Module 20        │                                          │
+│  │   Phân quyền (RBAC)  │──── Kiểm soát truy cập tất cả module    │
+│  └───────────────────────┘                                          │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
