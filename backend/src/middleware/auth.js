@@ -3,6 +3,10 @@ require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 
+// Phân quyền đơn giản: chỉ có 2 vai trò admin và sinh_vien
+// - admin: được truy cập tất cả trang admin, chỉnh sửa dữ liệu
+// - sinh_vien: chỉ truy cập trang sinh viên, không vào được admin
+
 const authMiddleware = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -39,7 +43,7 @@ const adminMiddleware = (req, res, next) => {
   } else {
     return res.status(403).json({ 
       success: false, 
-      message: 'Không có quyền truy cập' 
+      message: 'Không có quyền truy cập. Chỉ admin mới được phép.' 
     });
   }
 };

@@ -13,6 +13,7 @@ const tuitionRoutes = require('./routes/tuitionRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const semesterRoutes = require('./routes/semesterRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const roleRoutes = require('./routes/roleRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -58,6 +59,7 @@ app.use('/api/tuition', tuitionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/semesters', semesterRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/roles', roleRoutes);
 
 // 404 handler
 app.use((req, res) => {

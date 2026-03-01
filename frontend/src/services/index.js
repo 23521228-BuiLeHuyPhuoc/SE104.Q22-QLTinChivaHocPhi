@@ -294,3 +294,26 @@ export const notificationService = {
     return response.data;
   }
 };
+
+// Role & User management service
+export const roleService = {
+  getAllRoles: async () => {
+    const response = await api.get('/roles');
+    return response.data;
+  },
+
+  getMyRole: async () => {
+    const response = await api.get('/roles/my-role');
+    return response.data;
+  },
+
+  getAllAccounts: async (params) => {
+    const response = await api.get('/roles/accounts', { params });
+    return response.data;
+  },
+
+  updateUserRole: async (id, role) => {
+    const response = await api.put(`/roles/accounts/${id}/role`, { role });
+    return response.data;
+  }
+};
