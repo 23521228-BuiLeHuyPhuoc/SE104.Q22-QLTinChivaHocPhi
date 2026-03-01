@@ -2278,10 +2278,11 @@ diem_tb = diem_qt * 0.2 + diem_gk * 0.3 + diem_ck * 0.5
   - Số tiền phải đóng <= Số tiền đăng ký (do miễn giảm theo đối tượng)
 
 ### Chi tiết yêu cầu về Phân quyền hệ thống:
-- Phân quyền được thực hiện hoàn toàn bằng phần mềm (middleware), không dùng bảng CSDL
-- 2 vai trò: admin (Quản trị viên) và sinh_vien (Sinh viên), sử dụng cột `role` trong bảng `tai_khoan`
-- Middleware `requirePermission(permission)` kiểm tra quyền dựa trên map `ROLE_PERMISSIONS` trong mã nguồn
-- Không cần trigger cho phân quyền vì không có bảng quyền trong CSDL
+- Phân quyền đơn giản: chỉ có 2 vai trò **admin** và **sinh_vien**
+- Admin: truy cập toàn bộ trang quản trị, chỉnh sửa dữ liệu
+- Sinh viên: chỉ truy cập trang sinh viên, không vào được admin
+- Sử dụng cột `role` trong bảng `tai_khoan`, kiểm tra bằng middleware `adminMiddleware`
+- Không cần trigger, function hay bảng quyền phức tạp
 
 ---
 

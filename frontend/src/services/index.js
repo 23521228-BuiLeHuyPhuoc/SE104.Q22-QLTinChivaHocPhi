@@ -294,26 +294,3 @@ export const notificationService = {
     return response.data;
   }
 };
-
-// Role/Permission service for authorization management
-export const roleService = {
-  getAll: async () => {
-    const response = await api.get('/roles');
-    return response.data;
-  },
-
-  getAllPermissions: async () => {
-    const response = await api.get('/roles/permissions');
-    return response.data;
-  },
-
-  getRolePermissions: async (role) => {
-    const response = await api.get(`/roles/${role}/permissions`);
-    return response.data;
-  },
-
-  getMyPermissions: async () => {
-    const response = await api.get('/roles/my-permissions');
-    return response.data;
-  }
-};

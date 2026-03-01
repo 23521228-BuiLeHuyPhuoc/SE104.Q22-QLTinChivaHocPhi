@@ -2,15 +2,6 @@
   padding: 24px;
 }
 
-.role-management.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  font-size: 1.1rem;
-  color: var(--text-secondary, #6b7280);
-}
-
 .role-management .page-header {
   display: flex;
   justify-content: space-between;
@@ -41,134 +32,87 @@
   font-size: 0.9rem;
 }
 
-.role-tabs {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.role-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: var(--bg-secondary, #f3f4f6);
-  border: 2px solid transparent;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text-secondary, #6b7280);
-  transition: all 0.2s;
-}
-
-.role-tab:hover {
-  background: var(--bg-hover, #e5e7eb);
-}
-
-.role-tab.active {
-  background: var(--primary-light, #eff6ff);
-  border-color: var(--primary, #3b82f6);
-  color: var(--primary, #3b82f6);
-}
-
-.perm-count {
-  font-size: 0.8rem;
-  background: var(--bg-tertiary, #e5e7eb);
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.role-tab.active .perm-count {
-  background: var(--primary, #3b82f6);
-  color: white;
-}
-
-.permissions-grid {
+.roles-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 24px;
 }
 
-.permission-group {
+.role-card {
   background: var(--bg-primary, white);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  overflow: hidden;
+  padding: 24px;
+  transition: box-shadow 0.2s;
 }
 
-.group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 16px;
-  background: var(--bg-secondary, #f9fafb);
-  border-bottom: 1px solid var(--border, #e5e7eb);
+.role-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.group-checkbox {
+.role-card-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  cursor: pointer;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.group-checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--primary, #3b82f6);
-  cursor: pointer;
+.role-card-header .role-icon {
+  font-size: 1.5rem;
 }
 
-.group-title {
-  font-weight: 600;
-  font-size: 0.95rem;
+.admin-card .role-icon {
+  color: var(--primary, #3b82f6);
+}
+
+.student-card .role-icon {
+  color: #10b981;
+}
+
+.role-card-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
   color: var(--text-primary, #1f2937);
 }
 
-.group-count {
-  font-size: 0.85rem;
+.role-description {
   color: var(--text-secondary, #6b7280);
-  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
 }
 
-.group-permissions {
-  padding: 8px 0;
+.role-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-.permission-item {
+.role-features li {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.permission-item:hover {
-  background: var(--bg-hover, #f3f4f6);
-}
-
-.permission-item input[type="checkbox"] {
-  margin-top: 2px;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary, #3b82f6);
-  cursor: pointer;
-}
-
-.permission-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.permission-name {
+  padding: 8px 0;
   font-size: 0.9rem;
   color: var(--text-primary, #1f2937);
+  border-bottom: 1px solid var(--border-light, #f3f4f6);
 }
 
-.permission-desc {
-  font-size: 0.8rem;
+.role-features li:last-child {
+  border-bottom: none;
+}
+
+.role-features li.disabled {
   color: var(--text-tertiary, #9ca3af);
+}
+
+.check-icon {
+  color: #10b981;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.times-icon {
+  color: #ef4444;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }

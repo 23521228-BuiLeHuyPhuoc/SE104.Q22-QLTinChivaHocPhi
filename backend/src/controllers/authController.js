@@ -1,7 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
-const { ROLE_PERMISSIONS } = require('../middleware/auth');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
@@ -99,9 +98,6 @@ const login = async (req, res) => {
       }
     }
 
-    // Lấy danh sách quyền của vai trò (phân quyền bằng phần mềm)
-    const permissions = ROLE_PERMISSIONS[user.role] || [];
-
     res.json({
       success: true,
       message: 'Đăng nhập thành công',
@@ -114,8 +110,7 @@ const login = async (req, res) => {
           role: user.role
         },
         student: studentInfo,
-        admin: adminInfo,
-        permissions
+        admin: adminInfo
       }
     });
   } catch (error) {

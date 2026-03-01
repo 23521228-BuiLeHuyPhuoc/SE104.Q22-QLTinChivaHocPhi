@@ -925,9 +925,9 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 12 | `backend/src/routes/exportRoutes.js` | **Tạo mới** - Routes xuất báo cáo |
 | 13 | `backend/src/controllers/gradeController.js` | **Tạo mới** - API quản lý điểm sinh viên |
 | 14 | `backend/src/routes/gradeRoutes.js` | **Tạo mới** - Routes điểm sinh viên |
-| 15 | `backend/src/controllers/roleController.js` | **Tạo mới** - API CRUD vai trò và quyền |
-| 16 | `backend/src/routes/roleRoutes.js` | **Tạo mới** - Routes phân quyền |
-| 17 | `backend/src/middleware/auth.js` | Cập nhật - Thêm middleware `requirePermission(permission)` |
+| 15 | `backend/src/controllers/roleController.js` | **Tạo mới** - API xem danh sách vai trò (admin/sinh_vien) |
+| 16 | `backend/src/routes/roleRoutes.js` | **Tạo mới** - Routes vai trò |
+| 17 | `backend/src/middleware/auth.js` | Cập nhật - Middleware phân quyền admin/sinh_vien |
 | 18 | `backend/src/index.js` | Đăng ký routes mới |
 
 ### 📁 Files Frontend cần thao tác:
@@ -956,12 +956,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 20 | `frontend/src/services/statisticsService.js` | **Tạo mới** - API service thống kê |
 | 21 | `frontend/src/services/exportService.js` | **Tạo mới** - API service xuất báo cáo |
 | 22 | `frontend/src/services/gradeService.js` | **Tạo mới** - API service điểm sinh viên |
-| 23 | `frontend/src/pages/admin/RoleManagement.jsx` | **Tạo mới** - Giao diện quản lý phân quyền |
-| 24 | `frontend/src/pages/admin/RoleManagement.css` | **Tạo mới** - Styles phân quyền |
-| 25 | `frontend/src/services/index.js` | Cập nhật - Thêm `roleService` |
-| 26 | `frontend/src/context/AuthContext.jsx` | Cập nhật - Thêm `hasPermission()` |
-| 27 | `frontend/src/components/admin/AdminSidebar.jsx` | Cập nhật - Thêm menu phân quyền |
-| 28 | `frontend/src/App.jsx` | Cập nhật routes (bao gồm `/admin/roles`) |
+| 23 | `frontend/src/App.jsx` | Cập nhật routes |
 
 ### 📝 Chi tiết công việc:
 
@@ -1329,7 +1324,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   ├── reportController.js 🆕
 │   │   │   ├── statisticsController.js 🆕
 │   │   │   ├── exportController.js 🆕
-│   │   │   └── roleController.js 🆕
+│   │   │   └── roleController.js ✏️
 │   │   ├── routes/
 │   │   │   ├── authRoutes.js
 │   │   │   ├── studentRoutes.js ✏️
@@ -1351,7 +1346,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   ├── reportRoutes.js 🆕
 │   │   │   ├── statisticsRoutes.js 🆕
 │   │   │   ├── exportRoutes.js 🆕
-│   │   │   └── roleRoutes.js 🆕
+│   │   │   └── roleRoutes.js ✏️
 │   │   └── index.js ✏️
 │
 ├── frontend/
@@ -1375,8 +1370,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   │   ├── Departments.jsx 🆕
 │   │   │   │   ├── OpenClasses.jsx 🆕
 │   │   │   │   ├── UnitPrices.jsx 🆕
-│   │   │   │   ├── Statistics.jsx 🆕
-│   │   │   │   └── RoleManagement.jsx 🆕
+│   │   │   │   └── Statistics.jsx 🆕
 │   │   │   └── student/
 │   │   ├── services/
 │   │   │   ├── locationService.js 🆕
