@@ -312,11 +312,6 @@ export const roleService = {
     return response.data;
   },
 
-  updateRolePermissions: async (role, permissions) => {
-    const response = await api.put(`/roles/${role}/permissions`, { permissions });
-    return response.data;
-  },
-
   getMyPermissions: async () => {
     const response = await api.get('/roles/my-permissions');
     return response.data;

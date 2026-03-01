@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { ROLE_PERMISSIONS } = require('../middleware/auth');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
@@ -98,14 +99,8 @@ const login = async (req, res) => {
       }
     }
 
-    // Lấy danh sách quyền của vai trò
-    const permResult = await pool.query(
-      `SELECT q.ma_quyen FROM quyen q
-       INNER JOIN vai_tro_quyen vtq ON q.ma_quyen = vtq.ma_quyen
-       WHERE vtq.role = $1`,
-      [user.role]
-    );
-    const permissions = permResult.rows.map(r => r.ma_quyen);
+    // Lấy danh sách quyền của vai trò (phân quyền bằng phần mềm)
+    const permissions = ROLE_PERMISSIONS[user.role] || [];
 
     res.json({
       success: true,

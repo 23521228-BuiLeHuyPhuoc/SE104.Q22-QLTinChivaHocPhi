@@ -1728,9 +1728,6 @@ SELECT sp_huy_dang_ky_lop('SV001', 'HK1-2526', 'CS106_01', 'Trùng lịch');
 | 20 | `fn_chuyen_diem_sang_chu(diem_tb)` | Chuyển điểm số sang điểm chữ (A+, A, B+...) | `diem_sinh_vien` |
 | 21 | `sp_lap_bang_diem_sinh_vien(ma_sv)` | Procedure lập bảng điểm toàn khóa của SV | `diem_sinh_vien`, `mon_hoc`, `hoc_ky` |
 | 22 | `fn_cap_nhat_gpa_tich_luy(ma_sv)` | Cập nhật GPA tích lũy sau khi thay đổi điểm | `diem_sinh_vien` |
-| 23 | `trg_vai_tro_quyen_before_insert` | Kiểm tra quyền hợp lệ trước khi gán cho vai trò | `vai_tro_quyen`, `quyen` |
-| 24 | `trg_vai_tro_quyen_before_delete` | Kiểm tra không xóa quyền cơ bản của admin | `vai_tro_quyen` |
-| 25 | `fn_kiem_tra_quyen(role, ma_quyen)` | Kiểm tra user có quyền cụ thể hay không | `vai_tro_quyen`, `quyen` |
 
 ### 📝 MÔ TẢ CHI TIẾT TỪNG TRIGGER/FUNCTION:
 
@@ -2281,86 +2278,10 @@ diem_tb = diem_qt * 0.2 + diem_gk * 0.3 + diem_ck * 0.5
   - Số tiền phải đóng <= Số tiền đăng ký (do miễn giảm theo đối tượng)
 
 ### Chi tiết yêu cầu về Phân quyền hệ thống:
-- Mỗi vai trò (admin, phong_dao_tao, sinh_vien) có tập quyền riêng
-- Admin có tất cả quyền, không được xóa quyền cơ bản của admin
-- Quyền được nhóm theo chức năng: Sinh viên, Môn học, Đăng ký, Học phí, Báo cáo, Hệ thống
-
-#### `trg_vai_tro_quyen_before_insert`
-**Mục đích:** Kiểm tra quyền hợp lệ trước khi gán cho vai trò.
-
-**Input:** Dữ liệu gán quyền mới (NEW.*)
-
-**Logic xử lý:**
-1. Kiểm tra `NEW.ma_quyen` tồn tại trong bảng `quyen`
-2. Kiểm tra `NEW.role` là vai trò hợp lệ ('admin', 'phong_dao_tao', 'sinh_vien')
-3. Kiểm tra không trùng lặp (role + ma_quyen chưa tồn tại)
-4. Nếu không hợp lệ → RAISE EXCEPTION
-
-**Output:** Cho phép INSERT nếu hợp lệ
-
-**Ví dụ:**
-```sql
--- Gán quyền STUDENT_VIEW cho phong_dao_tao
-INSERT INTO vai_tro_quyen (role, ma_quyen) VALUES ('phong_dao_tao', 'STUDENT_VIEW');
--- Kết quả: INSERT thành công
-
--- Gán quyền không tồn tại
-INSERT INTO vai_tro_quyen (role, ma_quyen) VALUES ('phong_dao_tao', 'INVALID_PERM');
--- Kết quả: Error - Mã quyền không tồn tại
-```
-
----
-
-#### `trg_vai_tro_quyen_before_delete`
-**Mục đích:** Kiểm tra không xóa quyền cơ bản của admin.
-
-**Input:** Dữ liệu quyền cần xóa (OLD.*)
-
-**Logic xử lý:**
-1. Nếu `OLD.role = 'admin'`:
-   - Kiểm tra `OLD.ma_quyen` có thuộc danh sách quyền cơ bản không (ROLE_MANAGE, ROLE_VIEW)
-   - Nếu có → RAISE EXCEPTION 'Không thể xóa quyền cơ bản của admin'
-2. Nếu không phải admin hoặc không phải quyền cơ bản → Cho phép xóa
-
-**Output:** Cho phép DELETE nếu hợp lệ, raise exception nếu không
-
-**Ví dụ:**
-```sql
--- Xóa quyền ROLE_MANAGE của admin
-DELETE FROM vai_tro_quyen WHERE role = 'admin' AND ma_quyen = 'ROLE_MANAGE';
--- Kết quả: Error - Không thể xóa quyền cơ bản của admin
-
--- Xóa quyền REPORT_EXPORT của sinh_vien
-DELETE FROM vai_tro_quyen WHERE role = 'sinh_vien' AND ma_quyen = 'REPORT_EXPORT';
--- Kết quả: DELETE thành công
-```
-
----
-
-#### `fn_kiem_tra_quyen(role, ma_quyen)`
-**Mục đích:** Kiểm tra một vai trò có quyền cụ thể hay không.
-
-**Input:**
-- `p_role VARCHAR` - Vai trò cần kiểm tra
-- `p_ma_quyen VARCHAR` - Mã quyền cần kiểm tra
-
-**Logic xử lý:**
-1. Truy vấn bảng `vai_tro_quyen` với điều kiện `role = p_role AND ma_quyen = p_ma_quyen`
-2. Nếu tồn tại → return TRUE
-3. Nếu không tồn tại → return FALSE
-
-**Output:** BOOLEAN - TRUE nếu có quyền, FALSE nếu không
-
-**Ví dụ:**
-```sql
--- Kiểm tra admin có quyền ROLE_MANAGE
-SELECT fn_kiem_tra_quyen('admin', 'ROLE_MANAGE');
--- Kết quả: TRUE
-
--- Kiểm tra sinh_vien có quyền STUDENT_DELETE
-SELECT fn_kiem_tra_quyen('sinh_vien', 'STUDENT_DELETE');
--- Kết quả: FALSE
-```
+- Phân quyền được thực hiện hoàn toàn bằng phần mềm (middleware), không dùng bảng CSDL
+- 2 vai trò: admin (Quản trị viên) và sinh_vien (Sinh viên), sử dụng cột `role` trong bảng `tai_khoan`
+- Middleware `requirePermission(permission)` kiểm tra quyền dựa trên map `ROLE_PERMISSIONS` trong mã nguồn
+- Không cần trigger cho phân quyền vì không có bảng quyền trong CSDL
 
 ---
 
@@ -2371,7 +2292,7 @@ SELECT fn_kiem_tra_quyen('sinh_vien', 'STUDENT_DELETE');
 | **TV1** | BM1 | QĐ1 | 20 | 5 | 1 |
 | **TV2** | BM2, BM3 | QĐ2, QĐ3 | 13 | 2 | 2 |
 | **TV3** | BM4, BM5 | QĐ4, QĐ5 | 22 | 5 | 4 |
-| **TV4** | BM6, BM7 | QĐ6, QĐ7 | 13 | 7 | 5 |
+| **TV4** | BM6, BM7 | QĐ6, QĐ7 | 11 | 6 | 5 |
 
 ### Chi tiết số lượng TV1 (sau bổ sung):
 - **Trigger (20):**
