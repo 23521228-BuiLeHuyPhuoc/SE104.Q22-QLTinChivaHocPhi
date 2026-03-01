@@ -44,6 +44,8 @@
 -- =====================================================
 
 -- Drop tables if exist (in correct order due to foreign keys)
+DROP TABLE IF EXISTS vai_tro_quyen CASCADE;
+DROP TABLE IF EXISTS quyen CASCADE;
 DROP TABLE IF EXISTS thong_bao CASCADE;
 DROP TABLE IF EXISTS phieu_thu_hoc_phi CASCADE;
 DROP TABLE IF EXISTS chi_tiet_dang_ky CASCADE;
@@ -666,6 +668,30 @@ CREATE TABLE thong_bao (
 );
 
 -- =====================================================
+-- 21. BẢNG quyen - Danh sách quyền hệ thống (Phân quyền)
+-- =====================================================
+CREATE TABLE quyen (
+    ma_quyen VARCHAR(50) NOT NULL,
+    ten_quyen VARCHAR(100) NOT NULL,
+    nhom_quyen VARCHAR(50) NOT NULL,
+    mo_ta TEXT,
+    CONSTRAINT quyen_pkey PRIMARY KEY (ma_quyen)
+);
+
+-- =====================================================
+-- 22. BẢNG vai_tro_quyen - Gán quyền cho vai trò
+-- =====================================================
+CREATE TABLE vai_tro_quyen (
+    id SERIAL NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    ma_quyen VARCHAR(50) NOT NULL,
+    CONSTRAINT vai_tro_quyen_pkey PRIMARY KEY (id),
+    CONSTRAINT vai_tro_quyen_unique UNIQUE (role, ma_quyen),
+    CONSTRAINT fk_vtq_quyen FOREIGN KEY (ma_quyen) 
+        REFERENCES quyen(ma_quyen) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- =====================================================
 -- INDEXES - Tối ưu hiệu suất truy vấn
 -- =====================================================
 
@@ -754,6 +780,11 @@ CREATE INDEX idx_tb_trang_thai ON thong_bao(trang_thai);
 CREATE INDEX idx_tb_loai ON thong_bao(loai);
 CREATE INDEX idx_tb_ma_tai_khoan_nhan ON thong_bao(ma_tai_khoan_nhan);
 CREATE INDEX idx_tb_da_doc ON thong_bao(da_doc);
+
+-- Index cho bảng quyen & vai_tro_quyen
+CREATE INDEX idx_quyen_nhom ON quyen(nhom_quyen);
+CREATE INDEX idx_vtq_role ON vai_tro_quyen(role);
+CREATE INDEX idx_vtq_ma_quyen ON vai_tro_quyen(ma_quyen);
 
 -- =====================================================
 -- VIEWS - Các view báo cáo
@@ -6788,6 +6819,68 @@ INSERT INTO diem_sinh_vien (ma_sv, ma_mon_hoc, ma_hoc_ky, ma_lop, diem_qua_trinh
 ('22520005', 'MA003', 'HK1-2425', 'MA003.N01', 8.0, 7.5, 8.5, 8.08, 'B+', 3, 1, 'Đậu', '2025-01-10 10:00:00'),
 ('22520005', 'IT006', 'HK1-2425', 'IT006.N01', 7.5, 7.0, 8.0, 7.58, 'B', 3, 1, 'Đậu', '2025-01-10 10:00:00'),
 ('22520005', 'ENG03', 'HK1-2425', 'ENG03.N01', 8.0, 7.5, 8.5, 8.08, 'B+', 4, 1, 'Đậu', '2025-01-10 10:00:00');
+
+-- =====================================================
+-- INSERT DATA - Quyền hệ thống (Phân quyền)
+-- =====================================================
+
+INSERT INTO quyen (ma_quyen, ten_quyen, nhom_quyen, mo_ta) VALUES
+-- Nhóm: Quản lý sinh viên
+('STUDENT_VIEW', 'Xem danh sách sinh viên', 'SINH_VIEN', 'Quyền xem thông tin sinh viên'),
+('STUDENT_CREATE', 'Thêm sinh viên', 'SINH_VIEN', 'Quyền tạo hồ sơ sinh viên mới'),
+('STUDENT_EDIT', 'Sửa sinh viên', 'SINH_VIEN', 'Quyền chỉnh sửa thông tin sinh viên'),
+('STUDENT_DELETE', 'Xóa sinh viên', 'SINH_VIEN', 'Quyền xóa hồ sơ sinh viên'),
+-- Nhóm: Quản lý môn học
+('COURSE_VIEW', 'Xem danh sách môn học', 'MON_HOC', 'Quyền xem thông tin môn học'),
+('COURSE_CREATE', 'Thêm môn học', 'MON_HOC', 'Quyền tạo môn học mới'),
+('COURSE_EDIT', 'Sửa môn học', 'MON_HOC', 'Quyền chỉnh sửa thông tin môn học'),
+('COURSE_DELETE', 'Xóa môn học', 'MON_HOC', 'Quyền xóa môn học'),
+-- Nhóm: Quản lý lớp học
+('CLASS_VIEW', 'Xem danh sách lớp học', 'LOP_HOC', 'Quyền xem thông tin lớp học'),
+('CLASS_CREATE', 'Thêm lớp học', 'LOP_HOC', 'Quyền tạo lớp học mới'),
+('CLASS_EDIT', 'Sửa lớp học', 'LOP_HOC', 'Quyền chỉnh sửa thông tin lớp học'),
+('CLASS_DELETE', 'Xóa lớp học', 'LOP_HOC', 'Quyền xóa lớp học'),
+-- Nhóm: Đăng ký môn học
+('REGISTRATION_VIEW', 'Xem danh sách đăng ký', 'DANG_KY', 'Quyền xem phiếu đăng ký'),
+('REGISTRATION_CREATE', 'Đăng ký môn học', 'DANG_KY', 'Quyền đăng ký môn học cho sinh viên'),
+('REGISTRATION_CANCEL', 'Hủy đăng ký', 'DANG_KY', 'Quyền hủy phiếu đăng ký'),
+-- Nhóm: Học phí
+('TUITION_VIEW', 'Xem học phí', 'HOC_PHI', 'Quyền xem thông tin học phí'),
+('TUITION_CALCULATE', 'Tính học phí', 'HOC_PHI', 'Quyền tính toán học phí'),
+-- Nhóm: Thu học phí
+('PAYMENT_VIEW', 'Xem lịch sử thu', 'THU_HP', 'Quyền xem lịch sử thanh toán'),
+('PAYMENT_CREATE', 'Tạo phiếu thu', 'THU_HP', 'Quyền tạo phiếu thu học phí'),
+('PAYMENT_CANCEL', 'Hủy phiếu thu', 'THU_HP', 'Quyền hủy phiếu thu học phí'),
+-- Nhóm: Học kỳ
+('SEMESTER_VIEW', 'Xem học kỳ', 'HOC_KY', 'Quyền xem thông tin học kỳ'),
+('SEMESTER_CREATE', 'Thêm học kỳ', 'HOC_KY', 'Quyền tạo học kỳ mới'),
+('SEMESTER_EDIT', 'Sửa học kỳ', 'HOC_KY', 'Quyền chỉnh sửa học kỳ'),
+('SEMESTER_DELETE', 'Xóa học kỳ', 'HOC_KY', 'Quyền xóa học kỳ'),
+-- Nhóm: Báo cáo
+('REPORT_VIEW', 'Xem báo cáo', 'BAO_CAO', 'Quyền xem báo cáo thống kê'),
+-- Nhóm: Thông báo
+('NOTIFICATION_VIEW', 'Xem thông báo', 'THONG_BAO', 'Quyền xem thông báo'),
+('NOTIFICATION_CREATE', 'Tạo thông báo', 'THONG_BAO', 'Quyền tạo thông báo mới'),
+('NOTIFICATION_DELETE', 'Xóa thông báo', 'THONG_BAO', 'Quyền xóa thông báo'),
+-- Nhóm: Phân quyền
+('ROLE_VIEW', 'Xem phân quyền', 'PHAN_QUYEN', 'Quyền xem danh sách quyền theo vai trò'),
+('ROLE_EDIT', 'Sửa phân quyền', 'PHAN_QUYEN', 'Quyền cập nhật quyền cho vai trò');
+
+-- Gán quyền cho vai trò Admin (tất cả quyền)
+INSERT INTO vai_tro_quyen (role, ma_quyen)
+SELECT 'admin', ma_quyen FROM quyen;
+
+-- Gán quyền cho vai trò Sinh viên (chỉ các quyền xem và đăng ký)
+INSERT INTO vai_tro_quyen (role, ma_quyen) VALUES
+('sinh_vien', 'COURSE_VIEW'),
+('sinh_vien', 'CLASS_VIEW'),
+('sinh_vien', 'REGISTRATION_VIEW'),
+('sinh_vien', 'REGISTRATION_CREATE'),
+('sinh_vien', 'REGISTRATION_CANCEL'),
+('sinh_vien', 'TUITION_VIEW'),
+('sinh_vien', 'PAYMENT_VIEW'),
+('sinh_vien', 'SEMESTER_VIEW'),
+('sinh_vien', 'NOTIFICATION_VIEW');
 
 -- =====================================================
 -- END OF INIT.SQL

@@ -98,6 +98,15 @@ const login = async (req, res) => {
       }
     }
 
+    // Lấy danh sách quyền của vai trò
+    const permResult = await pool.query(
+      `SELECT q.ma_quyen FROM quyen q
+       INNER JOIN vai_tro_quyen vtq ON q.ma_quyen = vtq.ma_quyen
+       WHERE vtq.role = $1`,
+      [user.role]
+    );
+    const permissions = permResult.rows.map(r => r.ma_quyen);
+
     res.json({
       success: true,
       message: 'Đăng nhập thành công',
@@ -110,7 +119,8 @@ const login = async (req, res) => {
           role: user.role
         },
         student: studentInfo,
-        admin: adminInfo
+        admin: adminInfo,
+        permissions
       }
     });
   } catch (error) {
