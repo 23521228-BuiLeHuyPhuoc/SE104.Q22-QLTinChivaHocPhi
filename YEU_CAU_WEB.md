@@ -6,6 +6,8 @@
 
 ## 1) Danh sách yêu cầu phần mềm
 
+> Quy ước định dạng tiền tệ trong tài liệu: dùng đơn vị `VND` với dấu phẩy phân tách hàng nghìn (ví dụ: `27,000 VND`).
+
 ### 1.1 Yêu cầu nghiệp vụ
 - Quản lý hồ sơ sinh viên theo BM1, áp dụng đúng QĐ1.
 - Quản lý danh mục môn học theo BM2, tự tính tín chỉ theo QĐ2.
@@ -32,7 +34,7 @@
 
 ## 2) Danh sách yêu cầu theo định dạng STT - Tên yêu cầu - Biểu mẫu - Quy định - Ghi chú
 
-| STT | Tên yêu cầu | Biểu mẫu | Qui định | Ghi chú |
+| STT | Tên yêu cầu | Biểu mẫu | Quy định | Ghi chú |
 |---|---|---|---|---|
 | 1 | Lập hồ sơ sinh viên | BM1 | QĐ1 | Quê quán, đối tượng ưu tiên, ngành học |
 | 2 | Nhập danh sách môn học | BM2 | QĐ2 | Loại môn LT/TH, số tiết, số tín chỉ |
@@ -44,9 +46,9 @@
 
 ---
 
-## 3) Danh sách biểu mẫu và qui định (BM1-BM7, QĐ1-QĐ7)
+## 3) Danh sách biểu mẫu và quy định (BM1-BM7, QĐ1-QĐ7)
 
-### 3.1 Biểu mẫu 1 và qui định 1
+### 3.1 Biểu mẫu 1 và quy định 1
 **BM1 - HỒ SƠ SINH VIÊN**
 - Họ tên, Ngày sinh, Giới tính
 - Quê quán
@@ -58,7 +60,7 @@
 - Sinh viên có thể thuộc nhiều đối tượng ưu tiên; lấy đối tượng có ưu tiên cao nhất để giảm học phí (80%, 50%, 30%...).
 - Mỗi Khoa có nhiều Ngành học; mỗi sinh viên thuộc một Ngành học.
 
-### 3.2 Biểu mẫu 2 và qui định 2
+### 3.2 Biểu mẫu 2 và quy định 2
 **BM2 - DANH SÁCH MÔN HỌC**
 - Mã môn học, Tên môn học, Loại môn, Số tiết.
 
@@ -67,46 +69,51 @@
 - Tín chỉ:
   - LT: `số tín chỉ = số tiết / 15`
   - TH: `số tín chỉ = số tiết / 30`
+- Quy tắc làm tròn tín chỉ đến 1 chữ số thập phân: nếu chữ số thập phân thứ 2 >= 5 thì làm tròn lên, nếu < 5 thì làm tròn xuống.
+- Ví dụ: `2.15 -> 2.2`, `2.14 -> 2.1`.
 
-### 3.3 Biểu mẫu 3 và qui định 3
+### 3.3 Biểu mẫu 3 và quy định 3
 **BM3 - CHƯƠNG TRÌNH HỌC**
 - Ngành học, Khoa, Học kỳ, Môn học.
 
 **QĐ3**
 - Phòng đào tạo lập danh sách môn mở theo học kỳ dựa trên chương trình học các ngành.
 
-### 3.4 Biểu mẫu 4 và qui định 4
+### 3.4 Biểu mẫu 4 và quy định 4
 **BM4 - DANH SÁCH MÔN HỌC MỞ**
 - Học kỳ, Năm học, danh sách môn học mở.
 
 **QĐ4**
 - Năm học có hai học kỳ chính (HK I, HK II), có thể có học kỳ bổ sung (hè).
 
-### 3.5 Biểu mẫu 5 và qui định 5
+### 3.5 Biểu mẫu 5 và quy định 5
 **BM5 - PHIẾU ĐĂNG KÝ HỌC PHẦN**
 - Số phiếu, Mã số sinh viên, Ngày lập, Học kỳ, Năm học.
 - Danh sách môn học và số tín chỉ.
 
 **QĐ5**
 - Thu học phí theo tín chỉ đăng ký:
-  - LT: 27.000đ/tín chỉ
-  - TH: 37.000đ/tín chỉ
+  - LT: 27,000 VND/tín chỉ
+  - TH: 37,000 VND/tín chỉ
 - Sinh viên chỉ được đăng ký môn học có mở trong học kỳ/năm học.
 
-### 3.6 Biểu mẫu 6 và qui định 6
+### 3.6 Biểu mẫu 6 và quy định 6
 **BM6 - PHIẾU THU HỌC PHÍ**
 - Số phiếu, Ngày lập, Mã số sinh viên, Số tiền thu.
 
 **QĐ6**
 - Phiếu thu lập dựa trên phiếu đăng ký học phần.
 - Cho phép đóng nhiều lần cho một phiếu đăng ký; phải hoàn thành trước hạn đóng học phí học kỳ.
+- Nếu không hoàn thành trước hạn thì sinh viên không được tham dự kỳ thi cuối kỳ.
 
-### 3.7 Biểu mẫu 7 và qui định 7
+### 3.7 Biểu mẫu 7 và quy định 7
 **BM7 - DANH SÁCH SINH VIÊN CHƯA HOÀN THÀNH ĐÓNG HỌC PHÍ**
 - Học kỳ, Năm học, Mã số sinh viên, Số tiền đăng ký, Số tiền phải đóng, Số tiền còn lại.
 
 **QĐ7**
-- `Số tiền phải đóng <= Số tiền đăng ký` (do ưu tiên miễn/giảm học phí).
+- `0 <= Số tiền phải đóng <= Số tiền đăng ký` (do ưu tiên miễn/giảm học phí).
+- Trường hợp `Số tiền phải đóng = 0` chỉ áp dụng khi sinh viên được miễn giảm 100%.
+- BM7 chỉ liệt kê các trường hợp `Số tiền còn lại > 0`.
 
 ---
 
@@ -156,7 +163,7 @@ flowchart LR
 **Thuật toán chính**
 1. Nếu loại môn = LT thì tín chỉ = số tiết / 15.  
 2. Nếu loại môn = TH thì tín chỉ = số tiết / 30.  
-3. Lưu bản ghi môn học sau khi làm tròn theo quy tắc hệ thống.
+3. Làm tròn tín chỉ đến 1 chữ số thập phân theo QĐ2 rồi lưu bản ghi môn học.
 
 ### 4.3 Yêu cầu 3 - Nhập chương trình học (BM3/QĐ3)
 ```mermaid
@@ -217,8 +224,8 @@ flowchart LR
 **Thuật toán chính**
 1. Với từng môn đăng ký: lấy loại môn + tín chỉ.  
 2. Tính tiền môn:
-   - LT = tín chỉ × 27.000
-   - TH = tín chỉ × 37.000  
+   - LT = tín chỉ × 27,000 VND
+   - TH = tín chỉ × 37,000 VND  
 3. Cộng tổng và tạo phiếu BM5.
 
 ### 4.6 Yêu cầu 6 - Lập phiếu thu học phí (BM6/QĐ6)
@@ -263,4 +270,3 @@ flowchart LR
 1. `số tiền phải đóng = số tiền đăng ký - số tiền miễn giảm`.  
 2. Ràng buộc QĐ7: `số tiền phải đóng <= số tiền đăng ký`.  
 3. `số tiền còn lại = số tiền phải đóng - số tiền đã đóng`; chỉ lấy bản ghi còn lại > 0.
-
