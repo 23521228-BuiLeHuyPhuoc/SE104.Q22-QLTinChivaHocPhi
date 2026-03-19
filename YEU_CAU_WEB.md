@@ -16,9 +16,10 @@
 - Lập phiếu đăng ký học phần theo BM5, chỉ cho phép đăng ký môn có mở và tính tiền đăng ký theo QĐ5.
 - Lập phiếu thu học phí theo BM6, hỗ trợ đóng nhiều lần nhưng phải trước hạn theo QĐ6.
 - Lập báo cáo sinh viên chưa hoàn thành học phí theo BM7, tính tiền còn lại theo QĐ7.
+- Đăng nhập và phân quyền truy cập theo vai trò (Admin/Phòng đào tạo/Phòng tài vụ/Sinh viên) để chỉ dùng được đúng chức năng được cấp.
 
 ### 1.2 Yêu cầu chất lượng
-- **Đúng nghiệp vụ:** các ràng buộc QĐ1-QĐ7 được kiểm tra ở cả giao diện và backend/database.
+- **Đúng nghiệp vụ:** các ràng buộc QĐ1-QĐ8 được kiểm tra ở cả giao diện và backend/database.
 - **Nhất quán dữ liệu:** dữ liệu biểu mẫu, phiếu đăng ký, phiếu thu và báo cáo phải đồng bộ theo học kỳ/năm học.
 - **Bảo mật:** phân quyền tối thiểu cho Admin/Phòng đào tạo/Phòng tài vụ/Sinh viên theo chức năng.
 - **Khả dụng:** các màn hình nhập BM1-BM7 cần thông báo lỗi rõ ràng, không mất dữ liệu khi nhập sai.
@@ -26,7 +27,7 @@
 
 ### 1.3 Yêu cầu hệ thống
 - Ứng dụng web client-server: Frontend React, Backend Node.js/Express, CSDL PostgreSQL.
-- CSDL phải có đủ thực thể phục vụ BM1-BM7 và quan hệ cho QĐ1-QĐ7.
+- CSDL phải có đủ thực thể phục vụ BM1-BM8 và quan hệ cho QĐ1-QĐ8.
 - API hỗ trợ CRUD cho sinh viên, môn học, học kỳ, đăng ký học phần, học phí, thanh toán và báo cáo.
 - Hệ thống cho phép tra cứu theo học kỳ và năm học để tổng hợp công nợ.
 
@@ -43,10 +44,11 @@
 | 5 | Lập phiếu đăng ký học phần | BM5 | QĐ5 | Chỉ đăng ký môn đang mở, tính tiền đăng ký |
 | 6 | Lập phiếu thu học phí | BM6 | QĐ6 | Thu nhiều lần, phải hoàn thành trước hạn |
 | 7 | Lập báo cáo sinh viên chưa đóng học phí | BM7 | QĐ7 | Số tiền phải đóng <= số tiền đăng ký |
+| 8 | Đăng nhập và phân quyền truy cập | BM8 (Màn hình đăng nhập) | QĐ8 | Yêu cầu bắt buộc để bảo mật và kiểm soát thao tác |
 
 ---
 
-## 3) Danh sách biểu mẫu và quy định (BM1-BM7, QĐ1-QĐ7)
+## 3) Danh sách biểu mẫu và quy định (BM1-BM8, QĐ1-QĐ8)
 
 ### 3.1 Biểu mẫu 1 và quy định 1
 **BM1 - HỒ SƠ SINH VIÊN**
@@ -114,6 +116,16 @@
 - `0 <= Số tiền phải đóng <= Số tiền đăng ký` (do ưu tiên miễn/giảm học phí).
 - Trường hợp `Số tiền phải đóng = 0` chỉ áp dụng khi sinh viên được miễn giảm 100%.
 - BM7 chỉ liệt kê các trường hợp `Số tiền còn lại > 0`.
+
+### 3.8 Biểu mẫu 8 và quy định 8
+**BM8 - MÀN HÌNH ĐĂNG NHẬP**
+- Tên đăng nhập
+- Mật khẩu
+
+**QĐ8**
+- Mật khẩu phải được lưu ở dạng băm (hash), không lưu plaintext.
+- Phiên đăng nhập có thời hạn và phải kiểm tra quyền theo vai trò trước mỗi chức năng/API.
+- Truy cập bị từ chối phải được ghi nhận log và trả thông báo lỗi rõ ràng cho người dùng.
 
 ---
 
@@ -270,3 +282,25 @@ flowchart LR
 1. `số tiền phải đóng = số tiền đăng ký - số tiền miễn giảm`.  
 2. Ràng buộc QĐ7: `số tiền phải đóng <= số tiền đăng ký`.  
 3. `số tiền còn lại = số tiền phải đóng - số tiền đã đóng`; chỉ lấy bản ghi còn lại > 0.
+
+### 4.8 Yêu cầu 8 - Đăng nhập và phân quyền truy cập (yêu cầu bổ sung cần thiết)
+```mermaid
+flowchart LR
+    A[Người dùng] --> B[Nhập tài khoản/mật khẩu]
+    B --> C[Kiểm tra thông tin đăng nhập]
+    C --> D[(Tài khoản và vai trò)]
+    D --> E[Cấp phiên đăng nhập]
+    E --> F[Kiểm tra quyền truy cập chức năng]
+    F --> G[Cho phép/Từ chối thao tác]
+    G --> H[Thông báo kết quả cho người dùng]
+    G --> I[(Nhật ký truy cập)]
+```
+**Mô tả luồng dữ liệu**
+1. Người dùng đăng nhập bằng tài khoản được cấp.
+2. Hệ thống xác thực thông tin và nạp vai trò tương ứng.
+3. Mỗi yêu cầu truy cập chức năng đều được kiểm tra quyền trước khi xử lý.
+
+**Thuật toán chính**
+1. Xác thực username/password hợp lệ bằng mật khẩu đã băm (hash).  
+2. Nếu hợp lệ, tạo phiên đăng nhập và gán role.  
+3. Với mỗi API/chức năng, so sánh role với danh sách quyền cho phép; từ chối nếu không đủ quyền, đồng thời ghi log và trả thông báo phù hợp.
