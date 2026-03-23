@@ -45,7 +45,10 @@ block content
                   else
                     button.btn.btn-sm(
                       class=(acc.role === 'admin' ? 'btn-warning' : 'btn-primary')
-                      onclick=`changeRole(${acc.ma_tai_khoan}, '${acc.ten_dang_nhap}', '${acc.role}')`
+                      data-id=acc.ma_tai_khoan
+                      data-username=acc.ten_dang_nhap
+                      data-role=acc.role
+                      onclick="handleRoleClick(this)"
                       id=`btn-role-${acc.ma_tai_khoan}`
                     )= acc.role === 'admin' ? '⬇ Hạ → SV' : '⬆ Nâng → Admin'
           else
@@ -69,6 +72,13 @@ block scripts
       if (search) url += '&search=' + encodeURIComponent(search);
       if (role) url += '&role=' + encodeURIComponent(role);
       window.location.href = url;
+    }
+
+    function handleRoleClick(el) {
+      var id = parseInt(el.getAttribute('data-id'));
+      var username = el.getAttribute('data-username');
+      var currentRole = el.getAttribute('data-role');
+      changeRole(id, username, currentRole);
     }
 
     async function changeRole(id, username, currentRole) {
