@@ -925,7 +925,10 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 12 | `backend/src/routes/exportRoutes.js` | **Tạo mới** - Routes xuất báo cáo |
 | 13 | `backend/src/controllers/gradeController.js` | **Tạo mới** - API quản lý điểm sinh viên |
 | 14 | `backend/src/routes/gradeRoutes.js` | **Tạo mới** - Routes điểm sinh viên |
-| 15 | `backend/src/index.js` | Đăng ký routes mới |
+| 15 | `backend/src/controllers/roleController.js` | **Tạo mới** - API xem vai trò, danh sách tài khoản, thay đổi role |
+| 16 | `backend/src/routes/roleRoutes.js` | **Tạo mới** - Routes vai trò và quản lý tài khoản |
+| 17 | `backend/src/middleware/auth.js` | Cập nhật - Middleware phân quyền admin/sinh_vien |
+| 18 | `backend/src/index.js` | Đăng ký routes mới |
 
 ### 📁 Files Frontend cần thao tác:
 
@@ -953,7 +956,9 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 | 20 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service thống kê |
 | 21 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service xuất báo cáo |
 | 22 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service điểm sinh viên |
-| 23 | `backend/src/routes/viewRoutes.js (SSR routing)` | Cập nhật routes nếu cần |
+| 23 | `backend/src/views/pages/admin/users.pug` | **Tạo mới** - Giao diện quản lý tài khoản, thay đổi role |
+| 24 | `backend/src/views/partials/sidebar-admin.pug` | Cập nhật - Thêm menu "Quản lý tài khoản" |
+| 25 | `backend/src/routes/viewRoutes.js` | Cập nhật routes (bao gồm `/admin/users`) |
 
 ### 📝 Chi tiết công việc:
 
@@ -1288,7 +1293,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 | **TV1** | 7 | 9 | 8 |
 | **TV2** | 11 | 11 | 10 |
 | **TV3** | 11 | 13 | 10 |
-| **TV4** | 13 | 16 | 11 |
+| **TV4** | 16 | 21 | 15 |
 
 ---
 
@@ -1320,7 +1325,8 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   ├── academicYearController.js 🆕
 │   │   │   ├── reportController.js 🆕
 │   │   │   ├── statisticsController.js 🆕
-│   │   │   └── exportController.js 🆕
+│   │   │   ├── exportController.js 🆕
+│   │   │   └── roleController.js ✏️
 │   │   ├── routes/
 │   │   │   ├── authRoutes.js
 │   │   │   ├── studentRoutes.js ✏️
@@ -1341,7 +1347,8 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   ├── academicYearRoutes.js 🆕
 │   │   │   ├── reportRoutes.js 🆕
 │   │   │   ├── statisticsRoutes.js 🆕
-│   │   │   └── exportRoutes.js 🆕
+│   │   │   ├── exportRoutes.js 🆕
+│   │   │   └── roleRoutes.js ✏️
 │   │   └── index.js ✏️
 │
 │   ├── views/                    # Pug SSR templates
@@ -1360,7 +1367,8 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   │   ├── registrations.pug
 │   │   │   │   ├── tuition.pug
 │   │   │   │   ├── payments.pug
-│   │   │   │   └── reports.pug
+│   │   │   │   ├── reports.pug
+│   │   │   │   └── users.pug 🆕
 │   │   │   └── student/
 │   │   │       ├── dashboard.pug
 │   │   │       ├── course-registration.pug

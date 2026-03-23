@@ -667,6 +667,52 @@ GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
 
 ---
 
+## 🗂️ MODULE 20: PHÂN QUYỀN HỆ THỐNG VÀ QUẢN LÝ TÀI KHOẢN
+
+### Mô tả:
+Phân quyền đơn giản theo 2 vai trò: **admin** (Quản trị viên) và **sinh_vien** (Sinh viên). Admin được truy cập toàn bộ trang quản trị, chỉnh sửa dữ liệu, và **thay đổi role** của tài khoản khác (nâng sinh viên lên admin hoặc hạ admin xuống sinh viên). Sinh viên chỉ truy cập được phần dành cho sinh viên, không vào được trang admin. Sử dụng cột `role` có sẵn trong bảng `tai_khoan`, không cần thêm bảng CSDL.
+
+### Bảng Database:
+- Sử dụng cột `role` trong bảng `tai_khoan` (đã có sẵn, CHECK: `admin`, `sinh_vien`)
+- Không tạo thêm bảng mới
+
+### Files liên quan:
+
+| Loại | File | Mô tả |
+|------|------|-------|
+| **Backend** | `backend/src/middleware/auth.js` | Middleware `authMiddleware` (xác thực token) và `adminMiddleware` (kiểm tra role admin) |
+| **Backend** | `backend/src/controllers/roleController.js` | API xem vai trò, danh sách tài khoản, thay đổi role |
+| **Backend** | `backend/src/routes/roleRoutes.js` | Routes cho vai trò và quản lý tài khoản |
+| **SSR View** | `backend/src/views/pages/admin/users.pug` | Giao diện quản lý tài khoản, thay đổi role |
+| **SSR View** | `backend/src/views/partials/sidebar-admin.pug` | Menu item "Quản lý tài khoản" |
+| **SSR Route** | `backend/src/routes/viewRoutes.js` | Route `/admin/users` |
+| **Client JS** | `backend/src/public/js/main.js` | Client-side JS gọi API vai trò và tài khoản |
+
+### API Endpoints:
+```
+GET    /api/roles                    - Lấy danh sách vai trò (admin only)
+GET    /api/roles/my-role            - Lấy vai trò hiện tại
+GET    /api/roles/accounts           - Lấy danh sách tài khoản (admin only, hỗ trợ search, filter, phân trang)
+PUT    /api/roles/accounts/:id/role  - Thay đổi role tài khoản (admin only)
+```
+
+### Vai trò:
+| Vai trò | Quyền |
+|---------|-------|
+| **admin** (Quản trị viên) | Truy cập toàn bộ trang quản trị `/admin/*`, CRUD tất cả dữ liệu, thay đổi role tài khoản |
+| **sinh_vien** (Sinh viên) | Chỉ truy cập trang sinh viên `/student/*`, xem thông tin, đăng ký môn, xem học phí |
+
+### Cách hoạt động:
+1. SSR Layout: Admin layout kiểm tra token + role — nếu không phải admin thì redirect về `/login`
+2. Backend: `adminMiddleware` kiểm tra `req.user.role === 'admin'` — trả về 403 nếu không phải admin
+3. Admin vào trang `/admin/users` để xem tất cả tài khoản và thay đổi role (nâng/hạ)
+4. Không cho phép admin tự đổi role chính mình (tránh tự lock out)
+5. Không cần bảng quyền phức tạp — chỉ cần kiểm tra role là đủ
+
+### Phân công: **THÀNH VIÊN 4**
+
+---
+
 ## 🔐 GHI CHÚ VỀ PHÂN QUYỀN
 
 > **Phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware)**, dựa trên cột `role` trong bảng `tai_khoan`. Không cần thêm bảng CSDL hoặc module riêng cho phân quyền.
@@ -728,6 +774,11 @@ GET    /api/config/check-credit-limit     - Kiểm tra giới hạn TC cho SV
 │  │   Module 15  │                        │   Module 16  │          │
 │  │   Thông báo  │                        │   Dashboard  │          │
 │  └──────────────┘                        └──────────────┘          │
+│                                                                      │
+│  ┌───────────────────────┐                                          │
+│  │      Module 20        │                                          │
+│  │   Phân quyền (RBAC)  │──── Kiểm soát truy cập tất cả module    │
+│  └───────────────────────┘                                          │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```

@@ -15,6 +15,7 @@ const tuitionRoutes = require('./routes/tuitionRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const semesterRoutes = require('./routes/semesterRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const roleRoutes = require('./routes/roleRoutes');
 
 // Import SSR view routes
 const viewRoutes = require('./routes/viewRoutes');
@@ -73,6 +74,7 @@ app.use('/api/tuition', tuitionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/semesters', semesterRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/roles', roleRoutes);
 
 // ==========================================
 // SSR View Routes (Pug pages)
