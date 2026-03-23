@@ -17,12 +17,14 @@ Hệ thống bao gồm **26 bảng** được chia thành 9 nhóm chức năng:
 | **Địa danh & Dân tộc** | `tinh`, `phuong_xa`, `dan_toc` | Quản lý thông tin địa lý và dân tộc |
 | **Đối tượng ưu tiên** | `doi_tuong`, `doi_tuong_sinh_vien` | Quản lý chính sách miễn giảm học phí |
 | **Tổ chức - Đào tạo** | `khoa`, `nganh_hoc`, `chuong_trinh_hoc` | Quản lý khoa, ngành, chương trình học |
-| **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống |
+| **Nhân sự** | `sinh_vien`, `quan_tri_vien`, `tai_khoan` | Quản lý người dùng hệ thống (phân quyền qua cột `role` bằng phần mềm) |
 | **Môn học - Lớp** | `mon_hoc`, `dieu_kien_mon_hoc`, `lop` | Quản lý môn học và lớp học |
 | **Thời gian - Đăng ký** | `nam_hoc`, `hoc_ky`, `lop_mo`, `phieu_dang_ky`, `chi_tiet_dang_ky` | Quản lý đăng ký học phần |
 | **Lịch học** | `tiet_hoc`, `lich_hoc_lop` | Quản lý tiết học và thời khóa biểu |
 | **Điểm số** | `diem_sinh_vien` | Quản lý điểm sinh viên (đậu/rớt) |
 | **Học phí - Cấu hình** | `don_gia_tin_chi`, `phieu_thu_hoc_phi`, `cau_hinh_dang_ky`, `thong_bao` | Quản lý học phí, cấu hình và thông báo |
+
+> **Ghi chú phân quyền:** Chức năng phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware), dựa trên cột `role` trong bảng `tai_khoan`. Không cần thêm bảng riêng cho phân quyền — backend code kiểm tra giá trị `role` (admin/sinh_vien) để xác định quyền truy cập các chức năng.
 
 ---
 

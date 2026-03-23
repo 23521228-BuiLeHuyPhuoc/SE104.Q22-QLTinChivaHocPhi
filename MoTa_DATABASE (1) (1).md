@@ -11,7 +11,7 @@
 | Tên Database | `ql_dangky_hocphi` |
 | Hệ quản trị CSDL | PostgreSQL |
 | Phiên bản | 12+ |
-| Số lượng bảng | 25 bảng |
+| Số lượng bảng | 26 bảng |
 | Mã hóa | UTF-8 |
 
 ### 1.2. Danh sách các bảng theo nhóm chức năng
@@ -41,9 +41,11 @@
 | 21 | Học phí | `phieu_thu_hoc_phi` | Phiếu thu học phí |
 | 22 | Cấu hình | `don_gia_tin_chi` | Đơn giá tín chỉ theo loại học |
 | 23 | Cấu hình | `cau_hinh_dang_ky` | Cấu hình quy định đăng ký (số TC tối đa, GPA vượt) |
-| 24 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền trực tiếp) |
+| 24 | Tài khoản | `tai_khoan` | Tài khoản đăng nhập (phân quyền qua cột `role` bằng phần mềm) |
 | 25 | Quản trị | `quan_tri_vien` | Thông tin quản trị viên |
 | 26 | Thông báo | `thong_bao` | Thông báo (gộp chung và cá nhân, phân biệt qua thuộc tính `loai`) |
+
+> **Ghi chú phân quyền:** Phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware), dựa trên cột `role` trong bảng `tai_khoan`. Backend kiểm tra `role` (admin/sinh_vien) để xác định quyền truy cập. Không cần thêm bảng CSDL riêng cho phân quyền.
 
 ---
 
@@ -2519,6 +2521,7 @@ WHERE sv.ma_sv = 'SV001';
 |-----------|------|----------------|
 | 1.0 | 2026-01-16 | Phiên bản đầu tiên - Đáp ứng BM1-BM7, QĐ1-QĐ7 |
 | 1.1 | 2026-01-16 | Thêm mục 13 - Cấu trúc lưu trữ file (avatar, logo) |
+| 1.2 | 2026-03-01 | Cập nhật phân quyền: dùng cột `role` trong `tai_khoan` + backend middleware thay vì thêm bảng CSDL riêng |
 
 ---
 
@@ -2531,4 +2534,4 @@ WHERE sv.ma_sv = 'SV001';
 **Ghi chú:** 
 - Database được thiết kế cho PostgreSQL 12+
 - Đáp ứng đầy đủ 7 biểu mẫu (BM1-BM7) và 7 quy định (QĐ1-QĐ7) theo yêu cầu đề tài
-- Hỗ trợ 2 role: Admin và Sinh viên
+- Hỗ trợ phân quyền bằng phần mềm thông qua cột `role` trong bảng `tai_khoan` và backend middleware (không cần thêm bảng CSDL riêng)

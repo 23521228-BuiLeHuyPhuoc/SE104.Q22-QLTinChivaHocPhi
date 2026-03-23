@@ -1,0 +1,48 @@
+nav.sidebar.sidebar-student(id="sidebar")
+  .sidebar-brand
+    h2 🎓 QL Tín Chỉ
+    small Cổng sinh viên
+
+  .sidebar-nav
+    .sidebar-section
+      .sidebar-section-title Tổng quan
+      a.sidebar-link(href="/student/dashboard" class=(currentPage === 'dashboard' ? 'active' : ''))
+        span.icon 📊
+        span Dashboard
+
+    .sidebar-section
+      .sidebar-section-title Học tập
+      a.sidebar-link(href="/student/course-registration" class=(currentPage === 'course-registration' ? 'active' : ''))
+        span.icon 📝
+        span Đăng ký môn
+      a.sidebar-link(href="/student/my-courses" class=(currentPage === 'my-courses' ? 'active' : ''))
+        span.icon 📚
+        span Môn đã ĐK
+      a.sidebar-link(href="/student/my-schedule" class=(currentPage === 'my-schedule' ? 'active' : ''))
+        span.icon 📅
+        span Thời khóa biểu
+
+    .sidebar-section
+      .sidebar-section-title Tài chính
+      a.sidebar-link(href="/student/my-tuition" class=(currentPage === 'my-tuition' ? 'active' : ''))
+        span.icon 💰
+        span Học phí
+      a.sidebar-link(href="/student/my-payments" class=(currentPage === 'my-payments' ? 'active' : ''))
+        span.icon 💳
+        span Lịch sử thanh toán
+
+    .sidebar-section
+      .sidebar-section-title Cá nhân
+      a.sidebar-link(href="/student/profile" class=(currentPage === 'profile' ? 'active' : ''))
+        span.icon 👤
+        span Hồ sơ
+      a.sidebar-link(href="/student/notifications" class=(currentPage === 'notifications' ? 'active' : ''))
+        span.icon 🔔
+        span Thông báo
+
+  .sidebar-footer
+    .sidebar-user
+      .avatar= user && user.studentInfo ? user.studentInfo.ho_ten.charAt(0).toUpperCase() : 'S'
+      div
+        div= user && user.studentInfo ? user.studentInfo.ho_ten : 'Sinh viên'
+        small= user && user.studentInfo ? user.studentInfo.ma_sv : ''

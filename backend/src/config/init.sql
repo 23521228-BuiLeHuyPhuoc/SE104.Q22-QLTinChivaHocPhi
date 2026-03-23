@@ -168,6 +168,9 @@ CREATE TABLE nganh_hoc (
 
 -- =====================================================
 -- 6. BẢNG tai_khoan - Tài khoản đăng nhập
+-- Ghi chú: Phân quyền được thực hiện bằng phần mềm (backend code)
+-- dựa trên cột 'role'. Không dùng cơ sở dữ liệu để gán quyền trực tiếp.
+-- Backend middleware sẽ kiểm tra role để xác định quyền truy cập.
 -- =====================================================
 CREATE TABLE tai_khoan (
     ma_tai_khoan SERIAL NOT NULL,

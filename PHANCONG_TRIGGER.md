@@ -2998,6 +2998,18 @@ UPDATE tiet_hoc SET gio_bat_dau = '07:30:00' WHERE ma_tiet = 1;
 
 ---
 
+## 🔐 GHI CHÚ VỀ PHÂN QUYỀN
+
+> **Phân quyền được thực hiện hoàn toàn bằng phần mềm (backend middleware)**, dựa trên cột `role` trong bảng `tai_khoan`. Không cần thêm bảng CSDL riêng cho phân quyền, không cần trigger/function riêng cho phân quyền.
+>
+> Backend middleware sẽ kiểm tra `role` (admin/sinh_vien) để xác định quyền truy cập vào các API endpoint. Ví dụ:
+> - `role = 'admin'`: Có toàn quyền quản lý hệ thống
+> - `role = 'sinh_vien'`: Chỉ xem thông tin cá nhân, đăng ký môn, xem điểm, xem học phí
+>
+> Việc này do tất cả thành viên cùng chịu trách nhiệm khi viết API cho module của mình.
+
+---
+
 ## 📝 QUY TẮC ĐẶT TÊN
 
 ### Trigger
