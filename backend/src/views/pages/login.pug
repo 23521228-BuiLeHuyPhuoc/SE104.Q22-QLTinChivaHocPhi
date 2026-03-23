@@ -42,7 +42,7 @@ block scripts
         const data = await res.json();
         if (data.success) {
           // Store token in cookie via server
-          document.cookie = 'token=' + data.data.token + '; path=/; max-age=86400';
+          document.cookie = 'token=' + data.data.token + '; path=/; max-age=86400; SameSite=Strict';
           // Redirect based on role
           if (data.data.user.role === 'admin') {
             window.location.href = '/admin/dashboard';

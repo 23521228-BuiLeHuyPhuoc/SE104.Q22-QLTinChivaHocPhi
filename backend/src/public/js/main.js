@@ -12,7 +12,7 @@ function getToken() {
 }
 
 function clearToken() {
-  document.cookie = 'token=; path=/; max-age=0';
+  document.cookie = 'token=; path=/; max-age=0; SameSite=Strict';
 }
 
 // ==========================================
