@@ -1,0 +1,61 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm kiếm theo MSSV..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      select#filter-status(onchange="applyFilters()")
+        option(value="" selected=(!status)) Tất cả trạng thái
+        option(value="unpaid" selected=(status === 'unpaid')) Chưa đóng
+        option(value="partial" selected=(status === 'partial')) Đóng một phần
+        option(value="paid" selected=(status === 'paid')) Đã đóng đủ
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th MSSV
+            th Họ tên
+            th Học kỳ
+            th Tổng HP
+            th Đã đóng
+            th Còn lại
+            th Trạng thái
+        tbody
+          if tuitions && tuitions.length > 0
+            each t in tuitions
+              tr
+                td= t.ma_sv
+                td= t.ho_ten_sv || '-'
+                td= t.ten_hoc_ky || '-'
+                td= formatVND(t.tong_hoc_phi)
+                td= formatVND(t.da_dong)
+                td= formatVND(t.con_lai)
+                td
+                  - var badge = t.trang_thai === 'paid' ? 'badge-success' : t.trang_thai === 'partial' ? 'badge-warning' : 'badge-error'
+                  - var label = t.trang_thai === 'paid' ? 'Đã đóng đủ' : t.trang_thai === 'partial' ? 'Một phần' : 'Chưa đóng'
+                  span.badge(class=badge)= label
+          else
+            tr
+              td(colspan="7").text-center Không có dữ liệu
+
+  include ../../partials/pagination
+
+block scripts
+  script.
+    function formatVND(n) { return (n || 0).toLocaleString('vi-VN') + 'đ'; }
+    var searchTimer;
+    function debounceSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => applyFilters(), 400);
+    }
+    function applyFilters() {
+      const search = document.getElementById('search-input').value;
+      const status = document.getElementById('filter-status').value;
+      let url = '/admin/tuition?page=1';
+      if (search) url += '&search=' + encodeURIComponent(search);
+      if (status) url += '&status=' + encodeURIComponent(status);
+      window.location.href = url;
+    }

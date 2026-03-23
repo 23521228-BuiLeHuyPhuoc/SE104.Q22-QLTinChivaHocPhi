@@ -1,0 +1,85 @@
+extends ../../layouts/student
+
+block content
+  h2.page-title Học phí
+
+  .stats-grid
+    .stat-card
+      .stat-icon.blue 💰
+      .stat-info
+        h3#total-fee --
+        p Tổng học phí
+    .stat-card
+      .stat-icon.green 💳
+      .stat-info
+        h3#total-paid --
+        p Đã đóng
+    .stat-card
+      .stat-icon.red 💸
+      .stat-info
+        h3#total-remaining --
+        p Còn nợ
+
+  .card.mt-3
+    .card-header
+      h3 Chi tiết học phí theo học kỳ
+    .card-body
+      .loading-overlay#loading
+        .spinner
+      .table-container
+        table.data-table#tuition-table.hidden
+          thead
+            tr
+              th Học kỳ
+              th Tổng HP
+              th Đã đóng
+              th Còn lại
+              th Trạng thái
+          tbody#tuition-list
+
+block scripts
+  script.
+    (async function() {
+      try {
+        const meRes = await apiFetch('/api/auth/me');
+        if (!meRes.success || !meRes.data.studentInfo) return;
+        const sid = meRes.data.studentInfo.ma_sv;
+
+        const res = await apiFetch('/api/tuition/student/' + sid);
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('tuition-table').classList.remove('hidden');
+
+        if (res.success && res.data && res.data.length > 0) {
+          var totalFee = 0, totalPaid = 0;
+          var html = '';
+          res.data.forEach(t => {
+            var fee = parseFloat(t.tong_hoc_phi || 0);
+            var paid = parseFloat(t.da_dong || 0);
+            var remaining = fee - paid;
+            totalFee += fee;
+            totalPaid += paid;
+
+            html += '<tr>';
+            html += '<td>' + (t.ten_hoc_ky || '-') + '</td>';
+            html += '<td>' + formatCurrency(fee) + '</td>';
+            html += '<td>' + formatCurrency(paid) + '</td>';
+            html += '<td>' + formatCurrency(remaining) + '</td>';
+            html += '<td>';
+            if (t.trang_thai === 'paid') html += '<span class="badge badge-success">Đã đóng đủ</span>';
+            else if (t.trang_thai === 'partial') html += '<span class="badge badge-warning">Một phần</span>';
+            else html += '<span class="badge badge-error">Chưa đóng</span>';
+            html += '</td></tr>';
+          });
+          document.getElementById('tuition-list').innerHTML = html;
+          document.getElementById('total-fee').textContent = formatCurrency(totalFee);
+          document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
+          document.getElementById('total-remaining').textContent = formatCurrency(totalFee - totalPaid);
+        } else {
+          document.getElementById('tuition-list').innerHTML = '<tr><td colspan="5" class="text-center">Không có dữ liệu học phí</td></tr>';
+        }
+      } catch(e) {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('tuition-table').classList.remove('hidden');
+        console.error(e);
+      }
+    })();

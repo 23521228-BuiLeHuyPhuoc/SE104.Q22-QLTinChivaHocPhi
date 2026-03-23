@@ -1,0 +1,144 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm kiếm lớp học..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      button.btn.btn-primary(onclick="openModal('add')") + Thêm lớp
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã lớp
+            th Tên lớp
+            th Môn học
+            th Giảng viên
+            th Lịch học
+            th Phòng
+            th SL tối đa
+            th Thao tác
+        tbody
+          if classes && classes.length > 0
+            each cl in classes
+              tr
+                td= cl.ma_lop
+                td= cl.ten_lop
+                td= cl.ten_mon_hoc || cl.ma_mon_hoc
+                td= cl.giang_vien || '-'
+                td= cl.lich_hoc || '-'
+                td= cl.phong_hoc || '-'
+                td= cl.so_luong_toi_da || '-'
+                td
+                  button.btn.btn-sm.btn-outline(onclick=`openModal('edit', ${JSON.stringify(cl)})`) ✏️
+                  |  
+                  button.btn.btn-sm.btn-danger(onclick=`deleteClass('${cl.ma_lop}')`) 🗑️
+          else
+            tr
+              td(colspan="8").text-center Không có dữ liệu
+
+  include ../../partials/pagination
+
+block modals
+  #class-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm lớp học
+        button.modal-close(onclick="closeModal()") ×
+      .modal-body
+        form#class-form
+          .form-row
+            .form-group
+              label Mã lớp
+              input.form-control#cl-malop(type="text" required)
+            .form-group
+              label Tên lớp
+              input.form-control#cl-tenlop(type="text" required)
+          .form-row
+            .form-group
+              label Mã môn học
+              input.form-control#cl-mamonhoc(type="text" required)
+            .form-group
+              label Giảng viên
+              input.form-control#cl-giangvien(type="text")
+          .form-row
+            .form-group
+              label Lịch học
+              input.form-control#cl-lichhoc(type="text" placeholder="VD: Thứ 2 (7h30-9h30)")
+            .form-group
+              label Phòng học
+              input.form-control#cl-phonghoc(type="text")
+          .form-group
+            label Số lượng tối đa
+            input.form-control#cl-soluong(type="number" min="1" value="50")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveClass()") Lưu
+
+block scripts
+  script.
+    var editingId = null;
+
+    function openModal(mode, cl) {
+      editingId = null;
+      document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa lớp học' : 'Thêm lớp học';
+      document.getElementById('cl-malop').disabled = mode === 'edit';
+      if (mode === 'edit' && cl) {
+        editingId = cl.ma_lop;
+        document.getElementById('cl-malop').value = cl.ma_lop || '';
+        document.getElementById('cl-tenlop').value = cl.ten_lop || '';
+        document.getElementById('cl-mamonhoc').value = cl.ma_mon_hoc || '';
+        document.getElementById('cl-giangvien').value = cl.giang_vien || '';
+        document.getElementById('cl-lichhoc').value = cl.lich_hoc || '';
+        document.getElementById('cl-phonghoc').value = cl.phong_hoc || '';
+        document.getElementById('cl-soluong').value = cl.so_luong_toi_da || 50;
+      } else {
+        document.getElementById('class-form').reset();
+      }
+      document.getElementById('class-modal').classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('class-modal').classList.remove('active'); }
+
+    async function saveClass() {
+      const data = {
+        ma_lop: document.getElementById('cl-malop').value,
+        ten_lop: document.getElementById('cl-tenlop').value,
+        ma_mon_hoc: document.getElementById('cl-mamonhoc').value,
+        giang_vien: document.getElementById('cl-giangvien').value,
+        lich_hoc: document.getElementById('cl-lichhoc').value,
+        phong_hoc: document.getElementById('cl-phonghoc').value,
+        so_luong_toi_da: parseInt(document.getElementById('cl-soluong').value)
+      };
+      try {
+        var res;
+        if (editingId) {
+          res = await apiFetch('/api/classes/' + editingId, { method: 'PUT', body: data });
+        } else {
+          res = await apiFetch('/api/classes', { method: 'POST', body: data });
+        }
+        if (res.success) {
+          showToast(editingId ? 'Cập nhật thành công!' : 'Thêm lớp thành công!', 'success');
+          closeModal(); setTimeout(() => location.reload(), 500);
+        } else { showToast(res.message || 'Lỗi', 'error'); }
+      } catch(e) { showToast('Lỗi kết nối', 'error'); }
+    }
+
+    async function deleteClass(id) {
+      if (!confirm('Bạn có chắc muốn xóa lớp này?')) return;
+      try {
+        const res = await apiFetch('/api/classes/' + id, { method: 'DELETE' });
+        if (res.success) { showToast('Đã xóa', 'success'); setTimeout(() => location.reload(), 500); }
+        else { showToast(res.message || 'Lỗi', 'error'); }
+      } catch(e) { showToast('Lỗi kết nối', 'error'); }
+    }
+
+    var searchTimer;
+    function debounceSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        window.location.href = '/admin/classes?page=1&search=' + encodeURIComponent(document.getElementById('search-input').value);
+      }, 400);
+    }
