@@ -43,6 +43,12 @@ nav.sidebar.sidebar-admin(id="sidebar")
         span.icon 📈
         span Thống kê
 
+    .sidebar-section
+      .sidebar-section-title Hệ thống
+      a.sidebar-link(href="/admin/users" class=(currentPage === 'users' ? 'active' : ''))
+        span.icon 👥
+        span Quản lý tài khoản
+
   .sidebar-footer
     .sidebar-user
       .avatar= user ? user.ho_ten ? user.ho_ten.charAt(0).toUpperCase() : 'A' : 'A'

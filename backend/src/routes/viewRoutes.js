@@ -519,6 +519,79 @@ router.get('/admin/reports', requireViewAuth, requireViewAdmin, (req, res) => {
   });
 });
 
+router.get('/admin/users', requireViewAuth, requireViewAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const filterRole = req.query.role || '';
+    const offset = (page - 1) * limit;
+
+    let whereConditions = [];
+    let params = [];
+    let paramIndex = 1;
+
+    if (search) {
+      whereConditions.push(`(tk.ten_dang_nhap ILIKE $${paramIndex} OR sv.ho_ten ILIKE $${paramIndex})`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+    if (filterRole && ['admin', 'sinh_vien'].includes(filterRole)) {
+      whereConditions.push(`tk.role = $${paramIndex}`);
+      params.push(filterRole);
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM tai_khoan tk LEFT JOIN sinh_vien sv ON tk.ma_tai_khoan = sv.ma_tai_khoan ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(total / limit);
+
+    const result = await pool.query(
+      `SELECT tk.ma_tai_khoan, tk.ten_dang_nhap, tk.role, tk.ngay_tao,
+              sv.ho_ten, sv.ma_sv, sv.email
+       FROM tai_khoan tk
+       LEFT JOIN sinh_vien sv ON tk.ma_tai_khoan = sv.ma_tai_khoan
+       ${whereClause}
+       ORDER BY tk.ngay_tao DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+
+    res.render('pages/admin/users', {
+      pageTitle: 'Quản lý Tài khoản',
+      currentPage: 'users',
+      headerTitle: 'Quản lý Tài khoản',
+      user: req.user,
+      accounts: result.rows,
+      currentUserId: req.user.id || req.user.ma_tai_khoan,
+      currentPage: page,
+      totalPages,
+      baseUrl: '/admin/users',
+      queryParams: { search, role: filterRole, limit },
+      search,
+      filterRole
+    });
+  } catch (err) {
+    console.error('Error loading users:', err);
+    res.render('pages/admin/users', {
+      pageTitle: 'Quản lý Tài khoản',
+      currentPage: 'users',
+      headerTitle: 'Quản lý Tài khoản',
+      user: req.user,
+      accounts: [],
+      currentUserId: req.user.id || req.user.ma_tai_khoan,
+      totalPages: 0,
+      search: '',
+      filterRole: ''
+    });
+  }
+});
+
 // ==========================================
 // STUDENT ROUTES
 // ==========================================
