@@ -8,6 +8,8 @@
 
 Tài liệu này mô tả cấu trúc module của hệ thống và liệt kê các file liên quan đến từng module, đảm bảo đáp ứng đầy đủ các yêu cầu BM1-BM7 và QĐ1-QĐ7.
 
+> **Kiến trúc:** Server-Side Rendering (SSR) bằng Pug template engine. Frontend được render phía server, không dùng React/Vite. CSS và client JS nằm trong `backend/src/public/`.
+
 ---
 
 ## 🗂️ MODULE 1: QUẢN LÝ ĐỊA DANH (QĐ1)
@@ -29,9 +31,9 @@ Quản lý danh sách Tỉnh/Thành phố và Phường/Xã. Phân loại khu v�
 | **SQL** | `backend/src/config/init.sql` | Bảng `tinh`, `phuong_xa`, `dan_toc`, dữ liệu mẫu |
 | **Backend** | `backend/src/controllers/locationController.js` | API CRUD Tỉnh/Phường xã/Dân tộc |
 | **Backend** | `backend/src/routes/locationRoutes.js` | Routes cho địa danh |
-| **Frontend** | `frontend/src/pages/admin/LocationManagement.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/admin/LocationManagement.css` | Styles |
-| **Frontend** | `frontend/src/services/locationService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/locations.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -68,9 +70,9 @@ Quản lý các đối tượng ưu tiên (con liệt sĩ, thương binh, vùng 
 | **SQL** | `backend/src/config/init.sql` | Bảng `doi_tuong`, `doi_tuong_sinh_vien` |
 | **Backend** | `backend/src/controllers/priorityObjectController.js` | API CRUD đối tượng |
 | **Backend** | `backend/src/routes/priorityObjectRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/admin/PriorityObjects.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/admin/PriorityObjects.css` | Styles |
-| **Frontend** | `frontend/src/services/priorityObjectService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/priority-objects.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -105,10 +107,10 @@ Lập và quản lý hồ sơ sinh viên bao gồm: họ tên, ngày sinh, giớ
 | **Backend** | `backend/src/controllers/authController.js` | API xác thực |
 | **Backend** | `backend/src/routes/authRoutes.js` | Routes xác thực |
 | **Backend** | `backend/src/middleware/authMiddleware.js` | Middleware xác thực |
-| **Frontend** | `frontend/src/pages/Students.jsx` | Giao diện quản lý SV |
-| **Frontend** | `frontend/src/pages/Students.css` | Styles |
-| **Frontend** | `frontend/src/context/AuthContext.jsx` | Context xác thực |
-| **Frontend** | `frontend/src/services/studentService.js` | **Tạo mới** - API service sinh viên |
+| **Frontend** | `backend/src/views/pages/admin/students.pug` | Giao diện quản lý SV |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/routes/viewRoutes.js` (auth middleware) | Context xác thực |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | **Tạo mới** - API service sinh viên |
 
 ### API Endpoints:
 ```
@@ -139,9 +141,9 @@ Quản lý danh sách Khoa và Ngành học. Mỗi Khoa có nhiều Ngành, mỗ
 | **SQL** | `backend/src/config/init.sql` | Bảng `khoa`, `nganh_hoc` |
 | **Backend** | `backend/src/controllers/departmentController.js` | API CRUD Khoa/Ngành |
 | **Backend** | `backend/src/routes/departmentRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/admin/Departments.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/admin/Departments.css` | Styles |
-| **Frontend** | `frontend/src/services/departmentService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/departments.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -178,9 +180,9 @@ Quản lý danh sách môn học với: mã môn, tên môn, loại môn (LT/TH)
 | **Backend** | `backend/src/routes/courseRoutes.js` | Routes |
 | **Backend** | `backend/src/controllers/prerequisiteController.js` | API điều kiện môn |
 | **Backend** | `backend/src/routes/prerequisiteRoutes.js` | Routes điều kiện |
-| **Frontend** | `frontend/src/pages/Courses.jsx` | Giao diện quản lý môn |
-| **Frontend** | `frontend/src/pages/Courses.css` | Styles |
-| **Frontend** | `frontend/src/services/courseService.js` | **Tạo mới** - API service môn học |
+| **Frontend** | `backend/src/views/pages/admin/courses.pug` | Giao diện quản lý môn |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | **Tạo mới** - API service môn học |
 
 ### API Endpoints:
 ```
@@ -211,8 +213,8 @@ Quản lý các lớp học của môn học. Mỗi môn có thể có nhiều l
 | **SQL** | `backend/src/config/init.sql` | Bảng `lop` |
 | **Backend** | `backend/src/controllers/classController.js` | API CRUD lớp |
 | **Backend** | `backend/src/routes/classRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/Classes.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/Classes.css` | Styles |
+| **Frontend** | `backend/src/views/pages/admin/classes.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
 
 ### API Endpoints:
 ```
@@ -241,9 +243,9 @@ Quản lý chương trình đào tạo theo ngành học. Mỗi ngành có danh 
 | **SQL** | `backend/src/config/init.sql` | Bảng `chuong_trinh_hoc` |
 | **Backend** | `backend/src/controllers/curriculumController.js` | API CRUD chương trình |
 | **Backend** | `backend/src/routes/curriculumRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/admin/Curriculum.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/admin/Curriculum.css` | Styles |
-| **Frontend** | `frontend/src/services/curriculumService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/curriculum.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -274,8 +276,8 @@ Quản lý năm học và học kỳ. Có 2 loại học kỳ: Chính (HK I, HK 
 | **Backend** | `backend/src/routes/academicYearRoutes.js` | Routes năm học |
 | **Backend** | `backend/src/controllers/semesterController.js` | API học kỳ |
 | **Backend** | `backend/src/routes/semesterRoutes.js` | Routes học kỳ |
-| **Frontend** | `frontend/src/pages/Semesters.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/Semesters.css` | Styles |
+| **Frontend** | `backend/src/views/pages/admin/semesters.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
 
 ### API Endpoints:
 ```
@@ -306,9 +308,9 @@ Quản lý danh sách lớp mở trong từng học kỳ. Dựa trên chương t
 | **SQL** | `backend/src/config/init.sql` | Bảng `lop_mo` |
 | **Backend** | `backend/src/controllers/openClassController.js` | API lớp mở |
 | **Backend** | `backend/src/routes/openClassRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/admin/OpenClasses.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/admin/OpenClasses.css` | Styles |
-| **Frontend** | `frontend/src/services/openClassService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/open-classes.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -336,9 +338,9 @@ Quản lý đơn giá tín chỉ theo loại môn (LT/TH) và loại học (họ
 | **SQL** | `backend/src/config/init.sql` | Bảng `don_gia_tin_chi`, function `fn_lay_don_gia` |
 | **Backend** | `backend/src/controllers/priceController.js` | API đơn giá |
 | **Backend** | `backend/src/routes/priceRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/admin/UnitPrices.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/admin/UnitPrices.css` | Styles |
-| **Frontend** | `frontend/src/services/priceService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/unit-prices.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -368,12 +370,12 @@ Quản lý phiếu đăng ký học phần của sinh viên. SV chỉ được �
 | **SQL** | `backend/src/config/init.sql` | Bảng `phieu_dang_ky`, `chi_tiet_dang_ky`, function `sp_dang_ky_lop` |
 | **Backend** | `backend/src/controllers/registrationController.js` | API đăng ký |
 | **Backend** | `backend/src/routes/registrationRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/Registrations.jsx` | Giao diện admin |
-| **Frontend** | `frontend/src/pages/Registrations.css` | Styles |
-| **Frontend** | `frontend/src/pages/CourseRegistration.jsx` | Giao diện SV đăng ký |
-| **Frontend** | `frontend/src/pages/CourseRegistration.css` | Styles |
-| **Frontend** | `frontend/src/pages/MyCourses.jsx` | Môn học đã đăng ký |
-| **Frontend** | `frontend/src/pages/MyCourses.css` | Styles |
+| **Frontend** | `backend/src/views/pages/admin/registrations.pug` | Giao diện admin |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/course-registration.pug` | Giao diện SV đăng ký |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/my-courses.pug` | Môn học đã đăng ký |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
 
 ### API Endpoints:
 ```
@@ -402,10 +404,10 @@ Quản lý phiếu thu học phí. SV có thể đóng nhiều lần cho một p
 | **SQL** | `backend/src/config/init.sql` | Bảng `phieu_thu_hoc_phi`, function `sp_thu_hoc_phi` |
 | **Backend** | `backend/src/controllers/paymentController.js` | API phiếu thu |
 | **Backend** | `backend/src/routes/paymentRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/Payments.jsx` | Giao diện admin |
-| **Frontend** | `frontend/src/pages/Payments.css` | Styles |
-| **Frontend** | `frontend/src/pages/MyPayments.jsx` | Lịch sử thanh toán SV |
-| **Frontend** | `frontend/src/pages/MyPayments.css` | Styles |
+| **Frontend** | `backend/src/views/pages/admin/payments.pug` | Giao diện admin |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/my-payments.pug` | Lịch sử thanh toán SV |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
 
 ### API Endpoints:
 ```
@@ -434,10 +436,10 @@ Quản lý học phí: tính tiền đăng ký, tiền miễn giảm (theo đố
 | **SQL** | `backend/src/config/init.sql` | View `v_phieu_dang_ky`, `v_bao_cao_sv_chua_dong_hoc_phi` |
 | **Backend** | `backend/src/controllers/tuitionController.js` | API học phí |
 | **Backend** | `backend/src/routes/tuitionRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/Tuition.jsx` | Giao diện quản lý |
-| **Frontend** | `frontend/src/pages/Tuition.css` | Styles |
-| **Frontend** | `frontend/src/pages/MyTuition.jsx` | Xem học phí của SV |
-| **Frontend** | `frontend/src/pages/MyTuition.css` | Styles |
+| **Frontend** | `backend/src/views/pages/admin/tuition.pug` | Giao diện quản lý |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/my-tuition.pug` | Xem học phí của SV |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
 
 ### API Endpoints:
 ```
@@ -462,9 +464,9 @@ Lập báo cáo danh sách SV chưa hoàn thành đóng học phí theo học k�
 | **SQL** | `backend/src/config/init.sql` | View `v_bao_cao_sv_chua_dong_hoc_phi` |
 | **Backend** | `backend/src/controllers/reportController.js` | API báo cáo |
 | **Backend** | `backend/src/routes/reportRoutes.js` | Routes |
-| **Frontend** | `frontend/src/pages/Reports.jsx` | Giao diện báo cáo |
-| **Frontend** | `frontend/src/pages/Reports.css` | Styles |
-| **Frontend** | `frontend/src/services/reportService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/reports.pug` | Giao diện báo cáo |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -493,8 +495,8 @@ Quản lý thông báo chung và thông báo cá nhân cho sinh viên.
 | **SQL** | `backend/src/config/init.sql` | Bảng `thong_bao`, `thong_bao_ca_nhan` |
 | **Backend** | `backend/src/controllers/notificationController.js` | API thông báo |
 | **Backend** | `backend/src/routes/notificationRoutes.js` | Routes |
-| **Frontend** | `frontend/src/components/Notification.jsx` | Component thông báo |
-| **Frontend** | `frontend/src/components/Notification.css` | Styles |
+| **Frontend** | `backend/src/views/partials/header.pug` (notification display) | Component thông báo |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
 
 ### API Endpoints:
 ```
@@ -515,10 +517,10 @@ Trang tổng quan hiển thị thống kê và trạng thái hệ thống.
 
 | Loại | File | Mô tả |
 |------|------|-------|
-| **Frontend** | `frontend/src/pages/Dashboard.jsx` | Giao diện dashboard |
-| **Frontend** | `frontend/src/pages/Dashboard.css` | Styles |
-| **Frontend** | `frontend/src/components/StatCard.jsx` | Component thống kê |
-| **Frontend** | `frontend/src/components/Chart.jsx` | Component biểu đồ |
+| **Frontend** | `backend/src/views/pages/admin/dashboard.pug` | Giao diện dashboard |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/admin/dashboard.pug` (stat cards inline) | Component thống kê |
+| **Frontend** | `backend/src/views/pages/admin/reports.pug` (charts inline) | Component biểu đồ |
 
 ---
 
@@ -562,11 +564,11 @@ Quản lý tiết học (Tiết 1-10, Buổi tối), lịch học của các l�
 | **SQL** | `backend/src/config/init.sql` | Bảng `tiet_hoc`, `lich_hoc_lop`, dữ liệu mẫu |
 | **Backend** | `backend/src/controllers/scheduleController.js` | API CRUD lịch học |
 | **Backend** | `backend/src/routes/scheduleRoutes.js` | Routes cho lịch học |
-| **Frontend** | `frontend/src/pages/admin/ClassSchedule.jsx` | Giao diện quản lý lịch học |
-| **Frontend** | `frontend/src/pages/admin/ClassSchedule.css` | Styles |
-| **Frontend** | `frontend/src/pages/StudentSchedule.jsx` | Thời khóa biểu sinh viên |
-| **Frontend** | `frontend/src/pages/StudentSchedule.css` | Styles |
-| **Frontend** | `frontend/src/services/scheduleService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/schedule.pug` | Giao diện quản lý lịch học |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/my-schedule.pug` | Thời khóa biểu sinh viên |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -599,13 +601,13 @@ Quản lý điểm các môn học của sinh viên. Xác định đậu/rớt (
 | **SQL** | `backend/src/config/init.sql` | Bảng `diem_sinh_vien`, view `v_diem_tich_luy_sinh_vien` |
 | **Backend** | `backend/src/controllers/gradeController.js` | API CRUD điểm |
 | **Backend** | `backend/src/routes/gradeRoutes.js` | Routes cho điểm |
-| **Frontend** | `frontend/src/pages/admin/GradeManagement.jsx` | Giao diện nhập điểm (admin) |
-| **Frontend** | `frontend/src/pages/admin/GradeManagement.css` | Styles |
-| **Frontend** | `frontend/src/pages/MyGrades.jsx` | Xem bảng điểm (sinh viên) |
-| **Frontend** | `frontend/src/pages/MyGrades.css` | Styles |
-| **Frontend** | `frontend/src/pages/StudentTranscript.jsx` | Bảng điểm tích lũy |
-| **Frontend** | `frontend/src/pages/StudentTranscript.css` | Styles |
-| **Frontend** | `frontend/src/services/gradeService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/grades.pug` | Giao diện nhập điểm (admin) |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/my-grades.pug` | Xem bảng điểm (sinh viên) |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/views/pages/student/transcript.pug` | Bảng điểm tích lũy |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```
@@ -641,9 +643,9 @@ Quản lý các quy định về đăng ký môn học: số tín chỉ tối đ
 | **SQL** | `backend/src/config/init.sql` | Bảng `cau_hinh_dang_ky`, dữ liệu mẫu |
 | **Backend** | `backend/src/controllers/configController.js` | API cấu hình |
 | **Backend** | `backend/src/routes/configRoutes.js` | Routes cấu hình |
-| **Frontend** | `frontend/src/pages/admin/RegistrationConfig.jsx` | Giao diện cấu hình |
-| **Frontend** | `frontend/src/pages/admin/RegistrationConfig.css` | Styles |
-| **Frontend** | `frontend/src/services/configService.js` | API service |
+| **Frontend** | `backend/src/views/pages/admin/registration-config.pug` | Giao diện cấu hình |
+| **Frontend** | `backend/src/public/css/theme.css` (shared) | Styles |
+| **Frontend** | `backend/src/public/js/main.js` (shared client JS) | API service |
 
 ### API Endpoints:
 ```

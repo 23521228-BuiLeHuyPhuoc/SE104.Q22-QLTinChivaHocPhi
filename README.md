@@ -5,8 +5,8 @@
 ## 📋 Mô tả dự án
 
 Hệ thống web application quản lý việc đăng ký môn học và thu học phí của sinh viên, được phát triển bằng:
-- **Frontend**: ReactJS (Vite)
-- **Backend**: NodeJS (Express)
+- **Frontend**: Pug (server-side rendering), CSS, Vanilla JS
+- **Backend**: NodeJS (Express) - Pug view engine
 - **Database**: PostgreSQL
 
 ## ✨ Tính năng
@@ -86,7 +86,7 @@ Do file `init.sql` chứa lệnh `\connect` (chỉ hoạt động trong psql), b
 3. Mở file `backend/src/config/init_schema.sql`
 4. Chạy script (F5 hoặc nút Execute)
 
-### 2. Cài đặt Backend
+### 2. Cài đặt và Chạy Backend (bao gồm cả Frontend SSR)
 
 ```bash
 cd backend
@@ -105,19 +105,7 @@ npm start
 
 Server sẽ chạy tại: http://localhost:5000
 
-### 3. Cài đặt Frontend
-
-```bash
-cd frontend
-
-# Cài đặt dependencies
-npm install
-
-# Chạy development server
-npm run dev
-```
-
-Frontend sẽ chạy tại: http://localhost:5173
+> **Lưu ý:** Giao diện frontend được render bởi server (SSR) qua Pug template engine. Truy cập http://localhost:5000/ để sử dụng.
 
 ## 🔐 Tài khoản mặc định
 
@@ -136,23 +124,21 @@ Frontend sẽ chạy tại: http://localhost:5173
 ├── backend/
 │   ├── src/
 │   │   ├── config/         # Cấu hình database và SQL init
-│   │   ├── controllers/    # Controllers xử lý logic
+│   │   ├── controllers/    # Controllers xử lý logic API
 │   │   ├── middleware/     # Middleware xác thực
-│   │   ├── routes/         # Định nghĩa API routes
+│   │   ├── routes/         # API routes + SSR view routes
+│   │   ├── views/          # Pug templates (SSR frontend)
+│   │   │   ├── layouts/    # Base layouts (admin, student, auth)
+│   │   │   ├── pages/      # Page templates
+│   │   │   │   ├── admin/  # Admin pages
+│   │   │   │   └── student/# Student pages
+│   │   │   └── partials/   # Reusable partials (header, footer, sidebar)
+│   │   ├── public/         # Static files
+│   │   │   ├── css/        # CSS stylesheets
+│   │   │   └── js/         # Client-side JavaScript
 │   │   └── index.js        # Entry point
 │   ├── .env.example
 │   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/     # Các component dùng chung
-│   │   ├── context/        # React Context (Auth)
-│   │   ├── pages/          # Các trang giao diện
-│   │   ├── services/       # API services
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   └── vite.config.js
 │
 └── README.md
 ```
@@ -217,20 +203,18 @@ Giao diện hệ thống bao gồm:
 
 ## 🛠️ Công nghệ sử dụng
 
-### Frontend
-- React 19
-- React Router DOM 7
-- Axios
-- React Icons
-- React Toastify
-- Vite
+### Frontend (Server-Side Rendering)
+- Pug (template engine)
+- CSS3 (với CSS Variables cho light/dark theme)
+- Vanilla JavaScript (client-side interactions)
 
 ### Backend
 - Node.js
-- Express.js
+- Express.js (+ Pug view engine)
 - PostgreSQL (pg)
 - JWT (jsonwebtoken)
 - bcryptjs
+- cookie-parser
 - CORS
 - dotenv
 

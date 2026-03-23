@@ -30,15 +30,15 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
 
 | STT | File | Công việc |
 |-----|------|-----------|
-| 1 | `frontend/src/pages/Students.jsx` | Cập nhật giao diện quản lý sinh viên theo BM1 |
-| 2 | `frontend/src/pages/Students.css` | Styles cho trang sinh viên |
-| 3 | `frontend/src/pages/admin/LocationManagement.jsx` | **Tạo mới** - Quản lý Tỉnh/Huyện |
-| 4 | `frontend/src/pages/admin/LocationManagement.css` | **Tạo mới** - Styles |
-| 5 | `frontend/src/pages/admin/PriorityObjects.jsx` | **Tạo mới** - Quản lý đối tượng ưu tiên |
-| 6 | `frontend/src/pages/admin/PriorityObjects.css` | **Tạo mới** - Styles |
-| 7 | `frontend/src/services/locationService.js` | **Tạo mới** - API service cho địa danh |
-| 8 | `frontend/src/services/priorityObjectService.js` | **Tạo mới** - API service đối tượng |
-| 9 | `frontend/src/App.jsx` | Thêm routes mới |
+| 1 | `backend/src/views/pages/students.pug` | Cập nhật giao diện quản lý sinh viên theo BM1 |
+| 2 | `backend/src/public/css/theme.css (shared)` | Styles cho trang sinh viên |
+| 3 | `backend/src/views/pages/admin/locationmanagement.pug` | **Tạo mới** - Quản lý Tỉnh/Huyện |
+| 4 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 5 | `backend/src/views/pages/admin/priorityobjects.pug` | **Tạo mới** - Quản lý đối tượng ưu tiên |
+| 6 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 7 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service cho địa danh |
+| 8 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service đối tượng |
+| 9 | `backend/src/routes/viewRoutes.js (SSR routing)` | Thêm routes mới |
 
 ### 📝 Chi tiết công việc:
 
@@ -182,7 +182,7 @@ Tài liệu này phân chia công việc chi tiết cho **4 thành viên** trong
 
 ##### 1. Form lập hồ sơ sinh viên (theo BM1)
 
-**Component:** `StudentForm.jsx`
+**Component:** `students.pug`
 
 **State cần quản lý:**
 ```javascript
@@ -218,7 +218,7 @@ const [errors, setErrors] = useState({});
 
 ##### 2. Trang quản lý Tỉnh/Phường xã
 
-**Component:** `LocationManagement.jsx`
+**Component:** `locations.pug`
 
 **Features:**
 - Tab Tỉnh/Thành phố | Tab Phường/Xã | Tab Dân tộc
@@ -229,7 +229,7 @@ const [errors, setErrors] = useState({});
 
 ##### 3. Trang quản lý Đối tượng ưu tiên
 
-**Component:** `PriorityObjects.jsx`
+**Component:** `priority-objects.pug`
 
 **Features:**
 - Table: Mã, Tên, Tỷ lệ giảm, Độ ưu tiên, Số SV được gán
@@ -239,8 +239,8 @@ const [errors, setErrors] = useState({});
 
 ##### 4. Hiển thị tỷ lệ giảm HP
 
-**Component:** `StudentDiscountBadge.jsx`
-```jsx
+**Component:** `students.pug` (inline)
+```html
 // Hiển thị trong danh sách và chi tiết sinh viên
 <Badge color={discountRate > 0 ? 'green' : 'gray'}>
   Giảm {discountRate}% học phí
@@ -302,17 +302,17 @@ const [errors, setErrors] = useState({});
 
 | STT | File | Công việc |
 |-----|------|-----------|
-| 1 | `frontend/src/pages/Courses.jsx` | Cập nhật giao diện theo BM2 (loại môn, số tiết) |
-| 2 | `frontend/src/pages/Courses.css` | Styles cho trang môn học |
-| 3 | `frontend/src/pages/Classes.jsx` | Cập nhật giao diện quản lý lớp |
-| 4 | `frontend/src/pages/Classes.css` | Styles cho trang lớp học |
-| 5 | `frontend/src/pages/admin/Curriculum.jsx` | **Tạo mới** - Quản lý chương trình học theo BM3 |
-| 6 | `frontend/src/pages/admin/Curriculum.css` | **Tạo mới** - Styles |
-| 7 | `frontend/src/pages/admin/Departments.jsx` | **Tạo mới** - Quản lý Khoa/Ngành |
-| 8 | `frontend/src/pages/admin/Departments.css` | **Tạo mới** - Styles |
-| 9 | `frontend/src/services/curriculumService.js` | **Tạo mới** - API service chương trình học |
-| 10 | `frontend/src/services/departmentService.js` | **Tạo mới** - API service Khoa/Ngành |
-| 11 | `frontend/src/App.jsx` | Thêm routes mới |
+| 1 | `backend/src/views/pages/courses.pug` | Cập nhật giao diện theo BM2 (loại môn, số tiết) |
+| 2 | `backend/src/public/css/theme.css (shared)` | Styles cho trang môn học |
+| 3 | `backend/src/views/pages/classes.pug` | Cập nhật giao diện quản lý lớp |
+| 4 | `backend/src/public/css/theme.css (shared)` | Styles cho trang lớp học |
+| 5 | `backend/src/views/pages/admin/curriculum.pug` | **Tạo mới** - Quản lý chương trình học theo BM3 |
+| 6 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 7 | `backend/src/views/pages/admin/departments.pug` | **Tạo mới** - Quản lý Khoa/Ngành |
+| 8 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 9 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service chương trình học |
+| 10 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service Khoa/Ngành |
+| 11 | `backend/src/routes/viewRoutes.js (SSR routing)` | Thêm routes mới |
 
 ### 📝 Chi tiết công việc:
 
@@ -450,7 +450,7 @@ const tinhSoTinChi = (loai_mon, so_tiet) => {
 
 ##### 1. Form nhập môn học (theo BM2)
 
-**Component:** `CourseForm.jsx`
+**Component:** `courses.pug`
 
 **State:**
 ```javascript
@@ -471,7 +471,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 - Validation: Mã môn không trùng, số tiết > 0
 
 **UI Elements:**
-```jsx
+```html
 <Form>
   <Input label="Mã môn học" name="ma_mon_hoc" required />
   <Input label="Tên môn học" name="ten_mon_hoc" required />
@@ -497,7 +497,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 2. Giao diện quản lý Khoa/Ngành
 
-**Component:** `Departments.jsx`
+**Component:** `departments.pug`
 
 **Features:**
 - 2 tabs: Quản lý Khoa | Quản lý Ngành
@@ -508,7 +508,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 3. Giao diện Chương trình học (theo BM3)
 
-**Component:** `Curriculum.jsx`
+**Component:** `curriculum.pug`
 
 **Features:**
 - Dropdown chọn Ngành học
@@ -544,7 +544,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 4. Giao diện quản lý Điều kiện môn học
 
-**Component:** `Prerequisites.jsx` (có thể tích hợp trong CourseDetail)
+**Component:** `courses.pug` (inline) (có thể tích hợp trong CourseDetail)
 
 **Features:**
 - Hiển thị graph/tree điều kiện của môn
@@ -606,28 +606,28 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 | STT | File | Công việc |
 |-----|------|-----------|
-| 1 | `frontend/src/pages/Semesters.jsx` | **Tạo mới** - Quản lý năm học và học kỳ |
-| 2 | `frontend/src/pages/Semesters.css` | **Tạo mới** - Styles |
-| 3 | `frontend/src/pages/admin/OpenClasses.jsx` | **Tạo mới** - Quản lý lớp mở theo BM4 |
-| 4 | `frontend/src/pages/admin/OpenClasses.css` | **Tạo mới** - Styles |
-| 5 | `frontend/src/pages/admin/UnitPrices.jsx` | **Tạo mới** - Quản lý đơn giá tín chỉ (QĐ5) |
-| 6 | `frontend/src/pages/admin/UnitPrices.css` | **Tạo mới** - Styles |
-| 7 | `frontend/src/pages/admin/ClassSchedule.jsx` | **Tạo mới** - Quản lý lịch học và tiết học |
-| 8 | `frontend/src/pages/admin/ClassSchedule.css` | **Tạo mới** - Styles |
-| 9 | `frontend/src/pages/admin/RegistrationConfig.jsx` | **Tạo mới** - Cấu hình giới hạn tín chỉ |
-| 10 | `frontend/src/pages/admin/RegistrationConfig.css` | **Tạo mới** - Styles |
-| 11 | `frontend/src/pages/Registrations.jsx` | Cập nhật giao diện đăng ký (admin) |
-| 12 | `frontend/src/pages/Registrations.css` | Styles |
-| 13 | `frontend/src/pages/CourseRegistration.jsx` | Cập nhật giao diện đăng ký (sinh viên) + **hiển thị giới hạn TC** |
-| 14 | `frontend/src/pages/CourseRegistration.css` | Styles |
-| 15 | `frontend/src/pages/MyCourses.jsx` | Cập nhật hiển thị môn đã đăng ký + **thời khóa biểu** |
-| 16 | `frontend/src/pages/StudentSchedule.jsx` | **Tạo mới** - Thời khóa biểu sinh viên |
-| 17 | `frontend/src/pages/StudentSchedule.css` | **Tạo mới** - Styles |
-| 18 | `frontend/src/services/openClassService.js` | **Tạo mới** - API service lớp mở |
-| 19 | `frontend/src/services/priceService.js` | **Tạo mới** - API service đơn giá |
-| 20 | `frontend/src/services/scheduleService.js` | **Tạo mới** - API service lịch học |
-| 21 | `frontend/src/services/configService.js` | **Tạo mới** - API service cấu hình |
-| 22 | `frontend/src/App.jsx` | Thêm routes mới |
+| 1 | `backend/src/views/pages/semesters.pug` | **Tạo mới** - Quản lý năm học và học kỳ |
+| 2 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 3 | `backend/src/views/pages/admin/openclasses.pug` | **Tạo mới** - Quản lý lớp mở theo BM4 |
+| 4 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 5 | `backend/src/views/pages/admin/unitprices.pug` | **Tạo mới** - Quản lý đơn giá tín chỉ (QĐ5) |
+| 6 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 7 | `backend/src/views/pages/admin/classschedule.pug` | **Tạo mới** - Quản lý lịch học và tiết học |
+| 8 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 9 | `backend/src/views/pages/admin/registrationconfig.pug` | **Tạo mới** - Cấu hình giới hạn tín chỉ |
+| 10 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 11 | `backend/src/views/pages/registrations.pug` | Cập nhật giao diện đăng ký (admin) |
+| 12 | `backend/src/public/css/theme.css (shared)` | Styles |
+| 13 | `backend/src/views/pages/courseregistration.pug` | Cập nhật giao diện đăng ký (sinh viên) + **hiển thị giới hạn TC** |
+| 14 | `backend/src/public/css/theme.css (shared)` | Styles |
+| 15 | `backend/src/views/pages/mycourses.pug` | Cập nhật hiển thị môn đã đăng ký + **thời khóa biểu** |
+| 16 | `backend/src/views/pages/studentschedule.pug` | **Tạo mới** - Thời khóa biểu sinh viên |
+| 17 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 18 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service lớp mở |
+| 19 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service đơn giá |
+| 20 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service lịch học |
+| 21 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service cấu hình |
+| 22 | `backend/src/routes/viewRoutes.js (SSR routing)` | Thêm routes mới |
 
 ### 📝 Chi tiết công việc:
 
@@ -823,7 +823,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 1. Giao diện quản lý Năm học & Học kỳ (theo QĐ4)
 
-**Component:** `Semesters.jsx`
+**Component:** `semesters.pug`
 
 **Features:**
 - Dropdown chọn năm học
@@ -834,7 +834,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 2. Giao diện Mở lớp trong học kỳ (theo BM4)
 
-**Component:** `OpenClasses.jsx`
+**Component:** `open-classes.pug`
 
 **Features:**
 - Dropdown chọn học kỳ
@@ -845,7 +845,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 3. Giao diện quản lý Đơn giá tín chỉ (theo QĐ5)
 
-**Component:** `UnitPrices.jsx`
+**Component:** `unit-prices.pug`
 
 **Features:**
 - Table hiển thị đơn giá theo ma trận: Rows = Loại học, Columns = Loại môn
@@ -854,7 +854,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 4. Giao diện Đăng ký học phần (Sinh viên) theo BM5
 
-**Component:** `CourseRegistration.jsx`
+**Component:** `course-registration.pug`
 
 **Features:**
 - Hiển thị danh sách lớp có thể đăng ký (đã mở trong HK, còn chỗ)
@@ -866,7 +866,7 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 ##### 5. Giao diện Môn học đã đăng ký (theo BM5)
 
-**Component:** `MyCourses.jsx`
+**Component:** `my-courses.pug`
 
 **Features:**
 - Hiển thị phiếu đăng ký (BM5): Số phiếu, Ngày lập, Tổng TC, Tổng tiền
@@ -931,29 +931,29 @@ const [soTinChi, setSoTinChi] = useState(0);  // Tự động tính
 
 | STT | File | Công việc |
 |-----|------|-----------|
-| 1 | `frontend/src/pages/Tuition.jsx` | Cập nhật giao diện học phí (miễn giảm, còn lại) |
-| 2 | `frontend/src/pages/Tuition.css` | Styles cho trang học phí |
-| 3 | `frontend/src/pages/Payments.jsx` | Cập nhật giao diện phiếu thu theo BM6 |
-| 4 | `frontend/src/pages/Payments.css` | Styles cho trang phiếu thu |
-| 5 | `frontend/src/pages/Reports.jsx` | Cập nhật giao diện báo cáo theo BM7 |
-| 6 | `frontend/src/pages/Reports.css` | Styles cho trang báo cáo |
-| 7 | `frontend/src/pages/MyTuition.jsx` | Cập nhật giao diện xem học phí của SV |
-| 8 | `frontend/src/pages/MyTuition.css` | Styles |
-| 9 | `frontend/src/pages/MyPayments.jsx` | Cập nhật giao diện lịch sử thanh toán |
-| 10 | `frontend/src/pages/MyPayments.css` | Styles |
-| 11 | `frontend/src/pages/admin/Statistics.jsx` | **Tạo mới** - Giao diện thống kê tổng hợp |
-| 12 | `frontend/src/pages/admin/Statistics.css` | **Tạo mới** - Styles cho trang thống kê |
-| 13 | `frontend/src/pages/admin/GradeManagement.jsx` | **Tạo mới** - Quản lý nhập điểm sinh viên |
-| 14 | `frontend/src/pages/admin/GradeManagement.css` | **Tạo mới** - Styles |
-| 15 | `frontend/src/pages/MyGrades.jsx` | **Tạo mới** - Xem bảng điểm (SV) |
-| 16 | `frontend/src/pages/MyGrades.css` | **Tạo mới** - Styles |
-| 17 | `frontend/src/pages/StudentTranscript.jsx` | **Tạo mới** - Bảng điểm tích lũy toàn khóa |
-| 18 | `frontend/src/pages/StudentTranscript.css` | **Tạo mới** - Styles |
-| 19 | `frontend/src/services/reportService.js` | **Tạo mới** - API service báo cáo |
-| 20 | `frontend/src/services/statisticsService.js` | **Tạo mới** - API service thống kê |
-| 21 | `frontend/src/services/exportService.js` | **Tạo mới** - API service xuất báo cáo |
-| 22 | `frontend/src/services/gradeService.js` | **Tạo mới** - API service điểm sinh viên |
-| 23 | `frontend/src/App.jsx` | Cập nhật routes nếu cần |
+| 1 | `backend/src/views/pages/tuition.pug` | Cập nhật giao diện học phí (miễn giảm, còn lại) |
+| 2 | `backend/src/public/css/theme.css (shared)` | Styles cho trang học phí |
+| 3 | `backend/src/views/pages/payments.pug` | Cập nhật giao diện phiếu thu theo BM6 |
+| 4 | `backend/src/public/css/theme.css (shared)` | Styles cho trang phiếu thu |
+| 5 | `backend/src/views/pages/reports.pug` | Cập nhật giao diện báo cáo theo BM7 |
+| 6 | `backend/src/public/css/theme.css (shared)` | Styles cho trang báo cáo |
+| 7 | `backend/src/views/pages/mytuition.pug` | Cập nhật giao diện xem học phí của SV |
+| 8 | `backend/src/public/css/theme.css (shared)` | Styles |
+| 9 | `backend/src/views/pages/mypayments.pug` | Cập nhật giao diện lịch sử thanh toán |
+| 10 | `backend/src/public/css/theme.css (shared)` | Styles |
+| 11 | `backend/src/views/pages/admin/statistics.pug` | **Tạo mới** - Giao diện thống kê tổng hợp |
+| 12 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles cho trang thống kê |
+| 13 | `backend/src/views/pages/admin/grademanagement.pug` | **Tạo mới** - Quản lý nhập điểm sinh viên |
+| 14 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 15 | `backend/src/views/pages/mygrades.pug` | **Tạo mới** - Xem bảng điểm (SV) |
+| 16 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 17 | `backend/src/views/pages/studenttranscript.pug` | **Tạo mới** - Bảng điểm tích lũy toàn khóa |
+| 18 | `backend/src/public/css/theme.css (shared)` | **Tạo mới** - Styles |
+| 19 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service báo cáo |
+| 20 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service thống kê |
+| 21 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service xuất báo cáo |
+| 22 | `backend/src/public/js/main.js (shared client JS)` | **Tạo mới** - API service điểm sinh viên |
+| 23 | `backend/src/routes/viewRoutes.js (SSR routing)` | Cập nhật routes nếu cần |
 
 ### 📝 Chi tiết công việc:
 
@@ -1163,7 +1163,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 
 ##### 1. Giao diện Học phí Admin
 
-**Component:** `Tuition.jsx`
+**Component:** `tuition.pug`
 
 **Features:**
 - Dropdown chọn học kỳ
@@ -1177,7 +1177,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 
 ##### 2. Form Lập phiếu thu (theo BM6)
 
-**Component:** `PaymentForm.jsx`
+**Component:** `payments.pug`
 
 **Features:**
 - Tìm kiếm sinh viên (autocomplete)
@@ -1191,7 +1191,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 
 ##### 3. Giao diện Báo cáo (theo BM7)
 
-**Component:** `Reports.jsx`
+**Component:** `reports.pug`
 
 **Features:**
 - Dropdown chọn học kỳ
@@ -1204,7 +1204,7 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 
 ##### 4. Giao diện Xem học phí (Sinh viên)
 
-**Component:** `MyTuition.jsx`
+**Component:** `my-tuition.pug`
 
 **Features:**
 - Card tổng quan: Học kỳ hiện tại, Tiền phải đóng, Đã đóng, Còn lại
@@ -1344,40 +1344,44 @@ const kiemTraDaDongDu = async (so_phieu_dang_ky) => {
 │   │   │   └── exportRoutes.js 🆕
 │   │   └── index.js ✏️
 │
-├── frontend/
-│   ├── src/
+│   ├── views/                    # Pug SSR templates
+│   │   ├── layouts/
+│   │   │   ├── admin.pug         # Layout cho admin
+│   │   │   ├── student.pug       # Layout cho sinh viên
+│   │   │   └── auth.pug          # Layout cho trang đăng nhập
 │   │   ├── pages/
-│   │   │   ├── Students.jsx ✏️
-│   │   │   ├── Courses.jsx ✏️
-│   │   │   ├── Classes.jsx ✏️
-│   │   │   ├── Semesters.jsx ✏️
-│   │   │   ├── Registrations.jsx ✏️
-│   │   │   ├── CourseRegistration.jsx ✏️
-│   │   │   ├── Tuition.jsx ✏️
-│   │   │   ├── Payments.jsx ✏️
-│   │   │   ├── Reports.jsx ✏️
-│   │   │   ├── MyTuition.jsx ✏️
-│   │   │   ├── MyPayments.jsx ✏️
+│   │   │   ├── login.pug         # Trang đăng nhập
 │   │   │   ├── admin/
-│   │   │   │   ├── LocationManagement.jsx 🆕
-│   │   │   │   ├── PriorityObjects.jsx 🆕
-│   │   │   │   ├── Curriculum.jsx 🆕
-│   │   │   │   ├── Departments.jsx 🆕
-│   │   │   │   ├── OpenClasses.jsx 🆕
-│   │   │   │   ├── UnitPrices.jsx 🆕
-│   │   │   │   └── Statistics.jsx 🆕
+│   │   │   │   ├── dashboard.pug
+│   │   │   │   ├── students.pug
+│   │   │   │   ├── courses.pug
+│   │   │   │   ├── classes.pug
+│   │   │   │   ├── semesters.pug
+│   │   │   │   ├── registrations.pug
+│   │   │   │   ├── tuition.pug
+│   │   │   │   ├── payments.pug
+│   │   │   │   └── reports.pug
 │   │   │   └── student/
-│   │   ├── services/
-│   │   │   ├── locationService.js 🆕
-│   │   │   ├── priorityObjectService.js 🆕
-│   │   │   ├── curriculumService.js 🆕
-│   │   │   ├── departmentService.js 🆕
-│   │   │   ├── openClassService.js 🆕
-│   │   │   ├── priceService.js 🆕
-│   │   │   ├── reportService.js 🆕
-│   │   │   ├── statisticsService.js 🆕
-│   │   │   └── exportService.js 🆕
-│   │   └── App.jsx ✏️
+│   │   │       ├── dashboard.pug
+│   │   │       ├── course-registration.pug
+│   │   │       ├── my-courses.pug
+│   │   │       ├── my-tuition.pug
+│   │   │       ├── my-payments.pug
+│   │   │       ├── my-schedule.pug
+│   │   │       ├── profile.pug
+│   │   │       └── notifications.pug
+│   │   └── partials/
+│   │       ├── header.pug
+│   │       ├── footer.pug
+│   │       ├── sidebar-admin.pug
+│   │       ├── sidebar-student.pug
+│   │       └── pagination.pug
+│   ├── public/                   # Static assets
+│   │   ├── css/
+│   │   │   ├── theme.css        # Theme + components
+│   │   │   └── layout.css       # Layout styles
+│   │   └── js/
+│   │       └── main.js          # Client-side JS
 ```
 
 **Chú thích:**
