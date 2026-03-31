@@ -1806,7 +1806,7 @@ UPDATE phieu_thu_hoc_phi SET so_tien_thu = 250000 WHERE so_phieu_thu = 1;
 **Ví dụ:**
 ```sql
 -- Sau khi sinh viên đóng đủ học phí:
--- Tự động gửi thông báo vào bảng thong_bao (loai='ca_nhan'):
+-- Tự động gửi thông báo vào bảng thong_bao_ca_nhan:
 -- "Bạn đã hoàn thành đóng học phí HK1-2526. Tổng đã đóng: 500,000đ"
 ```
 
@@ -2019,12 +2019,12 @@ SELECT * FROM sp_lap_bao_cao_sv_chua_dong_hp('HK1-2526');
 **Logic xử lý:**
 1. Kiểm tra nếu `CURRENT_DATE` gần `han_dong_hoc_phi` (VD: còn 7 ngày):
    - Tìm tất cả sinh viên chưa đóng đủ HP
-   - Gửi thông báo nhắc nhở vào `thong_bao` (loai='ca_nhan')
+   - Gửi thông báo nhắc nhở vào `thong_bao_ca_nhan`
 2. Kiểm tra nếu `CURRENT_DATE > han_dong_hoc_phi`:
    - Tìm sinh viên chưa đóng đủ HP
    - Gửi thông báo cảnh báo "Đã quá hạn đóng học phí"
 
-**Output:** Gửi thông báo vào `thong_bao` (loai='ca_nhan')
+**Output:** Gửi thông báo vào `thong_bao_ca_nhan`
 
 **Lưu ý:** Trigger này có thể được kích hoạt bởi một job định kỳ (scheduled job) thay vì trigger trực tiếp.
 
@@ -2082,7 +2082,7 @@ SELECT fn_kiem_tra_qua_han_dong_hp('SV003', 'HK2-2526');  -- FALSE
      Nội dung: "Bạn còn nợ [300,000đ] học phí. Hạn đóng: [31/10/2025]. 
                Vui lòng đóng học phí đúng hạn để tránh bị hạn chế đăng ký thi."
      ```
-   - INSERT vào `thong_bao` (loai='ca_nhan')
+   - INSERT vào `thong_bao_ca_nhan`
 3. Ghi log số lượng thông báo đã gửi
 
 **Output:** TEXT - Thông báo kết quả
@@ -2602,14 +2602,14 @@ Bảng này xét với mỗi trigger, các **thao tác Thêm/Xóa/Sửa trên c�
 
 #### Trigger `trg_phieu_thu_hoc_phi_before_insert/update` + `after_insert/update/delete`
 
-**Bảng liên quan:** `phieu_thu_hoc_phi`, `phieu_dang_ky`, `sinh_vien`, `thong_bao` (loai='ca_nhan')
+**Bảng liên quan:** `phieu_thu_hoc_phi`, `phieu_dang_ky`, `sinh_vien`, `thong_bao_ca_nhan`
 
 | Bảng | Thêm | Xóa | Sửa | Trigger xử lý |
 |------|------|-----|-----|---------------|
 | `phieu_thu_hoc_phi` | ✅ | ✅ | ✅ | `trg_phieu_thu_hoc_phi_before_insert`, `before_update`, `after_insert`, `after_update`, `after_delete` |
 | `phieu_dang_ky` | - | + | + | ⚠️ `trg_phieu_dang_ky_before_delete` (thiếu), ảnh hưởng khi sửa số tiền |
 | `sinh_vien` | - | + | - | ✅ `trg_sinh_vien_before_delete` |
-| `thong_bao` | - | - | - | - |
+| `thong_bao_ca_nhan` | - | - | - | - |
 
 ---
 
