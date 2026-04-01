@@ -7,40 +7,40 @@ const getAllPayments = async (req, res) => {
       page = 1, 
       limit = 10, 
       search = '', 
-      ma_hoc_ky,
-      hinh_thuc_thu,
-      trang_thai
+      MaHocKy,
+      HinhThucThu,
+      TrangThai
     } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereClause = `WHERE (sv.ma_sv ILIKE $1 OR sv.ho_ten ILIKE $1 OR pthp.so_phieu_thu::text ILIKE $1)`;
+    let whereClause = `WHERE (sv."MaSv" ILIKE $1 OR sv."HoTen" ILIKE $1 OR pthp."SoPhieuThu"::text ILIKE $1)`;
     let params = [`%${search}%`];
     let paramIndex = 2;
 
-    if (ma_hoc_ky) {
-      whereClause += ` AND pdk.ma_hoc_ky = $${paramIndex}`;
-      params.push(ma_hoc_ky);
+    if (MaHocKy) {
+      whereClause += ` AND pdk."MaHocKy" = ${paramIndex}`;
+      params.push(MaHocKy);
       paramIndex++;
     }
 
-    if (hinh_thuc_thu) {
-      whereClause += ` AND pthp.hinh_thuc_thu = $${paramIndex}`;
-      params.push(hinh_thuc_thu);
+    if (HinhThucThu) {
+      whereClause += ` AND pthp."HinhThucThu" = ${paramIndex}`;
+      params.push(HinhThucThu);
       paramIndex++;
     }
 
-    if (trang_thai) {
-      whereClause += ` AND pthp.trang_thai = $${paramIndex}`;
-      params.push(trang_thai);
+    if (TrangThai) {
+      whereClause += ` AND pthp."TrangThai" = ${paramIndex}`;
+      params.push(TrangThai);
       paramIndex++;
     }
 
     // Đếm tổng
     const countResult = await pool.query(
       `SELECT COUNT(*)
-       FROM phieu_thu_hoc_phi pthp
-       JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv"
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
        ${whereClause}`,
       params
     );
@@ -48,43 +48,43 @@ const getAllPayments = async (req, res) => {
 
     // Lấy danh sách phiếu thu
     const result = await pool.query(
-      `SELECT pthp.*, sv.ho_ten, sv.email, hk.ten_hoc_ky, nh.ten_nam_hoc, pdk.ma_hoc_ky
-       FROM phieu_thu_hoc_phi pthp
-       JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
-       JOIN hoc_ky hk ON pdk.ma_hoc_ky = hk.ma_hoc_ky
-       JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
+      `SELECT pthp.*, sv."HoTen", sv."Email", hk."TenHocKy", nh."TenNamHoc", pdk."MaHocKy"
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv"
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
+       JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+       JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
        ${whereClause}
-       ORDER BY pthp.ngay_lap DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       ORDER BY pthp."NgayLap" DESC
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
     const payments = result.rows.map(p => ({
-      id: p.so_phieu_thu,
-      so_phieu_thu: p.so_phieu_thu,
-      receipt_number: p.so_phieu_thu,
-      ma_sv: p.ma_sv,
-      student_code: p.ma_sv,
-      ho_ten: p.ho_ten,
-      student_name: p.ho_ten,
-      email: p.email,
-      ma_hoc_ky: p.ma_hoc_ky,
-      ten_hoc_ky: p.ten_hoc_ky,
-      semester_name: p.ten_hoc_ky,
-      ten_nam_hoc: p.ten_nam_hoc,
-      so_tien_thu: parseFloat(p.so_tien_thu) || 0,
-      amount: parseFloat(p.so_tien_thu) || 0,
-      hinh_thuc_thu: p.hinh_thuc_thu,
-      payment_method: p.hinh_thuc_thu,
-      ngay_lap: p.ngay_lap,
-      payment_date: p.ngay_lap,
-      ghi_chu: p.ghi_chu,
-      note: p.ghi_chu,
-      nguoi_thu: p.nguoi_thu,
-      collected_by: p.nguoi_thu,
-      trang_thai: p.trang_thai,
-      status: p.trang_thai
+      id: p.SoPhieuThu,
+      SoPhieuThu: p.SoPhieuThu,
+      receipt_number: p.SoPhieuThu,
+      MaSv: p.MaSv,
+      student_code: p.MaSv,
+      HoTen: p.HoTen,
+      student_name: p.HoTen,
+      Email: p.Email,
+      MaHocKy: p.MaHocKy,
+      TenHocKy: p.TenHocKy,
+      semester_name: p.TenHocKy,
+      TenNamHoc: p.TenNamHoc,
+      SoTienThu: parseFloat(p.SoTienThu) || 0,
+      amount: parseFloat(p.SoTienThu) || 0,
+      HinhThucThu: p.HinhThucThu,
+      payment_method: p.HinhThucThu,
+      NgayLap: p.NgayLap,
+      payment_date: p.NgayLap,
+      GhiChu: p.GhiChu,
+      note: p.GhiChu,
+      NguoiThu: p.NguoiThu,
+      collected_by: p.NguoiThu,
+      TrangThai: p.TrangThai,
+      status: p.TrangThai
     }));
 
     res.json({
@@ -112,13 +112,13 @@ const getPaymentById = async (req, res) => {
     const { id } = req.params;
     
     const result = await pool.query(
-      `SELECT pthp.*, sv.ho_ten, sv.email, sv.so_dien_thoai, hk.ten_hoc_ky, nh.ten_nam_hoc, pdk.ma_hoc_ky
-       FROM phieu_thu_hoc_phi pthp
-       JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
-       JOIN hoc_ky hk ON pdk.ma_hoc_ky = hk.ma_hoc_ky
-       JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
-       WHERE pthp.so_phieu_thu = $1`,
+      `SELECT pthp.*, sv."HoTen", sv."Email", sv.so_dien_thoai, hk."TenHocKy", nh."TenNamHoc", pdk."MaHocKy"
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv"
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
+       JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+       JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
+       WHERE pthp."SoPhieuThu" = $1`,
       [id]
     );
 
@@ -133,22 +133,22 @@ const getPaymentById = async (req, res) => {
     res.json({
       success: true,
       data: {
-        id: p.so_phieu_thu,
-        so_phieu_thu: p.so_phieu_thu,
-        ma_sv: p.ma_sv,
-        ho_ten: p.ho_ten,
-        email: p.email,
+        id: p.SoPhieuThu,
+        SoPhieuThu: p.SoPhieuThu,
+        MaSv: p.MaSv,
+        HoTen: p.HoTen,
+        Email: p.Email,
         so_dien_thoai: p.so_dien_thoai,
-        ma_hoc_ky: p.ma_hoc_ky,
-        ten_hoc_ky: p.ten_hoc_ky,
-        ten_nam_hoc: p.ten_nam_hoc,
-        so_tien_thu: parseFloat(p.so_tien_thu) || 0,
-        amount: parseFloat(p.so_tien_thu) || 0,
-        hinh_thuc_thu: p.hinh_thuc_thu,
-        ngay_lap: p.ngay_lap,
-        ghi_chu: p.ghi_chu,
-        nguoi_thu: p.nguoi_thu,
-        trang_thai: p.trang_thai
+        MaHocKy: p.MaHocKy,
+        TenHocKy: p.TenHocKy,
+        TenNamHoc: p.TenNamHoc,
+        SoTienThu: parseFloat(p.SoTienThu) || 0,
+        amount: parseFloat(p.SoTienThu) || 0,
+        HinhThucThu: p.HinhThucThu,
+        NgayLap: p.NgayLap,
+        GhiChu: p.GhiChu,
+        NguoiThu: p.NguoiThu,
+        TrangThai: p.TrangThai
       }
     });
   } catch (error) {
@@ -166,33 +166,33 @@ const getStudentPayments = async (req, res) => {
     const { studentId } = req.params;
 
     const result = await pool.query(
-      `SELECT pthp.*, hk.ten_hoc_ky, nh.ten_nam_hoc, pdk.ma_hoc_ky
-       FROM phieu_thu_hoc_phi pthp
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
-       JOIN hoc_ky hk ON pdk.ma_hoc_ky = hk.ma_hoc_ky
-       JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
-       WHERE pthp.ma_sv = $1
-       ORDER BY pthp.ngay_lap DESC`,
+      `SELECT pthp.*, hk."TenHocKy", nh."TenNamHoc", pdk."MaHocKy"
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
+       JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+       JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
+       WHERE pthp."MaSv" = $1
+       ORDER BY pthp."NgayLap" DESC`,
       [studentId]
     );
 
     const payments = result.rows.map(p => ({
-      id: p.so_phieu_thu,
-      so_phieu_thu: p.so_phieu_thu,
-      ma_hoc_ky: p.ma_hoc_ky,
-      ten_hoc_ky: p.ten_hoc_ky,
-      semester_name: p.ten_hoc_ky,
-      ten_nam_hoc: p.ten_nam_hoc,
-      so_tien_thu: parseFloat(p.so_tien_thu) || 0,
-      amount: parseFloat(p.so_tien_thu) || 0,
-      hinh_thuc_thu: p.hinh_thuc_thu,
-      payment_method: p.hinh_thuc_thu,
-      ngay_lap: p.ngay_lap,
-      payment_date: p.ngay_lap,
-      ghi_chu: p.ghi_chu,
-      note: p.ghi_chu,
-      trang_thai: p.trang_thai,
-      status: p.trang_thai
+      id: p.SoPhieuThu,
+      SoPhieuThu: p.SoPhieuThu,
+      MaHocKy: p.MaHocKy,
+      TenHocKy: p.TenHocKy,
+      semester_name: p.TenHocKy,
+      TenNamHoc: p.TenNamHoc,
+      SoTienThu: parseFloat(p.SoTienThu) || 0,
+      amount: parseFloat(p.SoTienThu) || 0,
+      HinhThucThu: p.HinhThucThu,
+      payment_method: p.HinhThucThu,
+      NgayLap: p.NgayLap,
+      payment_date: p.NgayLap,
+      GhiChu: p.GhiChu,
+      note: p.GhiChu,
+      TrangThai: p.TrangThai,
+      status: p.TrangThai
     }));
 
     res.json({
@@ -213,15 +213,15 @@ const createPayment = async (req, res) => {
   const client = await pool.connect();
   try {
     const { 
-      ma_sv, 
-      ma_hoc_ky, 
-      so_tien_thu, 
-      hinh_thuc_thu = 'Tiền mặt',
-      ghi_chu
+      MaSv, 
+      MaHocKy, 
+      SoTienThu, 
+      HinhThucThu = 'Tiền mặt',
+      GhiChu
     } = req.body;
-    const nguoi_thu = req.user?.ho_ten || 'Admin';
+    const NguoiThu = req.user?.HoTen || 'Admin';
 
-    if (!ma_sv || !ma_hoc_ky || !so_tien_thu) {
+    if (!MaSv || !MaHocKy || !SoTienThu) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng cung cấp đầy đủ thông tin'
@@ -232,8 +232,8 @@ const createPayment = async (req, res) => {
 
     // Kiểm tra sinh viên tồn tại
     const studentResult = await client.query(
-      'SELECT ma_sv FROM sinh_vien WHERE ma_sv = $1',
-      [ma_sv]
+      'SELECT "MaSv" FROM "SINHVIEN" WHERE "MaSv" = $1',
+      [MaSv]
     );
     if (studentResult.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -245,8 +245,8 @@ const createPayment = async (req, res) => {
 
     // Kiểm tra phiếu đăng ký tồn tại
     const phieuResult = await client.query(
-      'SELECT so_phieu, tong_tien_phai_dong, tong_tien_da_dong FROM phieu_dang_ky WHERE ma_sv = $1 AND ma_hoc_ky = $2',
-      [ma_sv, ma_hoc_ky]
+      'SELECT "SoPhieu", "TongTienPhaiDong", "TongTienDaDong" FROM "PHIEUDANGKY" WHERE "MaSv" = $1 AND "MaHocKy" = $2',
+      [MaSv, MaHocKy]
     );
 
     if (phieuResult.rows.length === 0) {
@@ -257,24 +257,24 @@ const createPayment = async (req, res) => {
       });
     }
 
-    const soPhieuDangKy = phieuResult.rows[0].so_phieu;
+    const soPhieuDangKy = phieuResult.rows[0].SoPhieu;
 
     // Tạo phiếu thu
     const paymentResult = await client.query(
-      `INSERT INTO phieu_thu_hoc_phi (so_phieu_dang_ky, ma_sv, so_tien_thu, hinh_thuc_thu, nguoi_thu, ghi_chu, trang_thai)
+      `INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuDangKy", "MaSv", "SoTienThu", "HinhThucThu", "NguoiThu", "GhiChu", "TrangThai")
        VALUES ($1, $2, $3, $4, $5, $6, 'Thành công')
        RETURNING *`,
-      [soPhieuDangKy, ma_sv, so_tien_thu, hinh_thuc_thu, nguoi_thu, ghi_chu]
+      [soPhieuDangKy, MaSv, SoTienThu, HinhThucThu, NguoiThu, GhiChu]
     );
 
     // Cập nhật tổng tiền đã đóng trong phiếu đăng ký
     await client.query(
-      `UPDATE phieu_dang_ky SET 
-        tong_tien_da_dong = (
-          SELECT COALESCE(SUM(so_tien_thu), 0) FROM phieu_thu_hoc_phi 
-          WHERE so_phieu_dang_ky = $1 AND trang_thai = 'Thành công'
+      `UPDATE "PHIEUDANGKY" SET 
+        "TongTienDaDong" = (
+          SELECT COALESCE(SUM("SoTienThu"), 0) FROM "PHIEUTHUHOCPHI" 
+          WHERE "SoPhieuDangKy" = $1 AND "TrangThai" = 'Thành công'
         )
-       WHERE so_phieu = $1`,
+       WHERE "SoPhieu" = $1`,
       [soPhieuDangKy]
     );
 
@@ -307,7 +307,7 @@ const cancelPayment = async (req, res) => {
 
     // Lấy thông tin phiếu thu
     const paymentResult = await client.query(
-      'SELECT * FROM phieu_thu_hoc_phi WHERE so_phieu_thu = $1',
+      'SELECT * FROM "PHIEUTHUHOCPHI" WHERE "SoPhieuThu" = $1',
       [id]
     );
 
@@ -323,19 +323,19 @@ const cancelPayment = async (req, res) => {
 
     // Cập nhật trạng thái phiếu thu
     await client.query(
-      "UPDATE phieu_thu_hoc_phi SET trang_thai = 'Đã hủy' WHERE so_phieu_thu = $1",
+      "UPDATE phieu_thu_hoc_phi SET TrangThai = 'Đã hủy' WHERE SoPhieuThu = $1",
       [id]
     );
 
     // Cập nhật lại tổng tiền đã đóng trong phiếu đăng ký
     await client.query(
-      `UPDATE phieu_dang_ky SET 
-        tong_tien_da_dong = (
-          SELECT COALESCE(SUM(so_tien_thu), 0) FROM phieu_thu_hoc_phi 
-          WHERE so_phieu_dang_ky = $1 AND trang_thai = 'Thành công'
+      `UPDATE "PHIEUDANGKY" SET 
+        "TongTienDaDong" = (
+          SELECT COALESCE(SUM("SoTienThu"), 0) FROM "PHIEUTHUHOCPHI" 
+          WHERE "SoPhieuDangKy" = $1 AND "TrangThai" = 'Thành công'
         )
-       WHERE so_phieu = $1`,
-      [payment.so_phieu_dang_ky]
+       WHERE "SoPhieu" = $1`,
+      [payment.SoPhieuDangKy]
     );
 
     await client.query('COMMIT');
@@ -359,52 +359,52 @@ const cancelPayment = async (req, res) => {
 // Thống kê thanh toán
 const getPaymentStats = async (req, res) => {
   try {
-    const { ma_hoc_ky } = req.query;
+    const { MaHocKy } = req.query;
 
-    let whereClause = "WHERE pthp.trang_thai = 'Thành công'";
+    let whereClause = "WHERE pthp.TrangThai = 'Thành công'";
     let params = [];
 
-    if (ma_hoc_ky) {
-      whereClause += ' AND pdk.ma_hoc_ky = $1';
-      params = [ma_hoc_ky];
+    if (MaHocKy) {
+      whereClause += ' AND pdk.MaHocKy = $1';
+      params = [MaHocKy];
     }
 
     // Tổng số phiếu thu
     const totalResult = await pool.query(
       `SELECT COUNT(*) as count
-       FROM phieu_thu_hoc_phi pthp
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
        ${whereClause}`,
       params
     );
 
     // Tổng tiền đã thu
     const amountResult = await pool.query(
-      `SELECT COALESCE(SUM(pthp.so_tien_thu), 0) as total
-       FROM phieu_thu_hoc_phi pthp
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
+      `SELECT COALESCE(SUM(pthp."SoTienThu"), 0) as total
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
        ${whereClause}`,
       params
     );
 
     // Thống kê theo hình thức thu
     const methodResult = await pool.query(
-      `SELECT pthp.hinh_thuc_thu, COUNT(*) as count, COALESCE(SUM(pthp.so_tien_thu), 0) as total
-       FROM phieu_thu_hoc_phi pthp
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
+      `SELECT pthp."HinhThucThu", COUNT(*) as count, COALESCE(SUM(pthp."SoTienThu"), 0) as total
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
        ${whereClause}
-       GROUP BY pthp.hinh_thuc_thu`,
+       GROUP BY pthp."HinhThucThu"`,
       params
     );
 
     // Thống kê theo ngày (7 ngày gần nhất)
     const dailyResult = await pool.query(
-      `SELECT DATE(pthp.ngay_lap) as date, COUNT(*) as count, COALESCE(SUM(pthp.so_tien_thu), 0) as total
-       FROM phieu_thu_hoc_phi pthp
-       JOIN phieu_dang_ky pdk ON pthp.so_phieu_dang_ky = pdk.so_phieu
+      `SELECT DATE(pthp."NgayLap") as date, COUNT(*) as count, COALESCE(SUM(pthp."SoTienThu"), 0) as total
+       FROM "PHIEUTHUHOCPHI" pthp
+       JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
        ${whereClause}
-       AND pthp.ngay_lap >= CURRENT_DATE - INTERVAL '7 days'
-       GROUP BY DATE(pthp.ngay_lap)
+       AND pthp."NgayLap" >= CURRENT_DATE - INTERVAL '7 days'
+       GROUP BY DATE(pthp."NgayLap")
        ORDER BY date DESC`,
       params
     );
@@ -415,7 +415,7 @@ const getPaymentStats = async (req, res) => {
         totalReceipts: parseInt(totalResult.rows[0].count),
         totalAmount: parseFloat(amountResult.rows[0].total),
         byMethod: methodResult.rows.map(r => ({
-          hinh_thuc_thu: r.hinh_thuc_thu,
+          HinhThucThu: r.HinhThucThu,
           count: parseInt(r.count),
           total: parseFloat(r.total)
         })),

@@ -8,76 +8,76 @@ const getAllStudents = async (req, res) => {
       page = 1, 
       limit = 10, 
       search = '', 
-      ma_nganh,
-      trang_thai,
-      sortBy = 'ma_sv', 
+      MaNganh,
+      TrangThai,
+      sortBy = 'MaSv', 
       sortOrder = 'ASC' 
     } = req.query;
     const offset = (page - 1) * limit;
 
-    const validSortFields = ['ma_sv', 'ho_ten', 'email', 'nam_nhap_hoc', 'ngay_tao'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'ma_sv';
+    const validSortFields = ['MaSv', 'HoTen', 'Email', 'nam_nhap_hoc', 'NgayTao'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'MaSv';
     const order = sortOrder.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-    let whereClause = `WHERE (sv.ma_sv ILIKE $1 OR sv.ho_ten ILIKE $1 OR sv.email ILIKE $1)`;
+    let whereClause = `WHERE (sv."MaSv" ILIKE $1 OR sv."HoTen" ILIKE $1 OR sv."Email" ILIKE $1)`;
     let params = [`%${search}%`];
     let paramIndex = 2;
 
-    if (ma_nganh) {
-      whereClause += ` AND sv.ma_nganh = $${paramIndex}`;
-      params.push(ma_nganh);
+    if (MaNganh) {
+      whereClause += ` AND sv."MaNganh" = ${paramIndex}`;
+      params.push(MaNganh);
       paramIndex++;
     }
 
-    if (trang_thai) {
-      whereClause += ` AND sv.trang_thai = $${paramIndex}`;
-      params.push(trang_thai);
+    if (TrangThai) {
+      whereClause += ` AND sv."TrangThai" = ${paramIndex}`;
+      params.push(TrangThai);
       paramIndex++;
     }
 
     // Đếm tổng
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM sinh_vien sv ${whereClause}`,
+      `SELECT COUNT(*) FROM "SINHVIEN" sv ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0].count);
 
     // Lấy danh sách sinh viên
     const result = await pool.query(
-      `SELECT sv.*, nh.ten_nganh, kh.ten_khoa,
-       h.ten_huyen, t.ten_tinh
-       FROM sinh_vien sv
-       LEFT JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-       LEFT JOIN khoa kh ON nh.ma_khoa = kh.ma_khoa
-       LEFT JOIN huyen h ON sv.ma_huyen = h.ma_huyen
-       LEFT JOIN tinh t ON h.ma_tinh = t.ma_tinh
+      `SELECT sv.*, nh."TenNganh", kh."TenKhoa",
+       h.ten_huyen, t."TenTinh"
+       FROM "SINHVIEN" sv
+       LEFT JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+       LEFT JOIN "KHOA" kh ON nh."MaKhoa" = kh."MaKhoa"
+       LEFT JOIN "HUYEN" h ON sv.ma_huyen = h.ma_huyen
+       LEFT JOIN "TINH" t ON h."MaTinh" = t."MaTinh"
        ${whereClause}
        ORDER BY sv.${sortField} ${order}
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
     // Map dữ liệu để tương thích với frontend
     const students = result.rows.map(sv => ({
-      id: sv.ma_sv,
-      ma_sv: sv.ma_sv,
-      student_code: sv.ma_sv,
-      ho_ten: sv.ho_ten,
-      full_name: sv.ho_ten,
-      ngay_sinh: sv.ngay_sinh,
-      gioi_tinh: sv.gioi_tinh,
-      email: sv.email,
+      id: sv.MaSv,
+      MaSv: sv.MaSv,
+      student_code: sv.MaSv,
+      HoTen: sv.HoTen,
+      full_name: sv.HoTen,
+      NgaySinh: sv.NgaySinh,
+      GioiTinh: sv.GioiTinh,
+      Email: sv.Email,
       so_dien_thoai: sv.so_dien_thoai,
-      dia_chi: sv.dia_chi,
-      ma_nganh: sv.ma_nganh,
-      ten_nganh: sv.ten_nganh,
-      ten_khoa: sv.ten_khoa,
+      DiaChi: sv.DiaChi,
+      MaNganh: sv.MaNganh,
+      TenNganh: sv.TenNganh,
+      TenKhoa: sv.TenKhoa,
       ten_huyen: sv.ten_huyen,
-      ten_tinh: sv.ten_tinh,
+      TenTinh: sv.TenTinh,
       nam_nhap_hoc: sv.nam_nhap_hoc,
-      trang_thai: sv.trang_thai,
+      TrangThai: sv.TrangThai,
       avatar: sv.avatar,
-      created_at: sv.ngay_tao
+      created_at: sv.NgayTao
     }));
 
     res.json({
@@ -105,14 +105,14 @@ const getStudentById = async (req, res) => {
     const { id } = req.params;
     
     const result = await pool.query(
-      `SELECT sv.*, nh.ten_nganh, kh.ten_khoa,
-       h.ten_huyen, t.ten_tinh
-       FROM sinh_vien sv
-       LEFT JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-       LEFT JOIN khoa kh ON nh.ma_khoa = kh.ma_khoa
-       LEFT JOIN huyen h ON sv.ma_huyen = h.ma_huyen
-       LEFT JOIN tinh t ON h.ma_tinh = t.ma_tinh
-       WHERE sv.ma_sv = $1`,
+      `SELECT sv.*, nh."TenNganh", kh."TenKhoa",
+       h.ten_huyen, t."TenTinh"
+       FROM "SINHVIEN" sv
+       LEFT JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+       LEFT JOIN "KHOA" kh ON nh."MaKhoa" = kh."MaKhoa"
+       LEFT JOIN "HUYEN" h ON sv.ma_huyen = h.ma_huyen
+       LEFT JOIN "TINH" t ON h."MaTinh" = t."MaTinh"
+       WHERE sv."MaSv" = $1`,
       [id]
     );
 
@@ -127,25 +127,25 @@ const getStudentById = async (req, res) => {
     res.json({
       success: true,
       data: {
-        id: sv.ma_sv,
-        ma_sv: sv.ma_sv,
-        student_code: sv.ma_sv,
-        ho_ten: sv.ho_ten,
-        full_name: sv.ho_ten,
-        ngay_sinh: sv.ngay_sinh,
-        gioi_tinh: sv.gioi_tinh,
-        email: sv.email,
+        id: sv.MaSv,
+        MaSv: sv.MaSv,
+        student_code: sv.MaSv,
+        HoTen: sv.HoTen,
+        full_name: sv.HoTen,
+        NgaySinh: sv.NgaySinh,
+        GioiTinh: sv.GioiTinh,
+        Email: sv.Email,
         so_dien_thoai: sv.so_dien_thoai,
-        dia_chi: sv.dia_chi,
-        ma_nganh: sv.ma_nganh,
-        ten_nganh: sv.ten_nganh,
-        ten_khoa: sv.ten_khoa,
+        DiaChi: sv.DiaChi,
+        MaNganh: sv.MaNganh,
+        TenNganh: sv.TenNganh,
+        TenKhoa: sv.TenKhoa,
         ten_huyen: sv.ten_huyen,
-        ten_tinh: sv.ten_tinh,
+        TenTinh: sv.TenTinh,
         nam_nhap_hoc: sv.nam_nhap_hoc,
-        trang_thai: sv.trang_thai,
+        TrangThai: sv.TrangThai,
         avatar: sv.avatar,
-        created_at: sv.ngay_tao
+        created_at: sv.NgayTao
       }
     });
   } catch (error) {
@@ -162,20 +162,20 @@ const createStudent = async (req, res) => {
   const client = await pool.connect();
   try {
     const { 
-      ma_sv, 
-      ho_ten, 
-      ngay_sinh, 
-      gioi_tinh, 
-      email, 
+      MaSv, 
+      HoTen, 
+      NgaySinh, 
+      GioiTinh, 
+      Email, 
       so_dien_thoai, 
-      dia_chi, 
+      DiaChi, 
       ma_huyen, 
-      ma_nganh, 
+      MaNganh, 
       nam_nhap_hoc,
       password = '123456' // Mật khẩu mặc định
     } = req.body;
 
-    if (!ma_sv || !ho_ten || !ma_nganh) {
+    if (!MaSv || !HoTen || !MaNganh) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng nhập đầy đủ thông tin bắt buộc (Mã SV, Họ tên, Ngành)'
@@ -184,8 +184,8 @@ const createStudent = async (req, res) => {
 
     // Kiểm tra mã sinh viên đã tồn tại
     const existingStudent = await client.query(
-      'SELECT ma_sv FROM sinh_vien WHERE ma_sv = $1',
-      [ma_sv]
+      'SELECT "MaSv" FROM "SINHVIEN" WHERE "MaSv" = $1',
+      [MaSv]
     );
 
     if (existingStudent.rows.length > 0) {
@@ -195,11 +195,11 @@ const createStudent = async (req, res) => {
       });
     }
 
-    // Kiểm tra email đã tồn tại
-    if (email) {
+    // Kiểm tra Email đã tồn tại
+    if (Email) {
       const existingEmail = await client.query(
-        'SELECT ma_sv FROM sinh_vien WHERE email = $1',
-        [email]
+        'SELECT "MaSv" FROM "SINHVIEN" WHERE "Email" = $1',
+        [Email]
       );
       if (existingEmail.rows.length > 0) {
         return res.status(400).json({
@@ -216,17 +216,17 @@ const createStudent = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     
     const accountResult = await client.query(
-      'INSERT INTO tai_khoan (ten_dang_nhap, mat_khau, role) VALUES ($1, $2, $3) RETURNING ma_tai_khoan',
-      [ma_sv, hashedPassword, 'student']
+      'INSERT INTO "TAIKHOAN" ("TenDangNhap", "MatKhau", "Role") VALUES ($1, $2, $3) RETURNING "MaTaiKhoan"',
+      [MaSv, hashedPassword, 'student']
     );
-    const ma_tai_khoan = accountResult.rows[0].ma_tai_khoan;
+    const MaTaiKhoan = accountResult.rows[0].MaTaiKhoan;
 
     // Tạo sinh viên
     const studentResult = await client.query(
-      `INSERT INTO sinh_vien (ma_sv, ho_ten, ngay_sinh, gioi_tinh, email, so_dien_thoai, dia_chi, ma_huyen, ma_nganh, nam_nhap_hoc, ma_tai_khoan)
+      `INSERT INTO "SINHVIEN" ("MaSv", "HoTen", "NgaySinh", "GioiTinh", "Email", so_dien_thoai, "DiaChi", ma_huyen, "MaNganh", nam_nhap_hoc, "MaTaiKhoan")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [ma_sv, ho_ten, ngay_sinh, gioi_tinh, email, so_dien_thoai, dia_chi, ma_huyen, ma_nganh, nam_nhap_hoc, ma_tai_khoan]
+      [MaSv, HoTen, NgaySinh, GioiTinh, Email, so_dien_thoai, DiaChi, ma_huyen, MaNganh, nam_nhap_hoc, MaTaiKhoan]
     );
 
     await client.query('COMMIT');
@@ -253,22 +253,22 @@ const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      ho_ten, 
-      ngay_sinh, 
-      gioi_tinh, 
-      email, 
+      HoTen, 
+      NgaySinh, 
+      GioiTinh, 
+      Email, 
       so_dien_thoai, 
-      dia_chi, 
+      DiaChi, 
       ma_huyen, 
-      ma_nganh, 
+      MaNganh, 
       nam_nhap_hoc,
-      trang_thai,
+      TrangThai,
       avatar
     } = req.body;
 
     // Kiểm tra sinh viên tồn tại
     const existingStudent = await pool.query(
-      'SELECT ma_sv FROM sinh_vien WHERE ma_sv = $1',
+      'SELECT "MaSv" FROM "SINHVIEN" WHERE "MaSv" = $1',
       [id]
     );
 
@@ -279,11 +279,11 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    // Kiểm tra email trùng (nếu có thay đổi)
-    if (email) {
+    // Kiểm tra Email trùng (nếu có thay đổi)
+    if (Email) {
       const existingEmail = await pool.query(
-        'SELECT ma_sv FROM sinh_vien WHERE email = $1 AND ma_sv != $2',
-        [email, id]
+        'SELECT "MaSv" FROM "SINHVIEN" WHERE "Email" = $1 AND "MaSv" != $2',
+        [Email, id]
       );
       if (existingEmail.rows.length > 0) {
         return res.status(400).json({
@@ -294,21 +294,21 @@ const updateStudent = async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE sinh_vien SET 
-        ho_ten = COALESCE($1, ho_ten),
-        ngay_sinh = COALESCE($2, ngay_sinh),
-        gioi_tinh = COALESCE($3, gioi_tinh),
-        email = COALESCE($4, email),
+      `UPDATE "SINHVIEN" SET 
+        "HoTen" = COALESCE($1, "HoTen"),
+        "NgaySinh" = COALESCE($2, "NgaySinh"),
+        "GioiTinh" = COALESCE($3, "GioiTinh"),
+        "Email" = COALESCE($4, "Email"),
         so_dien_thoai = COALESCE($5, so_dien_thoai),
-        dia_chi = COALESCE($6, dia_chi),
+        "DiaChi" = COALESCE($6, "DiaChi"),
         ma_huyen = COALESCE($7, ma_huyen),
-        ma_nganh = COALESCE($8, ma_nganh),
+        "MaNganh" = COALESCE($8, "MaNganh"),
         nam_nhap_hoc = COALESCE($9, nam_nhap_hoc),
-        trang_thai = COALESCE($10, trang_thai),
+        "TrangThai" = COALESCE($10, "TrangThai"),
         avatar = COALESCE($11, avatar)
-       WHERE ma_sv = $12
+       WHERE "MaSv" = $12
        RETURNING *`,
-      [ho_ten, ngay_sinh, gioi_tinh, email, so_dien_thoai, dia_chi, ma_huyen, ma_nganh, nam_nhap_hoc, trang_thai, avatar, id]
+      [HoTen, NgaySinh, GioiTinh, Email, so_dien_thoai, DiaChi, ma_huyen, MaNganh, nam_nhap_hoc, TrangThai, avatar, id]
     );
 
     res.json({
@@ -331,9 +331,9 @@ const deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Kiểm tra sinh viên tồn tại và lấy ma_tai_khoan
+    // Kiểm tra sinh viên tồn tại và lấy MaTaiKhoan
     const existingStudent = await client.query(
-      'SELECT ma_sv, ma_tai_khoan FROM sinh_vien WHERE ma_sv = $1',
+      'SELECT "MaSv", "MaTaiKhoan" FROM "SINHVIEN" WHERE "MaSv" = $1',
       [id]
     );
 
@@ -344,16 +344,16 @@ const deleteStudent = async (req, res) => {
       });
     }
 
-    const ma_tai_khoan = existingStudent.rows[0].ma_tai_khoan;
+    const MaTaiKhoan = existingStudent.rows[0].MaTaiKhoan;
 
     await client.query('BEGIN');
 
     // Xóa sinh viên (sẽ cascade xóa các bản ghi liên quan)
-    await client.query('DELETE FROM sinh_vien WHERE ma_sv = $1', [id]);
+    await client.query('DELETE FROM "SINHVIEN" WHERE "MaSv" = $1', [id]);
 
     // Xóa tài khoản
-    if (ma_tai_khoan) {
-      await client.query('DELETE FROM tai_khoan WHERE ma_tai_khoan = $1', [ma_tai_khoan]);
+    if (MaTaiKhoan) {
+      await client.query('DELETE FROM "TAIKHOAN" WHERE "MaTaiKhoan" = $1', [MaTaiKhoan]);
     }
 
     await client.query('COMMIT');
@@ -378,41 +378,41 @@ const deleteStudent = async (req, res) => {
 const getStudentStats = async (req, res) => {
   try {
     // Tổng số sinh viên
-    const totalResult = await pool.query('SELECT COUNT(*) as total FROM sinh_vien');
+    const totalResult = await pool.query('SELECT COUNT(*) as total FROM "SINHVIEN"');
     
     // Số sinh viên theo trạng thái
     const statusResult = await pool.query(`
-      SELECT trang_thai, COUNT(*) as count 
-      FROM sinh_vien 
-      GROUP BY trang_thai
+      SELECT "TrangThai", COUNT(*) as count 
+      FROM "SINHVIEN" 
+      GROUP BY "TrangThai"
     `);
 
     // Số sinh viên theo ngành
     const majorResult = await pool.query(`
-      SELECT nh.ten_nganh, COUNT(sv.ma_sv) as count 
-      FROM sinh_vien sv
-      JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-      GROUP BY nh.ten_nganh
+      SELECT nh."TenNganh", COUNT(sv."MaSv") as count 
+      FROM "SINHVIEN" sv
+      JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+      GROUP BY nh."TenNganh"
       ORDER BY count DESC
       LIMIT 5
     `);
 
     // Số sinh viên theo khoa
     const facultyResult = await pool.query(`
-      SELECT kh.ten_khoa, COUNT(sv.ma_sv) as count 
-      FROM sinh_vien sv
-      JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-      JOIN khoa kh ON nh.ma_khoa = kh.ma_khoa
-      GROUP BY kh.ten_khoa
+      SELECT kh."TenKhoa", COUNT(sv."MaSv") as count 
+      FROM "SINHVIEN" sv
+      JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+      JOIN "KHOA" kh ON nh."MaKhoa" = kh."MaKhoa"
+      GROUP BY kh."TenKhoa"
       ORDER BY count DESC
     `);
 
     // Số sinh viên theo năm nhập học
     const yearResult = await pool.query(`
-      SELECT EXTRACT(YEAR FROM ngay_nhap_hoc)::integer as nam_nhap_hoc, COUNT(*) as count 
-      FROM sinh_vien 
-      WHERE ngay_nhap_hoc IS NOT NULL
-      GROUP BY EXTRACT(YEAR FROM ngay_nhap_hoc)
+      SELECT EXTRACT(YEAR FROM "NgayNhapHoc")::integer as nam_nhap_hoc, COUNT(*) as count 
+      FROM "SINHVIEN" 
+      WHERE "NgayNhapHoc" IS NOT NULL
+      GROUP BY EXTRACT(YEAR FROM "NgayNhapHoc")
       ORDER BY nam_nhap_hoc DESC
       LIMIT 5
     `);
@@ -440,10 +440,10 @@ const getStudentStats = async (req, res) => {
 const getMajors = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT nh.*, kh.ten_khoa
-      FROM nganh_hoc nh
-      LEFT JOIN khoa kh ON nh.ma_khoa = kh.ma_khoa
-      ORDER BY kh.ten_khoa, nh.ten_nganh
+      SELECT nh.*, kh."TenKhoa"
+      FROM "NGANHHOC" nh
+      LEFT JOIN "KHOA" kh ON nh."MaKhoa" = kh."MaKhoa"
+      ORDER BY kh."TenKhoa", nh."TenNganh"
     `);
 
     res.json({
@@ -462,7 +462,7 @@ const getMajors = async (req, res) => {
 // Lấy danh sách tỉnh/thành phố
 const getProvinces = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM tinh ORDER BY ten_tinh');
+    const result = await pool.query('SELECT * FROM "TINH" ORDER BY "TenTinh"');
     res.json({
       success: true,
       data: result.rows
@@ -481,7 +481,7 @@ const getDistrictsByProvince = async (req, res) => {
   try {
     const { provinceId } = req.params;
     const result = await pool.query(
-      'SELECT * FROM huyen WHERE ma_tinh = $1 ORDER BY ten_huyen',
+      'SELECT * FROM "HUYEN" WHERE "MaTinh" = $1 ORDER BY ten_huyen',
       [provinceId]
     );
     res.json({

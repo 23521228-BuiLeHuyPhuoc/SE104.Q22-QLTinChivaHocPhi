@@ -7,66 +7,66 @@ const getAllCourses = async (req, res) => {
       page = 1, 
       limit = 10, 
       search = '', 
-      loai_mon,
-      ma_khoa,
-      sortBy = 'ma_mon_hoc', 
+      LoaiMon,
+      MaKhoa,
+      sortBy = 'MaMonHoc', 
       sortOrder = 'ASC' 
     } = req.query;
     const offset = (page - 1) * limit;
 
-    const validSortFields = ['ma_mon_hoc', 'ten_mon_hoc', 'so_tin_chi', 'loai_mon'];
-    const sortField = validSortFields.includes(sortBy) ? sortBy : 'ma_mon_hoc';
+    const validSortFields = ['MaMonHoc', 'TenMonHoc', 'SoTinChi', 'LoaiMon'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'MaMonHoc';
     const order = sortOrder.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
-    let whereClause = `WHERE (mh.ma_mon_hoc ILIKE $1 OR mh.ten_mon_hoc ILIKE $1)`;
+    let whereClause = `WHERE (mh."MaMonHoc" ILIKE $1 OR mh."TenMonHoc" ILIKE $1)`;
     let params = [`%${search}%`];
     let paramIndex = 2;
 
-    if (loai_mon) {
-      whereClause += ` AND mh.loai_mon = $${paramIndex}`;
-      params.push(loai_mon);
+    if (LoaiMon) {
+      whereClause += ` AND mh."LoaiMon" = ${paramIndex}`;
+      params.push(LoaiMon);
       paramIndex++;
     }
 
-    if (ma_khoa) {
-      whereClause += ` AND mh.ma_khoa = $${paramIndex}`;
-      params.push(ma_khoa);
+    if (MaKhoa) {
+      whereClause += ` AND mh."MaKhoa" = ${paramIndex}`;
+      params.push(MaKhoa);
       paramIndex++;
     }
 
     // Đếm tổng
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM mon_hoc mh ${whereClause}`,
+      `SELECT COUNT(*) FROM "MONHOC" mh ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0].count);
 
     // Lấy danh sách môn học
     const result = await pool.query(
-      `SELECT mh.*, kh.ten_khoa
-       FROM mon_hoc mh
-       LEFT JOIN khoa kh ON mh.ma_khoa = kh.ma_khoa
+      `SELECT mh.*, kh."TenKhoa"
+       FROM "MONHOC" mh
+       LEFT JOIN "KHOA" kh ON mh."MaKhoa" = kh."MaKhoa"
        ${whereClause}
        ORDER BY mh.${sortField} ${order}
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
     // Map dữ liệu để tương thích với frontend
     const courses = result.rows.map(mh => ({
-      id: mh.ma_mon_hoc,
-      ma_mon_hoc: mh.ma_mon_hoc,
-      course_code: mh.ma_mon_hoc,
-      ten_mon_hoc: mh.ten_mon_hoc,
-      course_name: mh.ten_mon_hoc,
-      so_tin_chi: mh.so_tin_chi,
-      credits: mh.so_tin_chi,
-      loai_mon: mh.loai_mon,
-      type: mh.loai_mon,
-      ma_khoa: mh.ma_khoa,
-      ten_khoa: mh.ten_khoa,
-      mo_ta: mh.mo_ta,
-      description: mh.mo_ta
+      id: mh.MaMonHoc,
+      MaMonHoc: mh.MaMonHoc,
+      course_code: mh.MaMonHoc,
+      TenMonHoc: mh.TenMonHoc,
+      course_name: mh.TenMonHoc,
+      SoTinChi: mh.SoTinChi,
+      credits: mh.SoTinChi,
+      LoaiMon: mh.LoaiMon,
+      type: mh.LoaiMon,
+      MaKhoa: mh.MaKhoa,
+      TenKhoa: mh.TenKhoa,
+      MoTa: mh.MoTa,
+      description: mh.MoTa
     }));
 
     res.json({
@@ -94,10 +94,10 @@ const getCourseById = async (req, res) => {
     const { id } = req.params;
     
     const result = await pool.query(
-      `SELECT mh.*, kh.ten_khoa
-       FROM mon_hoc mh
-       LEFT JOIN khoa kh ON mh.ma_khoa = kh.ma_khoa
-       WHERE mh.ma_mon_hoc = $1`,
+      `SELECT mh.*, kh."TenKhoa"
+       FROM "MONHOC" mh
+       LEFT JOIN "KHOA" kh ON mh."MaKhoa" = kh."MaKhoa"
+       WHERE mh."MaMonHoc" = $1`,
       [id]
     );
 
@@ -112,29 +112,29 @@ const getCourseById = async (req, res) => {
     
     // Lấy điều kiện tiên quyết
     const prerequisitesResult = await pool.query(
-      `SELECT dk.*, mh_tq.ten_mon_hoc as ten_mon_tien_quyet
-       FROM dieu_kien_mon_hoc dk
-       JOIN mon_hoc mh_tq ON dk.ma_mon_hoc_truoc = mh_tq.ma_mon_hoc
-       WHERE dk.ma_mon_hoc = $1`,
+      `SELECT dk.*, mh_tq."TenMonHoc" as ten_mon_tien_quyet
+       FROM "DIEUKIENMONHOC" dk
+       JOIN "MONHOC" mh_tq ON dk.ma_mon_hoc_truoc = mh_tq."MaMonHoc"
+       WHERE dk."MaMonHoc" = $1`,
       [id]
     );
 
     res.json({
       success: true,
       data: {
-        id: mh.ma_mon_hoc,
-        ma_mon_hoc: mh.ma_mon_hoc,
-        course_code: mh.ma_mon_hoc,
-        ten_mon_hoc: mh.ten_mon_hoc,
-        course_name: mh.ten_mon_hoc,
-        so_tin_chi: mh.so_tin_chi,
-        credits: mh.so_tin_chi,
-        loai_mon: mh.loai_mon,
-        type: mh.loai_mon,
-        ma_khoa: mh.ma_khoa,
-        ten_khoa: mh.ten_khoa,
-        mo_ta: mh.mo_ta,
-        description: mh.mo_ta,
+        id: mh.MaMonHoc,
+        MaMonHoc: mh.MaMonHoc,
+        course_code: mh.MaMonHoc,
+        TenMonHoc: mh.TenMonHoc,
+        course_name: mh.TenMonHoc,
+        SoTinChi: mh.SoTinChi,
+        credits: mh.SoTinChi,
+        LoaiMon: mh.LoaiMon,
+        type: mh.LoaiMon,
+        MaKhoa: mh.MaKhoa,
+        TenKhoa: mh.TenKhoa,
+        MoTa: mh.MoTa,
+        description: mh.MoTa,
         prerequisites: prerequisitesResult.rows
       }
     });
@@ -154,33 +154,33 @@ const getOpenedClasses = async (req, res) => {
       page = 1, 
       limit = 20, 
       search = '', 
-      ma_hoc_ky,
-      ma_khoa
+      MaHocKy,
+      MaKhoa
     } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereClause = `WHERE (mh.ma_mon_hoc ILIKE $1 OR mh.ten_mon_hoc ILIKE $1)`;
+    let whereClause = `WHERE (mh."MaMonHoc" ILIKE $1 OR mh."TenMonHoc" ILIKE $1)`;
     let params = [`%${search}%`];
     let paramIndex = 2;
 
-    if (ma_hoc_ky) {
-      whereClause += ` AND lm.ma_hoc_ky = $${paramIndex}`;
-      params.push(ma_hoc_ky);
+    if (MaHocKy) {
+      whereClause += ` AND lm."MaHocKy" = ${paramIndex}`;
+      params.push(MaHocKy);
       paramIndex++;
     }
 
-    if (ma_khoa) {
-      whereClause += ` AND mh.ma_khoa = $${paramIndex}`;
-      params.push(ma_khoa);
+    if (MaKhoa) {
+      whereClause += ` AND mh."MaKhoa" = ${paramIndex}`;
+      params.push(MaKhoa);
       paramIndex++;
     }
 
     // Đếm tổng
     const countResult = await pool.query(
       `SELECT COUNT(*) 
-       FROM lop_mo lm
-       JOIN lop l ON lm.ma_lop = l.ma_lop
-       JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
+       FROM "LOPMO" lm
+       JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+       JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
        ${whereClause}`,
       params
     );
@@ -188,51 +188,51 @@ const getOpenedClasses = async (req, res) => {
 
     // Lấy danh sách lớp mở
     const result = await pool.query(
-      `SELECT lm.*, l.*, mh.ten_mon_hoc, mh.so_tin_chi, mh.loai_mon, kh.ten_khoa,
-       hk.ten_hoc_ky, nh.ten_nam_hoc,
-       (SELECT COUNT(*) FROM chi_tiet_dang_ky ctdk 
-        JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-        WHERE ctdk.ma_lop = l.ma_lop AND pdk.ma_hoc_ky = lm.ma_hoc_ky
-        AND ctdk.trang_thai = 'Đã đăng ký') as so_luong_da_dang_ky
-       FROM lop_mo lm
-       JOIN lop l ON lm.ma_lop = l.ma_lop
-       JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
-       LEFT JOIN khoa kh ON mh.ma_khoa = kh.ma_khoa
-       JOIN hoc_ky hk ON lm.ma_hoc_ky = hk.ma_hoc_ky
-       JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
+      `SELECT lm.*, l.*, mh."TenMonHoc", mh."SoTinChi", mh."LoaiMon", kh."TenKhoa",
+       hk."TenHocKy", nh."TenNamHoc",
+       (SELECT COUNT(*) FROM "CHITIETDANGKY" ctdk 
+        JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+        WHERE ctdk."MaLop" = l."MaLop" AND pdk."MaHocKy" = lm."MaHocKy"
+        AND ctdk."TrangThai" = 'Đã đăng ký') as "SoLuongDaDangKy"
+       FROM "LOPMO" lm
+       JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+       JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
+       LEFT JOIN "KHOA" kh ON mh."MaKhoa" = kh."MaKhoa"
+       JOIN "HOCKY" hk ON lm."MaHocKy" = hk."MaHocKy"
+       JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
        ${whereClause}
-       ORDER BY mh.ten_mon_hoc, l.ma_lop
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       ORDER BY mh."TenMonHoc", l."MaLop"
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
     // Map dữ liệu
     const classes = result.rows.map(row => ({
-      id: `${row.ma_lop}-${row.ma_hoc_ky}`,
-      ma_lop: row.ma_lop,
-      ma_hoc_ky: row.ma_hoc_ky,
-      ma_mon_hoc: row.ma_mon_hoc,
-      ten_mon_hoc: row.ten_mon_hoc,
-      course_name: row.ten_mon_hoc,
-      so_tin_chi: row.so_tin_chi,
-      credits: row.so_tin_chi,
-      loai_mon: row.loai_mon,
-      ten_khoa: row.ten_khoa,
-      ten_hoc_ky: row.ten_hoc_ky,
-      ten_nam_hoc: row.ten_nam_hoc,
-      so_luong_toi_da: row.so_luong_toi_da,
-      max_students: row.so_luong_toi_da,
-      so_luong_da_dang_ky: parseInt(row.so_luong_da_dang_ky) || 0,
-      registered_count: parseInt(row.so_luong_da_dang_ky) || 0,
-      ngay_bat_dau: row.ngay_bat_dau,
-      ngay_ket_thuc: row.ngay_ket_thuc,
-      giang_vien: row.giang_vien,
-      instructor: row.giang_vien,
-      phong_hoc: row.phong_hoc,
-      room: row.phong_hoc,
-      lich_hoc: row.lich_hoc,
-      schedule: row.lich_hoc,
-      trang_thai: row.trang_thai
+      id: `${row.MaLop}-${row.MaHocKy}`,
+      MaLop: row.MaLop,
+      MaHocKy: row.MaHocKy,
+      MaMonHoc: row.MaMonHoc,
+      TenMonHoc: row.TenMonHoc,
+      course_name: row.TenMonHoc,
+      SoTinChi: row.SoTinChi,
+      credits: row.SoTinChi,
+      LoaiMon: row.LoaiMon,
+      TenKhoa: row.TenKhoa,
+      TenHocKy: row.TenHocKy,
+      TenNamHoc: row.TenNamHoc,
+      SoLuongToiDa: row.SoLuongToiDa,
+      max_students: row.SoLuongToiDa,
+      SoLuongDaDangKy: parseInt(row.SoLuongDaDangKy) || 0,
+      registered_count: parseInt(row.SoLuongDaDangKy) || 0,
+      NgayBatDau: row.NgayBatDau,
+      NgayKetThuc: row.NgayKetThuc,
+      GiangVien: row.GiangVien,
+      instructor: row.GiangVien,
+      PhongHoc: row.PhongHoc,
+      room: row.PhongHoc,
+      LichHoc: row.LichHoc,
+      schedule: row.LichHoc,
+      TrangThai: row.TrangThai
     }));
 
     res.json({
@@ -257,9 +257,9 @@ const getOpenedClasses = async (req, res) => {
 // Tạo môn học mới
 const createCourse = async (req, res) => {
   try {
-    const { ma_mon_hoc, ten_mon_hoc, so_tin_chi, loai_mon, ma_khoa, mo_ta } = req.body;
+    const { MaMonHoc, TenMonHoc, SoTinChi, LoaiMon, MaKhoa, MoTa } = req.body;
 
-    if (!ma_mon_hoc || !ten_mon_hoc || !so_tin_chi || !loai_mon) {
+    if (!MaMonHoc || !TenMonHoc || !SoTinChi || !LoaiMon) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng nhập đầy đủ thông tin bắt buộc'
@@ -268,8 +268,8 @@ const createCourse = async (req, res) => {
 
     // Kiểm tra mã môn học đã tồn tại
     const existing = await pool.query(
-      'SELECT ma_mon_hoc FROM mon_hoc WHERE ma_mon_hoc = $1',
-      [ma_mon_hoc]
+      'SELECT "MaMonHoc" FROM "MONHOC" WHERE "MaMonHoc" = $1',
+      [MaMonHoc]
     );
 
     if (existing.rows.length > 0) {
@@ -280,10 +280,10 @@ const createCourse = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO mon_hoc (ma_mon_hoc, ten_mon_hoc, so_tin_chi, loai_mon, ma_khoa, mo_ta)
+      `INSERT INTO "MONHOC" ("MaMonHoc", "TenMonHoc", "SoTinChi", "LoaiMon", "MaKhoa", "MoTa")
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [ma_mon_hoc, ten_mon_hoc, so_tin_chi, loai_mon, ma_khoa, mo_ta]
+      [MaMonHoc, TenMonHoc, SoTinChi, LoaiMon, MaKhoa, MoTa]
     );
 
     res.status(201).json({
@@ -304,10 +304,10 @@ const createCourse = async (req, res) => {
 const updateCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    const { ten_mon_hoc, so_tin_chi, loai_mon, ma_khoa, mo_ta } = req.body;
+    const { TenMonHoc, SoTinChi, LoaiMon, MaKhoa, MoTa } = req.body;
 
     const existing = await pool.query(
-      'SELECT ma_mon_hoc FROM mon_hoc WHERE ma_mon_hoc = $1',
+      'SELECT "MaMonHoc" FROM "MONHOC" WHERE "MaMonHoc" = $1',
       [id]
     );
 
@@ -319,15 +319,15 @@ const updateCourse = async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE mon_hoc SET 
-        ten_mon_hoc = COALESCE($1, ten_mon_hoc),
-        so_tin_chi = COALESCE($2, so_tin_chi),
-        loai_mon = COALESCE($3, loai_mon),
-        ma_khoa = COALESCE($4, ma_khoa),
-        mo_ta = COALESCE($5, mo_ta)
-       WHERE ma_mon_hoc = $6
+      `UPDATE "MONHOC" SET 
+        "TenMonHoc" = COALESCE($1, "TenMonHoc"),
+        "SoTinChi" = COALESCE($2, "SoTinChi"),
+        "LoaiMon" = COALESCE($3, "LoaiMon"),
+        "MaKhoa" = COALESCE($4, "MaKhoa"),
+        "MoTa" = COALESCE($5, "MoTa")
+       WHERE "MaMonHoc" = $6
        RETURNING *`,
-      [ten_mon_hoc, so_tin_chi, loai_mon, ma_khoa, mo_ta, id]
+      [TenMonHoc, SoTinChi, LoaiMon, MaKhoa, MoTa, id]
     );
 
     res.json({
@@ -350,7 +350,7 @@ const deleteCourse = async (req, res) => {
     const { id } = req.params;
 
     const existing = await pool.query(
-      'SELECT ma_mon_hoc FROM mon_hoc WHERE ma_mon_hoc = $1',
+      'SELECT "MaMonHoc" FROM "MONHOC" WHERE "MaMonHoc" = $1',
       [id]
     );
 
@@ -361,7 +361,7 @@ const deleteCourse = async (req, res) => {
       });
     }
 
-    await pool.query('DELETE FROM mon_hoc WHERE ma_mon_hoc = $1', [id]);
+    await pool.query('DELETE FROM "MONHOC" WHERE "MaMonHoc" = $1', [id]);
 
     res.json({
       success: true,
@@ -380,26 +380,26 @@ const deleteCourse = async (req, res) => {
 const getCourseStats = async (req, res) => {
   try {
     // Tổng số môn học
-    const totalResult = await pool.query('SELECT COUNT(*) as total FROM mon_hoc');
+    const totalResult = await pool.query('SELECT COUNT(*) as total FROM "MONHOC"');
     
     // Số môn theo loại
     const typeResult = await pool.query(`
-      SELECT loai_mon, COUNT(*) as count 
-      FROM mon_hoc 
-      GROUP BY loai_mon
+      SELECT "LoaiMon", COUNT(*) as count 
+      FROM "MONHOC" 
+      GROUP BY "LoaiMon"
     `);
 
     // Số môn theo khoa
     const facultyResult = await pool.query(`
-      SELECT kh.ten_khoa, COUNT(mh.ma_mon_hoc) as count 
-      FROM mon_hoc mh
-      JOIN khoa kh ON mh.ma_khoa = kh.ma_khoa
-      GROUP BY kh.ten_khoa
+      SELECT kh."TenKhoa", COUNT(mh."MaMonHoc") as count 
+      FROM "MONHOC" mh
+      JOIN "KHOA" kh ON mh."MaKhoa" = kh."MaKhoa"
+      GROUP BY kh."TenKhoa"
       ORDER BY count DESC
     `);
 
     // Tổng số tín chỉ
-    const creditsResult = await pool.query('SELECT SUM(so_tin_chi) as total_credits FROM mon_hoc');
+    const creditsResult = await pool.query('SELECT SUM("SoTinChi") as total_credits FROM "MONHOC"');
 
     res.json({
       success: true,

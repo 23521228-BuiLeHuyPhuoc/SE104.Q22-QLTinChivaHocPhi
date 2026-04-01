@@ -7,32 +7,32 @@ const getAllRegistrations = async (req, res) => {
       page = 1, 
       limit = 10, 
       search = '', 
-      ma_hoc_ky,
-      trang_thai
+      MaHocKy,
+      TrangThai
     } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereClause = `WHERE (sv.ma_sv ILIKE $1 OR sv.ho_ten ILIKE $1)`;
+    let whereClause = `WHERE (sv."MaSv" ILIKE $1 OR sv."HoTen" ILIKE $1)`;
     let params = [`%${search}%`];
     let paramIndex = 2;
 
-    if (ma_hoc_ky) {
-      whereClause += ` AND pdk.ma_hoc_ky = $${paramIndex}`;
-      params.push(ma_hoc_ky);
+    if (MaHocKy) {
+      whereClause += ` AND pdk."MaHocKy" = ${paramIndex}`;
+      params.push(MaHocKy);
       paramIndex++;
     }
 
-    if (trang_thai) {
-      whereClause += ` AND pdk.trang_thai = $${paramIndex}`;
-      params.push(trang_thai);
+    if (TrangThai) {
+      whereClause += ` AND pdk."TrangThai" = ${paramIndex}`;
+      params.push(TrangThai);
       paramIndex++;
     }
 
     // Đếm tổng
     const countResult = await pool.query(
-      `SELECT COUNT(DISTINCT pdk.so_phieu) 
-       FROM phieu_dang_ky pdk
-       JOIN sinh_vien sv ON pdk.ma_sv = sv.ma_sv
+      `SELECT COUNT(DISTINCT pdk."SoPhieu") 
+       FROM "PHIEUDANGKY" pdk
+       JOIN "SINHVIEN" sv ON pdk."MaSv" = sv."MaSv"
        ${whereClause}`,
       params
     );
@@ -40,44 +40,44 @@ const getAllRegistrations = async (req, res) => {
 
     // Lấy danh sách phiếu đăng ký
     const result = await pool.query(
-      `SELECT pdk.*, sv.ho_ten, sv.email, hk.ten_hoc_ky, nh.ten_nam_hoc,
-       (SELECT COUNT(*) FROM chi_tiet_dang_ky WHERE so_phieu = pdk.so_phieu) as so_mon_dang_ky,
-       (SELECT SUM(mh.so_tin_chi) FROM chi_tiet_dang_ky ctdk 
-        JOIN lop l ON ctdk.ma_lop = l.ma_lop 
-        JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
-        WHERE ctdk.so_phieu = pdk.so_phieu) as tong_tin_chi
-       FROM phieu_dang_ky pdk
-       JOIN sinh_vien sv ON pdk.ma_sv = sv.ma_sv
-       JOIN hoc_ky hk ON pdk.ma_hoc_ky = hk.ma_hoc_ky
-       JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
+      `SELECT pdk.*, sv."HoTen", sv."Email", hk."TenHocKy", nh."TenNamHoc",
+       (SELECT COUNT(*) FROM "CHITIETDANGKY" WHERE "SoPhieu" = pdk."SoPhieu") as so_mon_dang_ky,
+       (SELECT SUM(mh."SoTinChi") FROM "CHITIETDANGKY" ctdk 
+        JOIN "LOP" l ON ctdk."MaLop" = l."MaLop" 
+        JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
+        WHERE ctdk."SoPhieu" = pdk."SoPhieu") as "TongTinChi"
+       FROM "PHIEUDANGKY" pdk
+       JOIN "SINHVIEN" sv ON pdk."MaSv" = sv."MaSv"
+       JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+       JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
        ${whereClause}
-       ORDER BY pdk.ngay_dang_ky DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       ORDER BY pdk."NgayDangKy" DESC
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
     const registrations = result.rows.map(r => ({
-      id: r.so_phieu,
-      so_phieu: r.so_phieu,
-      ma_sv: r.ma_sv,
-      student_code: r.ma_sv,
-      ho_ten: r.ho_ten,
-      student_name: r.ho_ten,
-      email: r.email,
-      ma_hoc_ky: r.ma_hoc_ky,
-      ten_hoc_ky: r.ten_hoc_ky,
-      semester_name: r.ten_hoc_ky,
-      ten_nam_hoc: r.ten_nam_hoc,
+      id: r.SoPhieu,
+      SoPhieu: r.SoPhieu,
+      MaSv: r.MaSv,
+      student_code: r.MaSv,
+      HoTen: r.HoTen,
+      student_name: r.HoTen,
+      Email: r.Email,
+      MaHocKy: r.MaHocKy,
+      TenHocKy: r.TenHocKy,
+      semester_name: r.TenHocKy,
+      TenNamHoc: r.TenNamHoc,
       so_mon_dang_ky: parseInt(r.so_mon_dang_ky) || 0,
       courses_count: parseInt(r.so_mon_dang_ky) || 0,
-      tong_tin_chi: parseInt(r.tong_tin_chi) || 0,
-      total_credits: parseInt(r.tong_tin_chi) || 0,
-      tong_tien_phai_dong: r.tong_tien_phai_dong,
-      total_amount: r.tong_tien_phai_dong,
-      ngay_dang_ky: r.ngay_dang_ky,
-      created_at: r.ngay_dang_ky,
-      trang_thai: r.trang_thai,
-      status: r.trang_thai
+      TongTinChi: parseInt(r.TongTinChi) || 0,
+      total_credits: parseInt(r.TongTinChi) || 0,
+      TongTienPhaiDong: r.TongTienPhaiDong,
+      total_amount: r.TongTienPhaiDong,
+      NgayDangKy: r.NgayDangKy,
+      created_at: r.NgayDangKy,
+      TrangThai: r.TrangThai,
+      status: r.TrangThai
     }));
 
     res.json({
@@ -103,60 +103,60 @@ const getAllRegistrations = async (req, res) => {
 const getStudentCourses = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const { ma_hoc_ky } = req.query;
+    const { MaHocKy } = req.query;
 
-    let whereClause = `WHERE pdk.ma_sv = $1`;
+    let whereClause = `WHERE pdk."MaSv" = $1`;
     let params = [studentId];
     let paramIndex = 2;
 
-    if (ma_hoc_ky) {
-      whereClause += ` AND pdk.ma_hoc_ky = $${paramIndex}`;
-      params.push(ma_hoc_ky);
+    if (MaHocKy) {
+      whereClause += ` AND pdk."MaHocKy" = ${paramIndex}`;
+      params.push(MaHocKy);
     }
 
     // Lấy chi tiết môn đăng ký
     const result = await pool.query(
-      `SELECT ctdk.*, l.*, mh.ten_mon_hoc, mh.so_tin_chi, mh.loai_mon,
-       pdk.ma_hoc_ky, hk.ten_hoc_ky, nh.ten_nam_hoc
-       FROM chi_tiet_dang_ky ctdk
-       JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-       JOIN lop l ON ctdk.ma_lop = l.ma_lop
-       JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
-       JOIN hoc_ky hk ON pdk.ma_hoc_ky = hk.ma_hoc_ky
-       JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
+      `SELECT ctdk.*, l.*, mh."TenMonHoc", mh."SoTinChi", mh."LoaiMon",
+       pdk."MaHocKy", hk."TenHocKy", nh."TenNamHoc"
+       FROM "CHITIETDANGKY" ctdk
+       JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+       JOIN "LOP" l ON ctdk."MaLop" = l."MaLop"
+       JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
+       JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+       JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
        ${whereClause}
-       ORDER BY mh.ten_mon_hoc`,
+       ORDER BY mh."TenMonHoc"`,
       params
     );
 
     const courses = result.rows.map(c => ({
       id: c.id,
-      ma_lop: c.ma_lop,
-      class_code: c.ma_lop,
-      ma_mon_hoc: c.ma_mon_hoc,
-      course_code: c.ma_mon_hoc,
-      ten_mon_hoc: c.ten_mon_hoc,
-      course_name: c.ten_mon_hoc,
-      so_tin_chi: c.so_tin_chi,
-      credits: c.so_tin_chi,
-      loai_mon: c.loai_mon,
-      type: c.loai_mon,
-      giang_vien: c.giang_vien,
-      instructor: c.giang_vien,
-      phong_hoc: c.phong_hoc,
-      room: c.phong_hoc,
-      lich_hoc: c.lich_hoc,
-      schedule: c.lich_hoc,
-      ma_hoc_ky: c.ma_hoc_ky,
-      ten_hoc_ky: c.ten_hoc_ky,
-      semester_name: c.ten_hoc_ky,
-      ten_nam_hoc: c.ten_nam_hoc,
-      trang_thai: c.trang_thai,
-      status: c.trang_thai
+      MaLop: c.MaLop,
+      class_code: c.MaLop,
+      MaMonHoc: c.MaMonHoc,
+      course_code: c.MaMonHoc,
+      TenMonHoc: c.TenMonHoc,
+      course_name: c.TenMonHoc,
+      SoTinChi: c.SoTinChi,
+      credits: c.SoTinChi,
+      LoaiMon: c.LoaiMon,
+      type: c.LoaiMon,
+      GiangVien: c.GiangVien,
+      instructor: c.GiangVien,
+      PhongHoc: c.PhongHoc,
+      room: c.PhongHoc,
+      LichHoc: c.LichHoc,
+      schedule: c.LichHoc,
+      MaHocKy: c.MaHocKy,
+      TenHocKy: c.TenHocKy,
+      semester_name: c.TenHocKy,
+      TenNamHoc: c.TenNamHoc,
+      TrangThai: c.TrangThai,
+      status: c.TrangThai
     }));
 
     // Tính tổng
-    const totalCredits = courses.reduce((sum, c) => sum + (c.so_tin_chi || 0), 0);
+    const totalCredits = courses.reduce((sum, c) => sum + (c.SoTinChi || 0), 0);
     const totalCourses = courses.length;
 
     res.json({
@@ -181,67 +181,67 @@ const getStudentCourses = async (req, res) => {
 // Lấy danh sách lớp có thể đăng ký
 const getAvailableCourses = async (req, res) => {
   try {
-    const { ma_hoc_ky, search = '', ma_khoa } = req.query;
+    const { MaHocKy, search = '', MaKhoa } = req.query;
 
-    if (!ma_hoc_ky) {
+    if (!MaHocKy) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng chọn học kỳ'
       });
     }
 
-    let whereClause = `WHERE lm.ma_hoc_ky = $1 AND (mh.ma_mon_hoc ILIKE $2 OR mh.ten_mon_hoc ILIKE $2)`;
-    let params = [ma_hoc_ky, `%${search}%`];
+    let whereClause = `WHERE lm."MaHocKy" = $1 AND (mh."MaMonHoc" ILIKE $2 OR mh."TenMonHoc" ILIKE $2)`;
+    let params = [MaHocKy, `%${search}%`];
     let paramIndex = 3;
 
-    if (ma_khoa) {
-      whereClause += ` AND mh.ma_khoa = $${paramIndex}`;
-      params.push(ma_khoa);
+    if (MaKhoa) {
+      whereClause += ` AND mh."MaKhoa" = ${paramIndex}`;
+      params.push(MaKhoa);
     }
 
     const result = await pool.query(
-      `SELECT lm.*, l.*, mh.ten_mon_hoc, mh.so_tin_chi, mh.loai_mon, kh.ten_khoa,
-       (SELECT COUNT(*) FROM chi_tiet_dang_ky ctdk 
-        JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-        WHERE ctdk.ma_lop = l.ma_lop AND pdk.ma_hoc_ky = lm.ma_hoc_ky
-        AND ctdk.trang_thai = 'Đã đăng ký') as so_luong_da_dang_ky
-       FROM lop_mo lm
-       JOIN lop l ON lm.ma_lop = l.ma_lop
-       JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
-       LEFT JOIN khoa kh ON mh.ma_khoa = kh.ma_khoa
+      `SELECT lm.*, l.*, mh."TenMonHoc", mh."SoTinChi", mh."LoaiMon", kh."TenKhoa",
+       (SELECT COUNT(*) FROM "CHITIETDANGKY" ctdk 
+        JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+        WHERE ctdk."MaLop" = l."MaLop" AND pdk."MaHocKy" = lm."MaHocKy"
+        AND ctdk."TrangThai" = 'Đã đăng ký') as "SoLuongDaDangKy"
+       FROM "LOPMO" lm
+       JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+       JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
+       LEFT JOIN "KHOA" kh ON mh."MaKhoa" = kh."MaKhoa"
        ${whereClause}
-       ORDER BY mh.ten_mon_hoc, l.ma_lop`,
+       ORDER BY mh."TenMonHoc", l."MaLop"`,
       params
     );
 
     const availableCourses = result.rows.map(c => ({
-      id: `${c.ma_lop}-${c.ma_hoc_ky}`,
-      ma_lop: c.ma_lop,
-      class_code: c.ma_lop,
-      ma_mon_hoc: c.ma_mon_hoc,
-      course_code: c.ma_mon_hoc,
-      ten_mon_hoc: c.ten_mon_hoc,
-      course_name: c.ten_mon_hoc,
-      so_tin_chi: c.so_tin_chi,
-      credits: c.so_tin_chi,
-      loai_mon: c.loai_mon,
-      type: c.loai_mon,
-      ten_khoa: c.ten_khoa,
-      faculty: c.ten_khoa,
-      so_luong_toi_da: c.so_luong_toi_da,
-      max_students: c.so_luong_toi_da,
-      so_luong_da_dang_ky: parseInt(c.so_luong_da_dang_ky) || 0,
-      registered_count: parseInt(c.so_luong_da_dang_ky) || 0,
-      con_trong: c.so_luong_toi_da - (parseInt(c.so_luong_da_dang_ky) || 0),
-      available_slots: c.so_luong_toi_da - (parseInt(c.so_luong_da_dang_ky) || 0),
-      giang_vien: c.giang_vien,
-      instructor: c.giang_vien,
-      phong_hoc: c.phong_hoc,
-      room: c.phong_hoc,
-      lich_hoc: c.lich_hoc,
-      schedule: c.lich_hoc,
-      ngay_bat_dau: c.ngay_bat_dau,
-      ngay_ket_thuc: c.ngay_ket_thuc
+      id: `${c.MaLop}-${c.MaHocKy}`,
+      MaLop: c.MaLop,
+      class_code: c.MaLop,
+      MaMonHoc: c.MaMonHoc,
+      course_code: c.MaMonHoc,
+      TenMonHoc: c.TenMonHoc,
+      course_name: c.TenMonHoc,
+      SoTinChi: c.SoTinChi,
+      credits: c.SoTinChi,
+      LoaiMon: c.LoaiMon,
+      type: c.LoaiMon,
+      TenKhoa: c.TenKhoa,
+      faculty: c.TenKhoa,
+      SoLuongToiDa: c.SoLuongToiDa,
+      max_students: c.SoLuongToiDa,
+      SoLuongDaDangKy: parseInt(c.SoLuongDaDangKy) || 0,
+      registered_count: parseInt(c.SoLuongDaDangKy) || 0,
+      con_trong: c.SoLuongToiDa - (parseInt(c.SoLuongDaDangKy) || 0),
+      available_slots: c.SoLuongToiDa - (parseInt(c.SoLuongDaDangKy) || 0),
+      GiangVien: c.GiangVien,
+      instructor: c.GiangVien,
+      PhongHoc: c.PhongHoc,
+      room: c.PhongHoc,
+      LichHoc: c.LichHoc,
+      schedule: c.LichHoc,
+      NgayBatDau: c.NgayBatDau,
+      NgayKetThuc: c.NgayKetThuc
     }));
 
     res.json({
@@ -261,9 +261,9 @@ const getAvailableCourses = async (req, res) => {
 const registerCourse = async (req, res) => {
   const client = await pool.connect();
   try {
-    const { ma_sv, ma_hoc_ky, ma_lop, loai_dang_ky = 'hoc_moi' } = req.body;
+    const { MaSv, MaHocKy, MaLop, LoaiDangKy = 'hoc_moi' } = req.body;
 
-    if (!ma_sv || !ma_hoc_ky || !ma_lop) {
+    if (!MaSv || !MaHocKy || !MaLop) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng cung cấp đầy đủ thông tin'
@@ -274,8 +274,8 @@ const registerCourse = async (req, res) => {
 
     // Kiểm tra sinh viên tồn tại
     const studentResult = await client.query(
-      'SELECT ma_sv FROM sinh_vien WHERE ma_sv = $1',
-      [ma_sv]
+      'SELECT "MaSv" FROM "SINHVIEN" WHERE "MaSv" = $1',
+      [MaSv]
     );
     if (studentResult.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -287,16 +287,16 @@ const registerCourse = async (req, res) => {
 
     // Kiểm tra lớp mở tồn tại và còn chỗ
     const classResult = await client.query(
-      `SELECT lm.*, l.so_luong_toi_da, l.ma_mon_hoc, mh.so_tin_chi, mh.loai_mon,
-       (SELECT COUNT(*) FROM chi_tiet_dang_ky ctdk 
-        JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-        WHERE ctdk.ma_lop = l.ma_lop AND pdk.ma_hoc_ky = lm.ma_hoc_ky
-        AND ctdk.trang_thai = 'Đã đăng ký') as registered
-       FROM lop_mo lm
-       JOIN lop l ON lm.ma_lop = l.ma_lop
-       JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
-       WHERE lm.ma_lop = $1 AND lm.ma_hoc_ky = $2`,
-      [ma_lop, ma_hoc_ky]
+      `SELECT lm.*, l."SoLuongToiDa", l."MaMonHoc", mh."SoTinChi", mh."LoaiMon",
+       (SELECT COUNT(*) FROM "CHITIETDANGKY" ctdk 
+        JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+        WHERE ctdk."MaLop" = l."MaLop" AND pdk."MaHocKy" = lm."MaHocKy"
+        AND ctdk."TrangThai" = 'Đã đăng ký') as registered
+       FROM "LOPMO" lm
+       JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+       JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
+       WHERE lm."MaLop" = $1 AND lm."MaHocKy" = $2`,
+      [MaLop, MaHocKy]
     );
 
     if (classResult.rows.length === 0) {
@@ -308,7 +308,7 @@ const registerCourse = async (req, res) => {
     }
 
     const classInfo = classResult.rows[0];
-    if (parseInt(classInfo.registered) >= classInfo.so_luong_toi_da) {
+    if (parseInt(classInfo.registered) >= classInfo.SoLuongToiDa) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
@@ -318,32 +318,32 @@ const registerCourse = async (req, res) => {
 
     // Lấy hoặc tạo phiếu đăng ký
     let phieuResult = await client.query(
-      'SELECT so_phieu FROM phieu_dang_ky WHERE ma_sv = $1 AND ma_hoc_ky = $2',
-      [ma_sv, ma_hoc_ky]
+      'SELECT "SoPhieu" FROM "PHIEUDANGKY" WHERE "MaSv" = $1 AND "MaHocKy" = $2',
+      [MaSv, MaHocKy]
     );
 
-    let so_phieu;
+    let SoPhieu;
     if (phieuResult.rows.length === 0) {
       // Tạo phiếu đăng ký mới
       const newPhieuResult = await client.query(
-        `INSERT INTO phieu_dang_ky (ma_sv, ma_hoc_ky, trang_thai)
+        `INSERT INTO "PHIEUDANGKY" ("MaSv", "MaHocKy", "TrangThai")
          VALUES ($1, $2, 'Chờ xử lý')
-         RETURNING so_phieu`,
-        [ma_sv, ma_hoc_ky]
+         RETURNING "SoPhieu"`,
+        [MaSv, MaHocKy]
       );
-      so_phieu = newPhieuResult.rows[0].so_phieu;
+      SoPhieu = newPhieuResult.rows[0].SoPhieu;
     } else {
-      so_phieu = phieuResult.rows[0].so_phieu;
+      SoPhieu = phieuResult.rows[0].SoPhieu;
     }
 
     // Kiểm tra đã đăng ký môn này chưa
     const existingRegResult = await client.query(
-      `SELECT ctdk.id FROM chi_tiet_dang_ky ctdk
-       JOIN lop l ON ctdk.ma_lop = l.ma_lop
-       JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-       WHERE pdk.ma_sv = $1 AND pdk.ma_hoc_ky = $2 AND l.ma_mon_hoc = $3
-       AND ctdk.trang_thai != 'Đã hủy'`,
-      [ma_sv, ma_hoc_ky, classInfo.ma_mon_hoc]
+      `SELECT ctdk.id FROM "CHITIETDANGKY" ctdk
+       JOIN "LOP" l ON ctdk."MaLop" = l."MaLop"
+       JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+       WHERE pdk."MaSv" = $1 AND pdk."MaHocKy" = $2 AND l."MaMonHoc" = $3
+       AND ctdk."TrangThai" != 'Đã hủy'`,
+      [MaSv, MaHocKy, classInfo.MaMonHoc]
     );
 
     if (existingRegResult.rows.length > 0) {
@@ -356,29 +356,29 @@ const registerCourse = async (req, res) => {
 
     // Tính tiền
     const priceResult = await client.query(
-      'SELECT don_gia FROM don_gia_tin_chi WHERE loai_mon = $1 AND loai_hoc = $2',
-      [classInfo.loai_mon, loai_dang_ky]
+      'SELECT "DonGia" FROM "DONGIATINCHI" WHERE "LoaiMon" = $1 AND "LoaiHoc" = $2',
+      [classInfo.LoaiMon, LoaiDangKy]
     );
-    const donGia = priceResult.rows.length > 0 ? parseFloat(priceResult.rows[0].don_gia) : 27000;
-    const soTien = donGia * classInfo.so_tin_chi;
+    const donGia = priceResult.rows.length > 0 ? parseFloat(priceResult.rows[0].DonGia) : 27000;
+    const soTien = donGia * classInfo.SoTinChi;
 
     // Thêm chi tiết đăng ký
     const regResult = await client.query(
-      `INSERT INTO chi_tiet_dang_ky (so_phieu, ma_lop, loai_dang_ky, so_tin_chi, don_gia, so_tien, trang_thai)
+      `INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "LoaiDangKy", "SoTinChi", "DonGia", "SoTien", "TrangThai")
        VALUES ($1, $2, $3, $4, $5, $6, 'Đã đăng ký')
        RETURNING *`,
-      [so_phieu, ma_lop, loai_dang_ky, classInfo.so_tin_chi, donGia, soTien]
+      [SoPhieu, MaLop, LoaiDangKy, classInfo.SoTinChi, donGia, soTien]
     );
 
     // Cập nhật tổng tiền phiếu đăng ký
     await client.query(
-      `UPDATE phieu_dang_ky SET 
-        tong_tien_phai_dong = (
-          SELECT COALESCE(SUM(so_tien), 0) FROM chi_tiet_dang_ky 
-          WHERE so_phieu = $1 AND trang_thai = 'Đã đăng ký'
+      `UPDATE "PHIEUDANGKY" SET 
+        "TongTienPhaiDong" = (
+          SELECT COALESCE(SUM("SoTien"), 0) FROM "CHITIETDANGKY" 
+          WHERE "SoPhieu" = $1 AND "TrangThai" = 'Đã đăng ký'
         )
-       WHERE so_phieu = $1`,
-      [so_phieu]
+       WHERE "SoPhieu" = $1`,
+      [SoPhieu]
     );
 
     await client.query('COMMIT');
@@ -410,9 +410,9 @@ const cancelRegistration = async (req, res) => {
 
     // Lấy thông tin đăng ký
     const regResult = await client.query(
-      `SELECT ctdk.*, pdk.so_phieu, pdk.ma_sv, pdk.ma_hoc_ky
-       FROM chi_tiet_dang_ky ctdk
-       JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
+      `SELECT ctdk.*, pdk."SoPhieu", pdk."MaSv", pdk."MaHocKy"
+       FROM "CHITIETDANGKY" ctdk
+       JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
        WHERE ctdk.id = $1`,
       [id]
     );
@@ -429,19 +429,19 @@ const cancelRegistration = async (req, res) => {
 
     // Cập nhật trạng thái
     await client.query(
-      `UPDATE chi_tiet_dang_ky SET trang_thai = 'Đã hủy' WHERE id = $1`,
+      `UPDATE "CHITIETDANGKY" SET "TrangThai" = 'Đã hủy' WHERE id = $1`,
       [id]
     );
 
     // Cập nhật tổng tiền phiếu đăng ký
     await client.query(
-      `UPDATE phieu_dang_ky SET 
-        tong_tien_phai_dong = (
-          SELECT COALESCE(SUM(so_tien), 0) FROM chi_tiet_dang_ky 
-          WHERE so_phieu = $1 AND trang_thai = 'Đã đăng ký'
+      `UPDATE "PHIEUDANGKY" SET 
+        "TongTienPhaiDong" = (
+          SELECT COALESCE(SUM("SoTien"), 0) FROM "CHITIETDANGKY" 
+          WHERE "SoPhieu" = $1 AND "TrangThai" = 'Đã đăng ký'
         )
-       WHERE so_phieu = $1`,
-      [registration.so_phieu]
+       WHERE "SoPhieu" = $1`,
+      [registration.SoPhieu]
     );
 
     await client.query('COMMIT');
@@ -465,45 +465,45 @@ const cancelRegistration = async (req, res) => {
 // Thống kê đăng ký
 const getRegistrationStats = async (req, res) => {
   try {
-    const { ma_hoc_ky } = req.query;
+    const { MaHocKy } = req.query;
 
     let whereClause = '';
     let params = [];
 
-    if (ma_hoc_ky) {
-      whereClause = 'WHERE pdk.ma_hoc_ky = $1';
-      params = [ma_hoc_ky];
+    if (MaHocKy) {
+      whereClause = 'WHERE pdk."MaHocKy" = $1';
+      params = [MaHocKy];
     }
 
     // Tổng số phiếu đăng ký
     const totalResult = await pool.query(
-      `SELECT COUNT(DISTINCT pdk.so_phieu) as total
-       FROM phieu_dang_ky pdk ${whereClause}`,
+      `SELECT COUNT(DISTINCT pdk."SoPhieu") as total
+       FROM "PHIEUDANGKY" pdk ${whereClause}`,
       params
     );
 
     // Tổng số môn đăng ký
     const coursesResult = await pool.query(
       `SELECT COUNT(*) as total
-       FROM chi_tiet_dang_ky ctdk
-       JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-       ${whereClause} ${whereClause ? 'AND' : 'WHERE'} ctdk.trang_thai = 'Đã đăng ký'`,
+       FROM "CHITIETDANGKY" ctdk
+       JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+       ${whereClause} ${whereClause ? 'AND' : 'WHERE'} ctdk."TrangThai" = 'Đã đăng ký'`,
       params
     );
 
     // Tổng số tín chỉ
     const creditsResult = await pool.query(
-      `SELECT COALESCE(SUM(ctdk.so_tin_chi), 0) as total
-       FROM chi_tiet_dang_ky ctdk
-       JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-       ${whereClause} ${whereClause ? 'AND' : 'WHERE'} ctdk.trang_thai = 'Đã đăng ký'`,
+      `SELECT COALESCE(SUM(ctdk."SoTinChi"), 0) as total
+       FROM "CHITIETDANGKY" ctdk
+       JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+       ${whereClause} ${whereClause ? 'AND' : 'WHERE'} ctdk."TrangThai" = 'Đã đăng ký'`,
       params
     );
 
     // Tổng tiền học phí
     const tuitionResult = await pool.query(
-      `SELECT COALESCE(SUM(pdk.tong_tien_phai_dong), 0) as total
-       FROM phieu_dang_ky pdk ${whereClause}`,
+      `SELECT COALESCE(SUM(pdk."TongTienPhaiDong"), 0) as total
+       FROM "PHIEUDANGKY" pdk ${whereClause}`,
       params
     );
 

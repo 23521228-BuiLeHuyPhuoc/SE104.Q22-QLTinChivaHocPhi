@@ -5,19 +5,19 @@ const getPublicNotifications = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        ma_thong_bao as id,
-        tieu_de as title,
-        noi_dung as content,
-        loai_thong_bao as type,
-        doi_tuong as target,
-        ghim_top as pinned,
-        ngay_tao as created_at,
-        ngay_het_han as expires_at,
-        trang_thai as active
-      FROM thong_bao 
-      WHERE trang_thai = TRUE 
-        AND (ngay_het_han IS NULL OR ngay_het_han > CURRENT_TIMESTAMP)
-      ORDER BY ghim_top DESC, ngay_tao DESC
+        "MaThongBao" as id,
+        "TieuDe" as title,
+        "NoiDung" as content,
+        "LoaiThongBao" as type,
+        "DOITUONG" as target,
+        "GhimTop" as pinned,
+        "NgayTao" as created_at,
+        "NgayHetHan" as expires_at,
+        "TrangThai" as active
+      FROM "THONGBAO" 
+      WHERE "TrangThai" = TRUE 
+        AND ("NgayHetHan" IS NULL OR "NgayHetHan" > CURRENT_TIMESTAMP)
+      ORDER BY "GhimTop" DESC, "NgayTao" DESC
       LIMIT 10
     `);
     
@@ -38,7 +38,7 @@ const getPublicNotifications = async (req, res) => {
 // Lấy thông báo cá nhân của user
 const getPersonalNotifications = async (req, res) => {
   try {
-    const userId = req.user?.ma_tai_khoan || req.user?.id;
+    const userId = req.user?.MaTaiKhoan || req.user?.id;
     
     if (!userId) {
       return res.status(401).json({
@@ -50,16 +50,16 @@ const getPersonalNotifications = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         id,
-        tieu_de as title,
-        noi_dung as content,
-        loai_thong_bao as type,
-        duong_dan as link,
-        da_doc as is_read,
-        ngay_doc as read_at,
-        ngay_tao as created_at
+        "TieuDe" as title,
+        "NoiDung" as content,
+        "LoaiThongBao" as type,
+        "DuongDan" as link,
+        "DaDoc" as is_read,
+        "NgayDoc" as read_at,
+        "NgayTao" as created_at
       FROM thong_bao_ca_nhan 
-      WHERE ma_tai_khoan = $1
-      ORDER BY da_doc ASC, ngay_tao DESC
+      WHERE "MaTaiKhoan" = $1
+      ORDER BY "DaDoc" ASC, "NgayTao" DESC
       LIMIT 20
     `, [userId]);
     
@@ -80,22 +80,22 @@ const getPersonalNotifications = async (req, res) => {
 // Lấy tất cả thông báo (công khai + cá nhân)
 const getAllNotifications = async (req, res) => {
   try {
-    const userId = req.user?.ma_tai_khoan || req.user?.id;
+    const userId = req.user?.MaTaiKhoan || req.user?.id;
     
     // Lấy thông báo chung
     const publicResult = await pool.query(`
       SELECT 
-        ma_thong_bao as id,
-        tieu_de as title,
-        noi_dung as content,
-        loai_thong_bao as type,
-        ghim_top as pinned,
-        ngay_tao as created_at,
+        "MaThongBao" as id,
+        "TieuDe" as title,
+        "NoiDung" as content,
+        "LoaiThongBao" as type,
+        "GhimTop" as pinned,
+        "NgayTao" as created_at,
         'public' as notification_type
-      FROM thong_bao 
-      WHERE trang_thai = TRUE 
-        AND (ngay_het_han IS NULL OR ngay_het_han > CURRENT_TIMESTAMP)
-      ORDER BY ghim_top DESC, ngay_tao DESC
+      FROM "THONGBAO" 
+      WHERE "TrangThai" = TRUE 
+        AND ("NgayHetHan" IS NULL OR "NgayHetHan" > CURRENT_TIMESTAMP)
+      ORDER BY "GhimTop" DESC, "NgayTao" DESC
       LIMIT 10
     `);
     
@@ -105,15 +105,15 @@ const getAllNotifications = async (req, res) => {
       personalResult = await pool.query(`
         SELECT 
           id,
-          tieu_de as title,
-          noi_dung as content,
-          loai_thong_bao as type,
-          da_doc as is_read,
-          ngay_tao as created_at,
+          "TieuDe" as title,
+          "NoiDung" as content,
+          "LoaiThongBao" as type,
+          "DaDoc" as is_read,
+          "NgayTao" as created_at,
           'personal' as notification_type
         FROM thong_bao_ca_nhan 
-        WHERE ma_tai_khoan = $1
-        ORDER BY da_doc ASC, ngay_tao DESC
+        WHERE "MaTaiKhoan" = $1
+        ORDER BY "DaDoc" ASC, "NgayTao" DESC
         LIMIT 10
       `, [userId]);
     }
@@ -142,7 +142,7 @@ const getAllNotifications = async (req, res) => {
 const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.ma_tai_khoan || req.user?.id;
+    const userId = req.user?.MaTaiKhoan || req.user?.id;
     
     if (!userId) {
       return res.status(401).json({
@@ -153,8 +153,8 @@ const markAsRead = async (req, res) => {
 
     await pool.query(`
       UPDATE thong_bao_ca_nhan 
-      SET da_doc = TRUE, ngay_doc = CURRENT_TIMESTAMP
-      WHERE id = $1 AND ma_tai_khoan = $2
+      SET "DaDoc" = TRUE, "NgayDoc" = CURRENT_TIMESTAMP
+      WHERE id = $1 AND "MaTaiKhoan" = $2
     `, [id, userId]);
     
     res.json({
@@ -174,7 +174,7 @@ const markAsRead = async (req, res) => {
 // Đếm số thông báo chưa đọc
 const getUnreadCount = async (req, res) => {
   try {
-    const userId = req.user?.ma_tai_khoan || req.user?.id;
+    const userId = req.user?.MaTaiKhoan || req.user?.id;
     
     if (!userId) {
       return res.json({
@@ -186,7 +186,7 @@ const getUnreadCount = async (req, res) => {
     const result = await pool.query(`
       SELECT COUNT(*) as count
       FROM thong_bao_ca_nhan 
-      WHERE ma_tai_khoan = $1 AND da_doc = FALSE
+      WHERE "MaTaiKhoan" = $1 AND "DaDoc" = FALSE
     `, [userId]);
     
     res.json({
@@ -207,12 +207,12 @@ const getUnreadCount = async (req, res) => {
 const createPublicNotification = async (req, res) => {
   try {
     const { title, content, type, target, pinned, expires_at } = req.body;
-    const userId = req.user?.ma_tai_khoan || req.user?.id;
+    const userId = req.user?.MaTaiKhoan || req.user?.id;
     
     const result = await pool.query(`
-      INSERT INTO thong_bao (tieu_de, noi_dung, loai_thong_bao, doi_tuong, ghim_top, ngay_het_han, nguoi_tao)
+      INSERT INTO "THONGBAO" ("TieuDe", "NoiDung", "LoaiThongBao", "DOITUONG", "GhimTop", "NgayHetHan", "NguoiTao")
       VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING ma_thong_bao as id, tieu_de as title, noi_dung as content
+      RETURNING "MaThongBao" as id, "TieuDe" as title, "NoiDung" as content
     `, [title, content, type || 'Chung', target || 'Tất cả', pinned || false, expires_at, userId]);
     
     res.status(201).json({
@@ -235,7 +235,7 @@ const deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
     
-    await pool.query('DELETE FROM thong_bao WHERE ma_thong_bao = $1', [id]);
+    await pool.query('DELETE FROM "THONGBAO" WHERE "MaThongBao" = $1', [id]);
     
     res.json({
       success: true,

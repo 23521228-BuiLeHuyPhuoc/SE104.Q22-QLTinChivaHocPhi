@@ -36,7 +36,7 @@ async function requireViewAuth(req, res, next) {
 
 // Middleware: require admin
 function requireViewAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
+  if (!req.user || req.user.Role !== 'admin') {
     return res.redirect('/login');
   }
   next();
@@ -44,7 +44,7 @@ function requireViewAdmin(req, res, next) {
 
 // Middleware: require student
 function requireViewStudent(req, res, next) {
-  if (!req.user || req.user.role !== 'sinh_vien') {
+  if (!req.user || req.user.Role !== 'sinh_vien') {
     return res.redirect('/login');
   }
   next();
@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
   const token = getTokenFromCookie(req);
   const user = await getUserFromToken(token);
   if (user) {
-    if (user.role === 'admin') return res.redirect('/admin/dashboard');
+    if (user.Role === 'admin') return res.redirect('/admin/dashboard');
     return res.redirect('/student/dashboard');
   }
   res.redirect('/login');
@@ -97,30 +97,30 @@ router.get('/admin/students', requireViewAuth, requireViewAdmin, async (req, res
     const status = req.query.status || '';
     const offset = (page - 1) * limit;
 
-    let query = `SELECT sv.*, nh.ten_nganh, k.ten_khoa
-                 FROM sinh_vien sv
-                 LEFT JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-                 LEFT JOIN khoa k ON nh.ma_khoa = k.ma_khoa
+    let query = `SELECT sv.*, nh."TenNganh", k."TenKhoa"
+                 FROM "SINHVIEN" sv
+                 LEFT JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+                 LEFT JOIN "KHOA" k ON nh."MaKhoa" = k."MaKhoa"
                  WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) FROM sinh_vien sv WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) FROM "SINHVIEN" sv WHERE 1=1`;
     const params = [];
     const countParams = [];
 
     if (search) {
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-      query += ` AND (sv.ma_sv ILIKE $${params.length} OR sv.ho_ten ILIKE $${params.length})`;
-      countQuery += ` AND (sv.ma_sv ILIKE $${countParams.length} OR sv.ho_ten ILIKE $${countParams.length})`;
+      query += ` AND (sv."MaSv" ILIKE ${params.length} OR sv."HoTen" ILIKE ${params.length})`;
+      countQuery += ` AND (sv."MaSv" ILIKE ${countParams.length} OR sv."HoTen" ILIKE ${countParams.length})`;
     }
     if (status) {
       params.push(status);
       countParams.push(status);
-      query += ` AND sv.trang_thai = $${params.length}`;
-      countQuery += ` AND sv.trang_thai = $${countParams.length}`;
+      query += ` AND sv."TrangThai" = ${params.length}`;
+      countQuery += ` AND sv."TrangThai" = ${countParams.length}`;
     }
 
     params.push(limit, offset);
-    query += ` ORDER BY sv.ma_sv LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    query += ` ORDER BY sv."MaSv" LIMIT ${params.length - 1} OFFSET ${params.length}`;
 
     const [result, countResult] = await Promise.all([
       pool.query(query, params),
@@ -165,23 +165,23 @@ router.get('/admin/courses', requireViewAuth, requireViewAdmin, async (req, res)
     const search = req.query.search || '';
     const offset = (page - 1) * limit;
 
-    let query = `SELECT mh.*, k.ten_khoa
-                 FROM mon_hoc mh
-                 LEFT JOIN khoa k ON mh.ma_khoa = k.ma_khoa
+    let query = `SELECT mh.*, k."TenKhoa"
+                 FROM "MONHOC" mh
+                 LEFT JOIN "KHOA" k ON mh."MaKhoa" = k."MaKhoa"
                  WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) FROM mon_hoc mh WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) FROM "MONHOC" mh WHERE 1=1`;
     const params = [];
     const countParams = [];
 
     if (search) {
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-      query += ` AND (mh.ma_mon_hoc ILIKE $${params.length} OR mh.ten_mon_hoc ILIKE $${params.length})`;
-      countQuery += ` AND (mh.ma_mon_hoc ILIKE $${countParams.length} OR mh.ten_mon_hoc ILIKE $${countParams.length})`;
+      query += ` AND (mh."MaMonHoc" ILIKE ${params.length} OR mh."TenMonHoc" ILIKE ${params.length})`;
+      countQuery += ` AND (mh."MaMonHoc" ILIKE ${countParams.length} OR mh."TenMonHoc" ILIKE ${countParams.length})`;
     }
 
     params.push(limit, offset);
-    query += ` ORDER BY mh.ma_mon_hoc LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    query += ` ORDER BY mh."MaMonHoc" LIMIT ${params.length - 1} OFFSET ${params.length}`;
 
     const [result, countResult] = await Promise.all([
       pool.query(query, params),
@@ -224,23 +224,23 @@ router.get('/admin/classes', requireViewAuth, requireViewAdmin, async (req, res)
     const search = req.query.search || '';
     const offset = (page - 1) * limit;
 
-    let query = `SELECT l.*, mh.ten_mon_hoc
-                 FROM lop l
-                 LEFT JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
+    let query = `SELECT l.*, mh."TenMonHoc"
+                 FROM "LOP" l
+                 LEFT JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
                  WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) FROM lop l WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) FROM "LOP" l WHERE 1=1`;
     const params = [];
     const countParams = [];
 
     if (search) {
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-      query += ` AND (l.ma_lop ILIKE $${params.length} OR l.ten_lop ILIKE $${params.length})`;
-      countQuery += ` AND (l.ma_lop ILIKE $${countParams.length} OR l.ten_lop ILIKE $${countParams.length})`;
+      query += ` AND (l."MaLop" ILIKE ${params.length} OR l."TenLop" ILIKE ${params.length})`;
+      countQuery += ` AND (l."MaLop" ILIKE ${countParams.length} OR l."TenLop" ILIKE ${countParams.length})`;
     }
 
     params.push(limit, offset);
-    query += ` ORDER BY l.ma_lop LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    query += ` ORDER BY l."MaLop" LIMIT ${params.length - 1} OFFSET ${params.length}`;
 
     const [result, countResult] = await Promise.all([
       pool.query(query, params),
@@ -279,10 +279,10 @@ router.get('/admin/classes', requireViewAuth, requireViewAdmin, async (req, res)
 router.get('/admin/semesters', requireViewAuth, requireViewAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT hk.*, nh.ten_nam_hoc
-      FROM hoc_ky hk
-      LEFT JOIN nam_hoc nh ON hk.ma_nam_hoc = nh.ma_nam_hoc
-      ORDER BY hk.ngay_bat_dau DESC
+      SELECT hk.*, nh."TenNamHoc"
+      FROM "HOCKY" hk
+      LEFT JOIN "NAMHOC" nh ON hk."MaNamHoc" = nh."MaNamHoc"
+      ORDER BY hk."NgayBatDau" DESC
     `);
 
     res.render('pages/admin/semesters', {
@@ -312,18 +312,18 @@ router.get('/admin/registrations', requireViewAuth, requireViewAdmin, async (req
     const status = req.query.status || '';
     const offset = (page - 1) * limit;
 
-    let query = `SELECT ctdk.*, sv.ma_sv, sv.ho_ten AS ho_ten_sv, mh.ten_mon_hoc, lm.ma_lop,
-                        pdk.ngay_dang_ky
-                 FROM chi_tiet_dang_ky ctdk
-                 LEFT JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-                 LEFT JOIN sinh_vien sv ON pdk.ma_sv = sv.ma_sv
-                 LEFT JOIN lop_mo lm ON ctdk.ma_lop_mo = lm.ma_lop_mo
-                 LEFT JOIN lop l ON lm.ma_lop = l.ma_lop
-                 LEFT JOIN mon_hoc mh ON l.ma_mon_hoc = mh.ma_mon_hoc
+    let query = `SELECT ctdk.*, sv."MaSv", sv."HoTen" AS ho_ten_sv, mh."TenMonHoc", lm."MaLop",
+                        pdk."NgayDangKy"
+                 FROM "CHITIETDANGKY" ctdk
+                 LEFT JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+                 LEFT JOIN "SINHVIEN" sv ON pdk."MaSv" = sv."MaSv"
+                 LEFT JOIN "LOPMO" lm ON ctdk."MaLopMo" = lm."MaLopMo"
+                 LEFT JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+                 LEFT JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
                  WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) FROM chi_tiet_dang_ky ctdk
-                      LEFT JOIN phieu_dang_ky pdk ON ctdk.so_phieu = pdk.so_phieu
-                      LEFT JOIN sinh_vien sv ON pdk.ma_sv = sv.ma_sv
+    let countQuery = `SELECT COUNT(*) FROM "CHITIETDANGKY" ctdk
+                      LEFT JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+                      LEFT JOIN "SINHVIEN" sv ON pdk."MaSv" = sv."MaSv"
                       WHERE 1=1`;
     const params = [];
     const countParams = [];
@@ -331,18 +331,18 @@ router.get('/admin/registrations', requireViewAuth, requireViewAdmin, async (req
     if (search) {
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-      query += ` AND (sv.ma_sv ILIKE $${params.length} OR sv.ho_ten ILIKE $${params.length})`;
-      countQuery += ` AND (sv.ma_sv ILIKE $${countParams.length} OR sv.ho_ten ILIKE $${countParams.length})`;
+      query += ` AND (sv."MaSv" ILIKE ${params.length} OR sv."HoTen" ILIKE ${params.length})`;
+      countQuery += ` AND (sv."MaSv" ILIKE ${countParams.length} OR sv."HoTen" ILIKE ${countParams.length})`;
     }
     if (status) {
       params.push(status);
       countParams.push(status);
-      query += ` AND ctdk.trang_thai = $${params.length}`;
-      countQuery += ` AND ctdk.trang_thai = $${countParams.length}`;
+      query += ` AND ctdk."TrangThai" = ${params.length}`;
+      countQuery += ` AND ctdk."TrangThai" = ${countParams.length}`;
     }
 
     params.push(limit, offset);
-    query += ` ORDER BY pdk.ngay_dang_ky DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    query += ` ORDER BY pdk."NgayDangKy" DESC LIMIT ${params.length - 1} OFFSET ${params.length}`;
 
     const [result, countResult] = await Promise.all([
       pool.query(query, params),
@@ -388,31 +388,31 @@ router.get('/admin/tuition', requireViewAuth, requireViewAdmin, async (req, res)
     const status = req.query.status || '';
     const offset = (page - 1) * limit;
 
-    let query = `SELECT pthp.*, sv.ma_sv, sv.ho_ten AS ho_ten_sv, hk.ten_hoc_ky
-                 FROM phieu_thu_hoc_phi pthp
-                 LEFT JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv
-                 LEFT JOIN hoc_ky hk ON pthp.ma_hoc_ky = hk.ma_hoc_ky
+    let query = `SELECT pthp.*, sv."MaSv", sv."HoTen" AS ho_ten_sv, hk."TenHocKy"
+                 FROM "PHIEUTHUHOCPHI" pthp
+                 LEFT JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv"
+                 LEFT JOIN "HOCKY" hk ON pthp."MaHocKy" = hk."MaHocKy"
                  WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) FROM phieu_thu_hoc_phi pthp
-                      LEFT JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) FROM "PHIEUTHUHOCPHI" pthp
+                      LEFT JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv" WHERE 1=1`;
     const params = [];
     const countParams = [];
 
     if (search) {
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-      query += ` AND (sv.ma_sv ILIKE $${params.length} OR sv.ho_ten ILIKE $${params.length})`;
-      countQuery += ` AND (sv.ma_sv ILIKE $${countParams.length} OR sv.ho_ten ILIKE $${countParams.length})`;
+      query += ` AND (sv."MaSv" ILIKE ${params.length} OR sv."HoTen" ILIKE ${params.length})`;
+      countQuery += ` AND (sv."MaSv" ILIKE ${countParams.length} OR sv."HoTen" ILIKE ${countParams.length})`;
     }
     if (status) {
       params.push(status);
       countParams.push(status);
-      query += ` AND pthp.trang_thai = $${params.length}`;
-      countQuery += ` AND pthp.trang_thai = $${countParams.length}`;
+      query += ` AND pthp."TrangThai" = ${params.length}`;
+      countQuery += ` AND pthp."TrangThai" = ${countParams.length}`;
     }
 
     params.push(limit, offset);
-    query += ` ORDER BY pthp.ngay_tao DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    query += ` ORDER BY pthp."NgayTao" DESC LIMIT ${params.length - 1} OFFSET ${params.length}`;
 
     const [result, countResult] = await Promise.all([
       pool.query(query, params),
@@ -457,24 +457,24 @@ router.get('/admin/payments', requireViewAuth, requireViewAdmin, async (req, res
     const search = req.query.search || '';
     const offset = (page - 1) * limit;
 
-    let query = `SELECT pthp.*, sv.ma_sv, sv.ho_ten AS ho_ten_sv
-                 FROM phieu_thu_hoc_phi pthp
-                 LEFT JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv
+    let query = `SELECT pthp.*, sv."MaSv", sv."HoTen" AS ho_ten_sv
+                 FROM "PHIEUTHUHOCPHI" pthp
+                 LEFT JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv"
                  WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) FROM phieu_thu_hoc_phi pthp
-                      LEFT JOIN sinh_vien sv ON pthp.ma_sv = sv.ma_sv WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) FROM "PHIEUTHUHOCPHI" pthp
+                      LEFT JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv" WHERE 1=1`;
     const params = [];
     const countParams = [];
 
     if (search) {
       params.push(`%${search}%`);
       countParams.push(`%${search}%`);
-      query += ` AND (sv.ma_sv ILIKE $${params.length} OR sv.ho_ten ILIKE $${params.length})`;
-      countQuery += ` AND (sv.ma_sv ILIKE $${countParams.length} OR sv.ho_ten ILIKE $${countParams.length})`;
+      query += ` AND (sv."MaSv" ILIKE ${params.length} OR sv."HoTen" ILIKE ${params.length})`;
+      countQuery += ` AND (sv."MaSv" ILIKE ${countParams.length} OR sv."HoTen" ILIKE ${countParams.length})`;
     }
 
     params.push(limit, offset);
-    query += ` ORDER BY pthp.ngay_tao DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    query += ` ORDER BY pthp."NgayTao" DESC LIMIT ${params.length - 1} OFFSET ${params.length}`;
 
     const [result, countResult] = await Promise.all([
       pool.query(query, params),
@@ -524,7 +524,7 @@ router.get('/admin/users', requireViewAuth, requireViewAdmin, async (req, res) =
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || '';
-    const filterRole = req.query.role || '';
+    const filterRole = req.query.Role || '';
     const offset = (page - 1) * limit;
 
     let whereConditions = [];
@@ -532,12 +532,12 @@ router.get('/admin/users', requireViewAuth, requireViewAdmin, async (req, res) =
     let paramIndex = 1;
 
     if (search) {
-      whereConditions.push(`(tk.ten_dang_nhap ILIKE $${paramIndex} OR sv.ho_ten ILIKE $${paramIndex})`);
+      whereConditions.push(`(tk."TenDangNhap" ILIKE ${paramIndex} OR sv."HoTen" ILIKE ${paramIndex})`);
       params.push(`%${search}%`);
       paramIndex++;
     }
     if (filterRole && ['admin', 'sinh_vien'].includes(filterRole)) {
-      whereConditions.push(`tk.role = $${paramIndex}`);
+      whereConditions.push(`tk."Role" = ${paramIndex}`);
       params.push(filterRole);
       paramIndex++;
     }
@@ -545,20 +545,20 @@ router.get('/admin/users', requireViewAuth, requireViewAdmin, async (req, res) =
     const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM tai_khoan tk LEFT JOIN sinh_vien sv ON tk.ma_tai_khoan = sv.ma_tai_khoan ${whereClause}`,
+      `SELECT COUNT(*) FROM "TAIKHOAN" tk LEFT JOIN "SINHVIEN" sv ON tk."MaTaiKhoan" = sv."MaTaiKhoan" ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0].count);
     const totalPages = Math.ceil(total / limit);
 
     const result = await pool.query(
-      `SELECT tk.ma_tai_khoan, tk.ten_dang_nhap, tk.role, tk.ngay_tao,
-              sv.ho_ten, sv.ma_sv, sv.email
-       FROM tai_khoan tk
-       LEFT JOIN sinh_vien sv ON tk.ma_tai_khoan = sv.ma_tai_khoan
+      `SELECT tk."MaTaiKhoan", tk."TenDangNhap", tk."Role", tk."NgayTao",
+              sv."HoTen", sv."MaSv", sv."Email"
+       FROM "TAIKHOAN" tk
+       LEFT JOIN "SINHVIEN" sv ON tk."MaTaiKhoan" = sv."MaTaiKhoan"
        ${whereClause}
-       ORDER BY tk.ngay_tao DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       ORDER BY tk."NgayTao" DESC
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, limit, offset]
     );
 
@@ -568,11 +568,11 @@ router.get('/admin/users', requireViewAuth, requireViewAdmin, async (req, res) =
       headerTitle: 'Quản lý Tài khoản',
       user: req.user,
       accounts: result.rows,
-      currentUserId: req.user.id || req.user.ma_tai_khoan,
+      currentUserId: req.user.id || req.user.MaTaiKhoan,
       currentPage: page,
       totalPages,
       baseUrl: '/admin/users',
-      queryParams: { search, role: filterRole, limit },
+      queryParams: { search, Role: filterRole, limit },
       search,
       filterRole
     });
@@ -584,7 +584,7 @@ router.get('/admin/users', requireViewAuth, requireViewAdmin, async (req, res) =
       headerTitle: 'Quản lý Tài khoản',
       user: req.user,
       accounts: [],
-      currentUserId: req.user.id || req.user.ma_tai_khoan,
+      currentUserId: req.user.id || req.user.MaTaiKhoan,
       totalPages: 0,
       search: '',
       filterRole: ''

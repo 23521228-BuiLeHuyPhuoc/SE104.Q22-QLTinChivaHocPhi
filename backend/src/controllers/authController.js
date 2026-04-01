@@ -20,7 +20,7 @@ const login = async (req, res) => {
 
     // Query từ bảng tai_khoan (accounts)
     const result = await pool.query(
-      'SELECT * FROM tai_khoan WHERE ten_dang_nhap = $1',
+      'SELECT * FROM "TAIKHOAN" WHERE "TenDangNhap" = $1',
       [username]
     );
 
@@ -32,7 +32,7 @@ const login = async (req, res) => {
     }
 
     const user = result.rows[0];
-    const isValidPassword = await bcrypt.compare(password, user.mat_khau);
+    const isValidPassword = await bcrypt.compare(password, user.MatKhau);
 
     if (!isValidPassword) {
       return res.status(401).json({
@@ -43,10 +43,10 @@ const login = async (req, res) => {
 
     const token = jwt.sign(
       { 
-        id: user.ma_tai_khoan, 
-        ma_tai_khoan: user.ma_tai_khoan,
-        username: user.ten_dang_nhap, 
-        role: user.role 
+        id: user.MaTaiKhoan, 
+        MaTaiKhoan: user.MaTaiKhoan,
+        username: user.TenDangNhap, 
+        Role: user.Role 
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -54,33 +54,33 @@ const login = async (req, res) => {
 
     // Lấy thông tin sinh viên nếu là sinh viên
     let studentInfo = null;
-    if (user.role === 'student') {
+    if (user.Role === 'student') {
       const studentResult = await pool.query(
-        `SELECT sv.*, nh.ten_nganh as ten_nganh, kh.ten_khoa
-         FROM sinh_vien sv
-         LEFT JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-         LEFT JOIN khoa kh ON nh.ma_khoa = kh.ma_khoa
-         WHERE sv.ma_tai_khoan = $1`,
-        [user.ma_tai_khoan]
+        `SELECT sv.*, nh."TenNganh" as "TenNganh", kh."TenKhoa"
+         FROM "SINHVIEN" sv
+         LEFT JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+         LEFT JOIN "KHOA" kh ON nh."MaKhoa" = kh."MaKhoa"
+         WHERE sv."MaTaiKhoan" = $1`,
+        [user.MaTaiKhoan]
       );
       if (studentResult.rows.length > 0) {
         const sv = studentResult.rows[0];
         studentInfo = {
-          id: sv.ma_sv,
-          ma_sv: sv.ma_sv,
-          student_code: sv.ma_sv,
-          ho_ten: sv.ho_ten,
-          full_name: sv.ho_ten,
-          ngay_sinh: sv.ngay_sinh,
-          gioi_tinh: sv.gioi_tinh,
-          email: sv.email,
+          id: sv.MaSv,
+          MaSv: sv.MaSv,
+          student_code: sv.MaSv,
+          HoTen: sv.HoTen,
+          full_name: sv.HoTen,
+          NgaySinh: sv.NgaySinh,
+          GioiTinh: sv.GioiTinh,
+          Email: sv.Email,
           so_dien_thoai: sv.so_dien_thoai,
-          dia_chi: sv.dia_chi,
-          ma_nganh: sv.ma_nganh,
-          ten_nganh: sv.ten_nganh,
-          ten_khoa: sv.ten_khoa,
+          DiaChi: sv.DiaChi,
+          MaNganh: sv.MaNganh,
+          TenNganh: sv.TenNganh,
+          TenKhoa: sv.TenKhoa,
           nam_nhap_hoc: sv.nam_nhap_hoc,
-          trang_thai: sv.trang_thai,
+          TrangThai: sv.TrangThai,
           avatar: sv.avatar
         };
       }
@@ -88,10 +88,10 @@ const login = async (req, res) => {
 
     // Lấy thông tin admin nếu là admin
     let adminInfo = null;
-    if (user.role === 'admin') {
+    if (user.Role === 'admin') {
       const adminResult = await pool.query(
-        'SELECT * FROM quan_tri_vien WHERE ma_tai_khoan = $1',
-        [user.ma_tai_khoan]
+        'SELECT * FROM "QUANTRIVIEN" WHERE "MaTaiKhoan" = $1',
+        [user.MaTaiKhoan]
       );
       if (adminResult.rows.length > 0) {
         adminInfo = adminResult.rows[0];
@@ -104,10 +104,10 @@ const login = async (req, res) => {
       data: {
         token,
         user: {
-          id: user.ma_tai_khoan,
-          ma_tai_khoan: user.ma_tai_khoan,
-          username: user.ten_dang_nhap,
-          role: user.role
+          id: user.MaTaiKhoan,
+          MaTaiKhoan: user.MaTaiKhoan,
+          username: user.TenDangNhap,
+          Role: user.Role
         },
         student: studentInfo,
         admin: adminInfo
@@ -125,7 +125,7 @@ const login = async (req, res) => {
 // Register new user
 const register = async (req, res) => {
   try {
-    const { username, password, role = 'student' } = req.body;
+    const { username, password, Role = 'student' } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({
@@ -136,7 +136,7 @@ const register = async (req, res) => {
 
     // Kiểm tra tên đăng nhập đã tồn tại
     const existingUser = await pool.query(
-      'SELECT ma_tai_khoan FROM tai_khoan WHERE ten_dang_nhap = $1',
+      'SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = $1',
       [username]
     );
 
@@ -153,17 +153,17 @@ const register = async (req, res) => {
 
     // Tạo tài khoản
     const result = await pool.query(
-      'INSERT INTO tai_khoan (ten_dang_nhap, mat_khau, role) VALUES ($1, $2, $3) RETURNING ma_tai_khoan, ten_dang_nhap, role',
-      [username, hashedPassword, role]
+      'INSERT INTO "TAIKHOAN" ("TenDangNhap", "MatKhau", "Role") VALUES ($1, $2, $3) RETURNING "MaTaiKhoan", "TenDangNhap", "Role"',
+      [username, hashedPassword, Role]
     );
 
     res.status(201).json({
       success: true,
       message: 'Đăng ký thành công',
       data: {
-        id: result.rows[0].ma_tai_khoan,
-        username: result.rows[0].ten_dang_nhap,
-        role: result.rows[0].role
+        id: result.rows[0].MaTaiKhoan,
+        username: result.rows[0].TenDangNhap,
+        Role: result.rows[0].Role
       }
     });
   } catch (error) {
@@ -178,10 +178,10 @@ const register = async (req, res) => {
 // Get current user info
 const getMe = async (req, res) => {
   try {
-    const userId = req.user.id || req.user.ma_tai_khoan;
+    const userId = req.user.id || req.user.MaTaiKhoan;
     
     const result = await pool.query(
-      'SELECT ma_tai_khoan, ten_dang_nhap, role, ngay_tao FROM tai_khoan WHERE ma_tai_khoan = $1',
+      'SELECT "MaTaiKhoan", "TenDangNhap", "Role", "NgayTao" FROM "TAIKHOAN" WHERE "MaTaiKhoan" = $1',
       [userId]
     );
 
@@ -196,39 +196,39 @@ const getMe = async (req, res) => {
     let studentInfo = null;
     let adminInfo = null;
 
-    if (user.role === 'student') {
+    if (user.Role === 'student') {
       const studentResult = await pool.query(
-        `SELECT sv.*, nh.ten_nganh, kh.ten_khoa
-         FROM sinh_vien sv
-         LEFT JOIN nganh_hoc nh ON sv.ma_nganh = nh.ma_nganh
-         LEFT JOIN khoa kh ON nh.ma_khoa = kh.ma_khoa
-         WHERE sv.ma_tai_khoan = $1`,
+        `SELECT sv.*, nh."TenNganh", kh."TenKhoa"
+         FROM "SINHVIEN" sv
+         LEFT JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
+         LEFT JOIN "KHOA" kh ON nh."MaKhoa" = kh."MaKhoa"
+         WHERE sv."MaTaiKhoan" = $1`,
         [userId]
       );
       if (studentResult.rows.length > 0) {
         const sv = studentResult.rows[0];
         studentInfo = {
-          id: sv.ma_sv,
-          ma_sv: sv.ma_sv,
-          student_code: sv.ma_sv,
-          ho_ten: sv.ho_ten,
-          full_name: sv.ho_ten,
-          ngay_sinh: sv.ngay_sinh,
-          gioi_tinh: sv.gioi_tinh,
-          email: sv.email,
+          id: sv.MaSv,
+          MaSv: sv.MaSv,
+          student_code: sv.MaSv,
+          HoTen: sv.HoTen,
+          full_name: sv.HoTen,
+          NgaySinh: sv.NgaySinh,
+          GioiTinh: sv.GioiTinh,
+          Email: sv.Email,
           so_dien_thoai: sv.so_dien_thoai,
-          dia_chi: sv.dia_chi,
-          ma_nganh: sv.ma_nganh,
-          ten_nganh: sv.ten_nganh,
-          ten_khoa: sv.ten_khoa,
+          DiaChi: sv.DiaChi,
+          MaNganh: sv.MaNganh,
+          TenNganh: sv.TenNganh,
+          TenKhoa: sv.TenKhoa,
           nam_nhap_hoc: sv.nam_nhap_hoc,
-          trang_thai: sv.trang_thai,
+          TrangThai: sv.TrangThai,
           avatar: sv.avatar
         };
       }
-    } else if (user.role === 'admin') {
+    } else if (user.Role === 'admin') {
       const adminResult = await pool.query(
-        'SELECT * FROM quan_tri_vien WHERE ma_tai_khoan = $1',
+        'SELECT * FROM "QUANTRIVIEN" WHERE "MaTaiKhoan" = $1',
         [userId]
       );
       if (adminResult.rows.length > 0) {
@@ -240,11 +240,11 @@ const getMe = async (req, res) => {
       success: true,
       data: {
         user: {
-          id: user.ma_tai_khoan,
-          ma_tai_khoan: user.ma_tai_khoan,
-          username: user.ten_dang_nhap,
-          role: user.role,
-          created_at: user.ngay_tao
+          id: user.MaTaiKhoan,
+          MaTaiKhoan: user.MaTaiKhoan,
+          username: user.TenDangNhap,
+          Role: user.Role,
+          created_at: user.NgayTao
         },
         student: studentInfo,
         admin: adminInfo
@@ -263,7 +263,7 @@ const getMe = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id || req.user.ma_tai_khoan;
+    const userId = req.user.id || req.user.MaTaiKhoan;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
@@ -273,7 +273,7 @@ const changePassword = async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT mat_khau FROM tai_khoan WHERE ma_tai_khoan = $1',
+      'SELECT "MatKhau" FROM "TAIKHOAN" WHERE "MaTaiKhoan" = $1',
       [userId]
     );
 
@@ -284,7 +284,7 @@ const changePassword = async (req, res) => {
       });
     }
 
-    const isValidPassword = await bcrypt.compare(currentPassword, result.rows[0].mat_khau);
+    const isValidPassword = await bcrypt.compare(currentPassword, result.rows[0].MatKhau);
     if (!isValidPassword) {
       return res.status(400).json({
         success: false,
@@ -296,7 +296,7 @@ const changePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     await pool.query(
-      'UPDATE tai_khoan SET mat_khau = $1 WHERE ma_tai_khoan = $2',
+      'UPDATE "TAIKHOAN" SET "MatKhau" = $1 WHERE "MaTaiKhoan" = $2',
       [hashedPassword, userId]
     );
 

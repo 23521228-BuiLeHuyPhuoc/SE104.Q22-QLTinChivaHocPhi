@@ -1,19 +1,19 @@
 // Phân quyền đơn giản: admin và sinh_vien
-// Admin: truy cập toàn bộ chức năng quản trị, có thể thay đổi role người dùng
+// Admin: truy cập toàn bộ chức năng quản trị, có thể thay đổi Role người dùng
 // Sinh viên: chỉ truy cập phần dành cho sinh viên
 
 const pool = require('../config/database');
 
 const ROLES = [
   {
-    role: 'admin',
+    Role: 'admin',
     ten_vai_tro: 'Quản trị viên',
-    mo_ta: 'Toàn quyền truy cập và chỉnh sửa hệ thống quản lý'
+    MoTa: 'Toàn quyền truy cập và chỉnh sửa hệ thống quản lý'
   },
   {
-    role: 'sinh_vien',
+    Role: 'sinh_vien',
     ten_vai_tro: 'Sinh viên',
-    mo_ta: 'Xem thông tin cá nhân, đăng ký môn học, xem học phí'
+    MoTa: 'Xem thông tin cá nhân, đăng ký môn học, xem học phí'
   }
 ];
 
@@ -29,15 +29,15 @@ const getAllRoles = (req, res) => {
 
 // Lấy vai trò hiện tại của user
 const getMyRole = (req, res) => {
-  const role = req.user.role;
-  const found = ROLES.find(r => r.role === role);
+  const Role = req.user.Role;
+  const found = ROLES.find(r => r.Role === Role);
 
   res.json({
     success: true,
     data: {
-      role,
-      ten_vai_tro: found ? found.ten_vai_tro : role,
-      isAdmin: role === 'admin'
+      Role,
+      ten_vai_tro: found ? found.ten_vai_tro : Role,
+      isAdmin: Role === 'admin'
     }
   });
 };
@@ -45,7 +45,7 @@ const getMyRole = (req, res) => {
 // Lấy danh sách tất cả tài khoản (admin only)
 const getAllAccounts = async (req, res) => {
   try {
-    const { search, role: filterRole, page = 1, limit = 20 } = req.query;
+    const { search, Role: filterRole, page = 1, limit = 20 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     let whereConditions = [];
@@ -53,13 +53,13 @@ const getAllAccounts = async (req, res) => {
     let paramIndex = 1;
 
     if (search) {
-      whereConditions.push(`(tk.ten_dang_nhap ILIKE $${paramIndex} OR sv.ho_ten ILIKE $${paramIndex})`);
+      whereConditions.push(`(tk."TenDangNhap" ILIKE ${paramIndex} OR sv."HoTen" ILIKE ${paramIndex})`);
       params.push(`%${search}%`);
       paramIndex++;
     }
 
     if (filterRole && VALID_ROLES.includes(filterRole)) {
-      whereConditions.push(`tk.role = $${paramIndex}`);
+      whereConditions.push(`tk."Role" = ${paramIndex}`);
       params.push(filterRole);
       paramIndex++;
     }
@@ -68,20 +68,20 @@ const getAllAccounts = async (req, res) => {
 
     // Count total
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM tai_khoan tk LEFT JOIN sinh_vien sv ON tk.ma_tai_khoan = sv.ma_tai_khoan ${whereClause}`,
+      `SELECT COUNT(*) FROM "TAIKHOAN" tk LEFT JOIN "SINHVIEN" sv ON tk."MaTaiKhoan" = sv."MaTaiKhoan" ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0].count);
 
     // Get accounts
     const result = await pool.query(
-      `SELECT tk.ma_tai_khoan, tk.ten_dang_nhap, tk.role, tk.ngay_tao,
-              sv.ho_ten, sv.ma_sv, sv.email
-       FROM tai_khoan tk
-       LEFT JOIN sinh_vien sv ON tk.ma_tai_khoan = sv.ma_tai_khoan
+      `SELECT tk."MaTaiKhoan", tk."TenDangNhap", tk."Role", tk."NgayTao",
+              sv."HoTen", sv."MaSv", sv."Email"
+       FROM "TAIKHOAN" tk
+       LEFT JOIN "SINHVIEN" sv ON tk."MaTaiKhoan" = sv."MaTaiKhoan"
        ${whereClause}
-       ORDER BY tk.ngay_tao DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+       ORDER BY tk."NgayTao" DESC
+       LIMIT ${paramIndex} OFFSET ${paramIndex + 1}`,
       [...params, parseInt(limit), offset]
     );
 
@@ -101,31 +101,31 @@ const getAllAccounts = async (req, res) => {
   }
 };
 
-// Cập nhật role của tài khoản (admin only)
+// Cập nhật Role của tài khoản (admin only)
 const updateUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
-    const currentUserId = req.user.id || req.user.ma_tai_khoan;
+    const { Role } = req.body;
+    const currentUserId = req.user.id || req.user.MaTaiKhoan;
 
-    if (!role || !VALID_ROLES.includes(role)) {
+    if (!Role || !VALID_ROLES.includes(Role)) {
       return res.status(400).json({
         success: false,
         message: 'Role không hợp lệ. Chỉ chấp nhận: admin, sinh_vien'
       });
     }
 
-    // Không cho phép tự đổi role chính mình
+    // Không cho phép tự đổi Role chính mình
     if (parseInt(id) === parseInt(currentUserId)) {
       return res.status(400).json({
         success: false,
-        message: 'Không thể thay đổi role của chính mình'
+        message: 'Không thể thay đổi Role của chính mình'
       });
     }
 
     // Kiểm tra tài khoản tồn tại
     const checkResult = await pool.query(
-      'SELECT ma_tai_khoan, ten_dang_nhap, role FROM tai_khoan WHERE ma_tai_khoan = $1',
+      'SELECT "MaTaiKhoan", "TenDangNhap", "Role" FROM "TAIKHOAN" WHERE "MaTaiKhoan" = $1',
       [id]
     );
 
@@ -136,33 +136,33 @@ const updateUserRole = async (req, res) => {
       });
     }
 
-    const oldRole = checkResult.rows[0].role;
+    const oldRole = checkResult.rows[0].Role;
 
-    if (oldRole === role) {
+    if (oldRole === Role) {
       return res.status(400).json({
         success: false,
-        message: `Tài khoản đã có role ${role}`
+        message: `Tài khoản đã có "Role" ${"Role"}`
       });
     }
 
-    // Cập nhật role
+    // Cập nhật Role
     await pool.query(
-      'UPDATE tai_khoan SET role = $1 WHERE ma_tai_khoan = $2',
-      [role, id]
+      'UPDATE "TAIKHOAN" SET "Role" = $1 WHERE "MaTaiKhoan" = $2',
+      [Role, id]
     );
 
     res.json({
       success: true,
-      message: `Đã thay đổi role từ "${oldRole}" thành "${role}"`,
+      message: `Đã thay đổi "Role" từ "${oldRole}" thành "${"Role"}"`,
       data: {
-        ma_tai_khoan: parseInt(id),
-        ten_dang_nhap: checkResult.rows[0].ten_dang_nhap,
+        MaTaiKhoan: parseInt(id),
+        TenDangNhap: checkResult.rows[0].TenDangNhap,
         old_role: oldRole,
-        new_role: role
+        new_role: Role
       }
     });
   } catch (error) {
-    console.error('Update user role error:', error);
+    console.error('Update user "Role" error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
