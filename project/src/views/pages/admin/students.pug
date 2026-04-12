@@ -1,0 +1,105 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm kiếm sinh viên..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      select#filter-status(onchange="applyFilters()")
+        option(value="" selected=(status === '' || !status)) Tất cả trạng thái
+        option(value="Đang học" selected=(status === 'Đang học')) Đang học
+        option(value="Đã tốt nghiệp" selected=(status === 'Đã tốt nghiệp')) Đã tốt nghiệp
+        option(value="Bảo lưu" selected=(status === 'Bảo lưu')) Bảo lưu
+        option(value="Đã thôi học" selected=(status === 'Đã thôi học')) Đã thôi học
+      button.btn.btn-primary(onclick="openModal('add')") + Thêm sinh viên
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th MSSV
+            th Họ tên
+            th Email
+            th Ngành
+            th Trạng thái
+            th Thao tác
+        tbody#students-table
+          if students && students.length > 0
+            each sv in students
+              tr
+                td= sv.ma_sv
+                td= sv.ho_ten
+                td= sv.email || '-'
+                td= sv.ten_nganh || '-'
+                td
+                  span.badge(class=sv.trang_thai === 'Đang học' ? 'badge-success' : sv.trang_thai === 'Bảo lưu' ? 'badge-warning' : sv.trang_thai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.trang_thai
+                td
+                  button.btn.btn-sm.btn-outline(onclick=`openModal('edit', ${JSON.stringify(sv)})`) ✏️
+                  |  
+                  button.btn.btn-sm.btn-danger(onclick=`deleteStudent('${sv.ma_sv}')`) 🗑️
+          else
+            tr
+              td(colspan="6").text-center Không có dữ liệu
+
+  include ../../partials/pagination
+
+block modals
+  #student-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm sinh viên
+        button.modal-close(onclick="closeModal()") ×
+      .modal-body
+        form#student-form
+          .form-row
+            .form-group
+              label MSSV
+              input.form-control#sv-mssv(type="text" required)
+            .form-group
+              label Họ tên
+              input.form-control#sv-hoten(type="text" required)
+          .form-row
+            .form-group
+              label Email
+              input.form-control#sv-email(type="email")
+            .form-group
+              label Số điện thoại
+              input.form-control#sv-sdt(type="text")
+          .form-row
+            .form-group
+              label Ngày sinh
+              input.form-control#sv-ngaysinh(type="date")
+            .form-group
+              label Giới tính
+              select.form-control#sv-gioitinh
+                option(value="Nam") Nam
+                option(value="Nữ") Nữ
+          .form-row
+            .form-group
+              label CMND/CCCD
+              input.form-control#sv-cmnd(type="text")
+            .form-group
+              label Dân tộc
+              input.form-control#sv-dantoc(type="text" value="Kinh")
+          .form-group
+            label Địa chỉ
+            input.form-control#sv-diachi(type="text")
+          .form-row
+            .form-group
+              label Ngành
+              select.form-control#sv-nganh
+                option(value="") Chọn ngành
+            .form-group
+              label Trạng thái
+              select.form-control#sv-trangthai
+                option(value="Đang học") Đang học
+                option(value="Bảo lưu") Bảo lưu
+                option(value="Đã tốt nghiệp") Đã tốt nghiệp
+                option(value="Đã thôi học") Đã thôi học
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu
+
+block scripts
+  script(src="/js/admin/students.js")

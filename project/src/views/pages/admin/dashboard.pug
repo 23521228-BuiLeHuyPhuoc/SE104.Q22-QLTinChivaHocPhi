@@ -1,0 +1,36 @@
+extends ../../layouts/admin
+
+block content
+  h2.page-title Dashboard
+
+  .stats-grid
+    .stat-card
+      .stat-icon.blue 👨‍🎓
+      .stat-info
+        h3#stat-students --
+        p Sinh viên
+    .stat-card
+      .stat-icon.green 📚
+      .stat-info
+        h3#stat-courses --
+        p Môn học
+    .stat-card
+      .stat-icon.orange 📝
+      .stat-info
+        h3#stat-registrations --
+        p Đăng ký
+    .stat-card
+      .stat-icon.purple 💰
+      .stat-info
+        h3#stat-revenue --
+        p Doanh thu
+
+  .card
+    .card-header
+      h3 Tổng quan hệ thống
+    .card-body
+      p Chào mừng đến với hệ thống quản lý tín chỉ và học phí.
+      p Sử dụng menu bên trái để truy cập các chức năng quản lý.
+
+block scripts
+  script(src="/js/admin/dashboard.js")

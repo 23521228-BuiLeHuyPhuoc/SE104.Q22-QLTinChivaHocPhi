@@ -1,0 +1,42 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm kiếm đăng ký..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      select#filter-status(onchange="applyFilters()")
+        option(value="" selected=(!status)) Tất cả trạng thái
+        option(value="registered" selected=(status === 'registered')) Đã đăng ký
+        option(value="cancelled" selected=(status === 'cancelled')) Đã hủy
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th MSSV
+            th Họ tên
+            th Môn học
+            th Lớp
+            th Ngày ĐK
+            th Trạng thái
+        tbody
+          if registrations && registrations.length > 0
+            each r in registrations
+              tr
+                td= r.ma_sv
+                td= r.ho_ten_sv || '-'
+                td= r.ten_mon_hoc || '-'
+                td= r.ma_lop || '-'
+                td= r.ngay_dang_ky ? new Date(r.ngay_dang_ky).toLocaleDateString('vi-VN') : '-'
+                td
+                  span.badge(class=r.trang_thai === 'registered' ? 'badge-success' : 'badge-error')= r.trang_thai === 'registered' ? 'Đã ĐK' : 'Đã hủy'
+          else
+            tr
+              td(colspan="6").text-center Không có dữ liệu
+
+  include ../../partials/pagination
+
+block scripts
+  script(src="/js/admin/registrations.js")

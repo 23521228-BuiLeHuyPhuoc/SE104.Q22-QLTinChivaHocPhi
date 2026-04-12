@@ -1,0 +1,25 @@
+extends ../../layouts/student
+
+block content
+  h2.page-title Môn học đã đăng ký
+
+  .card
+    .card-body
+      .loading-overlay#loading
+        .spinner
+      .table-container
+        table.data-table#courses-table.hidden
+          thead
+            tr
+              th Mã lớp
+              th Tên môn
+              th Tín chỉ
+              th Giảng viên
+              th Lịch học
+              th Phòng
+              th Trạng thái
+              th Thao tác
+          tbody#my-courses
+
+block scripts
+  script(src="/js/student/my-courses.js")

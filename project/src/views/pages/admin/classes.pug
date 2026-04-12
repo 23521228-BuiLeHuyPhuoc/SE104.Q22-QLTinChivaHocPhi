@@ -1,0 +1,81 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm kiếm lớp học..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      button.btn.btn-primary(onclick="openModal('add')") + Thêm lớp
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã lớp
+            th Tên lớp
+            th Môn học
+            th Giảng viên
+            th Lịch học
+            th Phòng
+            th SL tối đa
+            th Thao tác
+        tbody
+          if classes && classes.length > 0
+            each cl in classes
+              tr
+                td= cl.ma_lop
+                td= cl.ten_lop
+                td= cl.ten_mon_hoc || cl.ma_mon_hoc
+                td= cl.giang_vien || '-'
+                td= cl.lich_hoc || '-'
+                td= cl.phong_hoc || '-'
+                td= cl.so_luong_toi_da || '-'
+                td
+                  button.btn.btn-sm.btn-outline(onclick=`openModal('edit', ${JSON.stringify(cl)})`) ✏️
+                  |  
+                  button.btn.btn-sm.btn-danger(onclick=`deleteClass('${cl.ma_lop}')`) 🗑️
+          else
+            tr
+              td(colspan="8").text-center Không có dữ liệu
+
+  include ../../partials/pagination
+
+block modals
+  #class-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm lớp học
+        button.modal-close(onclick="closeModal()") ×
+      .modal-body
+        form#class-form
+          .form-row
+            .form-group
+              label Mã lớp
+              input.form-control#cl-malop(type="text" required)
+            .form-group
+              label Tên lớp
+              input.form-control#cl-tenlop(type="text" required)
+          .form-row
+            .form-group
+              label Mã môn học
+              input.form-control#cl-mamonhoc(type="text" required)
+            .form-group
+              label Giảng viên
+              input.form-control#cl-giangvien(type="text")
+          .form-row
+            .form-group
+              label Lịch học
+              input.form-control#cl-lichhoc(type="text" placeholder="VD: Thứ 2 (7h30-9h30)")
+            .form-group
+              label Phòng học
+              input.form-control#cl-phonghoc(type="text")
+          .form-group
+            label Số lượng tối đa
+            input.form-control#cl-soluong(type="number" min="1" value="50")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveClass()") Lưu
+
+block scripts
+  script(src="/js/admin/classes.js")

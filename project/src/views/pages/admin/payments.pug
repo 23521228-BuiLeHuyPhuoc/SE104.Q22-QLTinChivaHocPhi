@@ -1,0 +1,72 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm kiếm phiếu thu..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      button.btn.btn-primary(onclick="openModal()") + Lập phiếu thu
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã phiếu
+            th MSSV
+            th Họ tên
+            th Số tiền
+            th Phương thức
+            th Ngày thu
+            th Người thu
+        tbody
+          if payments && payments.length > 0
+            each p in payments
+              tr
+                td= p.ma_phieu_thu || p.id
+                td= p.ma_sv || '-'
+                td= p.ho_ten_sv || '-'
+                td= (p.so_tien || 0).toLocaleString('vi-VN') + 'đ'
+                td= p.phuong_thuc || '-'
+                td= p.ngay_thu ? new Date(p.ngay_thu).toLocaleDateString('vi-VN') : '-'
+                td= p.nguoi_thu || '-'
+          else
+            tr
+              td(colspan="7").text-center Không có dữ liệu
+
+  include ../../partials/pagination
+
+block modals
+  #payment-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2 Lập phiếu thu học phí
+        button.modal-close(onclick="closeModal()") ×
+      .modal-body
+        form#payment-form
+          .form-row
+            .form-group
+              label MSSV
+              input.form-control#pt-mssv(type="text" required)
+            .form-group
+              label Học kỳ
+              select.form-control#pt-hocky
+                option(value="") Chọn học kỳ
+          .form-group
+            label Số tiền
+            input.form-control#pt-sotien(type="number" min="0" required)
+          .form-group
+            label Phương thức thanh toán
+            select.form-control#pt-phuongthuc
+              option(value="Tiền mặt") Tiền mặt
+              option(value="Chuyển khoản") Chuyển khoản
+              option(value="Thẻ") Thẻ
+          .form-group
+            label Ghi chú
+            textarea.form-control#pt-ghichu(rows="2")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="savePayment()") Lưu phiếu thu
+
+block scripts
+  script(src="/js/admin/payments.js")

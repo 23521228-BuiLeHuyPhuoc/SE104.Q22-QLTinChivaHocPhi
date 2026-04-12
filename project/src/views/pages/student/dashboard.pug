@@ -1,0 +1,36 @@
+extends ../../layouts/student
+
+block content
+  h2.page-title Dashboard Sinh viên
+
+  .stats-grid
+    .stat-card
+      .stat-icon.blue 📚
+      .stat-info
+        h3#stat-courses --
+        p Môn đã ĐK
+    .stat-card
+      .stat-icon.green 📝
+      .stat-info
+        h3#stat-credits --
+        p Tổng tín chỉ
+    .stat-card
+      .stat-icon.orange 💰
+      .stat-info
+        h3#stat-tuition --
+        p Học phí
+    .stat-card
+      .stat-icon.red 💸
+      .stat-info
+        h3#stat-debt --
+        p Còn nợ
+
+  .card
+    .card-header
+      h3 Thông báo mới
+    .card-body#notifications-list
+      .loading-overlay
+        .spinner
+
+block scripts
+  script(src="/js/student/dashboard.js")

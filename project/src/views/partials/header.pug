@@ -1,0 +1,11 @@
+header.top-header
+  .header-left
+    button.sidebar-toggle(onclick="toggleSidebar()") ☰
+    h1= headerTitle || 'Dashboard'
+
+  .header-right
+    button.theme-toggle(onclick="toggleTheme()" title="Đổi giao diện")
+      span#theme-icon ☀️
+    .header-user
+      span= user ? user.ho_ten || user.ten_dang_nhap : ''
+    a.btn-logout(href="/logout") Đăng xuất

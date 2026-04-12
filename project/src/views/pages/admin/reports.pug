@@ -1,0 +1,61 @@
+extends ../../layouts/admin
+
+block content
+  h2.page-title Báo cáo thống kê
+
+  .stats-grid
+    .stat-card
+      .stat-icon.blue 👨‍🎓
+      .stat-info
+        h3#stat-students --
+        p Tổng sinh viên
+    .stat-card
+      .stat-icon.green 📚
+      .stat-info
+        h3#stat-courses --
+        p Tổng môn học
+    .stat-card
+      .stat-icon.orange 📝
+      .stat-info
+        h3#stat-registrations --
+        p Lượt đăng ký
+    .stat-card
+      .stat-icon.purple 💰
+      .stat-info
+        h3#stat-paid --
+        p Đã thu
+    .stat-card
+      .stat-icon.red 💸
+      .stat-info
+        h3#stat-remaining --
+        p Còn nợ
+
+  .card.mt-3
+    .card-header
+      h3 Thống kê sinh viên theo trạng thái
+    .card-body
+      table.data-table
+        thead
+          tr
+            th Trạng thái
+            th Số lượng
+        tbody#student-stats-table
+          tr
+            td(colspan="2").text-center Đang tải...
+
+  .card.mt-3
+    .card-header
+      h3 Thống kê theo phương thức thanh toán
+    .card-body
+      table.data-table
+        thead
+          tr
+            th Phương thức
+            th Số giao dịch
+            th Tổng tiền
+        tbody#payment-stats-table
+          tr
+            td(colspan="3").text-center Đang tải...
+
+block scripts
+  script(src="/js/admin/reports.js")

@@ -1,0 +1,66 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    h2.page-title Quản lý học kỳ
+    button.btn.btn-primary(onclick="openModal('add')") + Thêm học kỳ
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Tên học kỳ
+            th Năm học
+            th Ngày bắt đầu
+            th Ngày kết thúc
+            th Trạng thái
+            th Thao tác
+        tbody
+          if semesters && semesters.length > 0
+            each s in semesters
+              tr
+                td= s.ten_hoc_ky
+                td= s.ten_nam_hoc || ''
+                td= s.ngay_bat_dau ? new Date(s.ngay_bat_dau).toLocaleDateString('vi-VN') : '-'
+                td= s.ngay_ket_thuc ? new Date(s.ngay_ket_thuc).toLocaleDateString('vi-VN') : '-'
+                td
+                  span.badge(class=s.trang_thai === 'Đang diễn ra' ? 'badge-success' : s.trang_thai === 'Sắp tới' ? 'badge-warning' : 'badge-secondary')= s.trang_thai
+                td
+                  button.btn.btn-sm.btn-outline(onclick=`openModal('edit', ${JSON.stringify(s)})`) ✏️
+                  |  
+                  button.btn.btn-sm.btn-danger(onclick=`deleteSemester(${s.ma_hoc_ky})`) 🗑️
+          else
+            tr
+              td(colspan="6").text-center Không có dữ liệu
+
+block modals
+  #semester-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm học kỳ
+        button.modal-close(onclick="closeModal()") ×
+      .modal-body
+        form#semester-form
+          .form-group
+            label Tên học kỳ
+            input.form-control#hk-ten(type="text" required placeholder="VD: Học kỳ 1")
+          .form-row
+            .form-group
+              label Ngày bắt đầu
+              input.form-control#hk-batdau(type="date" required)
+            .form-group
+              label Ngày kết thúc
+              input.form-control#hk-ketthuc(type="date" required)
+          .form-group
+            label Trạng thái
+            select.form-control#hk-trangthai
+              option(value="Sắp tới") Sắp tới
+              option(value="Đang diễn ra") Đang diễn ra
+              option(value="Đã kết thúc") Đã kết thúc
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveSemester()") Lưu
+
+block scripts
+  script(src="/js/admin/semesters.js")

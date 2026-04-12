@@ -1,0 +1,27 @@
+extends ../../layouts/student
+
+block content
+  h2.page-title Đăng ký môn học
+
+  .card
+    .card-header
+      h3 Môn học có thể đăng ký
+    .card-body
+      .loading-overlay#loading
+        .spinner
+      .table-container
+        table.data-table#courses-table.hidden
+          thead
+            tr
+              th Mã lớp
+              th Tên môn
+              th Tín chỉ
+              th Giảng viên
+              th Lịch học
+              th Phòng
+              th Còn trống
+              th Thao tác
+          tbody#available-courses
+
+block scripts
+  script(src="/js/student/course-registration.js")

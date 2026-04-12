@@ -1,0 +1,61 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm theo tên đăng nhập hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      select#filter-role(onchange="applyFilters()")
+        option(value="" selected=(!filterRole)) Tất cả vai trò
+        option(value="admin" selected=(filterRole === 'admin')) Admin
+        option(value="sinh_vien" selected=(filterRole === 'sinh_vien')) Sinh viên
+
+  .card
+    .table-container
+      table.data-table
+        thead
+          tr
+            th ID
+            th Tên đăng nhập
+            th Họ tên
+            th Mã SV
+            th Email
+            th Vai trò
+            th Ngày tạo
+            th Thao tác
+        tbody#accounts-table
+          if accounts && accounts.length > 0
+            each acc in accounts
+              tr
+                td= acc.ma_tai_khoan
+                td
+                  strong= acc.ten_dang_nhap
+                td= acc.ho_ten || '—'
+                td= acc.ma_sv || '—'
+                td= acc.email || '—'
+                td
+                  if acc.role === 'admin'
+                    span.badge.badge-info 🛡️ Admin
+                  else
+                    span.badge.badge-success 🎓 Sinh viên
+                td= acc.ngay_tao ? new Date(acc.ngay_tao).toLocaleDateString('vi-VN') : '—'
+                td
+                  if currentUserId && parseInt(acc.ma_tai_khoan) === parseInt(currentUserId)
+                    span.text-muted (Bạn)
+                  else
+                    button.btn.btn-sm(
+                      class=(acc.role === 'admin' ? 'btn-warning' : 'btn-primary')
+                      data-id=acc.ma_tai_khoan
+                      data-username=acc.ten_dang_nhap
+                      data-role=acc.role
+                      onclick="handleRoleClick(this)"
+                      id=`btn-role-${acc.ma_tai_khoan}`
+                    )= acc.role === 'admin' ? '⬇ Hạ → SV' : '⬆ Nâng → Admin'
+          else
+            tr
+              td(colspan="8").text-center Không có tài khoản nào
+
+  include ../../partials/pagination
+
+block scripts
+  script(src="/js/admin/users.js")
