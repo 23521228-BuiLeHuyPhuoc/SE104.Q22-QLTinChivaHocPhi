@@ -1,227 +1,108 @@
-# HỆ THỐNG QUẢN LÝ VIỆC ĐĂNG KÝ MÔN HỌC VÀ THU HỌC PHÍ CỦA SINH VIÊN
+# Hệ thống Quản lý Tín chỉ và Học phí
 
-Đề tài SE104.Q22 - Hệ thống quản lý đăng ký môn học và thu học phí sinh viên.
+Dự án Hệ thống Quản lý Đăng ký Tín chỉ và Đóng Học phí dành cho Sinh viên và Quản trị viên (Admin).
+Dự án được xây dựng dựa trên kiến trúc **MVC (Model - View - Controller)** kết hợp **Server-Side Rendering (SSR)**.
 
-## 📋 Mô tả dự án
+## 🚀 Tính năng chính
 
-Hệ thống web application quản lý việc đăng ký môn học và thu học phí của sinh viên, được phát triển bằng:
-- **Frontend**: Pug (server-side rendering), CSS, Vanilla JS
-- **Backend**: NodeJS (Express) - Pug view engine
-- **Database**: PostgreSQL
+### 🧑‍🎓 Dành cho Sinh viên (Student)
+- **Đăng nhập & Hồ sơ cá nhân**: Quản lý thông tin tài khoản, mật khẩu.
+- **Bảng điều khiển (Dashboard)**: Xem tổng quan dữ liệu cá nhân, thông báo mới nhất.
+- **Đăng ký học phần (Course Registration)**: Tra cứu và đăng ký học phần/lớp học mở trong học kỳ hiện hành. Tính toán và cảnh báo quá giới hạn tín chỉ theo quy định.
+- **Thời khóa biểu (My Schedule)**: Lịch học các môn đã đăng ký thành công chia theo ngày, tiết học.
+- **Quản lý Học phí (My Tuition)**: Xem tông tiền cần đóng, nợ học phí và lịch sử đã thanh toán.
 
-## ✨ Tính năng
+### 🛡️ Dành cho Quản trị viên (Admin)
+- **Bảng điều khiển (Dashboard)**: Thống kê số lượng sinh viên, doanh thu, tổng quan hệ thống.
+- **Quản lý Môn học & Lớp học**: Bổ sung, chỉnh sửa, xếp lịch và phân công giảng viên.
+- **Quản lý Sinh viên**: Quản lý hồ sơ, chuẩn hóa trạng thái sinh viên (đang học, bảo lưu, thôi học).
+- **Quản lý Học kỳ**: Mở/đóng học kỳ đăng ký, quy định thời gian.
+- **Quản lý Tài chính**: Tra cứu quá trình nộp học phí của sinh viên, lập phiếu thu.
+- **Báo cáo Thống kê (Reports)**: Biểu đồ báo cáo trực quan về tình trạng sinh viên, nguồn thu.
+- **Quản lý Hệ thống (Users/Roles)**: Phân quyền admin/sinh viên.
 
-### 👨‍💼 Quản trị viên (Admin)
-- Quản lý sinh viên (CRUD)
-- Quản lý môn học (CRUD)
-- Quản lý học kỳ và năm học
-- **Quản lý tiết học và lịch học** (Thứ 2-7, Tiết 1-10, Buổi tối)
-- Xem danh sách đăng ký môn học
-- Quản lý học phí và theo dõi công nợ
-- Ghi nhận thanh toán học phí
-- **Nhập và quản lý điểm sinh viên**
-- **Cấu hình quy định đăng ký** (số tín chỉ tối đa, GPA vượt...)
-- Xem báo cáo thống kê
+## 🛠️ Công nghệ sử dụng (Tech Stack)
 
-### 👨‍🎓 Sinh viên
-- Đăng ký môn học theo học kỳ
-- **Kiểm tra giới hạn tín chỉ** (max 24 TC, vượt cần GPA >= 8.5)
-- **Xem thời khóa biểu cá nhân**
-- Xem danh sách môn học đã đăng ký
-- **Xem bảng điểm và GPA tích lũy**
-- Xem thông tin học phí
-- Xem lịch sử thanh toán
+Hệ thống được phát triển với các công nghệ mũi nhọn & ổn định:
+- **Backend framework**: `Node.js` + `Express.js`
+- **Database**: `PostgreSQL`
+- **ORM**: `Prisma` (Phiên bản v5 - Tự động Map Data Models)
+- **Template Engine**: `Pug` (Server-Side Rendering)
+- **Frontend Assets**: Vaniila Javascript, CSS 
 
-### 📊 Quy định đăng ký môn học
-- Số tín chỉ tối đa mỗi học kỳ: **24 tín chỉ**
-- Điều kiện vượt tín chỉ: GPA tích lũy >= **8.5**
-- Số tín chỉ tối đa khi vượt: **30 tín chỉ**
-- Điểm đậu môn học: >= **5.0** (dưới 5.0 = Rớt, cần học lại)
+## 📂 Tổ chức mã nguồn (Project Structure)
 
-### 📅 Khung giờ học
-| Tiết | Thời gian |
-|------|-----------|
-| Tiết 1 | 07:30 - 08:15 |
-| Tiết 2 | 08:15 - 09:00 |
-| Tiết 3 | 09:00 - 09:45 |
-| Tiết 4 | 09:45 - 10:30 |
-| Tiết 5 | 10:45 - 11:30 |
-| Tiết 6 | 13:00 - 13:45 |
-| Tiết 7 | 13:45 - 14:30 |
-| Tiết 8 | 14:30 - 15:15 |
-| Tiết 9 | 15:30 - 16:15 |
-| Tiết 10 | 16:15 - 17:00 |
-| Buổi tối | 17:45 - 20:45 |
+Dự án tuân thủ chặt chẽ mô hình kiến trúc MVC rõ ràng:
 
-## 🚀 Cài đặt và Chạy
-
-### Yêu cầu hệ thống
-- Node.js >= 18.x
-- PostgreSQL >= 14.x
-- npm hoặc yarn
-
-### 1. Cài đặt Database
-
-#### Cách 1: Sử dụng Terminal (psql)
-
-```bash
-# Chạy toàn bộ script từ terminal (tạo database + khởi tạo dữ liệu)
-psql -U postgres -f backend/src/config/init.sql
-```
-
-#### Cách 2: Sử dụng pgAdmin 4 hoặc GUI tools khác
-
-Do file `init.sql` chứa lệnh `\connect` (chỉ hoạt động trong psql), bạn cần sử dụng 2 file riêng biệt:
-
-**Bước 1: Tạo database**
-1. Mở pgAdmin 4
-2. Kết nối đến server PostgreSQL
-3. Mở Query Tool (chọn database `postgres` hoặc bất kỳ database nào)
-4. Mở file `backend/src/config/create_database.sql`
-5. Chạy script (F5 hoặc nút Execute)
-
-**Bước 2: Khởi tạo schema và dữ liệu**
-1. Refresh danh sách Databases
-2. Kết nối vào database `ql_dangky_hocphi` (Click phải -> Query Tool)
-3. Mở file `backend/src/config/init_schema.sql`
-4. Chạy script (F5 hoặc nút Execute)
-
-### 2. Cài đặt và Chạy Backend (bao gồm cả Frontend SSR)
-
-```bash
-cd backend
-
-# Cài đặt dependencies
-npm install
-
-# Copy file cấu hình môi trường
-cp .env.example .env
-
-# Chỉnh sửa .env với thông tin database của bạn
-
-# Chạy server
-npm start
-```
-
-Server sẽ chạy tại: http://localhost:5000
-
-> **Lưu ý:** Giao diện frontend được render bởi server (SSR) qua Pug template engine. Truy cập http://localhost:5000/ để sử dụng.
-
-## 🔐 Tài khoản mặc định
-
-### Admin
-- Username: `admin`
-- Password: `admin123`
-
-### Sinh viên
-- Tạo sinh viên mới qua giao diện Admin
-- Username: Mã sinh viên
-- Password mặc định: `student123`
-
-## 📁 Cấu trúc dự án
-
-```
-├── backend/
+```text
+├── project/
+│   ├── prisma/
+│   │   └── schema.prisma        # Cấu hình ORM Prisma & Lược đồ Database
 │   ├── src/
-│   │   ├── config/         # Cấu hình database và SQL init
-│   │   ├── controllers/    # Controllers xử lý logic API
-│   │   ├── middleware/     # Middleware xác thực
-│   │   ├── routes/         # API routes + SSR view routes
-│   │   ├── views/          # Pug templates (SSR frontend)
-│   │   │   ├── layouts/    # Base layouts (admin, student, auth)
-│   │   │   ├── pages/      # Page templates
-│   │   │   │   ├── admin/  # Admin pages
-│   │   │   │   └── student/# Student pages
-│   │   │   └── partials/   # Reusable partials (header, footer, sidebar)
-│   │   ├── public/         # Static files
-│   │   │   ├── css/        # CSS stylesheets
-│   │   │   └── js/         # Client-side JavaScript
-│   │   └── index.js        # Entry point
-│   ├── .env.example
-│   └── package.json
-│
+│   │   ├── config/              # Cấu hình kết nối hệ thống
+│   │   ├── controllers/         # Các Module xử lý nghiệp vụ (Business Logic) giao tiếp DB
+│   │   ├── middleware/          # Xử lý xác thực Token (Auth), Phân quyền JWT
+│   │   ├── models/              # Định dạng dữ liệu đầu ra/vào cho Controller
+│   │   ├── routes/              # Bộ định tuyến API & View
+│   │   ├── public/              # Tài nguyên tĩnh (CSS, Images, Client-side JS)
+│   │   │   ├── css/
+│   │   │   └── js/              # Mã xử lý Client (đã bóc tách hoàn toàn khỏi Pug)
+│   │   └── views/
+│   │       ├── layouts/         # Khung giao diện dùng chung (Admin/Student Master Layout)
+│   │       ├── pages/           # Giao diện từng trang cụ thể
+│   │       └── partials/        # Thành phần dùng lại (Header, Sidebar, Pagination...)
+│   └── .env                     # Biến môi trường
 └── README.md
 ```
 
-## 🔗 API Endpoints
+## ⚙️ Hướng dẫn cài đặt & Chạy trên máy cá nhân
 
-### Authentication
-- `POST /api/auth/login` - Đăng nhập
-- `POST /api/auth/register` - Đăng ký (Admin only)
-- `GET /api/auth/me` - Lấy thông tin user hiện tại
+### Yêu cầu tiên quyết (Prerequisites)
+- [Node.js](https://nodejs.org/en/) (>= phiên bản 18.x)
+- [PostgreSQL](https://www.postgresql.org/download/) (>= phiên bản 14) chạy nền
+- npm hoặc yarn package manager
 
-### Students
-- `GET /api/students` - Danh sách sinh viên
-- `GET /api/students/:id` - Chi tiết sinh viên
-- `POST /api/students` - Thêm sinh viên
-- `PUT /api/students/:id` - Cập nhật sinh viên
-- `DELETE /api/students/:id` - Xóa sinh viên
+### Các bước cài đặt
 
-### Courses
-- `GET /api/courses` - Danh sách môn học
-- `GET /api/courses/:id` - Chi tiết môn học
-- `POST /api/courses` - Thêm môn học
-- `PUT /api/courses/:id` - Cập nhật môn học
-- `DELETE /api/courses/:id` - Xóa môn học
+**1. Clone dự án và cài đặt dependencies**
+```bash
+git clone https://github.com/23521228-BuiLeHuyPhuoc/SE104.Q22-QLTinChivaHocPhi.git
+cd SE104.Q22-QLTinChivaHocPhi/project
+yarn install
+```
 
-### Course Registrations
-- `GET /api/registrations` - Danh sách đăng ký
-- `POST /api/registrations` - Đăng ký môn học
-- `PUT /api/registrations/:id/cancel` - Hủy đăng ký
-- `GET /api/registrations/student/:student_id` - Môn học của sinh viên
-- `GET /api/registrations/available` - Môn học có thể đăng ký
+**2. Cấu hình biến môi trường (`.env`)**
+Tạo file `.env` ở thư mục `project/` (hoặc copy từ `.env.example`) với nội dung tương tự sau:
+```dotenv
+PORT=5000
+DATABASE_URL="postgresql://postgres:MAT_KHAU_CUA_BAN@localhost:5432/ql_dangky_hocphi?schema=public"
+JWT_SECRET="SE104_SECRET_KEY_DANGKY_HOCPHI"
+```
 
-### Tuition Fees
-- `GET /api/tuition` - Danh sách học phí
-- `GET /api/tuition/:id` - Chi tiết học phí
-- `GET /api/tuition/student/:student_id` - Học phí của sinh viên
-- `POST /api/tuition/calculate` - Tính học phí
+**3. Khởi tạo Database (Prisma)**
+Kéo toàn bộ Data models từ DB PostgreSQL đã chuẩn bị (đảm bảo DB rỗng hoặc mới tạo theo tên trong URL) vào môi trường Prisma:
+```bash
+npx prisma db pull
+npx prisma generate
+```
 
-### Payments
-- `GET /api/payments` - Danh sách thanh toán
-- `POST /api/payments` - Ghi nhận thanh toán
-- `GET /api/payments/student/:student_id` - Lịch sử thanh toán của sinh viên
+**4. Chạy dự án**
+```bash
+# Chạy ở chế độ dành cho nhà phát triển (Development Mode - Live server reload)
+yarn dev
 
-### Semesters
-- `GET /api/semesters` - Danh sách học kỳ
-- `GET /api/semesters/active` - Học kỳ hiện tại
-- `POST /api/semesters` - Thêm học kỳ
-- `PUT /api/semesters/:id` - Cập nhật học kỳ
-- `DELETE /api/semesters/:id` - Xóa học kỳ
+# Hoặc chế độ khởi động tiêu chuẩn
+yarn start
+```
 
-## 📸 Screenshots
+Sau khi chạy xong, Server sẽ mở cổng tại địa chỉ: `http://localhost:5000`
 
-Giao diện hệ thống bao gồm:
-- Trang đăng nhập
-- Dashboard tổng quan
-- Quản lý sinh viên
-- Quản lý môn học
-- Đăng ký môn học
-- Quản lý học phí
-- Ghi nhận thanh toán
-- Quản lý học kỳ
+### 🔐 Thông tin Đăng nhập Mặc định
+- Quản trị viên (Admin):
+  - Tên đăng nhập: `admin`
+  - Mật khẩu: `admin123`
+- Đối với sinh viên, vui lòng vào giao diện Admin để tạo tài khoản hoặc sử dụng mã sinh viên có sẵn (VD: Mã SV làm tên đăng nhập, mk: `student123`).
 
-## 🛠️ Công nghệ sử dụng
-
-### Frontend (Server-Side Rendering)
-- Pug (template engine)
-- CSS3 (với CSS Variables cho light/dark theme)
-- Vanilla JavaScript (client-side interactions)
-
-### Backend
-- Node.js
-- Express.js (+ Pug view engine)
-- PostgreSQL (pg)
-- JWT (jsonwebtoken)
-- bcryptjs
-- cookie-parser
-- CORS
-- dotenv
-
-## 📝 License
-
-ISC License
-
-## 👥 Tác giả
-
-- SE104.Q22 - Đồ án môn học
+## 📝 Bản quyền & Tác giả
+- Đồ án phát triển Hệ thống Môn học (SE104.Q22).
+- Tác giả: Nhóm sinh viên thực hiện đồ án (Bui Le Huy Phuoc).
