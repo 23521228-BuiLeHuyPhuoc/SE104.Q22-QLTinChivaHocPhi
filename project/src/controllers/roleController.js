@@ -1,16 +1,18 @@
 const prisma = require('../config/database');
 
 const ROLES = [
-  { Role: 'admin', ten_vai_tro: 'Quản trị viên', MoTa: 'Toàn quyền truy cập hệ thống' },
-  { Role: 'student', ten_vai_tro: 'Sinh viên', MoTa: 'Xem thông tin, đăng ký môn học, xem học phí' }
+  { Role: 'admin', MaNhom: 'ADMIN', ten_vai_tro: 'Quản trị viên', MoTa: 'Toàn quyền truy cập hệ thống' },
+  { Role: 'student', MaNhom: 'SINHVIEN', ten_vai_tro: 'Sinh viên', MoTa: 'Xem thông tin, đăng ký môn học, xem học phí' }
 ];
+
+const getMaNhomByRole = (Role) => (Role === 'admin' ? 'ADMIN' : 'SINHVIEN');
 
 const getAllRoles = (req, res) => { res.json({ success: true, data: ROLES }); };
 
 const getMyRole = (req, res) => {
   const Role = req.user.Role;
   const found = ROLES.find(r => r.Role === Role);
-  res.json({ success: true, data: { Role, ten_vai_tro: found ? found.ten_vai_tro : Role, isAdmin: Role === 'admin' } });
+  res.json({ success: true, data: { Role, MaNhom: found ? found.MaNhom : req.user.MaNhom, ten_vai_tro: found ? found.ten_vai_tro : Role, isAdmin: Role === 'admin' } });
 };
 
 const getAllAccounts = async (req, res) => {
@@ -22,7 +24,7 @@ const getAllAccounts = async (req, res) => {
     if (filterRole && ['admin', 'student'].includes(filterRole)) { where.Role = filterRole; }
 
     const [rows, total] = await Promise.all([
-      prisma.TAIKHOAN.findMany({ where, skip, take: parseInt(limit), orderBy: { NgayTao: 'desc' }, select: { MaTaiKhoan: true, TenDangNhap: true, Role: true, NgayTao: true, HoTen: true, Email: true, MaSv: true } }),
+      prisma.TAIKHOAN.findMany({ where, skip, take: parseInt(limit), orderBy: { NgayTao: 'desc' }, select: { MaTaiKhoan: true, TenDangNhap: true, Role: true, MaNhom: true, NgayTao: true, HoTen: true, Email: true, MaSv: true } }),
       prisma.TAIKHOAN.count({ where })
     ]);
     res.json({ success: true, data: rows, pagination: { page: parseInt(page), limit: parseInt(limit), total, totalPages: Math.ceil(total / parseInt(limit)) } });
@@ -41,8 +43,9 @@ const updateUserRole = async (req, res) => {
     if (!account) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     if (account.Role === Role) return res.status(400).json({ success: false, message: `Tài khoản đã có Role ${Role}` });
 
-    await prisma.TAIKHOAN.update({ where: { MaTaiKhoan: parseInt(id) }, data: { Role } });
-    res.json({ success: true, message: `Đã thay đổi Role thành "${Role}"`, data: { MaTaiKhoan: parseInt(id), old_role: account.Role, new_role: Role } });
+    const MaNhom = getMaNhomByRole(Role);
+    await prisma.TAIKHOAN.update({ where: { MaTaiKhoan: parseInt(id) }, data: { Role, MaNhom } });
+    res.json({ success: true, message: `Đã thay đổi Role thành "${Role}"`, data: { MaTaiKhoan: parseInt(id), old_role: account.Role, new_role: Role, MaNhom } });
   } catch (error) { console.error('Update user Role error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 

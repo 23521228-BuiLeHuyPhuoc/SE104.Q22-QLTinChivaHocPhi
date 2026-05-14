@@ -1,20 +1,25 @@
 extends ../../layouts/admin
 
 block content
+  - const money = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm kiếm phiếu thu..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm phiếu thu, MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
-      button.btn.btn-primary(onclick="openModal()") + Lập phiếu thu
+      button.btn.btn-primary(type="button" onclick="openModal()") Lập phiếu thu
 
   .card
+    .card-header
+      h3 Phiếu thu học phí
+      span.card-count= payments ? `${payments.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
-            th Mã phiếu
+            th Số phiếu
             th MSSV
             th Họ tên
+            th Học kỳ
             th Số tiền
             th Phương thức
             th Ngày thu
@@ -23,16 +28,18 @@ block content
           if payments && payments.length > 0
             each p in payments
               tr
-                td= p.ma_phieu_thu || p.id
-                td= p.ma_sv || '-'
-                td= p.ho_ten_sv || '-'
-                td= (p.so_tien || 0).toLocaleString('vi-VN') + 'đ'
-                td= p.phuong_thuc || '-'
-                td= p.ngay_thu ? new Date(p.ngay_thu).toLocaleDateString('vi-VN') : '-'
-                td= p.nguoi_thu || '-'
+                td.mono= p.SoPhieuThu
+                td.mono= p.MaSv || '-'
+                td= p.SINHVIEN ? p.SINHVIEN.HoTen : '-'
+                td= p.PHIEUDANGKY && p.PHIEUDANGKY.HOCKY ? p.PHIEUDANGKY.HOCKY.TenHocKy : '-'
+                td.currency= money(p.SoTienThu)
+                td= p.HinhThucThu || '-'
+                td= p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-'
+                td= p.NguoiThu || '-'
           else
             tr
-              td(colspan="7").text-center Không có dữ liệu
+              td(colspan="8")
+                .empty-state Chưa có phiếu thu
 
   include ../../partials/pagination
 
@@ -41,28 +48,29 @@ block modals
     .modal
       .modal-header
         h2 Lập phiếu thu học phí
-        button.modal-close(onclick="closeModal()") ×
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#payment-form
           .form-row
             .form-group
-              label MSSV
+              label(for="pt-mssv") MSSV
               input.form-control#pt-mssv(type="text" required)
             .form-group
-              label Học kỳ
-              select.form-control#pt-hocky
+              label(for="pt-hocky") Học kỳ
+              select.form-control#pt-hocky(required)
                 option(value="") Chọn học kỳ
+          .form-row
+            .form-group
+              label(for="pt-sotien") Số tiền
+              input.form-control#pt-sotien(type="number" min="0" required)
+            .form-group
+              label(for="pt-phuongthuc") Phương thức thanh toán
+              select.form-control#pt-phuongthuc
+                option(value="Tiền mặt") Tiền mặt
+                option(value="Chuyển khoản") Chuyển khoản
+                option(value="Thẻ") Thẻ
           .form-group
-            label Số tiền
-            input.form-control#pt-sotien(type="number" min="0" required)
-          .form-group
-            label Phương thức thanh toán
-            select.form-control#pt-phuongthuc
-              option(value="Tiền mặt") Tiền mặt
-              option(value="Chuyển khoản") Chuyển khoản
-              option(value="Thẻ") Thẻ
-          .form-group
-            label Ghi chú
+            label(for="pt-ghichu") Ghi chú
             textarea.form-control#pt-ghichu(rows="2")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy

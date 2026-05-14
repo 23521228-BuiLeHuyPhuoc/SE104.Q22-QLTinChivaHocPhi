@@ -1,61 +1,67 @@
 extends ../../layouts/admin
 
 block content
-  h2.page-title Báo cáo thống kê
+  .page-shell
+    .page-heading
+      .page-kicker Báo cáo
+      h2 Thống kê đào tạo và học phí
+      p Số liệu được tải từ API thống kê, phục vụ đối soát nhanh trong từng học kỳ.
 
-  .stats-grid
-    .stat-card
-      .stat-icon.blue 👨‍🎓
-      .stat-info
-        h3#stat-students --
-        p Tổng sinh viên
-    .stat-card
-      .stat-icon.green 📚
-      .stat-info
-        h3#stat-courses --
-        p Tổng môn học
-    .stat-card
-      .stat-icon.orange 📝
-      .stat-info
-        h3#stat-registrations --
-        p Lượt đăng ký
-    .stat-card
-      .stat-icon.purple 💰
-      .stat-info
-        h3#stat-paid --
-        p Đã thu
-    .stat-card
-      .stat-icon.red 💸
-      .stat-info
-        h3#stat-remaining --
-        p Còn nợ
+    .stats-grid
+      .stat-card
+        .stat-icon.blue SV
+        .stat-info
+          h3#stat-students --
+          p Tổng sinh viên
+      .stat-card
+        .stat-icon.green MH
+        .stat-info
+          h3#stat-courses --
+          p Tổng môn học
+      .stat-card
+        .stat-icon.orange DK
+        .stat-info
+          h3#stat-registrations --
+          p Lượt đăng ký
+      .stat-card
+        .stat-icon.purple DT
+        .stat-info
+          h3#stat-paid --
+          p Đã thu
+      .stat-card
+        .stat-icon.red NO
+        .stat-info
+          h3#stat-remaining --
+          p Còn nợ
 
-  .card.mt-3
-    .card-header
-      h3 Thống kê sinh viên theo trạng thái
-    .card-body
-      table.data-table
-        thead
-          tr
-            th Trạng thái
-            th Số lượng
-        tbody#student-stats-table
-          tr
-            td(colspan="2").text-center Đang tải...
-
-  .card.mt-3
-    .card-header
-      h3 Thống kê theo phương thức thanh toán
-    .card-body
-      table.data-table
-        thead
-          tr
-            th Phương thức
-            th Số giao dịch
-            th Tổng tiền
-        tbody#payment-stats-table
-          tr
-            td(colspan="3").text-center Đang tải...
+    .content-grid.two-columns
+      .card
+        .card-header
+          h3 Sinh viên theo trạng thái
+        .table-container
+          table.data-table
+            thead
+              tr
+                th Trạng thái
+                th Số lượng
+            tbody#student-stats-table
+              tr
+                td(colspan="2")
+                  .empty-state Đang tải dữ liệu...
+      .card
+        .card-header
+          h3 Thanh toán theo phương thức
+        .table-container
+          table.data-table
+            thead
+              tr
+                th Phương thức
+                th Số giao dịch
+                th Tổng tiền
+            tbody#payment-stats-table
+              tr
+                td(colspan="3")
+                  .empty-state Đang tải dữ liệu...
 
 block scripts
   script(src="/js/admin/reports.js")

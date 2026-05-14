@@ -1,11 +1,3 @@
-/* ==========================================
-   MAIN.JS - Client-side JavaScript
-   Shared utilities for all SSR pages
-   ========================================== */
-
-// ==========================================
-// Token Management
-// ==========================================
 function getToken() {
   var match = document.cookie.match(/(?:^|;\s*)token=([^;]*)/);
   return match ? match[1] : null;
@@ -15,26 +7,19 @@ function clearToken() {
   document.cookie = 'token=; path=/; max-age=0; SameSite=Strict';
 }
 
-// ==========================================
-// API Fetch Helper
-// ==========================================
 async function apiFetch(url, options) {
   var opts = options || {};
-  var headers = { 'Content-Type': 'application/json' };
+  var headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
   var token = getToken();
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token;
-  }
+  if (token) headers.Authorization = 'Bearer ' + token;
+
   var fetchOpts = {
     method: opts.method || 'GET',
     headers: headers
   };
-  if (opts.body) {
-    fetchOpts.body = JSON.stringify(opts.body);
-  }
-  var res = await fetch(url, fetchOpts);
+  if (opts.body) fetchOpts.body = JSON.stringify(opts.body);
 
-  // Handle 401 - redirect to login
+  var res = await fetch(url, fetchOpts);
   if (res.status === 401) {
     clearToken();
     window.location.href = '/login';
@@ -44,9 +29,6 @@ async function apiFetch(url, options) {
   return await res.json();
 }
 
-// ==========================================
-// Toast Notifications
-// ==========================================
 function showToast(message, type) {
   type = type || 'info';
   var container = document.getElementById('toast-container');
@@ -59,58 +41,52 @@ function showToast(message, type) {
 
   var toast = document.createElement('div');
   toast.className = 'toast toast-' + type;
-  toast.innerHTML = '<span>' + message + '</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>';
-  container.appendChild(toast);
 
+  var text = document.createElement('span');
+  text.textContent = message;
+  toast.appendChild(text);
+
+  var close = document.createElement('button');
+  close.className = 'toast-close';
+  close.type = 'button';
+  close.textContent = '×';
+  close.onclick = function() { toast.remove(); };
+  toast.appendChild(close);
+
+  container.appendChild(toast);
   setTimeout(function() {
     if (toast.parentElement) toast.remove();
   }, 4000);
 }
 
-// ==========================================
-// Theme Toggle
-// ==========================================
+function setThemeLabel(theme) {
+  var icon = document.getElementById('theme-icon');
+  if (icon) icon.textContent = theme === 'dark' ? 'Tối' : 'Sáng';
+}
+
 function toggleTheme() {
   var html = document.documentElement;
   var current = html.getAttribute('data-theme');
   var next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
-
-  var icon = document.getElementById('theme-icon');
-  if (icon) {
-    icon.textContent = next === 'dark' ? '🌙' : '☀️';
-  }
+  setThemeLabel(next);
 }
 
-// Apply saved theme on load
 (function() {
   var saved = localStorage.getItem('theme');
-  if (saved) {
-    document.documentElement.setAttribute('data-theme', saved);
-    var icon = document.getElementById('theme-icon');
-    if (icon) {
-      icon.textContent = saved === 'dark' ? '🌙' : '☀️';
-    }
-  }
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  setThemeLabel(saved || document.documentElement.getAttribute('data-theme') || 'light');
 })();
 
-// ==========================================
-// Sidebar Toggle (Mobile)
-// ==========================================
 function toggleSidebar() {
   var sidebar = document.getElementById('sidebar');
-  if (sidebar) {
-    sidebar.classList.toggle('open');
-  }
+  if (sidebar) sidebar.classList.toggle('open');
 }
 
-// ==========================================
-// Format Helpers
-// ==========================================
 function formatCurrency(amount) {
   if (!amount && amount !== 0) return '--';
-  return parseInt(amount).toLocaleString('vi-VN') + 'đ';
+  return Number(amount || 0).toLocaleString('vi-VN') + ' đ';
 }
 
 function formatDate(dateStr) {
@@ -118,15 +94,10 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 }
 
-// ==========================================
-// Check Auth on Protected Pages
-// ==========================================
 (function() {
   var path = window.location.pathname;
   if (path === '/login' || path === '/') return;
 
   var token = getToken();
-  if (!token) {
-    window.location.href = '/login';
-  }
+  if (!token) window.location.href = '/login';
 })();

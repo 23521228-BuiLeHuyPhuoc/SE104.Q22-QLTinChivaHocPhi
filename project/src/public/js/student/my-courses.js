@@ -1,58 +1,52 @@
 (async function() {
   try {
-    // Get student info
-    const meRes = await apiFetch('/api/auth/me');
+    var meRes = await apiFetch('/api/auth/me');
     if (!meRes.success || !meRes.data.student) return;
-    const sid = meRes.data.student.MaSv;
+    var sid = meRes.data.student.MaSv;
 
-    const res = await apiFetch('/api/registrations/student/' + sid);
+    var res = await apiFetch('/api/registrations/student/' + sid);
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('courses-table').classList.remove('hidden');
 
-    const tbody = document.getElementById('my-courses');
+    var tbody = document.getElementById('my-courses');
     if (res.success && res.data.courses && res.data.courses.length > 0) {
       var html = '';
-      res.data.courses.forEach(c => {
+      res.data.courses.forEach(function(c) {
+        var isCancelled = String(c.TrangThai || '').toLowerCase().indexOf('hủy') >= 0;
         html += '<tr>';
-        html += '<td>' + (c.LOP.MaLop || '-') + '</td>';
-        html += '<td>' + (c.LOP.MONHOC.TenMonHoc || '-') + '</td>';
+        html += '<td class="mono">' + (c.LOP.MaLop || '-') + '</td>';
+        html += '<td><strong>' + (c.LOP.MONHOC.TenMonHoc || '-') + '</strong><small>' + (c.LOP.MONHOC.MaMonHoc || '') + '</small></td>';
         html += '<td>' + (c.SoTinChi || '-') + '</td>';
         html += '<td>' + (c.LOP.GiangVien || '-') + '</td>';
         html += '<td>' + (c.LOP.LichHoc || '-') + '</td>';
         html += '<td>' + (c.LOP.PhongHoc || '-') + '</td>';
+        html += '<td>' + (isCancelled ? '<span class="badge badge-error">Đã hủy</span>' : '<span class="badge badge-success">Đã đăng ký</span>') + '</td>';
         html += '<td>';
-        if (c.TrangThai === 'Đã đăng ký') {
-          html += '<span class="badge badge-success">Đã ĐK</span>';
-        } else {
-          html += '<span class="badge badge-error">Đã hủy</span>';
-        }
-        html += '</td>';
-        html += '<td>';
-        if (c.TrangThai === 'Đã đăng ký') {
-          html += '<button class="btn btn-sm btn-danger" onclick="cancelRegistration(' + c.id + ')">Hủy ĐK</button>';
-        }
+        if (!isCancelled) html += '<button class="btn btn-sm btn-danger" type="button" onclick="cancelRegistration(' + c.id + ')">Hủy đăng ký</button>';
         html += '</td></tr>';
       });
       tbody.innerHTML = html;
     } else {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center">Chưa đăng ký môn nào</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Chưa đăng ký môn nào</div></td></tr>';
     }
-  } catch(e) {
+  } catch (e) {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('courses-table').classList.remove('hidden');
-    document.getElementById('my-courses').innerHTML = '<tr><td colspan="8" class="text-center text-error">Lỗi tải dữ liệu</td></tr>';
+    document.getElementById('my-courses').innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
   }
 })();
 
 async function cancelRegistration(id) {
   if (!confirm('Bạn có chắc muốn hủy đăng ký?')) return;
   try {
-    const res = await apiFetch('/api/registrations/' + id + '/cancel', { method: 'PUT' });
+    var res = await apiFetch('/api/registrations/' + id + '/cancel', { method: 'PUT' });
     if (res.success) {
       showToast('Đã hủy đăng ký', 'success');
-      setTimeout(() => location.reload(), 500);
+      setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Lỗi', 'error');
+      showToast(res.message || 'Không thể hủy đăng ký', 'error');
     }
-  } catch(e) { showToast('Lỗi kết nối', 'error'); }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
 }

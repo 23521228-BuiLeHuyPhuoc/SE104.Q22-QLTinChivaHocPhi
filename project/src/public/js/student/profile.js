@@ -1,11 +1,11 @@
 (async function() {
   try {
-    const meRes = await apiFetch('/api/auth/me');
+    var meRes = await apiFetch('/api/auth/me');
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('profile-form').classList.remove('hidden');
 
     if (meRes.success && meRes.data.student) {
-      const s = meRes.data.student;
+      var s = meRes.data.student;
       document.getElementById('p-mssv').value = s.MaSv || '';
       document.getElementById('p-hoten').value = s.HoTen || '';
       document.getElementById('p-email').value = s.Email || '';
@@ -18,12 +18,10 @@
       document.getElementById('p-nganh').value = (s.NGANHHOC ? s.NGANHHOC.TenNganh : '') || '';
       document.getElementById('p-khoa').value = (s.NGANHHOC && s.NGANHHOC.KHOA ? s.NGANHHOC.KHOA.TenKhoa : '') || '';
       document.getElementById('p-trangthai').value = s.TrangThai || '';
-      // Khoa hoc might need to parse from MaSv or something, leave empty if not available
-      document.getElementById('p-khoahoc').value = s.khoa_hoc || '';
+      document.getElementById('p-khoahoc').value = s.NgayNhapHoc ? new Date(s.NgayNhapHoc).getFullYear() : '';
     }
-  } catch(e) {
+  } catch (e) {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('profile-form').classList.remove('hidden');
-    console.error(e);
   }
 })();

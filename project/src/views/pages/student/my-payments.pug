@@ -1,23 +1,28 @@
 extends ../../layouts/student
 
 block content
-  h2.page-title Lịch sử thanh toán
+  .page-shell
+    .page-heading.compact
+      .page-kicker Tài chính
+      h2 Lịch sử thanh toán
 
-  .card
-    .card-body
-      .loading-overlay#loading
-        .spinner
-      .table-container
-        table.data-table#payments-table.hidden
-          thead
-            tr
-              th Mã phiếu
-              th Học kỳ
-              th Số tiền
-              th Phương thức
-              th Ngày thanh toán
-              th Ghi chú
-          tbody#payment-list
+    .card
+      .card-header
+        h3 Phiếu thu đã ghi nhận
+      .card-body
+        .loading-overlay#loading
+          .spinner
+        .table-container
+          table.data-table#payments-table.hidden
+            thead
+              tr
+                th Số phiếu
+                th Học kỳ
+                th Số tiền
+                th Phương thức
+                th Ngày thanh toán
+                th Ghi chú
+            tbody#payment-list
 
 block scripts
   script(src="/js/student/my-payments.js")

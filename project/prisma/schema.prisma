@@ -7,16 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model CAUHINHDANGKY {
-  id          Int       @id(map: "cau_hinh_dang_ky_pkey") @default(autoincrement())
-  MaCauHinh   String    @unique(map: "uq_cau_hinh") @db.VarChar(20)
-  TenCauHinh  String    @db.VarChar(100)
-  GiaTri      Int
-  GiaTriSo    Decimal?  @db.Decimal(4, 2)
-  MoTa        String?   @db.VarChar(300)
-  TrangThai   Boolean?  @default(true)
-  NgayTao     DateTime? @default(now()) @db.Timestamp(6)
-  NgayCapNhat DateTime? @db.Timestamp(6)
+model CHUCNANG {
+  MaChucNang         String      @id(map: "chuc_nang_pkey") @db.VarChar(30)
+  TenChucNang        String      @db.VarChar(100)
+  TenManHinhDuocLoad String      @db.VarChar(100)
+  PHANQUYEN          PHANQUYEN[]
+}
+
+model NHOMNGUOIDUNG {
+  MaNhom    String      @id(map: "nhom_nguoi_dung_pkey") @db.VarChar(20)
+  TenNhom   String      @unique(map: "nhom_nguoi_dung_ten_nhom_key") @db.VarChar(100)
+  PHANQUYEN PHANQUYEN[]
+  TAIKHOAN  TAIKHOAN[]
+}
+
+model PHANQUYEN {
+  MaNhom        String        @db.VarChar(20)
+  MaChucNang    String        @db.VarChar(30)
+  CHUCNANG      CHUCNANG      @relation(fields: [MaChucNang], references: [MaChucNang], onDelete: Cascade, map: "fk_pq_chuc_nang")
+  NHOMNGUOIDUNG NHOMNGUOIDUNG @relation(fields: [MaNhom], references: [MaNhom], onDelete: Cascade, map: "fk_pq_nhom")
+
+  @@id([MaNhom, MaChucNang], map: "phan_quyen_pkey")
+}
+
+model THAMSO {
+  id                         Int       @id(map: "tham_so_pkey") @default(1) @db.SmallInt
+  SoTinChiDangKyToiThieu     Int       @default(14)
+  SoTinChiDangKyToiDa        Int       @default(24)
+  SoTinChiDangKyToiDaKhiVuot Int       @default(30)
+  GPAQuaMon                  Decimal   @default(5.00) @db.Decimal(4, 2)
+  GPADangKyVuot              Decimal   @default(8.50) @db.Decimal(4, 2)
+  NgayCapNhat                DateTime? @default(now()) @db.Timestamp(6)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -37,9 +58,6 @@ model CHITIETDANGKY {
   PHIEUDANGKY PHIEUDANGKY @relation(fields: [SoPhieu], references: [SoPhieu], onDelete: Cascade, map: "fk_ctdk_phieu")
 
   @@unique([SoPhieu, MaLop], map: "uq_ctdk")
-  @@index([MaLop], map: "idx_ctdk_ma_lop")
-  @@index([SoPhieu], map: "idx_ctdk_so_phieu")
-  @@index([TrangThai], map: "idx_ctdk_trang_thai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -56,8 +74,6 @@ model CHUONGTRINHHOC {
   NGANHHOC    NGANHHOC  @relation(fields: [MaNganh], references: [MaNganh], onDelete: Cascade, map: "fk_cth_nganh")
 
   @@unique([MaNganh, MaMonHoc], map: "uq_cth")
-  @@index([MaMonHoc], map: "idx_cth_ma_mon_hoc")
-  @@index([MaNganh], map: "idx_cth_ma_nganh")
 }
 
 model DANTOC {
@@ -92,10 +108,6 @@ model DIEMSINHVIEN {
   SINHVIEN      SINHVIEN  @relation(fields: [MaSv], references: [MaSv], onDelete: Cascade, map: "fk_dsv_sv")
 
   @@unique([MaSv, MaMonHoc, MaHocKy, LanHoc], map: "uq_diem_sv_mon_hk")
-  @@index([KetQua], map: "idx_dsv_ket_qua")
-  @@index([MaHocKy], map: "idx_dsv_ma_hoc_ky")
-  @@index([MaMonHoc], map: "idx_dsv_ma_mon_hoc")
-  @@index([MaSv], map: "idx_dsv_ma_sv")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -111,9 +123,6 @@ model DIEUKIENMONHOC {
   MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC MONHOC    @relation("DIEUKIENMONHOC_MaMonDieuKienToMONHOC", fields: [MaMonDieuKien], references: [MaMonHoc], onDelete: Cascade, map: "fk_dkmh_monhoc_dk")
 
   @@unique([MaMonHoc, MaMonDieuKien, LoaiDieuKien], map: "uq_dkmh")
-  @@index([LoaiDieuKien], map: "idx_dkmh_loai_dieu_kien")
-  @@index([MaMonDieuKien], map: "idx_dkmh_ma_mon_dieu_kien")
-  @@index([MaMonHoc], map: "idx_dkmh_ma_mon_hoc")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -139,8 +148,6 @@ model DOITUONGSINHVIEN {
   SINHVIEN      SINHVIEN  @relation(fields: [MaSv], references: [MaSv], onDelete: Cascade, map: "fk_dtsv_sv")
 
   @@unique([MaSv, MaDoiTuong], map: "uq_dtsv")
-  @@index([MaDoiTuong], map: "idx_dtsv_ma_doi_tuong")
-  @@index([MaSv], map: "idx_dtsv_ma_sv")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -156,8 +163,6 @@ model DONGIATINCHI {
   HOCKY      HOCKY?    @relation(fields: [MaHocKy], references: [MaHocKy], map: "fk_dgtc_hk")
 
   @@unique([LoaiMon, LoaiHoc, MaHocKy], map: "uq_dgtc")
-  @@index([LoaiHoc], map: "idx_dgtc_loai_hoc")
-  @@index([LoaiMon], map: "idx_dgtc_loai_mon")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -180,9 +185,6 @@ model HOCKY {
   NAMHOC            NAMHOC         @relation(fields: [MaNamHoc], references: [MaNamHoc], map: "fk_hk_namhoc")
   LOPMO             LOPMO[]
   PHIEUDANGKY       PHIEUDANGKY[]
-
-  @@index([MaNamHoc], map: "idx_hk_ma_nam_hoc")
-  @@index([TrangThai], map: "idx_hk_trang_thai")
 }
 
 model KHOA {
@@ -213,10 +215,6 @@ model LICHHOCLOP {
   LOPMO                                     LOPMO     @relation(fields: [LopMoId], references: [id], onDelete: Cascade, map: "fk_lhl_lopmo")
   TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC  TIETHOC   @relation("LICHHOCLOP_MaTietBatDauToTIETHOC", fields: [MaTietBatDau], references: [MaTiet], map: "fk_lhl_tiet_bat_dau")
   TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC TIETHOC   @relation("LICHHOCLOP_MaTietKetThucToTIETHOC", fields: [MaTietKetThuc], references: [MaTiet], map: "fk_lhl_tiet_ket_thuc")
-
-  @@index([LopMoId], map: "idx_lhl_lop_mo_id")
-  @@index([MaTietBatDau], map: "idx_lhl_ma_tiet_bat_dau")
-  @@index([ThuTrongTuan], map: "idx_lhl_thu_trong_tuan")
 }
 
 model LOP {
@@ -234,8 +232,6 @@ model LOP {
   DIEMSINHVIEN  DIEMSINHVIEN[]
   MONHOC        MONHOC          @relation(fields: [MaMonHoc], references: [MaMonHoc], onDelete: Cascade, map: "fk_lop_monhoc")
   LOPMO         LOPMO[]
-
-  @@index([MaMonHoc], map: "idx_lop_ma_mon_hoc")
 }
 
 model LOPMO {
@@ -251,8 +247,6 @@ model LOPMO {
   LOP             LOP          @relation(fields: [MaLop], references: [MaLop], onDelete: Cascade, map: "fk_lopmo_lop")
 
   @@unique([MaHocKy, MaLop], map: "uq_lopmo")
-  @@index([MaHocKy], map: "idx_lm_ma_hoc_ky")
-  @@index([MaLop], map: "idx_lm_ma_lop")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -272,9 +266,6 @@ model MONHOC {
   DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC DIEUKIENMONHOC[] @relation("DIEUKIENMONHOC_MaMonDieuKienToMONHOC")
   LOP                                                 LOP[]
   KHOA                                                KHOA             @relation(fields: [MaKhoa], references: [MaKhoa], map: "fk_monhoc_khoa")
-
-  @@index([LoaiMon], map: "idx_mh_loai_mon")
-  @@index([MaKhoa], map: "idx_mh_ma_khoa")
 }
 
 model NAMHOC {
@@ -299,8 +290,6 @@ model NGANHHOC {
   CHUONGTRINHHOC   CHUONGTRINHHOC[]
   KHOA             KHOA             @relation(fields: [MaKhoa], references: [MaKhoa], map: "fk_nganh_khoa")
   SINHVIEN         SINHVIEN[]
-
-  @@index([MaKhoa], map: "idx_nganh_ma_khoa")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -332,9 +321,6 @@ model PHIEUDANGKY {
   PHIEUTHUHOCPHI      PHIEUTHUHOCPHI[]
 
   @@unique([MaSv, MaHocKy], map: "uq_pdk")
-  @@index([MaHocKy], map: "idx_pdk_ma_hoc_ky")
-  @@index([MaSv], map: "idx_pdk_ma_sv")
-  @@index([TrangThai], map: "idx_pdk_trang_thai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -351,10 +337,6 @@ model PHIEUTHUHOCPHI {
   TrangThai     String?     @default("Thành công") @db.VarChar(20)
   PHIEUDANGKY   PHIEUDANGKY @relation(fields: [SoPhieuDangKy], references: [SoPhieu], map: "fk_pthp_pdk")
   SINHVIEN      SINHVIEN    @relation(fields: [MaSv], references: [MaSv], map: "fk_pthp_sv")
-
-  @@index([MaSv], map: "idx_pthp_ma_sv")
-  @@index([SoPhieuDangKy], map: "idx_pthp_so_phieu_dang_ky")
-  @@index([TrangThai], map: "idx_pthp_trang_thai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -368,9 +350,6 @@ model PHUONGXA {
   NgayTao     DateTime?  @default(now()) @db.Timestamp(6)
   TINH        TINH       @relation(fields: [MaTinh], references: [MaTinh], map: "fk_phuong_xa_tinh")
   SINHVIEN    SINHVIEN[]
-
-  @@index([KhuVuc], map: "idx_phuong_xa_khu_vuc")
-  @@index([MaTinh], map: "idx_phuong_xa_ma_tinh")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -426,21 +405,16 @@ model SINHVIEN {
   PHUONGXA                               PHUONGXA           @relation(fields: [MaPhuongXa], references: [MaPhuongXa], map: "fk_sv_phuong_xa")
   TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN TAIKHOAN?          @relation("SINHVIEN_MaTaiKhoanToTAIKHOAN", fields: [MaTaiKhoan], references: [MaTaiKhoan], map: "fk_sv_tk")
   TAIKHOAN_TAIKHOAN_MaSvToSINHVIEN       TAIKHOAN?          @relation("TAIKHOAN_MaSvToSINHVIEN")
-
-  @@index([MaDanToc], map: "idx_sv_ma_dan_toc")
-  @@index([MaNganh], map: "idx_sv_ma_nganh")
-  @@index([MaPhuongXa], map: "idx_sv_ma_phuong_xa")
-  @@index([MaTaiKhoan], map: "idx_sv_ma_tai_khoan")
-  @@index([TrangThai], map: "idx_sv_trang_thai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model TAIKHOAN {
-  MaTaiKhoan                                 Int            @id(map: "tai_khoan_pkey") @default(autoincrement())
-  TenDangNhap                                String         @unique(map: "tai_khoan_ten_dang_nhap_key") @db.VarChar(50)
+  MaTaiKhoan                                 Int            @id(map: "nguoi_dung_pkey") @default(autoincrement())
+  TenDangNhap                                String         @unique(map: "nguoi_dung_ten_dang_nhap_key") @db.VarChar(50)
   MatKhau                                    String         @db.VarChar(255)
-  Role                                       String         @default("\"SINHVIEN\"") @db.VarChar(20)
-  MaSv                                       String?        @unique(map: "tai_khoan_ma_sv_key") @db.VarChar(15)
+  Role                                       String         @default("student") @db.VarChar(20)
+  MaNhom                                     String         @default("SINHVIEN") @db.VarChar(20)
+  MaSv                                       String?        @unique(map: "nguoi_dung_ma_sv_key") @db.VarChar(15)
   HoTen                                      String?        @db.VarChar(100)
   Email                                      String?        @db.VarChar(100)
   Sdt                                        String?        @db.VarChar(15)
@@ -451,14 +425,14 @@ model TAIKHOAN {
   NgayTao                                    DateTime?      @default(now()) @db.Timestamp(6)
   NgayCapNhat                                DateTime?      @db.Timestamp(6)
   DIEMSINHVIEN                               DIEMSINHVIEN[]
+  NHOMNGUOIDUNG                              NHOMNGUOIDUNG  @relation(fields: [MaNhom], references: [MaNhom], map: "fk_nd_nhom")
   QUANTRIVIEN                                QUANTRIVIEN?
   SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN     SINHVIEN?      @relation("SINHVIEN_MaTaiKhoanToTAIKHOAN")
   SINHVIEN_TAIKHOAN_MaSvToSINHVIEN           SINHVIEN?      @relation("TAIKHOAN_MaSvToSINHVIEN", fields: [MaSv], references: [MaSv], map: "fk_tk_sv")
   THONGBAO_THONGBAO_MaTaiKhoanNhanToTAIKHOAN THONGBAO[]     @relation("THONGBAO_MaTaiKhoanNhanToTAIKHOAN")
   THONGBAO_THONGBAO_NguoiTaoToTAIKHOAN       THONGBAO[]     @relation("THONGBAO_NguoiTaoToTAIKHOAN")
 
-  @@index([Role], map: "idx_tk_role")
-  @@index([TenDangNhap], map: "idx_tk_ten_dang_nhap")
+  @@map("NGUOIDUNG")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -480,12 +454,6 @@ model THONGBAO {
   TrangThai                                  Boolean?  @default(true)
   TAIKHOAN_THONGBAO_MaTaiKhoanNhanToTAIKHOAN TAIKHOAN? @relation("THONGBAO_MaTaiKhoanNhanToTAIKHOAN", fields: [MaTaiKhoanNhan], references: [MaTaiKhoan], onDelete: Cascade, map: "fk_tb_nguoinhan")
   TAIKHOAN_THONGBAO_NguoiTaoToTAIKHOAN       TAIKHOAN? @relation("THONGBAO_NguoiTaoToTAIKHOAN", fields: [NguoiTao], references: [MaTaiKhoan], map: "fk_tb_nguoitao")
-
-  @@index([DaDoc], map: "idx_tb_da_doc")
-  @@index([Loai], map: "idx_tb_loai")
-  @@index([MaTaiKhoanNhan], map: "idx_tb_ma_tai_khoan_nhan")
-  @@index([NguoiTao], map: "idx_tb_nguoi_tao")
-  @@index([TrangThai], map: "idx_tb_trang_thai")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -500,8 +468,6 @@ model TIETHOC {
   NgayTao                                      DateTime?    @default(now()) @db.Timestamp(6)
   LICHHOCLOP_LICHHOCLOP_MaTietBatDauToTIETHOC  LICHHOCLOP[] @relation("LICHHOCLOP_MaTietBatDauToTIETHOC")
   LICHHOCLOP_LICHHOCLOP_MaTietKetThucToTIETHOC LICHHOCLOP[] @relation("LICHHOCLOP_MaTietKetThucToTIETHOC")
-
-  @@index([ThuTu], map: "idx_tiet_thu_tu")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

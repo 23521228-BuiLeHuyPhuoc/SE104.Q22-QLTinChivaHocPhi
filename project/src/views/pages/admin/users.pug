@@ -3,14 +3,17 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm theo tên đăng nhập hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm tên đăng nhập, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-role(onchange="applyFilters()")
         option(value="" selected=(!filterRole)) Tất cả vai trò
-        option(value="admin" selected=(filterRole === 'admin')) Admin
-        option(value="sinh_vien" selected=(filterRole === 'sinh_vien')) Sinh viên
+        option(value="admin" selected=(filterRole === 'admin')) Quản trị viên
+        option(value="student" selected=(filterRole === 'student')) Sinh viên
 
   .card
+    .card-header
+      h3 Người dùng hệ thống
+      span.card-count= accounts ? `${accounts.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
@@ -20,6 +23,7 @@ block content
             th Họ tên
             th Mã SV
             th Email
+            th Nhóm
             th Vai trò
             th Ngày tạo
             th Thao tác
@@ -27,33 +31,37 @@ block content
           if accounts && accounts.length > 0
             each acc in accounts
               tr
-                td= acc.ma_tai_khoan
+                td.mono= acc.MaTaiKhoan
                 td
-                  strong= acc.ten_dang_nhap
-                td= acc.ho_ten || '—'
-                td= acc.ma_sv || '—'
-                td= acc.email || '—'
+                  strong= acc.TenDangNhap
+                td= acc.HoTen || '-'
+                td= acc.MaSv || '-'
+                td= acc.Email || '-'
                 td
-                  if acc.role === 'admin'
-                    span.badge.badge-info 🛡️ Admin
+                  span.badge.badge-secondary= acc.MaNhom || '-'
+                td
+                  if acc.Role === 'admin'
+                    span.badge.badge-info Quản trị viên
                   else
-                    span.badge.badge-success 🎓 Sinh viên
-                td= acc.ngay_tao ? new Date(acc.ngay_tao).toLocaleDateString('vi-VN') : '—'
-                td
-                  if currentUserId && parseInt(acc.ma_tai_khoan) === parseInt(currentUserId)
-                    span.text-muted (Bạn)
+                    span.badge.badge-success Sinh viên
+                td= acc.NgayTao ? new Date(acc.NgayTao).toLocaleDateString('vi-VN') : '-'
+                td.table-actions
+                  if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
+                    span.text-muted Tài khoản hiện tại
                   else
                     button.btn.btn-sm(
-                      class=(acc.role === 'admin' ? 'btn-warning' : 'btn-primary')
-                      data-id=acc.ma_tai_khoan
-                      data-username=acc.ten_dang_nhap
-                      data-role=acc.role
+                      type="button"
+                      class=(acc.Role === 'admin' ? 'btn-warning' : 'btn-primary')
+                      data-id=acc.MaTaiKhoan
+                      data-username=acc.TenDangNhap
+                      data-role=acc.Role
                       onclick="handleRoleClick(this)"
-                      id=`btn-role-${acc.ma_tai_khoan}`
-                    )= acc.role === 'admin' ? '⬇ Hạ → SV' : '⬆ Nâng → Admin'
+                      id=`btn-role-${acc.MaTaiKhoan}`
+                    )= acc.Role === 'admin' ? 'Chuyển thành sinh viên' : 'Chuyển thành admin'
           else
             tr
-              td(colspan="8").text-center Không có tài khoản nào
+              td(colspan="9")
+                .empty-state Không có tài khoản phù hợp
 
   include ../../partials/pagination
 

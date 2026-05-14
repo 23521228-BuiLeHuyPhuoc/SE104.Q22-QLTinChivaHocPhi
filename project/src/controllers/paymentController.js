@@ -30,7 +30,7 @@ const getPaymentById = async (req, res) => {
 const getStudentPayments = async (req, res) => {
   try {
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({ where: { MaSv: req.params.studentId }, orderBy: { NgayLap: 'desc' }, include: { PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
-    res.json({ success: true, data: rows.map(p => ({ SoPhieuThu: p.SoPhieuThu, MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy, SoTienThu: Number(p.SoTienThu), HinhThucThu: p.HinhThucThu, NgayLap: p.NgayLap, TrangThai: p.TrangThai })) });
+    res.json({ success: true, data: rows.map(p => ({ SoPhieuThu: p.SoPhieuThu, MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy, SoTienThu: Number(p.SoTienThu), HinhThucThu: p.HinhThucThu, NgayLap: p.NgayLap, GhiChu: p.GhiChu, TrangThai: p.TrangThai })) });
   } catch (error) { console.error('Get student payments error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 
@@ -63,7 +63,14 @@ const getPaymentStats = async (req, res) => {
     if (req.query.MaHocKy) where.PHIEUDANGKY = { MaHocKy: req.query.MaHocKy };
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({ where });
     const totalAmount = rows.reduce((s, p) => s + Number(p.SoTienThu), 0);
-    res.json({ success: true, data: { totalReceipts: rows.length, totalAmount } });
+    const byMethodMap = rows.reduce((acc, p) => {
+      const key = p.HinhThucThu || 'Khác';
+      if (!acc[key]) acc[key] = { HinhThucThu: key, count: 0, total: 0 };
+      acc[key].count += 1;
+      acc[key].total += Number(p.SoTienThu);
+      return acc;
+    }, {});
+    res.json({ success: true, data: { totalReceipts: rows.length, totalAmount, byMethod: Object.values(byMethodMap) } });
   } catch (error) { console.error('Get payment stats error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 

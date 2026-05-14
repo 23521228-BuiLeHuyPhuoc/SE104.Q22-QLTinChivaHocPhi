@@ -1,41 +1,44 @@
 extends ../../layouts/student
 
 block content
-  h2.page-title Học phí
+  .page-shell
+    .page-heading.compact
+      .page-kicker Tài chính
+      h2 Học phí của tôi
 
-  .stats-grid
-    .stat-card
-      .stat-icon.blue 💰
-      .stat-info
-        h3#total-fee --
-        p Tổng học phí
-    .stat-card
-      .stat-icon.green 💳
-      .stat-info
-        h3#total-paid --
-        p Đã đóng
-    .stat-card
-      .stat-icon.red 💸
-      .stat-info
-        h3#total-remaining --
-        p Còn nợ
+    .stats-grid
+      .stat-card
+        .stat-icon.blue HP
+        .stat-info
+          h3#total-fee --
+          p Tổng học phí
+      .stat-card
+        .stat-icon.green DT
+        .stat-info
+          h3#total-paid --
+          p Đã đóng
+      .stat-card
+        .stat-icon.red NO
+        .stat-info
+          h3#total-remaining --
+          p Còn nợ
 
-  .card.mt-3
-    .card-header
-      h3 Chi tiết học phí theo học kỳ
-    .card-body
-      .loading-overlay#loading
-        .spinner
-      .table-container
-        table.data-table#tuition-table.hidden
-          thead
-            tr
-              th Học kỳ
-              th Tổng HP
-              th Đã đóng
-              th Còn lại
-              th Trạng thái
-          tbody#tuition-list
+    .card
+      .card-header
+        h3 Chi tiết học phí theo học kỳ
+      .card-body
+        .loading-overlay#loading
+          .spinner
+        .table-container
+          table.data-table#tuition-table.hidden
+            thead
+              tr
+                th Học kỳ
+                th Tổng học phí
+                th Đã đóng
+                th Còn lại
+                th Trạng thái
+            tbody#tuition-list
 
 block scripts
   script(src="/js/student/my-tuition.js")

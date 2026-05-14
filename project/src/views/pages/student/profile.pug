@@ -1,58 +1,63 @@
 extends ../../layouts/student
 
 block content
-  h2.page-title Hồ sơ sinh viên
+  .page-shell
+    .page-heading.compact
+      .page-kicker Cá nhân
+      h2 Hồ sơ sinh viên
 
-  .card
-    .card-body
-      .loading-overlay#loading
-        .spinner
-      form#profile-form.hidden
-        .form-row
+    .card
+      .card-header
+        h3 Thông tin học vụ
+      .card-body
+        .loading-overlay#loading
+          .spinner
+        form#profile-form.hidden
+          .form-row
+            .form-group
+              label(for="p-mssv") MSSV
+              input.form-control#p-mssv(type="text" disabled)
+            .form-group
+              label(for="p-hoten") Họ tên
+              input.form-control#p-hoten(type="text" disabled)
+          .form-row
+            .form-group
+              label(for="p-email") Email
+              input.form-control#p-email(type="email" disabled)
+            .form-group
+              label(for="p-sdt") Số điện thoại
+              input.form-control#p-sdt(type="text" disabled)
+          .form-row
+            .form-group
+              label(for="p-ngaysinh") Ngày sinh
+              input.form-control#p-ngaysinh(type="text" disabled)
+            .form-group
+              label(for="p-gioitinh") Giới tính
+              input.form-control#p-gioitinh(type="text" disabled)
+          .form-row
+            .form-group
+              label(for="p-cmnd") CMND/CCCD
+              input.form-control#p-cmnd(type="text" disabled)
+            .form-group
+              label(for="p-dantoc") Dân tộc
+              input.form-control#p-dantoc(type="text" disabled)
           .form-group
-            label MSSV
-            input.form-control#p-mssv(type="text" disabled)
-          .form-group
-            label Họ tên
-            input.form-control#p-hoten(type="text" disabled)
-        .form-row
-          .form-group
-            label Email
-            input.form-control#p-email(type="email" disabled)
-          .form-group
-            label Số điện thoại
-            input.form-control#p-sdt(type="text" disabled)
-        .form-row
-          .form-group
-            label Ngày sinh
-            input.form-control#p-ngaysinh(type="text" disabled)
-          .form-group
-            label Giới tính
-            input.form-control#p-gioitinh(type="text" disabled)
-        .form-row
-          .form-group
-            label CMND/CCCD
-            input.form-control#p-cmnd(type="text" disabled)
-          .form-group
-            label Dân tộc
-            input.form-control#p-dantoc(type="text" disabled)
-        .form-group
-          label Địa chỉ
-          input.form-control#p-diachi(type="text" disabled)
-        .form-row
-          .form-group
-            label Ngành
-            input.form-control#p-nganh(type="text" disabled)
-          .form-group
-            label Khoa
-            input.form-control#p-khoa(type="text" disabled)
-        .form-row
-          .form-group
-            label Trạng thái
-            input.form-control#p-trangthai(type="text" disabled)
-          .form-group
-            label Khóa
-            input.form-control#p-khoahoc(type="text" disabled)
+            label(for="p-diachi") Địa chỉ
+            input.form-control#p-diachi(type="text" disabled)
+          .form-row
+            .form-group
+              label(for="p-nganh") Ngành
+              input.form-control#p-nganh(type="text" disabled)
+            .form-group
+              label(for="p-khoa") Khoa
+              input.form-control#p-khoa(type="text" disabled)
+          .form-row
+            .form-group
+              label(for="p-trangthai") Trạng thái
+              input.form-control#p-trangthai(type="text" disabled)
+            .form-group
+              label(for="p-khoahoc") Khóa
+              input.form-control#p-khoahoc(type="text" disabled)
 
 block scripts
   script(src="/js/student/profile.js")

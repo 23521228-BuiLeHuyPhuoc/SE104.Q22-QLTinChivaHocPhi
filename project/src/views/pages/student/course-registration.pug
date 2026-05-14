@@ -1,13 +1,20 @@
 extends ../../layouts/student
 
 block content
-  h2.page-title Đăng ký môn học
+  .toolbar
+    .toolbar-title
+      h2.page-title Đăng ký môn học
+      p Chọn học kỳ rồi tải danh sách lớp đang mở đăng ký.
+    .filter-group
+      input.form-control#semester-input(type="text" placeholder="Mã học kỳ, VD: HK1-2025")
+      input.form-control#course-search(type="text" placeholder="Tìm môn học")
+      button.btn.btn-primary(type="button" id="load-courses" onclick="loadAvailableCourses()") Tải lớp mở
 
   .card
     .card-header
       h3 Môn học có thể đăng ký
     .card-body
-      .loading-overlay#loading
+      .loading-overlay.hidden#loading
         .spinner
       .table-container
         table.data-table#courses-table.hidden
@@ -22,6 +29,7 @@ block content
               th Còn trống
               th Thao tác
           tbody#available-courses
+      #available-empty.empty-state Chọn học kỳ để xem danh sách lớp mở
 
 block scripts
   script(src="/js/student/course-registration.js")

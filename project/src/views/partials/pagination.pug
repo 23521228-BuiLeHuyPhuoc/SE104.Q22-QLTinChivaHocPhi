@@ -1,24 +1,24 @@
-//- Pagination partial
 //- Expects: currentPage, totalPages, baseUrl, queryParams (object)
 
 if totalPages && totalPages > 1
-  - var maxVisible = 5
-  - var startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2))
-  - var endPage = Math.min(totalPages, startPage + maxVisible - 1)
+  - const pageNow = Number(currentPage || 1)
+  - const maxVisible = 5
+  - let startPage = Math.max(1, pageNow - Math.floor(maxVisible / 2))
+  - let endPage = Math.min(totalPages, startPage + maxVisible - 1)
   - if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1)
+  - const makeQuery = (params) => Object.entries(params || {}).filter(([k, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
 
-  .pagination
-    if currentPage > 1
-      - var prevParams = Object.assign({}, queryParams || {}, { page: currentPage - 1 })
-      a(href=baseUrl + '?' + Object.entries(prevParams).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&')) ← Trước
+  nav.pagination(aria-label="Phân trang")
+    if pageNow > 1
+      - const prevParams = Object.assign({}, queryParams || {}, { page: pageNow - 1 })
+      a(href=baseUrl + '?' + makeQuery(prevParams)) Trước
 
-    - for (var i = startPage; i <= endPage; i++)
-      - var pageParams = Object.assign({}, queryParams || {}, { page: i })
-      a(href=baseUrl + '?' + Object.entries(pageParams).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&') class=(i === currentPage ? 'active' : ''))= i
+    each i in Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
+      - const pageParams = Object.assign({}, queryParams || {}, { page: i })
+      a(href=baseUrl + '?' + makeQuery(pageParams) class=(i === pageNow ? 'active' : ''))= i
 
-    if currentPage < totalPages
-      - var nextParams = Object.assign({}, queryParams || {}, { page: currentPage + 1 })
-      a(href=baseUrl + '?' + Object.entries(nextParams).map(([k,v]) => k + '=' + encodeURIComponent(v)).join('&')) Sau →
+    if pageNow < totalPages
+      - const nextParams = Object.assign({}, queryParams || {}, { page: pageNow + 1 })
+      a(href=baseUrl + '?' + makeQuery(nextParams)) Sau
 
-  .pagination-info
-    | Trang #{currentPage} / #{totalPages}
+  .pagination-info Trang #{pageNow} / #{totalPages}

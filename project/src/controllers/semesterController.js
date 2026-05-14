@@ -9,8 +9,8 @@ const getAllSemesters = async (req, res) => {
 
 const getActiveSemester = async (req, res) => {
   try {
-    let hk = await prisma.HOCKY.findFirst({ where: { TrangThai: 'Đang diễn ra' }, include: { NAMHOC: true } });
-    if (!hk) hk = await prisma.HOCKY.findFirst({ where: { TrangThai: 'Sắp diễn ra' }, include: { NAMHOC: true }, orderBy: { NgayBatDau: 'asc' } });
+    let hk = await prisma.HOCKY.findFirst({ where: { OR: [{ TrangThai: 'Đang diễn ra' }, { TrangThai: 'Đang hoạt động' }] }, include: { NAMHOC: true } });
+    if (!hk) hk = await prisma.HOCKY.findFirst({ where: { OR: [{ TrangThai: 'Sắp diễn ra' }, { TrangThai: 'Sắp tới' }] }, include: { NAMHOC: true }, orderBy: { NgayBatDau: 'asc' } });
     if (!hk) return res.status(404).json({ success: false, message: 'Không có học kỳ nào đang hoạt động' });
     res.json({ success: true, data: { MaHocKy: hk.MaHocKy, TenHocKy: hk.TenHocKy, TenNamHoc: hk.NAMHOC.TenNamHoc, TrangThai: hk.TrangThai } });
   } catch (error) { console.error('Get active semester error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }

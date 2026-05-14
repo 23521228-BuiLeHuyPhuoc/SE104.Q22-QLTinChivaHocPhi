@@ -1,36 +1,55 @@
 extends ../../layouts/student
 
 block content
-  h2.page-title Dashboard Sinh viên
+  .page-shell
+    .page-heading
+      .page-kicker Cổng sinh viên
+      h2 Tổng quan học tập và học phí
+      p Theo dõi môn đã đăng ký, số tín chỉ, học phí phải đóng và thông báo mới.
 
-  .stats-grid
-    .stat-card
-      .stat-icon.blue 📚
-      .stat-info
-        h3#stat-courses --
-        p Môn đã ĐK
-    .stat-card
-      .stat-icon.green 📝
-      .stat-info
-        h3#stat-credits --
-        p Tổng tín chỉ
-    .stat-card
-      .stat-icon.orange 💰
-      .stat-info
-        h3#stat-tuition --
-        p Học phí
-    .stat-card
-      .stat-icon.red 💸
-      .stat-info
-        h3#stat-debt --
-        p Còn nợ
+    .stats-grid
+      .stat-card
+        .stat-icon.blue MH
+        .stat-info
+          h3#stat-courses --
+          p Môn đã đăng ký
+      .stat-card
+        .stat-icon.green TC
+        .stat-info
+          h3#stat-credits --
+          p Tổng tín chỉ
+      .stat-card
+        .stat-icon.orange HP
+        .stat-info
+          h3#stat-tuition --
+          p Học phí
+      .stat-card
+        .stat-icon.red NO
+        .stat-info
+          h3#stat-debt --
+          p Còn nợ
 
-  .card
-    .card-header
-      h3 Thông báo mới
-    .card-body#notifications-list
-      .loading-overlay
-        .spinner
+    .content-grid.two-columns
+      .card
+        .card-header
+          h3 Thông báo mới
+        .card-body#notifications-list
+          .loading-overlay
+            .spinner
+      .card
+        .card-header
+          h3 Truy cập nhanh
+        .card-body
+          .action-grid
+            a.action-tile(href="/student/course-registration")
+              strong Đăng ký môn
+              span Chọn lớp mở theo học kỳ
+            a.action-tile(href="/student/my-tuition")
+              strong Học phí
+              span Kiểm tra số tiền đã đóng và còn nợ
+            a.action-tile(href="/student/my-schedule")
+              strong Thời khóa biểu
+              span Xem lịch học theo ngày trong tuần
 
 block scripts
   script(src="/js/student/dashboard.js")

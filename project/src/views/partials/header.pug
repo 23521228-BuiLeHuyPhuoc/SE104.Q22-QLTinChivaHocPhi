@@ -1,11 +1,22 @@
+- const displayName = user ? (user.HoTen || user.username || user.TenDangNhap || user.Role || 'Người dùng') : ''
+
 header.top-header
   .header-left
-    button.sidebar-toggle(onclick="toggleSidebar()") ☰
-    h1= headerTitle || 'Dashboard'
+    button.sidebar-toggle(type="button" onclick="toggleSidebar()" aria-label="Mở menu")
+      span.menu-bars
+        span
+        span
+        span
+    div
+      h1= headerTitle || pageTitle || 'Bảng điều khiển'
+      if headerSubtitle
+        p.header-subtitle= headerSubtitle
 
   .header-right
-    button.theme-toggle(onclick="toggleTheme()" title="Đổi giao diện")
-      span#theme-icon ☀️
-    .header-user
-      span= user ? user.ho_ten || user.ten_dang_nhap : ''
+    button.theme-toggle(type="button" onclick="toggleTheme()" title="Đổi giao diện" aria-label="Đổi giao diện")
+      span#theme-icon Sáng
+    if displayName
+      .header-user
+        .user-avatar= displayName.charAt(0).toUpperCase()
+        span= displayName
     a.btn-logout(href="/logout") Đăng xuất

@@ -31,7 +31,7 @@ const getStudentById = async (req, res) => {
 
 const createStudent = async (req, res) => {
   try {
-    const { MaSv, HoTen, NgaySinh, GioiTinh, MaPhuongXa, MaNganh, Email, Sdt, DiaChiLienHe, MaDanToc, password = '123456' } = req.body;
+    const { MaSv, HoTen, NgaySinh, GioiTinh, MaPhuongXa, MaNganh, Email, Sdt, DiaChiLienHe, MaDanToc, Cccd, password = '123456' } = req.body;
     if (!MaSv || !HoTen || !NgaySinh || !GioiTinh || !MaPhuongXa || !MaNganh) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin bắt buộc' });
 
     const existing = await prisma.SINHVIEN.findUnique({ where: { MaSv } });
@@ -42,8 +42,8 @@ const createStudent = async (req, res) => {
     const hashed = await bcrypt.hash(password, salt);
 
     const result = await prisma.$transaction(async (tx) => {
-      const account = await tx.TAIKHOAN.create({ data: { TenDangNhap: MaSv, MatKhau: hashed, Role: 'student' } });
-      const student = await tx.SINHVIEN.create({ data: { MaSv, HoTen, NgaySinh: new Date(NgaySinh), GioiTinh, MaPhuongXa, MaNganh, Email, Sdt, DiaChiLienHe, MaDanToc, MaTaiKhoan: account.MaTaiKhoan } });
+      const account = await tx.TAIKHOAN.create({ data: { TenDangNhap: MaSv, MatKhau: hashed, Role: 'student', MaNhom: 'SINHVIEN' } });
+      const student = await tx.SINHVIEN.create({ data: { MaSv, HoTen, NgaySinh: new Date(NgaySinh), GioiTinh, Cccd, MaPhuongXa, MaNganh, Email, Sdt, DiaChiLienHe, MaDanToc, MaTaiKhoan: account.MaTaiKhoan } });
       return student;
     });
     res.status(201).json({ success: true, message: 'Tạo sinh viên thành công', data: result });
@@ -55,11 +55,12 @@ const updateStudent = async (req, res) => {
     const existing = await prisma.SINHVIEN.findUnique({ where: { MaSv: req.params.id } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
 
-    const { HoTen, NgaySinh, GioiTinh, Email, Sdt, DiaChiLienHe, MaPhuongXa, MaDanToc, MaNganh, TrangThai, AnhDaiDien } = req.body;
+    const { HoTen, NgaySinh, GioiTinh, Email, Sdt, DiaChiLienHe, MaPhuongXa, MaDanToc, MaNganh, TrangThai, AnhDaiDien, Cccd } = req.body;
     const data = {};
     if (HoTen) data.HoTen = HoTen;
     if (NgaySinh) data.NgaySinh = new Date(NgaySinh);
     if (GioiTinh) data.GioiTinh = GioiTinh;
+    if (Cccd !== undefined) data.Cccd = Cccd;
     if (Email) data.Email = Email;
     if (Sdt) data.Sdt = Sdt;
     if (DiaChiLienHe) data.DiaChiLienHe = DiaChiLienHe;

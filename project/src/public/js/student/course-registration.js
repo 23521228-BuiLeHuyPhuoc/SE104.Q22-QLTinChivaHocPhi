@@ -1,25 +1,67 @@
-(async function() {
-  try {
-    const res = await apiFetch('/api/registrations/available');
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('courses-table').classList.remove('hidden');
+var currentStudent = null;
 
-    const tbody = document.getElementById('available-courses');
+async function ensureStudent() {
+  if (currentStudent) return currentStudent;
+  var meRes = await apiFetch('/api/auth/me');
+  if (meRes.success && meRes.data.student) currentStudent = meRes.data.student;
+  return currentStudent;
+}
+
+async function initializeRegistrationPage() {
+  try {
+    await ensureStudent();
+    var active = await apiFetch('/api/semesters/active').catch(function() { return null; });
+    if (active && active.success && active.data && active.data.MaHocKy) {
+      document.getElementById('semester-input').value = active.data.MaHocKy;
+      loadAvailableCourses();
+    }
+  } catch (e) {}
+}
+
+async function loadAvailableCourses() {
+  var semester = document.getElementById('semester-input').value.trim();
+  var search = document.getElementById('course-search').value.trim();
+  var empty = document.getElementById('available-empty');
+  var loading = document.getElementById('loading');
+  var table = document.getElementById('courses-table');
+  var tbody = document.getElementById('available-courses');
+
+  if (!semester) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    empty.textContent = 'Vui lòng nhập mã học kỳ';
+    return;
+  }
+
+  loading.classList.remove('hidden');
+  table.classList.add('hidden');
+  empty.classList.add('hidden');
+
+  try {
+    var url = '/api/registrations/available?MaHocKy=' + encodeURIComponent(semester);
+    if (search) url += '&search=' + encodeURIComponent(search);
+    var res = await apiFetch(url);
+
+    loading.classList.add('hidden');
+    table.classList.remove('hidden');
+
     if (res.success && res.data && res.data.length > 0) {
       var html = '';
-      res.data.forEach(c => {
-        var remaining = (c.so_luong_toi_da || 0) - (c.so_luong_hien_tai || 0);
+      res.data.forEach(function(c) {
+        var max = Number(c.SoLuongToiDa || 0);
+        var registered = Number(c.SoLuongDaDangKy || 0);
+        var remaining = Math.max(max - registered, 0);
         html += '<tr>';
-        html += '<td>' + (c.ma_lop || '-') + '</td>';
-        html += '<td>' + (c.ten_mon_hoc || '-') + '</td>';
-        html += '<td>' + (c.so_tin_chi || '-') + '</td>';
-        html += '<td>' + (c.giang_vien || '-') + '</td>';
-        html += '<td>' + (c.lich_hoc || '-') + '</td>';
-        html += '<td>' + (c.phong_hoc || '-') + '</td>';
+        html += '<td class="mono">' + (c.MaLop || '-') + '</td>';
+        html += '<td><strong>' + (c.TenMonHoc || '-') + '</strong><small>' + (c.TenKhoa || '') + '</small></td>';
+        html += '<td>' + (c.SoTinChi || '-') + '</td>';
+        html += '<td>' + (c.GiangVien || '-') + '</td>';
+        html += '<td>' + (c.LichHoc || '-') + '</td>';
+        html += '<td>' + (c.PhongHoc || '-') + '</td>';
         html += '<td>' + remaining + '</td>';
         html += '<td>';
         if (remaining > 0) {
-          html += '<button class="btn btn-sm btn-primary" onclick="registerCourse(\'' + c.ma_lop_mo + '\')">Đăng ký</button>';
+          html += '<button class="btn btn-sm btn-primary" type="button" onclick="registerCourse(\'' + c.MaLop + '\', \'' + c.MaHocKy + '\')">Đăng ký</button>';
         } else {
           html += '<span class="badge badge-error">Hết chỗ</span>';
         }
@@ -27,26 +69,46 @@
       });
       tbody.innerHTML = html;
     } else {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center">Không có lớp mở để đăng ký</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Không có lớp mở để đăng ký</div></td></tr>';
     }
-  } catch(e) {
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('courses-table').classList.remove('hidden');
-    document.getElementById('available-courses').innerHTML = '<tr><td colspan="8" class="text-center text-error">Lỗi tải dữ liệu</td></tr>';
+  } catch (e) {
+    loading.classList.add('hidden');
+    table.classList.remove('hidden');
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
   }
-})();
+}
 
-async function registerCourse(maLopMo) {
+async function registerCourse(maLop, maHocKy) {
+  var student = await ensureStudent();
+  if (!student) {
+    showToast('Không xác định được sinh viên', 'error');
+    return;
+  }
   if (!confirm('Bạn có chắc muốn đăng ký lớp này?')) return;
+
   try {
-    const res = await apiFetch('/api/registrations', { method: 'POST', body: { ma_lop_mo: maLopMo } });
+    var res = await apiFetch('/api/registrations', {
+      method: 'POST',
+      body: { MaSv: student.MaSv, MaHocKy: maHocKy, MaLop: maLop }
+    });
+
     if (res.success) {
-      showToast('Đăng ký thành công!', 'success');
-      setTimeout(() => location.reload(), 500);
+      showToast('Đăng ký thành công', 'success');
+      setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Lỗi đăng ký', 'error');
+      showToast(res.message || 'Không thể đăng ký', 'error');
     }
-  } catch(e) {
+  } catch (e) {
     showToast('Lỗi kết nối', 'error');
   }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  var search = document.getElementById('course-search');
+  if (search) {
+    search.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') loadAvailableCourses();
+    });
+  }
+  initializeRegistrationPage();
+});

@@ -1,9 +1,10 @@
 extends ../../layouts/admin
 
 block content
+  - const money = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm kiếm theo MSSV..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(!status)) Tất cả trạng thái
@@ -12,6 +13,9 @@ block content
         option(value="paid" selected=(status === 'paid')) Đã đóng đủ
 
   .card
+    .card-header
+      h3 Công nợ học phí
+      span.card-count= tuitions ? `${tuitions.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
@@ -19,27 +23,29 @@ block content
             th MSSV
             th Họ tên
             th Học kỳ
-            th Tổng HP
+            th Tín chỉ
+            th Tổng phải đóng
             th Đã đóng
-            th Còn lại
+            th Còn nợ
             th Trạng thái
         tbody
           if tuitions && tuitions.length > 0
             each t in tuitions
+              - const badge = t.TrangThaiHocPhi === 'Đã đóng đủ' ? 'badge-success' : t.TrangThaiHocPhi === 'Đóng một phần' ? 'badge-warning' : 'badge-error'
               tr
-                td= t.ma_sv
-                td= t.ho_ten_sv || '-'
-                td= t.ten_hoc_ky || '-'
-                td= formatVND(t.tong_hoc_phi)
-                td= formatVND(t.da_dong)
-                td= formatVND(t.con_lai)
+                td.mono= t.MaSv
+                td= t.HoTen || '-'
+                td= t.TenHocKy || t.MaHocKy || '-'
+                td= t.TongTinChi || 0
+                td.currency= money(t.TongTienPhaiDong)
+                td.currency= money(t.TongTienDaDong)
+                td.currency(class=(Number(t.ConNo || 0) > 0 ? 'text-danger' : 'text-success'))= money(t.ConNo)
                 td
-                  - var badge = t.trang_thai === 'paid' ? 'badge-success' : t.trang_thai === 'partial' ? 'badge-warning' : 'badge-error'
-                  - var label = t.trang_thai === 'paid' ? 'Đã đóng đủ' : t.trang_thai === 'partial' ? 'Một phần' : 'Chưa đóng'
-                  span.badge(class=badge)= label
+                  span.badge(class=badge)= t.TrangThaiHocPhi
           else
             tr
-              td(colspan="7").text-center Không có dữ liệu
+              td(colspan="8")
+                .empty-state Không có dữ liệu học phí
 
   include ../../partials/pagination
 

@@ -3,11 +3,14 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm kiếm lớp học..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm mã lớp, tên lớp hoặc giảng viên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
-      button.btn.btn-primary(onclick="openModal('add')") + Thêm lớp
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm lớp
 
   .card
+    .card-header
+      h3 Danh sách lớp học
+      span.card-count= classes ? `${classes.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
@@ -18,26 +21,28 @@ block content
             th Giảng viên
             th Lịch học
             th Phòng
-            th SL tối đa
+            th Sĩ số tối đa
             th Thao tác
         tbody
           if classes && classes.length > 0
             each cl in classes
               tr
-                td= cl.ma_lop
-                td= cl.ten_lop
-                td= cl.ten_mon_hoc || cl.ma_mon_hoc
-                td= cl.giang_vien || '-'
-                td= cl.lich_hoc || '-'
-                td= cl.phong_hoc || '-'
-                td= cl.so_luong_toi_da || '-'
+                td.mono= cl.MaLop
+                td= cl.TenLop
                 td
-                  button.btn.btn-sm.btn-outline(onclick=`openModal('edit', ${JSON.stringify(cl)})`) ✏️
-                  |  
-                  button.btn.btn-sm.btn-danger(onclick=`deleteClass('${cl.ma_lop}')`) 🗑️
+                  strong= cl.MONHOC ? cl.MONHOC.TenMonHoc : cl.MaMonHoc
+                  small= cl.MaMonHoc
+                td= cl.GiangVien || '-'
+                td= cl.LichHoc || '-'
+                td= cl.PhongHoc || '-'
+                td= cl.SoLuongToiDa || '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteClass('${cl.MaLop}')`) Xóa
           else
             tr
-              td(colspan="8").text-center Không có dữ liệu
+              td(colspan="8")
+                .empty-state Không có lớp học phù hợp
 
   include ../../partials/pagination
 
@@ -46,33 +51,37 @@ block modals
     .modal
       .modal-header
         h2#modal-title Thêm lớp học
-        button.modal-close(onclick="closeModal()") ×
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#class-form
           .form-row
             .form-group
-              label Mã lớp
+              label(for="cl-malop") Mã lớp
               input.form-control#cl-malop(type="text" required)
             .form-group
-              label Tên lớp
+              label(for="cl-tenlop") Tên lớp
               input.form-control#cl-tenlop(type="text" required)
           .form-row
             .form-group
-              label Mã môn học
+              label(for="cl-mamonhoc") Mã môn học
               input.form-control#cl-mamonhoc(type="text" required)
             .form-group
-              label Giảng viên
+              label(for="cl-giangvien") Giảng viên
               input.form-control#cl-giangvien(type="text")
           .form-row
             .form-group
-              label Lịch học
-              input.form-control#cl-lichhoc(type="text" placeholder="VD: Thứ 2 (7h30-9h30)")
+              label(for="cl-lichhoc") Lịch học
+              input.form-control#cl-lichhoc(type="text" placeholder="VD: Thứ 2 (7:30-9:30)")
             .form-group
-              label Phòng học
+              label(for="cl-phonghoc") Phòng học
               input.form-control#cl-phonghoc(type="text")
-          .form-group
-            label Số lượng tối đa
-            input.form-control#cl-soluong(type="number" min="1" value="50")
+          .form-row
+            .form-group
+              label(for="cl-soluong") Số lượng tối đa
+              input.form-control#cl-soluong(type="number" min="1" value="50")
+            .form-group
+              label(for="cl-mota") Mô tả
+              input.form-control#cl-mota(type="text")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveClass()") Lưu

@@ -3,30 +3,25 @@ html(lang="vi" data-theme="light")
   head
     meta(charset="UTF-8")
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
-    title #{pageTitle || 'Hệ thống quản lý tín chỉ và học phí'}
+    meta(name="theme-color" content="#0f172a")
+    title #{pageTitle || 'Quản lý tín chỉ và học phí'}
     link(rel="stylesheet" href="/css/theme.css")
     link(rel="stylesheet" href="/css/layout.css")
     block styles
   body
     .app-layout
-      //- Admin sidebar
       include ../partials/sidebar-admin
 
       .main-content
-        //- Header
         include ../partials/header
 
-        //- Page content
-        .page-content
+        main.page-content
           block content
 
-        //- Footer
         include ../partials/footer
 
-    //- Toast container
     #toast-container.toast-container
 
-    //- Modal container
     block modals
 
     script(src="/js/main.js")

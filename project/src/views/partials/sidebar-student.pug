@@ -1,48 +1,54 @@
+- const active = activePage || currentPage || ''
+- const studentName = user && user.studentInfo ? (user.studentInfo.HoTen || user.studentInfo.ho_ten || 'Sinh viên') : (user ? (user.HoTen || user.username || 'Sinh viên') : 'Sinh viên')
+- const studentCode = user && user.studentInfo ? (user.studentInfo.MaSv || user.studentInfo.ma_sv || '') : (user ? (user.MaSv || '') : '')
+
 nav.sidebar.sidebar-student(id="sidebar")
   .sidebar-brand
-    h2 🎓 QL Tín Chỉ
-    small Cổng sinh viên
+    .brand-mark TC
+    div
+      h2 Cổng Sinh Viên
+      small Tín chỉ, lịch học và học phí
 
   .sidebar-nav
     .sidebar-section
       .sidebar-section-title Tổng quan
-      a.sidebar-link(href="/student/dashboard" class=(currentPage === 'dashboard' ? 'active' : ''))
-        span.icon 📊
-        span Dashboard
+      a.sidebar-link(href="/student/dashboard" class=(active === 'dashboard' ? 'active' : ''))
+        span.icon BD
+        span Bảng điều khiển
 
     .sidebar-section
       .sidebar-section-title Học tập
-      a.sidebar-link(href="/student/course-registration" class=(currentPage === 'course-registration' ? 'active' : ''))
-        span.icon 📝
+      a.sidebar-link(href="/student/course-registration" class=(active === 'course-registration' ? 'active' : ''))
+        span.icon DK
         span Đăng ký môn
-      a.sidebar-link(href="/student/my-courses" class=(currentPage === 'my-courses' ? 'active' : ''))
-        span.icon 📚
-        span Môn đã ĐK
-      a.sidebar-link(href="/student/my-schedule" class=(currentPage === 'my-schedule' ? 'active' : ''))
-        span.icon 📅
+      a.sidebar-link(href="/student/my-courses" class=(active === 'my-courses' ? 'active' : ''))
+        span.icon MH
+        span Môn đã đăng ký
+      a.sidebar-link(href="/student/my-schedule" class=(active === 'my-schedule' ? 'active' : ''))
+        span.icon TKB
         span Thời khóa biểu
 
     .sidebar-section
       .sidebar-section-title Tài chính
-      a.sidebar-link(href="/student/my-tuition" class=(currentPage === 'my-tuition' ? 'active' : ''))
-        span.icon 💰
+      a.sidebar-link(href="/student/my-tuition" class=(active === 'my-tuition' ? 'active' : ''))
+        span.icon HP
         span Học phí
-      a.sidebar-link(href="/student/my-payments" class=(currentPage === 'my-payments' ? 'active' : ''))
-        span.icon 💳
+      a.sidebar-link(href="/student/my-payments" class=(active === 'my-payments' ? 'active' : ''))
+        span.icon PT
         span Lịch sử thanh toán
 
     .sidebar-section
       .sidebar-section-title Cá nhân
-      a.sidebar-link(href="/student/profile" class=(currentPage === 'profile' ? 'active' : ''))
-        span.icon 👤
+      a.sidebar-link(href="/student/profile" class=(active === 'profile' ? 'active' : ''))
+        span.icon HS
         span Hồ sơ
-      a.sidebar-link(href="/student/notifications" class=(currentPage === 'notifications' ? 'active' : ''))
-        span.icon 🔔
+      a.sidebar-link(href="/student/notifications" class=(active === 'notifications' ? 'active' : ''))
+        span.icon TB
         span Thông báo
 
   .sidebar-footer
     .sidebar-user
-      .avatar= user && user.studentInfo ? user.studentInfo.ho_ten.charAt(0).toUpperCase() : 'S'
+      .avatar= studentName.charAt(0).toUpperCase()
       div
-        div= user && user.studentInfo ? user.studentInfo.ho_ten : 'Sinh viên'
-        small= user && user.studentInfo ? user.studentInfo.ma_sv : ''
+        div= studentName
+        small= studentCode

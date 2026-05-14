@@ -3,7 +3,7 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm kiếm sinh viên..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(status === '' || !status)) Tất cả trạng thái
@@ -11,36 +11,47 @@ block content
         option(value="Đã tốt nghiệp" selected=(status === 'Đã tốt nghiệp')) Đã tốt nghiệp
         option(value="Bảo lưu" selected=(status === 'Bảo lưu')) Bảo lưu
         option(value="Đã thôi học" selected=(status === 'Đã thôi học')) Đã thôi học
-      button.btn.btn-primary(onclick="openModal('add')") + Thêm sinh viên
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm sinh viên
 
   .card
+    .card-header
+      h3 Danh sách sinh viên
+      span.card-count= students ? `${students.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
             th MSSV
             th Họ tên
-            th Email
+            th Liên hệ
             th Ngành
+            th Khoa
             th Trạng thái
             th Thao tác
         tbody#students-table
           if students && students.length > 0
             each sv in students
+              - const major = sv.NGANHHOC || {}
+              - const faculty = major.KHOA || {}
               tr
-                td= sv.ma_sv
-                td= sv.ho_ten
-                td= sv.email || '-'
-                td= sv.ten_nganh || '-'
+                td.mono= sv.MaSv
                 td
-                  span.badge(class=sv.trang_thai === 'Đang học' ? 'badge-success' : sv.trang_thai === 'Bảo lưu' ? 'badge-warning' : sv.trang_thai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.trang_thai
+                  strong= sv.HoTen
+                  small= sv.GioiTinh || ''
                 td
-                  button.btn.btn-sm.btn-outline(onclick=`openModal('edit', ${JSON.stringify(sv)})`) ✏️
-                  |  
-                  button.btn.btn-sm.btn-danger(onclick=`deleteStudent('${sv.ma_sv}')`) 🗑️
+                  div= sv.Email || '-'
+                  small= sv.Sdt || ''
+                td= major.TenNganh || sv.MaNganh || '-'
+                td= faculty.TenKhoa || '-'
+                td
+                  span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(sv) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteStudent('${sv.MaSv}')`) Xóa
           else
             tr
-              td(colspan="6").text-center Không có dữ liệu
+              td(colspan="7")
+                .empty-state Không có sinh viên phù hợp
 
   include ../../partials/pagination
 
@@ -49,54 +60,61 @@ block modals
     .modal
       .modal-header
         h2#modal-title Thêm sinh viên
-        button.modal-close(onclick="closeModal()") ×
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#student-form
           .form-row
             .form-group
-              label MSSV
+              label(for="sv-mssv") MSSV
               input.form-control#sv-mssv(type="text" required)
             .form-group
-              label Họ tên
+              label(for="sv-hoten") Họ tên
               input.form-control#sv-hoten(type="text" required)
           .form-row
             .form-group
-              label Email
+              label(for="sv-email") Email
               input.form-control#sv-email(type="email")
             .form-group
-              label Số điện thoại
+              label(for="sv-sdt") Số điện thoại
               input.form-control#sv-sdt(type="text")
           .form-row
             .form-group
-              label Ngày sinh
-              input.form-control#sv-ngaysinh(type="date")
+              label(for="sv-ngaysinh") Ngày sinh
+              input.form-control#sv-ngaysinh(type="date" required)
             .form-group
-              label Giới tính
+              label(for="sv-gioitinh") Giới tính
               select.form-control#sv-gioitinh
                 option(value="Nam") Nam
                 option(value="Nữ") Nữ
           .form-row
             .form-group
-              label CMND/CCCD
+              label(for="sv-cmnd") CMND/CCCD
               input.form-control#sv-cmnd(type="text")
             .form-group
-              label Dân tộc
-              input.form-control#sv-dantoc(type="text" value="Kinh")
-          .form-group
-            label Địa chỉ
-            input.form-control#sv-diachi(type="text")
+              label(for="sv-dantoc") Mã dân tộc
+              input.form-control#sv-dantoc(type="text" value="DT01")
           .form-row
             .form-group
-              label Ngành
-              select.form-control#sv-nganh
-                option(value="") Chọn ngành
+              label(for="sv-phuongxa") Mã phường/xã
+              input.form-control#sv-phuongxa(type="text" value="PX001" required)
             .form-group
-              label Trạng thái
+              label(for="sv-nganh") Ngành
+              select.form-control#sv-nganh(required)
+                option(value="") Chọn ngành
+          .form-row
+            .form-group
+              label(for="sv-trangthai") Trạng thái
               select.form-control#sv-trangthai
                 option(value="Đang học") Đang học
                 option(value="Bảo lưu") Bảo lưu
                 option(value="Đã tốt nghiệp") Đã tốt nghiệp
                 option(value="Đã thôi học") Đã thôi học
+            .form-group
+              label(for="sv-password") Mật khẩu tài khoản
+              input.form-control#sv-password(type="password" placeholder="Để trống khi cập nhật")
+          .form-group
+            label(for="sv-diachi") Địa chỉ liên hệ
+            input.form-control#sv-diachi(type="text")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu

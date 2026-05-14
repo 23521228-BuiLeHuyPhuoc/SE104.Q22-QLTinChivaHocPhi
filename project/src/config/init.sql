@@ -57,13 +57,17 @@ DROP TABLE IF EXISTS "HOCKY" CASCADE;
 DROP TABLE IF EXISTS "NAMHOC" CASCADE;
 DROP TABLE IF EXISTS "LOP" CASCADE;
 DROP TABLE IF EXISTS "TIETHOC" CASCADE;
+DROP TABLE IF EXISTS "THAMSO" CASCADE;
 DROP TABLE IF EXISTS "CAUHINHDANGKY" CASCADE;
 DROP TABLE IF EXISTS "DIEUKIENMONHOC" CASCADE;
 DROP TABLE IF EXISTS "MONHOC" CASCADE;
 DROP TABLE IF EXISTS "DOITUONGSINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "QUANTRIVIEN" CASCADE;
 DROP TABLE IF EXISTS "SINHVIEN" CASCADE;
-DROP TABLE IF EXISTS "TAIKHOAN" CASCADE;
+DROP TABLE IF EXISTS "NGUOIDUNG" CASCADE;
+DROP TABLE IF EXISTS "PHANQUYEN" CASCADE;
+DROP TABLE IF EXISTS "CHUCNANG" CASCADE;
+DROP TABLE IF EXISTS "NHOMNGUOIDUNG" CASCADE;
 DROP TABLE IF EXISTS "NGANHHOC" CASCADE;
 DROP TABLE IF EXISTS "KHOA" CASCADE;
 DROP TABLE IF EXISTS "DOITUONG" CASCADE;
@@ -79,8 +83,6 @@ CREATE TABLE "TINH" (
     "MaTinh" VARCHAR(10) NOT NULL,
     "TenTinh" VARCHAR(100) NOT NULL,
     "LoaiTinh" VARCHAR(30) DEFAULT 'Tỉnh',
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tinh_pkey PRIMARY KEY ("MaTinh"),
     CONSTRAINT chk_loai_tinh CHECK ("LoaiTinh" IN ('Tỉnh', 'Thành phố'))
 );
@@ -92,8 +94,6 @@ CREATE TABLE "DANTOC" (
     "MaDanToc" VARCHAR(10) NOT NULL,
     "TenDanToc" VARCHAR(100) NOT NULL,
     "LaDanTocThieuSo" BOOLEAN DEFAULT FALSE,
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT dan_toc_pkey PRIMARY KEY ("MaDanToc")
 );
 
@@ -109,8 +109,6 @@ CREATE TABLE "PHUONGXA" (
     "MaTinh" VARCHAR(10) NOT NULL,
     "Loai" VARCHAR(30) DEFAULT 'Xã',
     "KhuVuc" VARCHAR(10) DEFAULT 'KV1',
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT phuong_xa_pkey PRIMARY KEY ("MaPhuongXa"),
     CONSTRAINT fk_phuong_xa_tinh FOREIGN KEY ("MaTinh") 
         REFERENCES "TINH"("MaTinh") ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -127,8 +125,6 @@ CREATE TABLE "DOITUONG" (
     "TiLeGiamHocPhi" DECIMAL(5,2) NOT NULL,
     "DoUuTien" INTEGER NOT NULL,
     "MoTa" VARCHAR(300),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT doi_tuong_pkey PRIMARY KEY ("MaDoiTuong"),
     CONSTRAINT chk_ti_le_giam CHECK ("TiLeGiamHocPhi" >= 0 AND "TiLeGiamHocPhi" <= 100)
 );
@@ -142,10 +138,6 @@ CREATE TABLE "KHOA" (
     "TenVietTat" VARCHAR(20),
     "Sdt" VARCHAR(15),
     "Email" VARCHAR(100),
-    "DiaChi" VARCHAR(200),
-    "TruongKhoa" VARCHAR(100),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT khoa_pkey PRIMARY KEY ("MaKhoa")
 );
 
@@ -159,41 +151,70 @@ CREATE TABLE "NGANHHOC" (
     "SoTinChiToiThieu" INTEGER DEFAULT 120,
     "ThoiGianDaoTao" DECIMAL(3,1) DEFAULT 4,
     "MoTa" VARCHAR(500),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT nganh_hoc_pkey PRIMARY KEY ("MaNganh"),
     CONSTRAINT fk_nganh_khoa FOREIGN KEY ("MaKhoa") 
         REFERENCES "KHOA"("MaKhoa") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- =====================================================
--- 6. BẢNG "TAIKHOAN" - Tài khoản đăng nhập
--- Ghi chú: Phân quyền được thực hiện bằng phần mềm (backend code)
--- dựa trên cột '"Role"'. Không dùng cơ sở dữ liệu để gán quyền trực tiếp.
--- Backend middleware sẽ kiểm tra "Role" để xác định quyền truy cập.
+-- 6. BẢNG "CHUCNANG" - Danh mục chức năng
 -- =====================================================
-CREATE TABLE "TAIKHOAN" (
+CREATE TABLE "CHUCNANG" (
+    "MaChucNang" VARCHAR(30) NOT NULL,
+    "TenChucNang" VARCHAR(100) NOT NULL,
+    "TenManHinhDuocLoad" VARCHAR(100) NOT NULL,
+    CONSTRAINT chuc_nang_pkey PRIMARY KEY ("MaChucNang")
+);
+
+-- =====================================================
+-- 7. BẢNG "NHOMNGUOIDUNG" - Nhóm người dùng
+-- =====================================================
+CREATE TABLE "NHOMNGUOIDUNG" (
+    "MaNhom" VARCHAR(20) NOT NULL,
+    "TenNhom" VARCHAR(100) NOT NULL,
+    CONSTRAINT nhom_nguoi_dung_pkey PRIMARY KEY ("MaNhom"),
+    CONSTRAINT nhom_nguoi_dung_ten_nhom_key UNIQUE ("TenNhom")
+);
+
+-- =====================================================
+-- 8. BẢNG "PHANQUYEN" - Phân quyền chức năng theo nhóm
+-- =====================================================
+CREATE TABLE "PHANQUYEN" (
+    "MaNhom" VARCHAR(20) NOT NULL,
+    "MaChucNang" VARCHAR(30) NOT NULL,
+    CONSTRAINT phan_quyen_pkey PRIMARY KEY ("MaNhom", "MaChucNang"),
+    CONSTRAINT fk_pq_nhom FOREIGN KEY ("MaNhom")
+        REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pq_chuc_nang FOREIGN KEY ("MaChucNang")
+        REFERENCES "CHUCNANG"("MaChucNang") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- =====================================================
+-- 9. BẢNG "NGUOIDUNG" - Người dùng đăng nhập
+-- =====================================================
+CREATE TABLE "NGUOIDUNG" (
     "MaTaiKhoan" SERIAL NOT NULL,
     "TenDangNhap" VARCHAR(50) NOT NULL,
     "MatKhau" VARCHAR(255) NOT NULL,
     "Role" VARCHAR(20) NOT NULL DEFAULT 'student',
+    "MaNhom" VARCHAR(20) NOT NULL DEFAULT 'SINHVIEN',
     "MaSv" VARCHAR(15),
     "HoTen" VARCHAR(100),
     "Email" VARCHAR(100),
     "Sdt" VARCHAR(15),
     "AnhDaiDien" VARCHAR(255),
-    "LanDangNhapCuoi" TIMESTAMP,
-    "RefreshToken" VARCHAR(500),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "NgayCapNhat" TIMESTAMP,
-    CONSTRAINT tai_khoan_pkey PRIMARY KEY ("MaTaiKhoan"),
-    CONSTRAINT tai_khoan_ten_dang_nhap_key UNIQUE ("TenDangNhap"),
-    CONSTRAINT chk_role CHECK ("Role" IN ('admin', 'student'))
+    CONSTRAINT nguoi_dung_pkey PRIMARY KEY ("MaTaiKhoan"),
+    CONSTRAINT nguoi_dung_ten_dang_nhap_key UNIQUE ("TenDangNhap"),
+    CONSTRAINT chk_role CHECK ("Role" IN ('admin', 'student')),
+    CONSTRAINT fk_nd_nhom FOREIGN KEY ("MaNhom")
+        REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- =====================================================
--- 7. BẢNG "SINHVIEN" - Sinh viên (BM1, QĐ1)
+-- 10. BẢNG "SINHVIEN" - Sinh viên (BM1, QĐ1)
 -- Ghi chú: Đối tượng "vùng sâu vùng xa" = sinh viên ở KV3 VÀ là dân tộc thiểu số
 -- =====================================================
 CREATE TABLE "SINHVIEN" (
@@ -210,10 +231,6 @@ CREATE TABLE "SINHVIEN" (
     "Sdt" VARCHAR(15),
     "Email" VARCHAR(100),
     "AnhDaiDien" VARCHAR(255),
-    "HoTenCha" VARCHAR(100),
-    "SdtCha" VARCHAR(15),
-    "HoTenMe" VARCHAR(100),
-    "SdtMe" VARCHAR(15),
     "NgayNhapHoc" DATE DEFAULT CURRENT_DATE,
     "TrangThai" VARCHAR(30) DEFAULT 'Đang học',
     "GhiChu" VARCHAR(300),
@@ -231,17 +248,17 @@ CREATE TABLE "SINHVIEN" (
     CONSTRAINT fk_sv_nganh FOREIGN KEY ("MaNganh") 
         REFERENCES "NGANHHOC"("MaNganh") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_sv_tk FOREIGN KEY ("MaTaiKhoan") 
-        REFERENCES "TAIKHOAN"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- Add FK from "TAIKHOAN" to "SINHVIEN" (bidirectional relationship)
-ALTER TABLE "TAIKHOAN" 
+-- Add FK from "NGUOIDUNG" to "SINHVIEN" (bidirectional relationship)
+ALTER TABLE "NGUOIDUNG" 
     ADD CONSTRAINT fk_tk_sv FOREIGN KEY ("MaSv") 
     REFERENCES "SINHVIEN"("MaSv") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- Add unique constraint for "MaSv" in "TAIKHOAN"
-ALTER TABLE "TAIKHOAN" 
-    ADD CONSTRAINT tai_khoan_ma_sv_key UNIQUE ("MaSv");
+-- Add unique constraint for "MaSv" in "NGUOIDUNG"
+ALTER TABLE "NGUOIDUNG" 
+    ADD CONSTRAINT nguoi_dung_ma_sv_key UNIQUE ("MaSv");
 
 -- =====================================================
 -- 8. BẢNG "DOITUONGSINHVIEN" - Đối tượng của Sinh viên (QĐ1)
@@ -284,7 +301,7 @@ CREATE TABLE "QUANTRIVIEN" (
     CONSTRAINT quan_tri_vien_ma_tai_khoan_key UNIQUE ("MaTaiKhoan"),
     CONSTRAINT chk_gioi_tinh_qtv CHECK ("GioiTinh" IN ('Nam', 'Nữ')),
     CONSTRAINT fk_qtv_tk FOREIGN KEY ("MaTaiKhoan") 
-        REFERENCES "TAIKHOAN"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -305,7 +322,6 @@ CREATE TABLE "MONHOC" (
     ) STORED,
     "MoTa" VARCHAR(500),
     "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT mon_hoc_pkey PRIMARY KEY ("MaMonHoc"),
     CONSTRAINT chk_loai_mon CHECK ("LoaiMon" IN ('LT', 'TH')),
     CONSTRAINT chk_so_tiet CHECK ("SoTiet" > 0),
@@ -322,8 +338,6 @@ CREATE TABLE "DIEUKIENMONHOC" (
     "MaMonDieuKien" VARCHAR(15) NOT NULL,
     "LoaiDieuKien" VARCHAR(20) NOT NULL DEFAULT 'hoc_truoc',
     "MoTa" VARCHAR(200),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT dieu_kien_mon_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_dkmh UNIQUE ("MaMonHoc", "MaMonDieuKien", "LoaiDieuKien"),
     CONSTRAINT chk_loai_dieu_kien CHECK ("LoaiDieuKien" IN ('tien_quyet', 'hoc_truoc')),
@@ -344,28 +358,32 @@ CREATE TABLE "TIETHOC" (
     "GioKetThuc" TIME NOT NULL,
     "ThuTu" INTEGER NOT NULL,
     "MoTa" VARCHAR(200),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tiet_hoc_pkey PRIMARY KEY ("MaTiet"),
     CONSTRAINT chk_thu_tu_tiet CHECK ("ThuTu" >= 1 AND "ThuTu" <= 11)
 );
 
 -- =====================================================
--- 12. BẢNG "CAUHINHDANGKY" - Cấu hình đăng ký môn học
--- Quy định số tín chỉ tối đa, điểm GPA cần để vượt
+-- 12. BẢNG "THAMSO" - Tham số hệ thống độc lập
 -- =====================================================
-CREATE TABLE "CAUHINHDANGKY" (
-    id SERIAL NOT NULL,
-    "MaCauHinh" VARCHAR(20) NOT NULL,
-    "TenCauHinh" VARCHAR(100) NOT NULL,
-    "GiaTri" INTEGER NOT NULL,
-    "GiaTriSo" DECIMAL(4,2),
-    "MoTa" VARCHAR(300),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "NgayCapNhat" TIMESTAMP,
-    CONSTRAINT cau_hinh_dang_ky_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_cau_hinh UNIQUE ("MaCauHinh")
+CREATE TABLE "THAMSO" (
+    id SMALLINT NOT NULL DEFAULT 1,
+    "SoTinChiDangKyToiThieu" INTEGER NOT NULL DEFAULT 14,
+    "SoTinChiDangKyToiDa" INTEGER NOT NULL DEFAULT 24,
+    "SoTinChiDangKyToiDaKhiVuot" INTEGER NOT NULL DEFAULT 30,
+    "GPAQuaMon" DECIMAL(4,2) NOT NULL DEFAULT 5.00,
+    "GPADangKyVuot" DECIMAL(4,2) NOT NULL DEFAULT 8.50,
+    "NgayCapNhat" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT tham_so_pkey PRIMARY KEY (id),
+    CONSTRAINT chk_tham_so_singleton CHECK (id = 1),
+    CONSTRAINT chk_tham_so_tin_chi CHECK (
+        "SoTinChiDangKyToiThieu" >= 0
+        AND "SoTinChiDangKyToiDa" >= "SoTinChiDangKyToiThieu"
+        AND "SoTinChiDangKyToiDaKhiVuot" >= "SoTinChiDangKyToiDa"
+    ),
+    CONSTRAINT chk_tham_so_gpa CHECK (
+        "GPAQuaMon" >= 0 AND "GPAQuaMon" <= 10
+        AND "GPADangKyVuot" >= 0 AND "GPADangKyVuot" <= 10
+    )
 );
 
 -- =====================================================
@@ -375,13 +393,10 @@ CREATE TABLE "LOP" (
     "MaLop" VARCHAR(20) NOT NULL,
     "TenLop" VARCHAR(100) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
-    "GiangVien" VARCHAR(100),
     "LichHoc" VARCHAR(200),
     "PhongHoc" VARCHAR(50),
     "SoLuongToiDa" INTEGER DEFAULT 50,
     "MoTa" VARCHAR(300),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT lop_pkey PRIMARY KEY ("MaLop"),
     CONSTRAINT fk_lop_monhoc FOREIGN KEY ("MaMonHoc") 
         REFERENCES "MONHOC"("MaMonHoc") ON DELETE CASCADE ON UPDATE CASCADE
@@ -394,14 +409,11 @@ CREATE TABLE "CHUONGTRINHHOC" (
     id SERIAL NOT NULL,
     "MaNganh" VARCHAR(10) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
-    "HocKyDuKien" INTEGER NOT NULL,
-    "BatBuoc" BOOLEAN DEFAULT TRUE,
+    "HocKy" INTEGER NOT NULL,
     "GhiChu" VARCHAR(200),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chuong_trinh_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_cth UNIQUE ("MaNganh", "MaMonHoc"),
-    CONSTRAINT chk_hoc_ky_du_kien CHECK ("HocKyDuKien" >= 1 AND "HocKyDuKien" <= 10),
+    CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 10),
     CONSTRAINT fk_cth_nganh FOREIGN KEY ("MaNganh") 
         REFERENCES "NGANHHOC"("MaNganh") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_cth_mon FOREIGN KEY ("MaMonHoc") 
@@ -416,8 +428,6 @@ CREATE TABLE "NAMHOC" (
     "TenNamHoc" VARCHAR(50) NOT NULL,
     "NamBatDau" INTEGER NOT NULL,
     "NamKetThuc" INTEGER NOT NULL,
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT nam_hoc_pkey PRIMARY KEY ("MaNamHoc")
 );
 
@@ -429,7 +439,6 @@ CREATE TABLE "HOCKY" (
     "TenHocKy" VARCHAR(50) NOT NULL,
     "MaNamHoc" VARCHAR(15) NOT NULL,
     "LoaiHocKy" VARCHAR(20) DEFAULT 'Chính',
-    "ThuTu" INTEGER DEFAULT 1,
     "NgayBatDau" DATE,
     "NgayKetThuc" DATE,
     "NgayBatDauDangKy" TIMESTAMP,
@@ -437,7 +446,6 @@ CREATE TABLE "HOCKY" (
     "HanDongHocPhi" DATE,
     "TrangThai" VARCHAR(20) DEFAULT 'Sắp diễn ra',
     "GhiChu" VARCHAR(300),
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT hoc_ky_pkey PRIMARY KEY ("MaHocKy"),
     CONSTRAINT chk_loai_hoc_ky CHECK ("LoaiHocKy" IN ('Chính', 'Hè')),
     CONSTRAINT chk_trang_thai_hk CHECK ("TrangThai" IN ('Sắp diễn ra', 'Đang diễn ra', 'Đã kết thúc')),
@@ -455,7 +463,6 @@ CREATE TABLE "LOPMO" (
     "SoLuongDaDangKy" INTEGER DEFAULT 0,
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT lop_mo_pkey PRIMARY KEY (id),
     CONSTRAINT uq_lopmo UNIQUE ("MaHocKy", "MaLop"),
     CONSTRAINT fk_lopmo_hocky FOREIGN KEY ("MaHocKy") 
@@ -476,8 +483,6 @@ CREATE TABLE "LICHHOCLOP" (
     "MaTietKetThuc" VARCHAR(10) NOT NULL,
     "PhongHoc" VARCHAR(50),
     "GhiChu" VARCHAR(200),
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT lich_hoc_lop_pkey PRIMARY KEY (id),
     CONSTRAINT chk_thu_trong_tuan CHECK ("ThuTrongTuan" >= 2 AND "ThuTrongTuan" <= 7),
     CONSTRAINT fk_lhl_lopmo FOREIGN KEY ("LopMoId") 
@@ -517,21 +522,8 @@ CREATE TABLE "PHIEUDANGKY" (
     "MaHocKy" VARCHAR(15) NOT NULL,
     "NgayLap" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "TongTinChi" INTEGER DEFAULT 0,
-    -- Thống kê theo loại đăng ký
-    "SoMonHocMoi" INTEGER DEFAULT 0,
-    "SoTinChiHocMoi" INTEGER DEFAULT 0,
-    "TienHocMoi" DECIMAL(15,0) DEFAULT 0,
-    "SoMonHocLai" INTEGER DEFAULT 0,
-    "SoTinChiHocLai" INTEGER DEFAULT 0,
-    "TienHocLai" DECIMAL(15,0) DEFAULT 0,
-    "SoMonHocCaiThien" INTEGER DEFAULT 0,
-    "SoTinChiHocCaiThien" INTEGER DEFAULT 0,
-    "TienHocCaiThien" DECIMAL(15,0) DEFAULT 0,
-    -- Tổng tiền
     "TongTienDangKy" DECIMAL(15,0) DEFAULT 0,
-    "TiLeGiam" DECIMAL(5,2) DEFAULT 0,
     "TienMienGiam" DECIMAL(15,0) DEFAULT 0,
-    "TongTienPhaiDong" DECIMAL(15,0) DEFAULT 0,
     "TrangThai" VARCHAR(30) DEFAULT 'Đã đăng ký',
     "GhiChu" VARCHAR(300),
     "NgayCapNhat" TIMESTAMP,
@@ -551,9 +543,8 @@ CREATE TABLE "CHITIETDANGKY" (
     id SERIAL NOT NULL,
     "SoPhieu" INTEGER NOT NULL,
     "MaLop" VARCHAR(20) NOT NULL,
+    "MaMonHoc" VARCHAR(15) NOT NULL,
     "LoaiDangKy" VARCHAR(20) DEFAULT 'hoc_moi',
-    "SoTinChi" INTEGER NOT NULL,
-    "LoaiMon" VARCHAR(5) NOT NULL,
     "DonGia" DECIMAL(12,0) NOT NULL,
     "ThanhTien" DECIMAL(15,0) NOT NULL,
     "TrangThai" VARCHAR(30) DEFAULT 'Đã đăng ký',
@@ -561,13 +552,15 @@ CREATE TABLE "CHITIETDANGKY" (
     "NgayHuy" TIMESTAMP,
     "LyDoHuy" VARCHAR(200),
     CONSTRAINT chi_tiet_dang_ky_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_ctdk UNIQUE ("SoPhieu", "MaLop"),
+    CONSTRAINT uq_ctdk UNIQUE ("SoPhieu", "MaMonHoc"),
     CONSTRAINT chk_trang_thai_ctdk CHECK ("TrangThai" IN ('Đã đăng ký', 'Đã hủy')),
     CONSTRAINT chk_loai_dang_ky CHECK ("LoaiDangKy" IN ('hoc_moi', 'hoc_lai', 'hoc_cai_thien')),
     CONSTRAINT fk_ctdk_phieu FOREIGN KEY ("SoPhieu") 
         REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_ctdk_lop FOREIGN KEY ("MaLop") 
-        REFERENCES "LOP"("MaLop") ON DELETE RESTRICT ON UPDATE CASCADE
+        REFERENCES "LOP"("MaLop") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_ctdk_monhoc FOREIGN KEY ("MaMonHoc")
+        REFERENCES "MONHOC"("MaMonHoc") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -585,10 +578,6 @@ CREATE TABLE "DIEMSINHVIEN" (
     "LanHoc" INTEGER DEFAULT 1,
     "KetQua" VARCHAR(20) DEFAULT 'Chưa có',
     "GhiChu" VARCHAR(300),
-    "NgayNhapDiem" TIMESTAMP,
-    "NguoiNhapDiem" INTEGER,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "NgayCapNhat" TIMESTAMP,
     CONSTRAINT diem_sinh_vien_pkey PRIMARY KEY (id),
     CONSTRAINT uq_diem_sv_mon_hk UNIQUE ("MaSv", "MaMonHoc", "MaHocKy", "LanHoc"),
     CONSTRAINT chk_diem_trung_binh CHECK ("DiemTrungBinh" IS NULL OR ("DiemTrungBinh" >= 0 AND "DiemTrungBinh" <= 10)),
@@ -601,9 +590,7 @@ CREATE TABLE "DIEMSINHVIEN" (
     CONSTRAINT fk_dsv_hk FOREIGN KEY ("MaHocKy") 
         REFERENCES "HOCKY"("MaHocKy") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_dsv_lop FOREIGN KEY ("MaLop") 
-        REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT fk_dsv_nguoi_nhap FOREIGN KEY ("NguoiNhapDiem") 
-        REFERENCES "TAIKHOAN"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE
+        REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -617,7 +604,6 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
     "SoTienThu" DECIMAL(15,0) NOT NULL,
     "HinhThucThu" VARCHAR(50) DEFAULT 'Tiền mặt',
     "MaGiaoDich" VARCHAR(100),
-    "NguoiThu" VARCHAR(100),
     "GhiChu" VARCHAR(300),
     "TrangThai" VARCHAR(20) DEFAULT 'Thành công',
     CONSTRAINT phieu_thu_hoc_phi_pkey PRIMARY KEY ("SoPhieuThu"),
@@ -631,312 +617,21 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
 );
 
 -- =====================================================
--- 20. BẢNG "THONGBAO" - Thông báo (gộp chung và cá nhân)
--- "Loai": 'chung' = thông báo chung, 'ca_nhan' = thông báo cá nhân
+-- 20. BẢNG "THONGBAO" - Thông báo cá nhân
 -- =====================================================
 CREATE TABLE "THONGBAO" (
     "MaThongBao" SERIAL NOT NULL,
-    "Loai" VARCHAR(20) NOT NULL DEFAULT 'chung',
+    "MaTaiKhoanNhan" INTEGER NOT NULL,
     "TieuDe" VARCHAR(200) NOT NULL,
     "NoiDung" TEXT NOT NULL,
-    "LoaiThongBao" VARCHAR(50),
-    -- Dành cho thông báo chung
-    "DOITUONG" VARCHAR(30) DEFAULT 'Tất cả',
-    "GhimTop" BOOLEAN DEFAULT FALSE,
-    "NgayHetHan" TIMESTAMP,
-    -- Dành cho thông báo cá nhân
-    "MaTaiKhoanNhan" INTEGER,
     "DuongDan" VARCHAR(255),
     "DaDoc" BOOLEAN DEFAULT FALSE,
     "NgayDoc" TIMESTAMP,
-    -- Chung
-    "NguoiTao" INTEGER,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "TrangThai" BOOLEAN DEFAULT TRUE,
     CONSTRAINT thong_bao_pkey PRIMARY KEY ("MaThongBao"),
-    CONSTRAINT chk_loai_thong_bao CHECK ("Loai" IN ('chung', 'ca_nhan')),
-    CONSTRAINT fk_tb_nguoitao FOREIGN KEY ("NguoiTao") 
-        REFERENCES "TAIKHOAN"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_tb_nguoinhan FOREIGN KEY ("MaTaiKhoanNhan") 
-        REFERENCES "TAIKHOAN"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
 );
-
--- =====================================================
--- INDEXES - Tối ưu hiệu suất truy vấn
--- =====================================================
-
--- Index cho bảng "PHUONGXA"
-CREATE INDEX idx_phuong_xa_ma_tinh ON "PHUONGXA"("MaTinh");
-CREATE INDEX idx_phuong_xa_khu_vuc ON "PHUONGXA"("KhuVuc");
-
--- Index cho bảng "NGANHHOC"
-CREATE INDEX idx_nganh_ma_khoa ON "NGANHHOC"("MaKhoa");
-
--- Index cho bảng "SINHVIEN"
-CREATE INDEX idx_sv_ma_phuong_xa ON "SINHVIEN"("MaPhuongXa");
-CREATE INDEX idx_sv_ma_dan_toc ON "SINHVIEN"("MaDanToc");
-CREATE INDEX idx_sv_ma_nganh ON "SINHVIEN"("MaNganh");
-CREATE INDEX idx_sv_ma_tai_khoan ON "SINHVIEN"("MaTaiKhoan");
-CREATE INDEX idx_sv_trang_thai ON "SINHVIEN"("TrangThai");
-
--- Index cho bảng "TAIKHOAN"
-CREATE INDEX idx_tk_ten_dang_nhap ON "TAIKHOAN"("TenDangNhap");
-CREATE INDEX idx_tk_role ON "TAIKHOAN"("Role");
-
--- Index cho bảng "DOITUONGSINHVIEN"
-CREATE INDEX idx_dtsv_ma_sv ON "DOITUONGSINHVIEN"("MaSv");
-CREATE INDEX idx_dtsv_ma_doi_tuong ON "DOITUONGSINHVIEN"("MaDoiTuong");
-
--- Index cho bảng "MONHOC"
-CREATE INDEX idx_mh_ma_khoa ON "MONHOC"("MaKhoa");
-CREATE INDEX idx_mh_loai_mon ON "MONHOC"("LoaiMon");
-
--- Index cho bảng "DIEUKIENMONHOC"
-CREATE INDEX idx_dkmh_ma_mon_hoc ON "DIEUKIENMONHOC"("MaMonHoc");
-CREATE INDEX idx_dkmh_ma_mon_dieu_kien ON "DIEUKIENMONHOC"("MaMonDieuKien");
-CREATE INDEX idx_dkmh_loai_dieu_kien ON "DIEUKIENMONHOC"("LoaiDieuKien");
-
--- Index cho bảng "LOP"
-CREATE INDEX idx_lop_ma_mon_hoc ON "LOP"("MaMonHoc");
-
--- Index cho bảng "CHUONGTRINHHOC"
-CREATE INDEX idx_cth_ma_nganh ON "CHUONGTRINHHOC"("MaNganh");
-CREATE INDEX idx_cth_ma_mon_hoc ON "CHUONGTRINHHOC"("MaMonHoc");
-
--- Index cho bảng "HOCKY"
-CREATE INDEX idx_hk_ma_nam_hoc ON "HOCKY"("MaNamHoc");
-CREATE INDEX idx_hk_trang_thai ON "HOCKY"("TrangThai");
-
--- Index cho bảng "LOPMO"
-CREATE INDEX idx_lm_ma_hoc_ky ON "LOPMO"("MaHocKy");
-CREATE INDEX idx_lm_ma_lop ON "LOPMO"("MaLop");
-
--- Index cho bảng "DONGIATINCHI"
-CREATE INDEX idx_dgtc_loai_mon ON "DONGIATINCHI"("LoaiMon");
-CREATE INDEX idx_dgtc_loai_hoc ON "DONGIATINCHI"("LoaiHoc");
-
--- Index cho bảng "PHIEUDANGKY"
-CREATE INDEX idx_pdk_ma_sv ON "PHIEUDANGKY"("MaSv");
-CREATE INDEX idx_pdk_ma_hoc_ky ON "PHIEUDANGKY"("MaHocKy");
-CREATE INDEX idx_pdk_trang_thai ON "PHIEUDANGKY"("TrangThai");
-
--- Index cho bảng "CHITIETDANGKY"
-CREATE INDEX idx_ctdk_so_phieu ON "CHITIETDANGKY"("SoPhieu");
-CREATE INDEX idx_ctdk_ma_lop ON "CHITIETDANGKY"("MaLop");
-CREATE INDEX idx_ctdk_trang_thai ON "CHITIETDANGKY"("TrangThai");
-
--- Index cho bảng "PHIEUTHUHOCPHI"
-CREATE INDEX idx_pthp_so_phieu_dang_ky ON "PHIEUTHUHOCPHI"("SoPhieuDangKy");
-CREATE INDEX idx_pthp_ma_sv ON "PHIEUTHUHOCPHI"("MaSv");
-CREATE INDEX idx_pthp_trang_thai ON "PHIEUTHUHOCPHI"("TrangThai");
-
--- Index cho bảng "TIETHOC"
-CREATE INDEX idx_tiet_thu_tu ON "TIETHOC"("ThuTu");
-
--- Index cho bảng "LICHHOCLOP"
-CREATE INDEX idx_lhl_lop_mo_id ON "LICHHOCLOP"("LopMoId");
-CREATE INDEX idx_lhl_thu_trong_tuan ON "LICHHOCLOP"("ThuTrongTuan");
-CREATE INDEX idx_lhl_ma_tiet_bat_dau ON "LICHHOCLOP"("MaTietBatDau");
-
--- Index cho bảng "DIEMSINHVIEN"
-CREATE INDEX idx_dsv_ma_sv ON "DIEMSINHVIEN"("MaSv");
-CREATE INDEX idx_dsv_ma_mon_hoc ON "DIEMSINHVIEN"("MaMonHoc");
-CREATE INDEX idx_dsv_ma_hoc_ky ON "DIEMSINHVIEN"("MaHocKy");
-CREATE INDEX idx_dsv_ket_qua ON "DIEMSINHVIEN"("KetQua");
-
--- Index cho bảng "THONGBAO"
-CREATE INDEX idx_tb_nguoi_tao ON "THONGBAO"("NguoiTao");
-CREATE INDEX idx_tb_trang_thai ON "THONGBAO"("TrangThai");
-CREATE INDEX idx_tb_loai ON "THONGBAO"("Loai");
-CREATE INDEX idx_tb_ma_tai_khoan_nhan ON "THONGBAO"("MaTaiKhoanNhan");
-CREATE INDEX idx_tb_da_doc ON "THONGBAO"("DaDoc");
-
--- =====================================================
--- VIEWS - Các view báo cáo
--- =====================================================
-
--- View: Phiếu đăng ký chi tiết
-CREATE OR REPLACE VIEW v_phieu_dang_ky AS
-SELECT 
-    pdk."SoPhieu",
-    sv."MaSv" AS ma_so_sinh_vien,
-    sv."HoTen" AS ho_ten_sinh_vien,
-    nh."TenNganh",
-    hk."MaHocKy",
-    hk."TenHocKy",
-    namhoc."TenNamHoc",
-    pdk."NgayLap",
-    pdk."TongTinChi",
-    -- Thống kê theo loại đăng ký
-    pdk."SoMonHocMoi",
-    pdk."SoTinChiHocMoi",
-    pdk."TienHocMoi",
-    pdk."SoMonHocLai",
-    pdk."SoTinChiHocLai",
-    pdk."TienHocLai",
-    pdk."SoMonHocCaiThien",
-    pdk."SoTinChiHocCaiThien",
-    pdk."TienHocCaiThien",
-    -- Tổng tiền
-    pdk."TongTienDangKy",
-    pdk."TiLeGiam",
-    pdk."TienMienGiam",
-    pdk."TongTienPhaiDong",
-    COALESCE((
-        SELECT SUM("SoTienThu") FROM "PHIEUTHUHOCPHI" 
-        WHERE "SoPhieuDangKy" = pdk."SoPhieu" AND "TrangThai" = 'Thành công'
-    ), 0) AS da_dong,
-    pdk."TongTienPhaiDong" - COALESCE((
-        SELECT SUM("SoTienThu") FROM "PHIEUTHUHOCPHI" 
-        WHERE "SoPhieuDangKy" = pdk."SoPhieu" AND "TrangThai" = 'Thành công'
-    ), 0) AS con_no,
-    pdk."TrangThai"
-FROM "PHIEUDANGKY" pdk
-JOIN "SINHVIEN" sv ON pdk."MaSv" = sv."MaSv"
-JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
-JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
-JOIN "NAMHOC" namhoc ON hk."MaNamHoc" = namhoc."MaNamHoc";
-
--- View: Phiếu thu học phí chi tiết
-CREATE OR REPLACE VIEW v_phieu_thu_hoc_phi AS
-SELECT 
-    pthp."SoPhieuThu",
-    sv."MaSv" AS ma_so_sinh_vien,
-    sv."HoTen" AS ho_ten_sinh_vien,
-    hk."MaHocKy",
-    hk."TenHocKy",
-    pthp."NgayLap",
-    pthp."SoTienThu",
-    pthp."HinhThucThu",
-    pthp."MaGiaoDich",
-    pthp."NguoiThu",
-    pthp."GhiChu",
-    pthp."TrangThai"
-FROM "PHIEUTHUHOCPHI" pthp
-JOIN "SINHVIEN" sv ON pthp."MaSv" = sv."MaSv"
-JOIN "PHIEUDANGKY" pdk ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
-JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy";
-
--- View: Báo cáo SV chưa đóng học phí (BM7)
-CREATE OR REPLACE VIEW v_bao_cao_sv_chua_dong_hoc_phi AS
-SELECT 
-    pdk."SoPhieu",
-    sv."MaSv",
-    sv."HoTen",
-    sv."Sdt",
-    sv."Email",
-    nh."TenNganh",
-    hk."MaHocKy",
-    hk."TenHocKy",
-    hk."HanDongHocPhi",
-    pdk."TongTienPhaiDong",
-    COALESCE((
-        SELECT SUM("SoTienThu") FROM "PHIEUTHUHOCPHI" 
-        WHERE "SoPhieuDangKy" = pdk."SoPhieu" AND "TrangThai" = 'Thành công'
-    ), 0) AS da_dong,
-    pdk."TongTienPhaiDong" - COALESCE((
-        SELECT SUM("SoTienThu") FROM "PHIEUTHUHOCPHI" 
-        WHERE "SoPhieuDangKy" = pdk."SoPhieu" AND "TrangThai" = 'Thành công'
-    ), 0) AS con_no,
-    CASE 
-        WHEN hk."HanDongHocPhi" < CURRENT_DATE THEN 'Quá hạn'
-        ELSE 'Trong hạn'
-    END AS "TrangThai"
-FROM "PHIEUDANGKY" pdk
-JOIN "SINHVIEN" sv ON pdk."MaSv" = sv."MaSv"
-JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
-JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
-WHERE pdk."TrangThai" = 'Đã đăng ký'
-  AND pdk."TongTienPhaiDong" > COALESCE((
-        SELECT SUM("SoTienThu") FROM "PHIEUTHUHOCPHI" 
-        WHERE "SoPhieuDangKy" = pdk."SoPhieu" AND "TrangThai" = 'Thành công'
-    ), 0);
-
--- View: Điểm trung bình tích lũy của sinh viên (GPA)
-CREATE OR REPLACE VIEW v_diem_tich_luy_sinh_vien AS
-SELECT 
-    sv."MaSv",
-    sv."HoTen",
-    nh."TenNganh",
-    COUNT(DISTINCT CASE WHEN dsv."KetQua" = 'Đậu' THEN dsv."MaMonHoc" END) AS so_mon_da_hoc,
-    SUM(CASE WHEN dsv."KetQua" = 'Đậu' THEN mh."SoTinChi" ELSE 0 END) AS tong_tin_chi_tich_luy,
-    COALESCE(
-        SUM(CASE WHEN dsv."KetQua" = 'Đậu' THEN dsv."DiemTrungBinh" * mh."SoTinChi" ELSE 0 END) /
-        NULLIF(SUM(CASE WHEN dsv."KetQua" = 'Đậu' THEN mh."SoTinChi" ELSE 0 END), 0),
-    0) AS diem_trung_binh_tich_luy,
-    COUNT(CASE WHEN dsv."KetQua" = 'Rớt' THEN 1 END) AS so_mon_rot,
-    CASE 
-        WHEN COALESCE(
-            SUM(CASE WHEN dsv."KetQua" = 'Đậu' THEN dsv."DiemTrungBinh" * mh."SoTinChi" ELSE 0 END) /
-            NULLIF(SUM(CASE WHEN dsv."KetQua" = 'Đậu' THEN mh."SoTinChi" ELSE 0 END), 0),
-        0) >= 8.5 THEN TRUE
-        ELSE FALSE
-    END AS duoc_vuot_tin_chi
-FROM "SINHVIEN" sv
-JOIN "NGANHHOC" nh ON sv."MaNganh" = nh."MaNganh"
-LEFT JOIN "DIEMSINHVIEN" dsv ON sv."MaSv" = dsv."MaSv"
-LEFT JOIN "MONHOC" mh ON dsv."MaMonHoc" = mh."MaMonHoc"
-GROUP BY sv."MaSv", sv."HoTen", nh."TenNganh";
-
--- View: Lịch học của lớp mở
-CREATE OR REPLACE VIEW v_lich_hoc_chi_tiet AS
-SELECT 
-    lm.id AS "LopMoId",
-    lm."MaLop",
-    l."TenLop",
-    mh."TenMonHoc",
-    hk."MaHocKy",
-    hk."TenHocKy",
-    lhl."ThuTrongTuan",
-    CASE lhl."ThuTrongTuan"
-        WHEN 2 THEN 'Thứ 2'
-        WHEN 3 THEN 'Thứ 3'
-        WHEN 4 THEN 'Thứ 4'
-        WHEN 5 THEN 'Thứ 5'
-        WHEN 6 THEN 'Thứ 6'
-        WHEN 7 THEN 'Thứ 7'
-    END AS ten_thu,
-    th_bd."TenTiet" AS tiet_bat_dau,
-    th_kt."TenTiet" AS tiet_ket_thuc,
-    th_bd."GioBatDau",
-    th_kt."GioKetThuc",
-    lhl."PhongHoc",
-    l."GiangVien",
-    lm."SoLuongDaDangKy",
-    l."SoLuongToiDa"
-FROM "LOPMO" lm
-JOIN "LOP" l ON lm."MaLop" = l."MaLop"
-JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
-JOIN "HOCKY" hk ON lm."MaHocKy" = hk."MaHocKy"
-LEFT JOIN "LICHHOCLOP" lhl ON lm.id = lhl."LopMoId"
-LEFT JOIN "TIETHOC" th_bd ON lhl."MaTietBatDau" = th_bd."MaTiet"
-LEFT JOIN "TIETHOC" th_kt ON lhl."MaTietKetThuc" = th_kt."MaTiet"
-WHERE lm."TrangThai" = TRUE;
-
--- View: Bảng điểm sinh viên theo học kỳ
-CREATE OR REPLACE VIEW v_bang_diem_sinh_vien AS
-SELECT 
-    dsv."MaSv",
-    sv."HoTen",
-    dsv."MaHocKy",
-    hk."TenHocKy",
-    dsv."MaMonHoc",
-    mh."TenMonHoc",
-    mh."SoTinChi",
-    dsv."DiemTrungBinh",
-    dsv."DiemChu",
-    dsv."LanHoc",
-    dsv."KetQua",
-    CASE 
-        WHEN dsv."DiemTrungBinh" < 5.0 THEN 'Cần học lại'
-        WHEN dsv."DiemTrungBinh" < 7.0 THEN 'Có thể cải thiện'
-        ELSE 'Đạt yêu cầu'
-    END AS ghi_chu_ket_qua
-FROM "DIEMSINHVIEN" dsv
-JOIN "SINHVIEN" sv ON dsv."MaSv" = sv."MaSv"
-JOIN "MONHOC" mh ON dsv."MaMonHoc" = mh."MaMonHoc"
-JOIN "HOCKY" hk ON dsv."MaHocKy" = hk."MaHocKy"
-ORDER BY dsv."MaSv", dsv."MaHocKy", dsv."MaMonHoc";
 
 -- =====================================================
 -- =====================================================
@@ -4375,27 +4070,63 @@ INSERT INTO "TIETHOC" ("MaTiet", "TenTiet", "GioBatDau", "GioKetThuc", "ThuTu", 
 ('TOI', 'Buổi tối', '17:45:00', '20:45:00', 11, 'Buổi tối (17:45 - 20:45)');
 
 -- =====================================================
--- INSERT DATA - Cấu hình đăng ký môn học
--- Quy định số tín chỉ tối đa và điều kiện vượt
+-- INSERT DATA - Tham số hệ thống
 -- =====================================================
-INSERT INTO "CAUHINHDANGKY" ("MaCauHinh", "TenCauHinh", "GiaTri", "GiaTriSo", "MoTa") VALUES
-('MAX_TC_HK', 'Số tín chỉ tối đa mỗi học kỳ', 24, NULL, 'Sinh viên không được đăng ký quá 24 tín chỉ mỗi học kỳ'),
-('MIN_GPA_VUOT', 'Điểm GPA tối thiểu để vượt tín chỉ', 0, 8.50, 'Sinh viên cần có GPA >= 8.5 để đăng ký vượt số tín chỉ tối đa'),
-('MAX_TC_VUOT', 'Số tín chỉ tối đa khi vượt', 30, NULL, 'Sinh viên có GPA >= 8.5 được đăng ký tối đa 30 tín chỉ'),
-('DIEM_DAU', 'Điểm đậu tối thiểu', 5, 5.00, 'Điểm trung bình môn >= 5.0 mới được tính là đậu'),
-('MIN_TC_HK', 'Số tín chỉ tối thiểu mỗi học kỳ', 14, NULL, 'Sinh viên phải đăng ký tối thiểu 14 tín chỉ mỗi học kỳ');
+INSERT INTO "THAMSO" (
+    id,
+    "SoTinChiDangKyToiThieu",
+    "SoTinChiDangKyToiDa",
+    "SoTinChiDangKyToiDaKhiVuot",
+    "GPAQuaMon",
+    "GPADangKyVuot"
+) VALUES (1, 14, 24, 30, 5.00, 8.50);
+
+-- =====================================================
+-- INSERT DATA - Nhóm người dùng, chức năng và phân quyền
+-- =====================================================
+INSERT INTO "NHOMNGUOIDUNG" ("MaNhom", "TenNhom") VALUES
+('ADMIN', 'Quản trị viên'),
+('SINHVIEN', 'Sinh viên');
+
+INSERT INTO "CHUCNANG" ("MaChucNang", "TenChucNang", "TenManHinhDuocLoad") VALUES
+('DASHBOARD', 'Dashboard', 'Dashboard'),
+('SINHVIEN', 'Quản lý sinh viên', 'QuanLySinhVien'),
+('MONHOC', 'Quản lý môn học', 'QuanLyMonHoc'),
+('DANGKY', 'Đăng ký môn học', 'DangKyMonHoc'),
+('HOCPHI', 'Quản lý học phí', 'QuanLyHocPhi'),
+('THONGBAO', 'Thông báo', 'ThongBao'),
+('NGUOIDUNG', 'Quản lý người dùng', 'QuanLyNguoiDung'),
+('PHANQUYEN', 'Phân quyền', 'PhanQuyen'),
+('BAOCAO', 'Báo cáo', 'BaoCao'),
+('THAMSO', 'Tham số hệ thống', 'ThamSo');
+
+INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
+('ADMIN', 'DASHBOARD'),
+('ADMIN', 'SINHVIEN'),
+('ADMIN', 'MONHOC'),
+('ADMIN', 'DANGKY'),
+('ADMIN', 'HOCPHI'),
+('ADMIN', 'THONGBAO'),
+('ADMIN', 'NGUOIDUNG'),
+('ADMIN', 'PHANQUYEN'),
+('ADMIN', 'BAOCAO'),
+('ADMIN', 'THAMSO'),
+('SINHVIEN', 'DASHBOARD'),
+('SINHVIEN', 'DANGKY'),
+('SINHVIEN', 'HOCPHI'),
+('SINHVIEN', 'THONGBAO');
 
 -- =====================================================
 -- INSERT DATA - Khoa (Faculties)
 -- =====================================================
-INSERT INTO "KHOA" ("MaKhoa", "TenKhoa", "TenVietTat", "Sdt", "Email", "DiaChi") VALUES
-('CNTT', 'Khoa Công nghệ Thông tin', 'CNTT', '0283.8971234', 'cntt@uit.edu.vn', 'Phòng E101'),
-('KTMT', 'Khoa Kỹ thuật Máy tính', 'KTMT', '0283.8971235', 'ktmt@uit.edu.vn', 'Phòng E102'),
-('HTTT', 'Khoa Hệ thống Thông tin', 'HTTT', '0283.8971236', 'httt@uit.edu.vn', 'Phòng E103'),
-('KHMT', 'Khoa Khoa học Máy tính', 'KHMT', '0283.8971237', 'khmt@uit.edu.vn', 'Phòng E104'),
-('MMT', 'Khoa Mạng máy tính và Truyền thông', 'MMT&TT', '0283.8971238', 'mmt@uit.edu.vn', 'Phòng E105'),
-('KTTT', 'Khoa Kỹ thuật Thông tin', 'KTTT', '0283.8971239', 'kttt@uit.edu.vn', 'Phòng E106'),
-('CNPM', 'Khoa Công nghệ Phần mềm', 'CNPM', '0283.8971240', 'cnpm@uit.edu.vn', 'Phòng E107');
+INSERT INTO "KHOA" ("MaKhoa", "TenKhoa", "TenVietTat", "Sdt", "Email") VALUES
+('CNTT', 'Khoa Công nghệ Thông tin', 'CNTT', '0283.8971234', 'cntt@uit.edu.vn'),
+('KTMT', 'Khoa Kỹ thuật Máy tính', 'KTMT', '0283.8971235', 'ktmt@uit.edu.vn'),
+('HTTT', 'Khoa Hệ thống Thông tin', 'HTTT', '0283.8971236', 'httt@uit.edu.vn'),
+('KHMT', 'Khoa Khoa học Máy tính', 'KHMT', '0283.8971237', 'khmt@uit.edu.vn'),
+('MMT', 'Khoa Mạng máy tính và Truyền thông', 'MMT&TT', '0283.8971238', 'mmt@uit.edu.vn'),
+('KTTT', 'Khoa Kỹ thuật Thông tin', 'KTTT', '0283.8971239', 'kttt@uit.edu.vn'),
+('CNPM', 'Khoa Công nghệ Phần mềm', 'CNPM', '0283.8971240', 'cnpm@uit.edu.vn');
 
 -- =====================================================
 -- INSERT DATA - Ngành học (Academic Programs)
@@ -6240,15 +5971,15 @@ INSERT INTO "NAMHOC" ("MaNamHoc", "TenNamHoc", "NamBatDau", "NamKetThuc") VALUES
 -- =====================================================
 -- INSERT DATA - Học kỳ (Semesters)
 -- =====================================================
-INSERT INTO "HOCKY" ("MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "ThuTu", "NgayBatDau", "NgayKetThuc", "HanDongHocPhi", "TrangThai") VALUES
-('HK1-2324', 'Học kỳ I', '2023-2024', 'Chính', 1, '2023-09-01', '2024-01-15', '2023-10-15', 'Đã kết thúc'),
-('HK2-2324', 'Học kỳ II', '2023-2024', 'Chính', 2, '2024-02-01', '2024-06-15', '2024-03-15', 'Đã kết thúc'),
-('HKH-2324', 'Học kỳ Hè', '2023-2024', 'Hè', 3, '2024-07-01', '2024-08-15', '2024-07-15', 'Đã kết thúc'),
-('HK1-2425', 'Học kỳ I', '2024-2025', 'Chính', 1, '2024-09-01', '2025-01-15', '2024-10-15', 'Đã kết thúc'),
-('HK2-2425', 'Học kỳ II', '2024-2025', 'Chính', 2, '2025-02-01', '2025-06-15', '2025-03-15', 'Đang diễn ra'),
-('HKH-2425', 'Học kỳ Hè', '2024-2025', 'Hè', 3, '2025-07-01', '2025-08-15', '2025-07-15', 'Sắp diễn ra'),
-('HK1-2526', 'Học kỳ I', '2025-2026', 'Chính', 1, '2025-09-01', '2026-01-15', '2025-10-15', 'Sắp diễn ra'),
-('HK2-2526', 'Học kỳ II', '2025-2026', 'Chính', 2, '2026-02-01', '2026-06-15', '2026-03-15', 'Sắp diễn ra');
+INSERT INTO "HOCKY" ("MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "NgayBatDau", "NgayKetThuc", "HanDongHocPhi", "TrangThai") VALUES
+('HK1-2324', 'Học kỳ I', '2023-2024', 'Chính', '2023-09-01', '2024-01-15', '2023-10-15', 'Đã kết thúc'),
+('HK2-2324', 'Học kỳ II', '2023-2024', 'Chính', '2024-02-01', '2024-06-15', '2024-03-15', 'Đã kết thúc'),
+('HKH-2324', 'Học kỳ Hè', '2023-2024', 'Hè', '2024-07-01', '2024-08-15', '2024-07-15', 'Đã kết thúc'),
+('HK1-2425', 'Học kỳ I', '2024-2025', 'Chính', '2024-09-01', '2025-01-15', '2024-10-15', 'Đã kết thúc'),
+('HK2-2425', 'Học kỳ II', '2024-2025', 'Chính', '2025-02-01', '2025-06-15', '2025-03-15', 'Đang diễn ra'),
+('HKH-2425', 'Học kỳ Hè', '2024-2025', 'Hè', '2025-07-01', '2025-08-15', '2025-07-15', 'Sắp diễn ra'),
+('HK1-2526', 'Học kỳ I', '2025-2026', 'Chính', '2025-09-01', '2026-01-15', '2025-10-15', 'Sắp diễn ra'),
+('HK2-2526', 'Học kỳ II', '2025-2026', 'Chính', '2026-02-01', '2026-06-15', '2026-03-15', 'Sắp diễn ra');
 
 -- =====================================================
 -- INSERT DATA - Đơn giá tín chỉ (Unit Prices per Credit)
@@ -6264,42 +5995,30 @@ INSERT INTO "DONGIATINCHI" ("LoaiMon", "LoaiHoc", "DonGia", "GhiChu") VALUES
 ('TH', 'hoc_he', 45000, 'Đơn giá môn Thực hành - học hè');
 
 -- =====================================================
--- INSERT DATA - Thông báo mẫu (Sample Notifications)
--- Bảng "THONGBAO" gộp cả thông báo chung ("Loai"='chung') và cá nhân ("Loai"='ca_nhan')
--- =====================================================
-INSERT INTO "THONGBAO" ("Loai", "TieuDe", "NoiDung", "LoaiThongBao", "DOITUONG", "GhimTop", "TrangThai") VALUES
-('chung', 'Đợt đăng ký môn học HK2 2024-2025', 'Thời gian đăng ký: 15/01/2025 - 25/01/2025. Sinh viên truy cập hệ thống đăng ký học để chọn môn. Lưu ý kiểm tra điều kiện tiên quyết trước khi đăng ký.', 'Quan trọng', 'Tất cả', TRUE, TRUE),
-('chung', 'Hạn nộp học phí HK2 2024-2025', 'Hạn cuối nộp học phí: 15/02/2025. Sinh viên chưa nộp đủ học phí sẽ bị khóa đăng ký môn học kỳ tiếp theo. Vui lòng thanh toán qua các phương thức được hỗ trợ.', 'Học phí', 'Sinh viên', TRUE, TRUE),
-('chung', 'Lịch thi cuối kỳ HK1 2024-2025 đã được cập nhật', 'Sinh viên kiểm tra lịch thi trong mục Thời khóa biểu. Mọi thắc mắc liên hệ Phòng Đào tạo.', 'Lịch thi', 'Sinh viên', FALSE, TRUE),
-('chung', 'Thông báo nghỉ lễ 30/4 - 1/5', 'Nhà trường thông báo lịch nghỉ lễ 30/4 - 1/5: từ ngày 30/04 đến hết ngày 01/05. Sinh viên quay lại học tập bình thường từ ngày 02/05.', 'Chung', 'Tất cả', FALSE, TRUE),
-('chung', 'Cập nhật thông tin sinh viên', 'Phòng Công tác sinh viên yêu cầu tất cả sinh viên cập nhật thông tin cá nhân (CCCD, số điện thoại, địa chỉ) trước ngày 30/01/2025.', 'Chung', 'Sinh viên', FALSE, TRUE),
-('chung', 'Đợt xét học bổng HK1 2024-2025', 'Danh sách xét học bổng HK1 đã được công bố. Sinh viên kiểm tra kết quả tại Phòng Công tác sinh viên hoặc qua hệ thống trực tuyến.', 'Học bổng', 'Sinh viên', FALSE, TRUE);
-
--- =====================================================
 -- INSERT DATA - Tài khoản mẫu (Sample Accounts)
 -- Password: admin123 -> bcrypt hash
 -- Password: student123 -> bcrypt hash
 -- =====================================================
 
 -- Tài khoản Admin
-INSERT INTO "TAIKHOAN" ("TenDangNhap", "MatKhau", "Role", "HoTen", "Email", "TrangThai") VALUES
-('admin', '$2b$10$aMTwtHVFreMooCvW6/aHuucOqzapBULA2NxTuIdnqQjQpf3WBBeY2', 'admin', 'Quản trị viên', 'admin@school.edu.vn', TRUE);
+INSERT INTO "NGUOIDUNG" ("TenDangNhap", "MatKhau", "Role", "MaNhom", "HoTen", "Email", "TrangThai") VALUES
+('admin', '$2b$10$aMTwtHVFreMooCvW6/aHuucOqzapBULA2NxTuIdnqQjQpf3WBBeY2', 'admin', 'ADMIN', 'Quản trị viên', 'admin@school.edu.vn', TRUE);
 
 -- Tạo quan trị viên (sử dụng subquery để lấy đúng ID)
 INSERT INTO "QUANTRIVIEN" ("MaTaiKhoan", "HoTen", "ChucVu") 
 SELECT "MaTaiKhoan", 'Quản trị viên', 'Admin hệ thống' 
-FROM "TAIKHOAN" WHERE "TenDangNhap" = 'admin';
+FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin';
 
 -- =====================================================
 -- Tài khoản Sinh viên mẫu (password: student123)
 -- Bước 1: Tạo tài khoản KHÔNG có "MaSv" (tránh circular FK)
 -- =====================================================
-INSERT INTO "TAIKHOAN" ("TenDangNhap", "MatKhau", "Role", "HoTen", "Email", "TrangThai") VALUES
-('22520001', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'Nguyễn Văn An', 'an.nguyen@student.edu.vn', TRUE),
-('22520002', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'Trần Thị Bình', 'binh.tran@student.edu.vn', TRUE),
-('22520003', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'Lê Văn Cường', 'cuong.le@student.edu.vn', TRUE),
-('22520004', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'Phạm Thị Dung', 'dung.pham@student.edu.vn', TRUE),
-('22520005', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'Hoàng Minh Đức', 'duc.hoang@student.edu.vn', TRUE);
+INSERT INTO "NGUOIDUNG" ("TenDangNhap", "MatKhau", "Role", "MaNhom", "HoTen", "Email", "TrangThai") VALUES
+('22520001', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'SINHVIEN', 'Nguyễn Văn An', 'an.nguyen@student.edu.vn', TRUE),
+('22520002', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'SINHVIEN', 'Trần Thị Bình', 'binh.tran@student.edu.vn', TRUE),
+('22520003', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'SINHVIEN', 'Lê Văn Cường', 'cuong.le@student.edu.vn', TRUE),
+('22520004', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'SINHVIEN', 'Phạm Thị Dung', 'dung.pham@student.edu.vn', TRUE),
+('22520005', '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi', 'student', 'SINHVIEN', 'Hoàng Minh Đức', 'duc.hoang@student.edu.vn', TRUE);
 
 -- =====================================================
 -- Bước 2: Tạo sinh viên với "MaTaiKhoan" (dùng subquery)
@@ -6314,181 +6033,181 @@ INSERT INTO "TAIKHOAN" ("TenDangNhap", "MatKhau", "Role", "HoTen", "Email", "Tra
 -- =====================================================
 INSERT INTO "SINHVIEN" ("MaSv", "MaTaiKhoan", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc", "MaNganh", "Sdt", "Email", "TrangThai")
 SELECT '22520001', "MaTaiKhoan", 'Nguyễn Văn An', '2004-05-15', 'Nam', '079204001234', '2659', 'KINH', 'KTPM', '0901234567', 'an.nguyen@student.edu.vn', 'Đang học'
-FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520001';
+FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001';
 
 INSERT INTO "SINHVIEN" ("MaSv", "MaTaiKhoan", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc", "MaNganh", "Sdt", "Email", "TrangThai")
 SELECT '22520002', "MaTaiKhoan", 'Trần Thị Bình', '2004-08-20', 'Nữ', '079204005678', '2660', 'KINH', 'KHMT', '0909876543', 'binh.tran@student.edu.vn', 'Đang học'
-FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520002';
+FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002';
 
 INSERT INTO "SINHVIEN" ("MaSv", "MaTaiKhoan", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc", "MaNganh", "Sdt", "Email", "TrangThai")
 SELECT '22520003', "MaTaiKhoan", 'Lê Văn Cường', '2004-03-10', 'Nam', '079204009012', '2661', 'KINH', 'HTTT', '0912345678', 'cuong.le@student.edu.vn', 'Đang học'
-FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520003';
+FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003';
 
 INSERT INTO "SINHVIEN" ("MaSv", "MaTaiKhoan", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc", "MaNganh", "Sdt", "Email", "TrangThai")
 SELECT '22520004', "MaTaiKhoan", 'Phạm Thị Dung', '2004-11-25', 'Nữ', '079204003456', '2662', 'KINH', 'KTPM', '0923456789', 'dung.pham@student.edu.vn', 'Đang học'
-FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520004';
+FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004';
 
 -- Sinh viên này là dân tộc Mông (DTTS) để test chức năng vùng sâu vùng xa
 INSERT INTO "SINHVIEN" ("MaSv", "MaTaiKhoan", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc", "MaNganh", "Sdt", "Email", "TrangThai")
 SELECT '22520005', "MaTaiKhoan", 'Hoàng Minh Đức', '2004-07-08', 'Nam', '079204007890', '2663', 'MONG', 'MMT', '0934567890', 'duc.hoang@student.edu.vn', 'Đang học'
-FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520005';
+FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005';
 
 -- =====================================================
--- Bước 3: Cập nhật "MaSv" trong "TAIKHOAN"
+-- Bước 3: Cập nhật "MaSv" trong "NGUOIDUNG"
 -- =====================================================
-UPDATE "TAIKHOAN" SET "MaSv" = '22520001' WHERE "TenDangNhap" = '22520001';
-UPDATE "TAIKHOAN" SET "MaSv" = '22520002' WHERE "TenDangNhap" = '22520002';
-UPDATE "TAIKHOAN" SET "MaSv" = '22520003' WHERE "TenDangNhap" = '22520003';
-UPDATE "TAIKHOAN" SET "MaSv" = '22520004' WHERE "TenDangNhap" = '22520004';
-UPDATE "TAIKHOAN" SET "MaSv" = '22520005' WHERE "TenDangNhap" = '22520005';
+UPDATE "NGUOIDUNG" SET "MaSv" = '22520001' WHERE "TenDangNhap" = '22520001';
+UPDATE "NGUOIDUNG" SET "MaSv" = '22520002' WHERE "TenDangNhap" = '22520002';
+UPDATE "NGUOIDUNG" SET "MaSv" = '22520003' WHERE "TenDangNhap" = '22520003';
+UPDATE "NGUOIDUNG" SET "MaSv" = '22520004' WHERE "TenDangNhap" = '22520004';
+UPDATE "NGUOIDUNG" SET "MaSv" = '22520005' WHERE "TenDangNhap" = '22520005';
 
 -- =====================================================
 -- INSERT DATA - Lớp học (Classes)
 -- =====================================================
-INSERT INTO "LOP" ("MaLop", "TenLop", "MaMonHoc", "GiangVien", "LichHoc", "PhongHoc", "SoLuongToiDa") VALUES
+INSERT INTO "LOP" ("MaLop", "TenLop", "MaMonHoc", "LichHoc", "PhongHoc", "SoLuongToiDa") VALUES
 -- Lớp cho các môn cơ bản
-('IT001.N01', 'Nhập môn Lập trình - N01', 'IT001', 'TS. Nguyễn Văn A', 'Thứ 2 (7h30-9h30)', 'B2.01', 50),
-('IT001.N02', 'Nhập môn Lập trình - N02', 'IT001', 'ThS. Trần Thị B', 'Thứ 3 (9h30-11h30)', 'B2.02', 50),
-('IT001.N03', 'Nhập môn Lập trình - N03', 'IT001', 'TS. Lê Văn C', 'Thứ 4 (13h30-15h30)', 'B2.03', 50),
-('IT002.N01', 'Cấu trúc dữ liệu và giải thuật - N01', 'IT002', 'PGS. TS. Phạm Văn D', 'Thứ 2 (13h30-15h30)', 'B3.01', 45),
-('IT002.N02', 'Cấu trúc dữ liệu và giải thuật - N02', 'IT002', 'TS. Hoàng Thị E', 'Thứ 5 (7h30-9h30)', 'B3.02', 45),
-('IT003.N01', 'Cấu trúc rời rạc - N01', 'IT003', 'TS. Đặng Văn F', 'Thứ 3 (13h30-15h30)', 'A1.01', 50),
-('IT003.N02', 'Cấu trúc rời rạc - N02', 'IT003', 'ThS. Vũ Thị G', 'Thứ 6 (7h30-9h30)', 'A1.02', 50),
-('IT004.N01', 'Cơ sở dữ liệu - N01', 'IT004', 'PGS. TS. Bùi Văn H', 'Thứ 4 (7h30-9h30)', 'B4.01', 50),
-('IT004.N02', 'Cơ sở dữ liệu - N02', 'IT004', 'TS. Ngô Thị I', 'Thứ 2 (9h30-11h30)', 'B4.02', 50),
-('IT005.N01', 'Nhập môn Mạng máy tính - N01', 'IT005', 'TS. Đinh Văn K', 'Thứ 5 (13h30-15h30)', 'C1.01', 45),
-('IT005.N02', 'Nhập môn Mạng máy tính - N02', 'IT005', 'ThS. Mai Văn L', 'Thứ 6 (9h30-11h30)', 'C1.02', 45),
-('IT006.N01', 'Kiến trúc máy tính - N01', 'IT006', 'TS. Phan Văn M', 'Thứ 3 (7h30-9h30)', 'B5.01', 50),
-('IT006.N02', 'Kiến trúc máy tính - N02', 'IT006', 'ThS. Lý Thị N', 'Thứ 4 (9h30-11h30)', 'B5.02', 50),
-('IT007.N01', 'Hệ điều hành - N01', 'IT007', 'PGS. TS. Trịnh Văn O', 'Thứ 2 (15h30-17h30)', 'B6.01', 45),
-('IT007.N02', 'Hệ điều hành - N02', 'IT007', 'TS. Đỗ Thị P', 'Thứ 5 (9h30-11h30)', 'B6.02', 45),
-('IT008.N01', 'Lập trình hướng đối tượng - N01', 'IT008', 'TS. Cao Văn Q', 'Thứ 6 (13h30-15h30)', 'B7.01', 50),
-('IT008.N02', 'Lập trình hướng đối tượng - N02', 'IT008', 'ThS. Lương Thị R', 'Thứ 4 (15h30-17h30)', 'B7.02', 50),
+('IT001.N01', 'Nhập môn Lập trình - N01', 'IT001', 'Thứ 2 (7h30-9h30)', 'B2.01', 50),
+('IT001.N02', 'Nhập môn Lập trình - N02', 'IT001', 'Thứ 3 (9h30-11h30)', 'B2.02', 50),
+('IT001.N03', 'Nhập môn Lập trình - N03', 'IT001', 'Thứ 4 (13h30-15h30)', 'B2.03', 50),
+('IT002.N01', 'Cấu trúc dữ liệu và giải thuật - N01', 'IT002', 'Thứ 2 (13h30-15h30)', 'B3.01', 45),
+('IT002.N02', 'Cấu trúc dữ liệu và giải thuật - N02', 'IT002', 'Thứ 5 (7h30-9h30)', 'B3.02', 45),
+('IT003.N01', 'Cấu trúc rời rạc - N01', 'IT003', 'Thứ 3 (13h30-15h30)', 'A1.01', 50),
+('IT003.N02', 'Cấu trúc rời rạc - N02', 'IT003', 'Thứ 6 (7h30-9h30)', 'A1.02', 50),
+('IT004.N01', 'Cơ sở dữ liệu - N01', 'IT004', 'Thứ 4 (7h30-9h30)', 'B4.01', 50),
+('IT004.N02', 'Cơ sở dữ liệu - N02', 'IT004', 'Thứ 2 (9h30-11h30)', 'B4.02', 50),
+('IT005.N01', 'Nhập môn Mạng máy tính - N01', 'IT005', 'Thứ 5 (13h30-15h30)', 'C1.01', 45),
+('IT005.N02', 'Nhập môn Mạng máy tính - N02', 'IT005', 'Thứ 6 (9h30-11h30)', 'C1.02', 45),
+('IT006.N01', 'Kiến trúc máy tính - N01', 'IT006', 'Thứ 3 (7h30-9h30)', 'B5.01', 50),
+('IT006.N02', 'Kiến trúc máy tính - N02', 'IT006', 'Thứ 4 (9h30-11h30)', 'B5.02', 50),
+('IT007.N01', 'Hệ điều hành - N01', 'IT007', 'Thứ 2 (15h30-17h30)', 'B6.01', 45),
+('IT007.N02', 'Hệ điều hành - N02', 'IT007', 'Thứ 5 (9h30-11h30)', 'B6.02', 45),
+('IT008.N01', 'Lập trình hướng đối tượng - N01', 'IT008', 'Thứ 6 (13h30-15h30)', 'B7.01', 50),
+('IT008.N02', 'Lập trình hướng đối tượng - N02', 'IT008', 'Thứ 4 (15h30-17h30)', 'B7.02', 50),
 -- Lớp cho môn chuyên ngành
-('SE104.N01', 'Nhập môn Công nghệ phần mềm - N01', 'SE104', 'TS. Trương Văn S', 'Thứ 2 (7h30-9h30)', 'E1.01', 40),
-('SE104.N02', 'Nhập môn Công nghệ phần mềm - N02', 'SE104', 'ThS. Hồ Thị T', 'Thứ 3 (13h30-15h30)', 'E1.02', 40),
-('CS106.N01', 'Trí tuệ nhân tạo - N01', 'CS106', 'PGS. TS. Lâm Văn U', 'Thứ 4 (7h30-9h30)', 'E2.01', 40),
-('CS106.N02', 'Trí tuệ nhân tạo - N02', 'CS106', 'TS. Tô Thị V', 'Thứ 5 (15h30-17h30)', 'E2.02', 40),
-('CS106_TH.N01', 'Trí tuệ nhân tạo (TH) - N01', 'CS106_TH', 'PGS. TS. Lâm Văn U', 'Thứ 6 (7h30-9h30)', 'PM.01', 30),
-('CS106_TH.N02', 'Trí tuệ nhân tạo (TH) - N02', 'CS106_TH', 'TS. Tô Thị V', 'Thứ 6 (13h30-15h30)', 'PM.02', 30),
-('IS207.N01', 'Phát triển ứng dụng Web - N01', 'IS207', 'TS. Dương Văn X', 'Thứ 2 (9h30-11h30)', 'E3.01', 35),
-('IS207.N02', 'Phát triển ứng dụng Web - N02', 'IS207', 'ThS. Châu Thị Y', 'Thứ 4 (13h30-15h30)', 'E3.02', 35),
-('IS207_TH.N01', 'Phát triển ứng dụng Web (TH) - N01', 'IS207_TH', 'TS. Dương Văn X', 'Thứ 3 (7h30-9h30)', 'PM.03', 30),
-('IS207_TH.N02', 'Phát triển ứng dụng Web (TH) - N02', 'IS207_TH', 'ThS. Châu Thị Y', 'Thứ 5 (9h30-11h30)', 'PM.04', 30),
-('NT101.N01', 'Nhập môn An toàn thông tin - N01', 'NT101', 'TS. Kiều Văn Z', 'Thứ 3 (9h30-11h30)', 'E4.01', 40),
-('NT101.N02', 'Nhập môn An toàn thông tin - N02', 'NT101', 'ThS. Quách Văn AA', 'Thứ 6 (15h30-17h30)', 'E4.02', 40),
-('CE103.N01', 'Vi xử lý-vi điều khiển - N01', 'CE103', 'TS. Mạc Văn BB', 'Thứ 4 (9h30-11h30)', 'E5.01', 35),
-('CE103.N02', 'Vi xử lý-vi điều khiển - N02', 'CE103', 'ThS. La Thị CC', 'Thứ 2 (13h30-15h30)', 'E5.02', 35),
-('CE103_TH.N01', 'Vi xử lý-vi điều khiển (TH) - N01', 'CE103_TH', 'TS. Mạc Văn BB', 'Thứ 5 (7h30-9h30)', 'LAB.01', 25),
-('CE103_TH.N02', 'Vi xử lý-vi điều khiển (TH) - N02', 'CE103_TH', 'ThS. La Thị CC', 'Thứ 6 (9h30-11h30)', 'LAB.02', 25),
+('SE104.N01', 'Nhập môn Công nghệ phần mềm - N01', 'SE104', 'Thứ 2 (7h30-9h30)', 'E1.01', 40),
+('SE104.N02', 'Nhập môn Công nghệ phần mềm - N02', 'SE104', 'Thứ 3 (13h30-15h30)', 'E1.02', 40),
+('CS106.N01', 'Trí tuệ nhân tạo - N01', 'CS106', 'Thứ 4 (7h30-9h30)', 'E2.01', 40),
+('CS106.N02', 'Trí tuệ nhân tạo - N02', 'CS106', 'Thứ 5 (15h30-17h30)', 'E2.02', 40),
+('CS106_TH.N01', 'Trí tuệ nhân tạo (TH) - N01', 'CS106_TH', 'Thứ 6 (7h30-9h30)', 'PM.01', 30),
+('CS106_TH.N02', 'Trí tuệ nhân tạo (TH) - N02', 'CS106_TH', 'Thứ 6 (13h30-15h30)', 'PM.02', 30),
+('IS207.N01', 'Phát triển ứng dụng Web - N01', 'IS207', 'Thứ 2 (9h30-11h30)', 'E3.01', 35),
+('IS207.N02', 'Phát triển ứng dụng Web - N02', 'IS207', 'Thứ 4 (13h30-15h30)', 'E3.02', 35),
+('IS207_TH.N01', 'Phát triển ứng dụng Web (TH) - N01', 'IS207_TH', 'Thứ 3 (7h30-9h30)', 'PM.03', 30),
+('IS207_TH.N02', 'Phát triển ứng dụng Web (TH) - N02', 'IS207_TH', 'Thứ 5 (9h30-11h30)', 'PM.04', 30),
+('NT101.N01', 'Nhập môn An toàn thông tin - N01', 'NT101', 'Thứ 3 (9h30-11h30)', 'E4.01', 40),
+('NT101.N02', 'Nhập môn An toàn thông tin - N02', 'NT101', 'Thứ 6 (15h30-17h30)', 'E4.02', 40),
+('CE103.N01', 'Vi xử lý-vi điều khiển - N01', 'CE103', 'Thứ 4 (9h30-11h30)', 'E5.01', 35),
+('CE103.N02', 'Vi xử lý-vi điều khiển - N02', 'CE103', 'Thứ 2 (13h30-15h30)', 'E5.02', 35),
+('CE103_TH.N01', 'Vi xử lý-vi điều khiển (TH) - N01', 'CE103_TH', 'Thứ 5 (7h30-9h30)', 'LAB.01', 25),
+('CE103_TH.N02', 'Vi xử lý-vi điều khiển (TH) - N02', 'CE103_TH', 'Thứ 6 (9h30-11h30)', 'LAB.02', 25),
 -- Thêm các lớp môn Toán
-('MA001.N01', 'Giải tích 1 - N01', 'MA001', 'PGS. TS. Nguyễn Minh A', 'Thứ 2 (7h30-9h30)', 'A2.01', 60),
-('MA001.N02', 'Giải tích 1 - N02', 'MA001', 'TS. Trần Anh B', 'Thứ 4 (7h30-9h30)', 'A2.02', 60),
-('MA002.N01', 'Giải tích 2 - N01', 'MA002', 'TS. Lê Quang C', 'Thứ 3 (9h30-11h30)', 'A3.01', 55),
-('MA002.N02', 'Giải tích 2 - N02', 'MA002', 'ThS. Phạm Thu D', 'Thứ 5 (13h30-15h30)', 'A3.02', 55),
-('MA003.N01', 'Đại số tuyến tính - N01', 'MA003', 'PGS. TS. Hoàng Văn E', 'Thứ 2 (9h30-11h30)', 'A4.01', 60),
-('MA003.N02', 'Đại số tuyến tính - N02', 'MA003', 'TS. Đinh Thị F', 'Thứ 6 (7h30-9h30)', 'A4.02', 60),
-('MA005.N01', 'Xác suất thống kê - N01', 'MA005', 'TS. Vũ Minh G', 'Thứ 4 (13h30-15h30)', 'A5.01', 55),
-('MA005.N02', 'Xác suất thống kê - N02', 'MA005', 'ThS. Bùi Lan H', 'Thứ 3 (7h30-9h30)', 'A5.02', 55),
+('MA001.N01', 'Giải tích 1 - N01', 'MA001', 'Thứ 2 (7h30-9h30)', 'A2.01', 60),
+('MA001.N02', 'Giải tích 1 - N02', 'MA001', 'Thứ 4 (7h30-9h30)', 'A2.02', 60),
+('MA002.N01', 'Giải tích 2 - N01', 'MA002', 'Thứ 3 (9h30-11h30)', 'A3.01', 55),
+('MA002.N02', 'Giải tích 2 - N02', 'MA002', 'Thứ 5 (13h30-15h30)', 'A3.02', 55),
+('MA003.N01', 'Đại số tuyến tính - N01', 'MA003', 'Thứ 2 (9h30-11h30)', 'A4.01', 60),
+('MA003.N02', 'Đại số tuyến tính - N02', 'MA003', 'Thứ 6 (7h30-9h30)', 'A4.02', 60),
+('MA005.N01', 'Xác suất thống kê - N01', 'MA005', 'Thứ 4 (13h30-15h30)', 'A5.01', 55),
+('MA005.N02', 'Xác suất thống kê - N02', 'MA005', 'Thứ 3 (7h30-9h30)', 'A5.02', 55),
 -- Thêm các lớp môn Tiếng Anh
-('ENG03.N01', 'Tiếng Anh 3 - N01', 'ENG03', 'ThS. Emily Johnson', 'Thứ 2 (13h30-15h30)', 'NN.01', 35),
-('ENG03.N02', 'Tiếng Anh 3 - N02', 'ENG03', 'ThS. David Smith', 'Thứ 4 (9h30-11h30)', 'NN.02', 35),
-('ENG04.N01', 'Tiếng Anh 4 - N01', 'ENG04', 'ThS. Sarah Wilson', 'Thứ 3 (15h30-17h30)', 'NN.03', 35),
-('ENG04.N02', 'Tiếng Anh 4 - N02', 'ENG04', 'ThS. Michael Brown', 'Thứ 5 (7h30-9h30)', 'NN.04', 35);
+('ENG03.N01', 'Tiếng Anh 3 - N01', 'ENG03', 'Thứ 2 (13h30-15h30)', 'NN.01', 35),
+('ENG03.N02', 'Tiếng Anh 3 - N02', 'ENG03', 'Thứ 4 (9h30-11h30)', 'NN.02', 35),
+('ENG04.N01', 'Tiếng Anh 4 - N01', 'ENG04', 'Thứ 3 (15h30-17h30)', 'NN.03', 35),
+('ENG04.N02', 'Tiếng Anh 4 - N02', 'ENG04', 'Thứ 5 (7h30-9h30)', 'NN.04', 35);
 
 -- =====================================================
 -- INSERT DATA - Chương trình học (Curriculum)
 -- =====================================================
-INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKyDuKien", "BatBuoc") VALUES
+INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy") VALUES
 -- Chương trình học ngành Kỹ thuật Phần mềm (KTPM)
-('KTPM', 'IT001', 1, TRUE),
-('KTPM', 'MA001', 1, TRUE),
-('KTPM', 'SS007', 1, TRUE),
-('KTPM', 'ENG03', 1, TRUE),
-('KTPM', 'IT002', 2, TRUE),
-('KTPM', 'IT003', 2, TRUE),
-('KTPM', 'MA002', 2, TRUE),
-('KTPM', 'ENG04', 2, TRUE),
-('KTPM', 'IT004', 3, TRUE),
-('KTPM', 'MA003', 3, TRUE),
-('KTPM', 'IT006', 3, TRUE),
-('KTPM', 'IT007', 4, TRUE),
-('KTPM', 'IT008', 4, TRUE),
-('KTPM', 'MA005', 4, TRUE),
-('KTPM', 'SE104', 5, TRUE),
-('KTPM', 'SE207', 5, TRUE),
-('KTPM', 'SE113', 6, TRUE),
-('KTPM', 'SE210', 6, TRUE),
-('KTPM', 'SE310', 7, FALSE),
-('KTPM', 'SE311', 7, FALSE),
-('KTPM', 'SE505', 8, TRUE),
+('KTPM', 'IT001', 1),
+('KTPM', 'MA001', 1),
+('KTPM', 'SS007', 1),
+('KTPM', 'ENG03', 1),
+('KTPM', 'IT002', 2),
+('KTPM', 'IT003', 2),
+('KTPM', 'MA002', 2),
+('KTPM', 'ENG04', 2),
+('KTPM', 'IT004', 3),
+('KTPM', 'MA003', 3),
+('KTPM', 'IT006', 3),
+('KTPM', 'IT007', 4),
+('KTPM', 'IT008', 4),
+('KTPM', 'MA005', 4),
+('KTPM', 'SE104', 5),
+('KTPM', 'SE207', 5),
+('KTPM', 'SE113', 6),
+('KTPM', 'SE210', 6),
+('KTPM', 'SE310', 7),
+('KTPM', 'SE311', 7),
+('KTPM', 'SE505', 8),
 -- Chương trình học ngành Khoa học Máy tính (KHMT)
-('KHMT', 'IT001', 1, TRUE),
-('KHMT', 'MA001', 1, TRUE),
-('KHMT', 'SS007', 1, TRUE),
-('KHMT', 'ENG03', 1, TRUE),
-('KHMT', 'IT002', 2, TRUE),
-('KHMT', 'IT003', 2, TRUE),
-('KHMT', 'MA002', 2, TRUE),
-('KHMT', 'ENG04', 2, TRUE),
-('KHMT', 'IT004', 3, TRUE),
-('KHMT', 'MA003', 3, TRUE),
-('KHMT', 'IT006', 3, TRUE),
-('KHMT', 'IT007', 4, TRUE),
-('KHMT', 'MA005', 4, TRUE),
-('KHMT', 'CS106', 5, TRUE),
-('KHMT', 'CS106_TH', 5, TRUE),
-('KHMT', 'CS110', 5, TRUE),
-('KHMT', 'CS110_TH', 5, TRUE),
-('KHMT', 'CS212', 6, TRUE),
-('KHMT', 'CS212_TH', 6, TRUE),
-('KHMT', 'CS231', 6, TRUE),
-('KHMT', 'CS231_TH', 6, TRUE),
-('KHMT', 'CS228', 7, FALSE),
-('KHMT', 'CS228_TH', 7, FALSE),
+('KHMT', 'IT001', 1),
+('KHMT', 'MA001', 1),
+('KHMT', 'SS007', 1),
+('KHMT', 'ENG03', 1),
+('KHMT', 'IT002', 2),
+('KHMT', 'IT003', 2),
+('KHMT', 'MA002', 2),
+('KHMT', 'ENG04', 2),
+('KHMT', 'IT004', 3),
+('KHMT', 'MA003', 3),
+('KHMT', 'IT006', 3),
+('KHMT', 'IT007', 4),
+('KHMT', 'MA005', 4),
+('KHMT', 'CS106', 5),
+('KHMT', 'CS106_TH', 5),
+('KHMT', 'CS110', 5),
+('KHMT', 'CS110_TH', 5),
+('KHMT', 'CS212', 6),
+('KHMT', 'CS212_TH', 6),
+('KHMT', 'CS231', 6),
+('KHMT', 'CS231_TH', 6),
+('KHMT', 'CS228', 7),
+('KHMT', 'CS228_TH', 7),
 -- Chương trình học ngành Hệ thống Thông tin (HTTT)
-('HTTT', 'IT001', 1, TRUE),
-('HTTT', 'MA001', 1, TRUE),
-('HTTT', 'SS007', 1, TRUE),
-('HTTT', 'ENG03', 1, TRUE),
-('HTTT', 'IT002', 2, TRUE),
-('HTTT', 'IT003', 2, TRUE),
-('HTTT', 'MA002', 2, TRUE),
-('HTTT', 'ENG04', 2, TRUE),
-('HTTT', 'IT004', 3, TRUE),
-('HTTT', 'MA003', 3, TRUE),
-('HTTT', 'IT005', 3, TRUE),
-('HTTT', 'IT007', 4, TRUE),
-('HTTT', 'MA005', 4, TRUE),
-('HTTT', 'IS207', 5, TRUE),
-('HTTT', 'IS207_TH', 5, TRUE),
-('HTTT', 'IS251', 5, TRUE),
-('HTTT', 'IS336', 6, TRUE),
-('HTTT', 'IS351', 6, TRUE),
-('HTTT', 'IS405', 7, FALSE),
+('HTTT', 'IT001', 1),
+('HTTT', 'MA001', 1),
+('HTTT', 'SS007', 1),
+('HTTT', 'ENG03', 1),
+('HTTT', 'IT002', 2),
+('HTTT', 'IT003', 2),
+('HTTT', 'MA002', 2),
+('HTTT', 'ENG04', 2),
+('HTTT', 'IT004', 3),
+('HTTT', 'MA003', 3),
+('HTTT', 'IT005', 3),
+('HTTT', 'IT007', 4),
+('HTTT', 'MA005', 4),
+('HTTT', 'IS207', 5),
+('HTTT', 'IS207_TH', 5),
+('HTTT', 'IS251', 5),
+('HTTT', 'IS336', 6),
+('HTTT', 'IS351', 6),
+('HTTT', 'IS405', 7),
 -- Chương trình học ngành Mạng máy tính và Truyền thông (MMT)
-('MMT', 'IT001', 1, TRUE),
-('MMT', 'MA001', 1, TRUE),
-('MMT', 'SS007', 1, TRUE),
-('MMT', 'ENG03', 1, TRUE),
-('MMT', 'IT002', 2, TRUE),
-('MMT', 'IT003', 2, TRUE),
-('MMT', 'MA002', 2, TRUE),
-('MMT', 'ENG04', 2, TRUE),
-('MMT', 'IT004', 3, TRUE),
-('MMT', 'IT005', 3, TRUE),
-('MMT', 'IT006', 3, TRUE),
-('MMT', 'IT007', 4, TRUE),
-('MMT', 'MA005', 4, TRUE),
-('MMT', 'NT101', 5, TRUE),
-('MMT', 'NT132', 5, TRUE),
-('MMT', 'NT132_TH', 5, TRUE),
-('MMT', 'NT140', 6, TRUE),
-('MMT', 'NT140_TH', 6, TRUE),
-('MMT', 'NT205', 6, TRUE),
-('MMT', 'NT205_TH', 6, TRUE),
-('MMT', 'NT113', 7, FALSE),
-('MMT', 'NT113_TH', 7, FALSE);
+('MMT', 'IT001', 1),
+('MMT', 'MA001', 1),
+('MMT', 'SS007', 1),
+('MMT', 'ENG03', 1),
+('MMT', 'IT002', 2),
+('MMT', 'IT003', 2),
+('MMT', 'MA002', 2),
+('MMT', 'ENG04', 2),
+('MMT', 'IT004', 3),
+('MMT', 'IT005', 3),
+('MMT', 'IT006', 3),
+('MMT', 'IT007', 4),
+('MMT', 'MA005', 4),
+('MMT', 'NT101', 5),
+('MMT', 'NT132', 5),
+('MMT', 'NT132_TH', 5),
+('MMT', 'NT140', 6),
+('MMT', 'NT140_TH', 6),
+('MMT', 'NT205', 6),
+('MMT', 'NT205_TH', 6),
+('MMT', 'NT113', 7),
+('MMT', 'NT113_TH', 7);
 
 -- =====================================================
 -- INSERT DATA - Lớp mở trong học kỳ (Open Classes per Semester)
@@ -6595,35 +6314,33 @@ INSERT INTO "DOITUONGSINHVIEN" ("MaSv", "MaDoiTuong", "GhiChu") VALUES
 -- =====================================================
 -- INSERT DATA - Phiếu đăng ký học phần (Course Registration Forms)
 -- Sử dụng giá trị "SoPhieu" cụ thể để đảm bảo tính nhất quán với "CHITIETDANGKY" và "PHIEUTHUHOCPHI"
--- Cập nhật với các trường thống kê theo loại đăng ký
--- Ghi chú: tien_hoc_* = "SoTinChi" * "DonGia" (27000 cho LT, 37000 cho TH)
 -- =====================================================
-INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TongTinChi", "SoMonHocMoi", "SoTinChiHocMoi", "TienHocMoi", "SoMonHocLai", "SoTinChiHocLai", "TienHocLai", "SoMonHocCaiThien", "SoTinChiHocCaiThien", "TienHocCaiThien", "TongTienDangKy", "TiLeGiam", "TienMienGiam", "TongTienPhaiDong", "TrangThai") VALUES
+INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TongTinChi", "TongTienDangKy", "TienMienGiam", "TrangThai") VALUES
 -- Sinh viên 22520001 - Nguyễn Văn An (không có đối tượng ưu tiên)
 -- Phiếu 1: 6 môn LT, 18 tín chỉ, tổng = 486,000
-(1, '22520001', 'HK2-2425', '2025-01-20 08:30:00', 18, 6, 18, 486000, 0, 0, 0, 0, 0, 0, 486000, 0, 0, 486000, 'Đã đăng ký'),
+(1, '22520001', 'HK2-2425', '2025-01-20 08:30:00', 18, 486000, 0, 'Đã đăng ký'),
 -- Phiếu 2: 5 môn LT, 16 tín chỉ, tổng = 432,000
-(2, '22520001', 'HK1-2425', '2024-09-15 09:00:00', 16, 5, 16, 432000, 0, 0, 0, 0, 0, 0, 432000, 0, 0, 432000, 'Đã đăng ký'),
+(2, '22520001', 'HK1-2425', '2024-09-15 09:00:00', 16, 432000, 0, 'Đã đăng ký'),
 -- Sinh viên 22520002 - Trần Thị Bình (vùng sâu vùng xa - giảm 50%)
 -- Phiếu 3: 5 môn LT (15 TC) + 1 môn TH (1 TC), tổng = 5*81000 + 37000 = 442,000
-(3, '22520002', 'HK2-2425', '2025-01-21 10:15:00', 16, 6, 16, 442000, 0, 0, 0, 0, 0, 0, 442000, 50, 221000, 221000, 'Đã đăng ký'),
+(3, '22520002', 'HK2-2425', '2025-01-21 10:15:00', 16, 442000, 221000, 'Đã đăng ký'),
 -- Phiếu 4: 4 môn LT, 13 tín chỉ, tổng = 351,000
-(4, '22520002', 'HK1-2425', '2024-09-16 14:30:00', 13, 4, 13, 351000, 0, 0, 0, 0, 0, 0, 351000, 50, 175500, 175500, 'Đã đăng ký'),
+(4, '22520002', 'HK1-2425', '2024-09-16 14:30:00', 13, 351000, 175500, 'Đã đăng ký'),
 -- Sinh viên 22520003 - Lê Văn Cường (hộ cận nghèo - giảm 50%)
 -- Phiếu 5: 6 môn LT (18 TC) + 1 môn TH (1 TC), tổng = 6*81000 + 37000 = 523,000
-(5, '22520003', 'HK2-2425', '2025-01-22 09:45:00', 19, 7, 19, 523000, 0, 0, 0, 0, 0, 0, 523000, 50, 261500, 261500, 'Đã đăng ký'),
+(5, '22520003', 'HK2-2425', '2025-01-22 09:45:00', 19, 523000, 261500, 'Đã đăng ký'),
 -- Phiếu 6: 5 môn LT, 16 tín chỉ, tổng = 432,000
-(6, '22520003', 'HK1-2425', '2024-09-17 11:20:00', 16, 5, 16, 432000, 0, 0, 0, 0, 0, 0, 432000, 50, 216000, 216000, 'Đã đăng ký'),
+(6, '22520003', 'HK1-2425', '2024-09-17 11:20:00', 16, 432000, 216000, 'Đã đăng ký'),
 -- Sinh viên 22520004 - Phạm Thị Dung (không có đối tượng ưu tiên)
 -- Phiếu 7: 5 môn LT, 15 tín chỉ, tổng = 405,000
-(7, '22520004', 'HK2-2425', '2025-01-20 15:00:00', 15, 5, 15, 405000, 0, 0, 0, 0, 0, 0, 405000, 0, 0, 405000, 'Đã đăng ký'),
+(7, '22520004', 'HK2-2425', '2025-01-20 15:00:00', 15, 405000, 0, 'Đã đăng ký'),
 -- Phiếu 8: 6 môn LT, 19 tín chỉ, tổng = 513,000
-(8, '22520004', 'HK1-2425', '2024-09-15 16:45:00', 19, 6, 19, 513000, 0, 0, 0, 0, 0, 0, 513000, 0, 0, 513000, 'Đã đăng ký'),
+(8, '22520004', 'HK1-2425', '2024-09-15 16:45:00', 19, 513000, 0, 'Đã đăng ký'),
 -- Sinh viên 22520005 - Hoàng Minh Đức (dân tộc thiểu số - giảm 30%)
 -- Phiếu 9: 6 môn LT, 18 tín chỉ, tổng = 486,000
-(9, '22520005', 'HK2-2425', '2025-01-23 08:00:00', 18, 6, 18, 486000, 0, 0, 0, 0, 0, 0, 486000, 30, 145800, 340200, 'Đã đăng ký'),
+(9, '22520005', 'HK2-2425', '2025-01-23 08:00:00', 18, 486000, 145800, 'Đã đăng ký'),
 -- Phiếu 10: 5 môn LT, 16 tín chỉ, tổng = 432,000
-(10, '22520005', 'HK1-2425', '2024-09-18 10:30:00', 16, 5, 16, 432000, 0, 0, 0, 0, 0, 0, 432000, 30, 129600, 302400, 'Đã đăng ký');
+(10, '22520005', 'HK1-2425', '2024-09-18 10:30:00', 16, 432000, 129600, 'Đã đăng ký');
 
 -- Cập nhật sequence cho "PHIEUDANGKY" để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), 10, true);
@@ -6631,157 +6348,156 @@ SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), 10, true);
 -- =====================================================
 -- INSERT DATA - Chi tiết đăng ký (Registration Details)
 -- =====================================================
-INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai") VALUES
+INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "DonGia", "ThanhTien", "TrangThai") VALUES
 -- Chi tiết cho phiếu đăng ký 1 (SV 22520001 - HK2-2425)
-(1, 'IT002.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'IT003.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'MA002.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'IT004.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'ENG04.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'IT008.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(1, 'IT002.N01', 'IT002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(1, 'IT003.N01', 'IT003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(1, 'MA002.N01', 'MA002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(1, 'IT004.N01', 'IT004', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(1, 'ENG04.N01', 'ENG04', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(1, 'IT008.N01', 'IT008', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 2 (SV 22520001 - HK1-2425)
-(2, 'IT001.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'MA001.N01', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(2, 'MA003.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'ENG03.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'IT006.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(2, 'IT001.N01', 'IT001', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(2, 'MA001.N01', 'MA001', 'hoc_moi', 27000, 108000, 'Đã đăng ký'),
+(2, 'MA003.N01', 'MA003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(2, 'ENG03.N01', 'ENG03', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(2, 'IT006.N01', 'IT006', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 3 (SV 22520002 - HK2-2425)
-(3, 'IT002.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'IT003.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'MA002.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'CS106.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'CS106_TH.N01', 'hoc_moi', 1, 'TH', 37000, 37000, 'Đã đăng ký'),
-(3, 'ENG04.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(3, 'IT002.N02', 'IT002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(3, 'IT003.N02', 'IT003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(3, 'MA002.N02', 'MA002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(3, 'CS106.N01', 'CS106', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(3, 'CS106_TH.N01', 'CS106_TH', 'hoc_moi', 37000, 37000, 'Đã đăng ký'),
+(3, 'ENG04.N02', 'ENG04', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 4 (SV 22520002 - HK1-2425)
-(4, 'IT001.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(4, 'MA001.N02', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(4, 'MA003.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(4, 'ENG03.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(4, 'IT001.N02', 'IT001', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(4, 'MA001.N02', 'MA001', 'hoc_moi', 27000, 108000, 'Đã đăng ký'),
+(4, 'MA003.N02', 'MA003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(4, 'ENG03.N02', 'ENG03', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 5 (SV 22520003 - HK2-2425)
-(5, 'IT002.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'IT003.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'IS207.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'IS207_TH.N01', 'hoc_moi', 1, 'TH', 37000, 37000, 'Đã đăng ký'),
-(5, 'MA002.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'IT004.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'ENG04.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(5, 'IT002.N01', 'IT002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(5, 'IT003.N01', 'IT003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(5, 'IS207.N01', 'IS207', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(5, 'IS207_TH.N01', 'IS207_TH', 'hoc_moi', 37000, 37000, 'Đã đăng ký'),
+(5, 'MA002.N01', 'MA002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(5, 'IT004.N01', 'IT004', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(5, 'ENG04.N01', 'ENG04', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 6 (SV 22520003 - HK1-2425)
-(6, 'IT001.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(6, 'MA001.N01', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(6, 'MA003.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(6, 'IT005.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(6, 'ENG03.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(6, 'IT001.N01', 'IT001', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(6, 'MA001.N01', 'MA001', 'hoc_moi', 27000, 108000, 'Đã đăng ký'),
+(6, 'MA003.N01', 'MA003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(6, 'IT005.N01', 'IT005', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(6, 'ENG03.N01', 'ENG03', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 7 (SV 22520004 - HK2-2425)
-(7, 'IT002.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(7, 'IT003.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(7, 'SE104.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(7, 'MA002.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(7, 'ENG04.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(7, 'IT002.N02', 'IT002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(7, 'IT003.N02', 'IT003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(7, 'SE104.N01', 'SE104', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(7, 'MA002.N02', 'MA002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(7, 'ENG04.N02', 'ENG04', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 8 (SV 22520004 - HK1-2425)
-(8, 'IT001.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(8, 'MA001.N02', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(8, 'MA003.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(8, 'IT006.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(8, 'ENG03.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(8, 'IT008.N02', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(8, 'IT001.N02', 'IT001', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(8, 'MA001.N02', 'MA001', 'hoc_moi', 27000, 108000, 'Đã đăng ký'),
+(8, 'MA003.N02', 'MA003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(8, 'IT006.N02', 'IT006', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(8, 'ENG03.N02', 'ENG03', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(8, 'IT008.N02', 'IT008', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 9 (SV 22520005 - HK2-2425)
-(9, 'IT002.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(9, 'IT003.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(9, 'NT101.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(9, 'MA002.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(9, 'IT005.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(9, 'ENG04.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
+(9, 'IT002.N01', 'IT002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(9, 'IT003.N01', 'IT003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(9, 'NT101.N01', 'NT101', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(9, 'MA002.N01', 'MA002', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(9, 'IT005.N01', 'IT005', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(9, 'ENG04.N01', 'ENG04', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
 -- Chi tiết cho phiếu đăng ký 10 (SV 22520005 - HK1-2425)
-(10, 'IT001.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(10, 'MA001.N01', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(10, 'MA003.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(10, 'IT006.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(10, 'ENG03.N01', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký');
+(10, 'IT001.N01', 'IT001', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(10, 'MA001.N01', 'MA001', 'hoc_moi', 27000, 108000, 'Đã đăng ký'),
+(10, 'MA003.N01', 'MA003', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(10, 'IT006.N01', 'IT006', 'hoc_moi', 27000, 81000, 'Đã đăng ký'),
+(10, 'ENG03.N01', 'ENG03', 'hoc_moi', 27000, 81000, 'Đã đăng ký');
 
 -- =====================================================
 -- INSERT DATA - Phiếu thu học phí (Tuition Payment Receipts)
 -- Sử dụng giá trị "SoPhieuThu" cụ thể để đảm bảo tính nhất quán
--- Số tiền thu phải khớp với "TongTienPhaiDong" trong "PHIEUDANGKY" tương ứng
+-- Số tiền thu phải khớp với học phí phải đóng của "PHIEUDANGKY" tương ứng
 -- =====================================================
-INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", "SoTienThu", "HinhThucThu", "MaGiaoDich", "NguoiThu", "GhiChu", "TrangThai") VALUES
+INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", "SoTienThu", "HinhThucThu", "MaGiaoDich", "GhiChu", "TrangThai") VALUES
 -- Thanh toán đầy đủ cho HK1-2425
-(1, 2, '22520001', '2024-09-20 09:30:00', 432000, 'Chuyển khoản', 'GD20240920001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025', 'Thành công'),
-(2, 4, '22520002', '2024-09-21 10:15:00', 175500, 'Tiền mặt', 'GD20240921001', 'Nguyễn Thị Thu', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
-(3, 6, '22520003', '2024-09-22 14:00:00', 216000, 'Chuyển khoản', 'GD20240922001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
-(4, 8, '22520004', '2024-09-20 16:30:00', 513000, 'Ví điện tử', 'GD20240920002', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 qua MoMo', 'Thành công'),
-(5, 10, '22520005', '2024-09-23 11:00:00', 302400, 'Chuyển khoản', 'GD20240923001', 'Hệ thống', 'Thanh toán học phí HK1 2024-2025 (sau giảm 30%)', 'Thành công'),
+(1, 2, '22520001', '2024-09-20 09:30:00', 432000, 'Chuyển khoản', 'GD20240920001', 'Thanh toán học phí HK1 2024-2025', 'Thành công'),
+(2, 4, '22520002', '2024-09-21 10:15:00', 175500, 'Tiền mặt', 'GD20240921001', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
+(3, 6, '22520003', '2024-09-22 14:00:00', 216000, 'Chuyển khoản', 'GD20240922001', 'Thanh toán học phí HK1 2024-2025 (sau giảm 50%)', 'Thành công'),
+(4, 8, '22520004', '2024-09-20 16:30:00', 513000, 'Ví điện tử', 'GD20240920002', 'Thanh toán học phí HK1 2024-2025 qua MoMo', 'Thành công'),
+(5, 10, '22520005', '2024-09-23 11:00:00', 302400, 'Chuyển khoản', 'GD20240923001', 'Thanh toán học phí HK1 2024-2025 (sau giảm 30%)', 'Thành công'),
 -- Thanh toán cho HK2-2425 (một số đã đóng, một số chưa đóng đủ)
-(6, 1, '22520001', '2025-01-25 08:45:00', 486000, 'Chuyển khoản', 'GD20250125001', 'Hệ thống', 'Thanh toán học phí HK2 2024-2025', 'Thành công'),
-(7, 3, '22520002', '2025-01-26 09:30:00', 221000, 'Tiền mặt', 'GD20250126001', 'Trần Văn Hùng', 'Thanh toán học phí HK2 2024-2025 (sau giảm 50%)', 'Thành công'),
-(8, 5, '22520003', '2025-01-27 10:00:00', 150000, 'Chuyển khoản', 'GD20250127001', 'Hệ thống', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
-(9, 7, '22520004', '2025-01-28 14:15:00', 200000, 'Ví điện tử', 'GD20250128001', 'Hệ thống', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
-(10, 9, '22520005', '2025-01-29 11:30:00', 340200, 'Chuyển khoản', 'GD20250129001', 'Hệ thống', 'Thanh toán học phí HK2 2024-2025 (sau giảm 30%)', 'Thành công');
+(6, 1, '22520001', '2025-01-25 08:45:00', 486000, 'Chuyển khoản', 'GD20250125001', 'Thanh toán học phí HK2 2024-2025', 'Thành công'),
+(7, 3, '22520002', '2025-01-26 09:30:00', 221000, 'Tiền mặt', 'GD20250126001', 'Thanh toán học phí HK2 2024-2025 (sau giảm 50%)', 'Thành công'),
+(8, 5, '22520003', '2025-01-27 10:00:00', 150000, 'Chuyển khoản', 'GD20250127001', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
+(9, 7, '22520004', '2025-01-28 14:15:00', 200000, 'Ví điện tử', 'GD20250128001', 'Thanh toán một phần học phí HK2 2024-2025', 'Thành công'),
+(10, 9, '22520005', '2025-01-29 11:30:00', 340200, 'Chuyển khoản', 'GD20250129001', 'Thanh toán học phí HK2 2024-2025 (sau giảm 30%)', 'Thành công');
 
 -- Cập nhật sequence cho "PHIEUTHUHOCPHI" để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), 10, true);
 
 -- =====================================================
 -- INSERT DATA - Thông báo cá nhân (Personal Notifications)
--- Sử dụng bảng "THONGBAO" đã gộp với "Loai"='ca_nhan'
 -- Số tiền trong thông báo phải khớp với dữ liệu thực tế
 -- =====================================================
-INSERT INTO "THONGBAO" ("Loai", "TieuDe", "NoiDung", "LoaiThongBao", "MaTaiKhoanNhan", "DuongDan", "DaDoc", "TrangThai") VALUES
+INSERT INTO "THONGBAO" ("TieuDe", "NoiDung", "MaTaiKhoanNhan", "DuongDan", "DaDoc") VALUES
 -- Thông báo cho sinh viên 22520001 ("MaTaiKhoan" từ subquery)
-('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Học phí: 486,000 VNĐ.', 'Đăng ký', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520001'), '/phieu-dang-ky/1', TRUE, TRUE),
-('ca_nhan', 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 486,000 VNĐ học phí HK2 2024-2025.', 'Học phí', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520001'), '/phieu-thu/6', TRUE, TRUE),
-('ca_nhan', 'Nhắc nhở lịch học', 'Môn Cấu trúc dữ liệu và giải thuật sẽ bắt đầu vào thứ 2 tuần sau tại phòng B3.01.', 'Lịch học', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520001'), '/lich-hoc', FALSE, TRUE),
+('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Học phí: 486,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/phieu-dang-ky/1', TRUE),
+('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 486,000 VNĐ học phí HK2 2024-2025.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/phieu-thu/6', TRUE),
+('Nhắc nhở lịch học', 'Môn Cấu trúc dữ liệu và giải thuật sẽ bắt đầu vào thứ 2 tuần sau tại phòng B3.01.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/lich-hoc', FALSE),
 -- Thông báo cho sinh viên 22520002
-('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 16. Được giảm 50% học phí do thuộc đối tượng vùng sâu vùng xa. Học phí sau giảm: 221,000 VNĐ.', 'Đăng ký', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520002'), '/phieu-dang-ky/3', TRUE, TRUE),
-('ca_nhan', 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 221,000 VNĐ học phí HK2 2024-2025 (sau giảm 50%).', 'Học phí', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520002'), '/phieu-thu/7', TRUE, TRUE),
+('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 16. Được giảm 50% học phí do thuộc đối tượng vùng sâu vùng xa. Học phí sau giảm: 221,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002'), '/phieu-dang-ky/3', TRUE),
+('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 221,000 VNĐ học phí HK2 2024-2025 (sau giảm 50%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002'), '/phieu-thu/7', TRUE),
 -- Thông báo cho sinh viên 22520003
-('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 7 môn học cho HK2 2024-2025. Tổng số tín chỉ: 19. Được giảm 50% học phí do thuộc hộ cận nghèo. Học phí sau giảm: 261,500 VNĐ.', 'Đăng ký', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520003'), '/phieu-dang-ky/5', TRUE, TRUE),
-('ca_nhan', 'Nhắc nhở đóng học phí', 'Bạn còn nợ 111,500 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', 'Học phí', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520003'), '/cong-no', FALSE, TRUE),
+('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 7 môn học cho HK2 2024-2025. Tổng số tín chỉ: 19. Được giảm 50% học phí do thuộc hộ cận nghèo. Học phí sau giảm: 261,500 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003'), '/phieu-dang-ky/5', TRUE),
+('Nhắc nhở đóng học phí', 'Bạn còn nợ 111,500 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003'), '/cong-no', FALSE),
 -- Thông báo cho sinh viên 22520004
-('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2024-2025. Tổng số tín chỉ: 15. Học phí: 405,000 VNĐ.', 'Đăng ký', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520004'), '/phieu-dang-ky/7', TRUE, TRUE),
-('ca_nhan', 'Nhắc nhở đóng học phí', 'Bạn còn nợ 205,000 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', 'Học phí', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520004'), '/cong-no', FALSE, TRUE),
+('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2024-2025. Tổng số tín chỉ: 15. Học phí: 405,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004'), '/phieu-dang-ky/7', TRUE),
+('Nhắc nhở đóng học phí', 'Bạn còn nợ 205,000 VNĐ học phí HK2 2024-2025. Hạn đóng: 15/03/2025.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004'), '/cong-no', FALSE),
 -- Thông báo cho sinh viên 22520005
-('ca_nhan', 'Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Được giảm 30% học phí do thuộc dân tộc thiểu số. Học phí sau giảm: 340,200 VNĐ.', 'Đăng ký', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520005'), '/phieu-dang-ky/9', TRUE, TRUE),
-('ca_nhan', 'Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 340,200 VNĐ học phí HK2 2024-2025 (sau giảm 30%).', 'Học phí', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = '22520005'), '/phieu-thu/10', TRUE, TRUE),
+('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2024-2025. Tổng số tín chỉ: 18. Được giảm 30% học phí do thuộc dân tộc thiểu số. Học phí sau giảm: 340,200 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005'), '/phieu-dang-ky/9', TRUE),
+('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 340,200 VNĐ học phí HK2 2024-2025 (sau giảm 30%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005'), '/phieu-thu/10', TRUE),
 -- Thông báo cho Admin
-('ca_nhan', 'Báo cáo đăng ký HK2 2024-2025', 'Tổng số sinh viên đã đăng ký: 5. Tổng số lớp mở: 45. Tổng doanh thu dự kiến: 2,144,200 VNĐ.', 'Báo cáo', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = 'admin'), '/bao-cao/dang-ky', FALSE, TRUE),
-('ca_nhan', 'Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2024-2025. Vui lòng kiểm tra danh sách.', 'Cảnh báo', (SELECT "MaTaiKhoan" FROM "TAIKHOAN" WHERE "TenDangNhap" = 'admin'), '/bao-cao/cong-no', FALSE, TRUE);
+('Báo cáo đăng ký HK2 2024-2025', 'Tổng số sinh viên đã đăng ký: 5. Tổng số lớp mở: 45. Tổng doanh thu dự kiến: 2,144,200 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/dang-ky', FALSE),
+('Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2024-2025. Vui lòng kiểm tra danh sách.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/cong-no', FALSE);
 
 -- =====================================================
 -- INSERT DATA - Điểm sinh viên (Student Grades)
 -- Dữ liệu điểm cho học kỳ 1 năm 2024-2025 (đã kết thúc)
 -- Quy định: "DiemTrungBinh" < 5.0 = Rớt, >= 5.0 = Đậu
 -- =====================================================
-INSERT INTO "DIEMSINHVIEN" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "DiemTrungBinh", "DiemChu", "LanHoc", "KetQua", "NgayNhapDiem") VALUES
+INSERT INTO "DIEMSINHVIEN" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "DiemTrungBinh", "DiemChu", "LanHoc", "KetQua") VALUES
 -- Sinh viên 22520001 - Nguyễn Văn An (HK1-2425)
-('22520001', 'IT001', 'HK1-2425', 'IT001.N01', 8.17, 'B+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520001', 'MA001', 'HK1-2425', 'MA001.N01', 7.25, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520001', 'MA003', 'HK1-2425', 'MA003.N01', 8.58, 'A', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520001', 'ENG03', 'HK1-2425', 'ENG03.N01', 7.58, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520001', 'IT006', 'HK1-2425', 'IT006.N01', 7.08, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
+('22520001', 'IT001', 'HK1-2425', 'IT001.N01', 8.17, 'B+', 1, 'Đậu'),
+('22520001', 'MA001', 'HK1-2425', 'MA001.N01', 7.25, 'B', 1, 'Đậu'),
+('22520001', 'MA003', 'HK1-2425', 'MA003.N01', 8.58, 'A', 1, 'Đậu'),
+('22520001', 'ENG03', 'HK1-2425', 'ENG03.N01', 7.58, 'B', 1, 'Đậu'),
+('22520001', 'IT006', 'HK1-2425', 'IT006.N01', 7.08, 'B', 1, 'Đậu'),
 -- Sinh viên 22520002 - Trần Thị Bình (HK1-2425)
-('22520002', 'IT001', 'HK1-2425', 'IT001.N02', 9.08, 'A+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520002', 'MA001', 'HK1-2425', 'MA001.N02', 8.25, 'B+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520002', 'MA003', 'HK1-2425', 'MA003.N02', 7.75, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520002', 'ENG03', 'HK1-2425', 'ENG03.N02', 8.08, 'B+', 1, 'Đậu', '2025-01-10 10:00:00'),
+('22520002', 'IT001', 'HK1-2425', 'IT001.N02', 9.08, 'A+', 1, 'Đậu'),
+('22520002', 'MA001', 'HK1-2425', 'MA001.N02', 8.25, 'B+', 1, 'Đậu'),
+('22520002', 'MA003', 'HK1-2425', 'MA003.N02', 7.75, 'B', 1, 'Đậu'),
+('22520002', 'ENG03', 'HK1-2425', 'ENG03.N02', 8.08, 'B+', 1, 'Đậu'),
 -- Sinh viên 22520003 - Lê Văn Cường (HK1-2425)
-('22520003', 'IT001', 'HK1-2425', 'IT001.N01', 6.83, 'C+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520003', 'MA001', 'HK1-2425', 'MA001.N01', 5.83, 'C', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520003', 'MA003', 'HK1-2425', 'MA003.N01', 5.08, 'C', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520003', 'IT005', 'HK1-2425', 'IT005.N01', 6.58, 'C+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520003', 'ENG03', 'HK1-2425', 'ENG03.N01', 7.08, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
+('22520003', 'IT001', 'HK1-2425', 'IT001.N01', 6.83, 'C+', 1, 'Đậu'),
+('22520003', 'MA001', 'HK1-2425', 'MA001.N01', 5.83, 'C', 1, 'Đậu'),
+('22520003', 'MA003', 'HK1-2425', 'MA003.N01', 5.08, 'C', 1, 'Đậu'),
+('22520003', 'IT005', 'HK1-2425', 'IT005.N01', 6.58, 'C+', 1, 'Đậu'),
+('22520003', 'ENG03', 'HK1-2425', 'ENG03.N01', 7.08, 'B', 1, 'Đậu'),
 -- Sinh viên 22520004 - Phạm Thị Dung (HK1-2425) - Có môn rớt
-('22520004', 'IT001', 'HK1-2425', 'IT001.N02', 8.08, 'B+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520004', 'MA001', 'HK1-2425', 'MA001.N02', 3.92, 'F', 1, 'Rớt', '2025-01-10 10:00:00'),
-('22520004', 'MA003', 'HK1-2425', 'MA003.N02', 7.08, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520004', 'IT006', 'HK1-2425', 'IT006.N02', 6.58, 'C+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520004', 'ENG03', 'HK1-2425', 'ENG03.N02', 7.58, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520004', 'IT008', 'HK1-2425', 'IT008.N02', 7.83, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
+('22520004', 'IT001', 'HK1-2425', 'IT001.N02', 8.08, 'B+', 1, 'Đậu'),
+('22520004', 'MA001', 'HK1-2425', 'MA001.N02', 3.92, 'F', 1, 'Rớt'),
+('22520004', 'MA003', 'HK1-2425', 'MA003.N02', 7.08, 'B', 1, 'Đậu'),
+('22520004', 'IT006', 'HK1-2425', 'IT006.N02', 6.58, 'C+', 1, 'Đậu'),
+('22520004', 'ENG03', 'HK1-2425', 'ENG03.N02', 7.58, 'B', 1, 'Đậu'),
+('22520004', 'IT008', 'HK1-2425', 'IT008.N02', 7.83, 'B', 1, 'Đậu'),
 -- Sinh viên 22520005 - Hoàng Minh Đức (HK1-2425)
-('22520005', 'IT001', 'HK1-2425', 'IT001.N01', 8.58, 'A', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520005', 'MA001', 'HK1-2425', 'MA001.N01', 7.75, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520005', 'MA003', 'HK1-2425', 'MA003.N01', 8.08, 'B+', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520005', 'IT006', 'HK1-2425', 'IT006.N01', 7.58, 'B', 1, 'Đậu', '2025-01-10 10:00:00'),
-('22520005', 'ENG03', 'HK1-2425', 'ENG03.N01', 8.08, 'B+', 1, 'Đậu', '2025-01-10 10:00:00');
+('22520005', 'IT001', 'HK1-2425', 'IT001.N01', 8.58, 'A', 1, 'Đậu'),
+('22520005', 'MA001', 'HK1-2425', 'MA001.N01', 7.75, 'B', 1, 'Đậu'),
+('22520005', 'MA003', 'HK1-2425', 'MA003.N01', 8.08, 'B+', 1, 'Đậu'),
+('22520005', 'IT006', 'HK1-2425', 'IT006.N01', 7.58, 'B', 1, 'Đậu'),
+('22520005', 'ENG03', 'HK1-2425', 'ENG03.N01', 8.08, 'B+', 1, 'Đậu');
 
 -- =====================================================
 -- END OF INIT.SQL

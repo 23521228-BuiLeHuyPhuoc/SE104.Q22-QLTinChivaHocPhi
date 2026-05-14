@@ -1,36 +1,66 @@
 extends ../../layouts/admin
 
 block content
-  h2.page-title Dashboard
+  .page-shell
+    .page-heading
+      .page-kicker Quản trị tổng quan
+      h2 Tín chỉ, học phí và công nợ
+      p Theo dõi nhanh số liệu chính và mở nhanh các nghiệp vụ thường dùng.
 
-  .stats-grid
-    .stat-card
-      .stat-icon.blue 👨‍🎓
-      .stat-info
-        h3#stat-students --
-        p Sinh viên
-    .stat-card
-      .stat-icon.green 📚
-      .stat-info
-        h3#stat-courses --
-        p Môn học
-    .stat-card
-      .stat-icon.orange 📝
-      .stat-info
-        h3#stat-registrations --
-        p Đăng ký
-    .stat-card
-      .stat-icon.purple 💰
-      .stat-info
-        h3#stat-revenue --
-        p Doanh thu
+    .stats-grid
+      .stat-card
+        .stat-icon.blue SV
+        .stat-info
+          h3#stat-students --
+          p Sinh viên
+      .stat-card
+        .stat-icon.green MH
+        .stat-info
+          h3#stat-courses --
+          p Môn học
+      .stat-card
+        .stat-icon.orange DK
+        .stat-info
+          h3#stat-registrations --
+          p Lượt đăng ký
+      .stat-card
+        .stat-icon.purple HP
+        .stat-info
+          h3#stat-revenue --
+          p Doanh thu đã thu
 
-  .card
-    .card-header
-      h3 Tổng quan hệ thống
-    .card-body
-      p Chào mừng đến với hệ thống quản lý tín chỉ và học phí.
-      p Sử dụng menu bên trái để truy cập các chức năng quản lý.
+    .content-grid.two-columns
+      .card
+        .card-header
+          h3 Nghiệp vụ nhanh
+        .card-body
+          .action-grid
+            a.action-tile(href="/admin/students")
+              strong Sinh viên
+              span Hồ sơ, ngành học, trạng thái học tập
+            a.action-tile(href="/admin/courses")
+              strong Môn học
+              span Tín chỉ, khoa phụ trách, mô tả môn
+            a.action-tile(href="/admin/classes")
+              strong Lớp học
+              span Giảng viên, lịch học, phòng học
+            a.action-tile(href="/admin/payments")
+              strong Thu học phí
+              span Lập phiếu thu và đối soát công nợ
+      .card
+        .card-header
+          h3 Nhịp vận hành
+        .card-body
+          ul.info-list
+            li
+              span.label Đăng ký
+              span Kiểm tra số tín chỉ và danh sách lớp trước khi chốt học kỳ.
+            li
+              span.label Học phí
+              span Theo dõi sinh viên chưa đóng hoặc đóng một phần để nhắc hạn.
+            li
+              span.label Báo cáo
+              span Tổng hợp doanh thu, công nợ và tình hình đăng ký theo kỳ.
 
 block scripts
   script(src="/js/admin/dashboard.js")

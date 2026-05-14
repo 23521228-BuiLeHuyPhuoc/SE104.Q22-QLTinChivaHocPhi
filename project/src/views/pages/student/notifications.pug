@@ -1,13 +1,18 @@
 extends ../../layouts/student
 
 block content
-  h2.page-title Thông báo
+  .page-shell
+    .page-heading.compact
+      .page-kicker Cá nhân
+      h2 Thông báo
 
-  .card
-    .card-body
-      .loading-overlay#loading
-        .spinner
-      #notification-list.hidden
+    .card
+      .card-header
+        h3 Tin mới từ hệ thống
+      .card-body
+        .loading-overlay#loading
+          .spinner
+        #notification-list.hidden
 
 block scripts
   script(src="/js/student/notifications.js")

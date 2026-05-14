@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const getMaNhomByRole = (Role) => (Role === 'admin' ? 'ADMIN' : 'SINHVIEN');
 
 const login = async (req, res) => {
   try {
@@ -17,7 +18,7 @@ const login = async (req, res) => {
     const isValid = await bcrypt.compare(password, user.MatKhau);
     if (!isValid) return res.status(401).json({ success: false, message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
 
-    const token = jwt.sign({ id: user.MaTaiKhoan, MaTaiKhoan: user.MaTaiKhoan, username: user.TenDangNhap, Role: user.Role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign({ id: user.MaTaiKhoan, MaTaiKhoan: user.MaTaiKhoan, username: user.TenDangNhap, Role: user.Role, MaNhom: user.MaNhom }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     let studentInfo = null;
     if (user.Role === 'student') {
@@ -28,7 +29,7 @@ const login = async (req, res) => {
       adminInfo = await prisma.QUANTRIVIEN.findFirst({ where: { MaTaiKhoan: user.MaTaiKhoan } });
     }
 
-    res.json({ success: true, message: 'Đăng nhập thành công', data: { token, user: { id: user.MaTaiKhoan, MaTaiKhoan: user.MaTaiKhoan, username: user.TenDangNhap, Role: user.Role }, student: studentInfo, admin: adminInfo } });
+    res.json({ success: true, message: 'Đăng nhập thành công', data: { token, user: { id: user.MaTaiKhoan, MaTaiKhoan: user.MaTaiKhoan, username: user.TenDangNhap, Role: user.Role, MaNhom: user.MaNhom }, student: studentInfo, admin: adminInfo } });
   } catch (error) { console.error('Login error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 
@@ -36,6 +37,7 @@ const register = async (req, res) => {
   try {
     const { username, password, Role = 'student' } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    if (!['admin', 'student'].includes(Role)) return res.status(400).json({ success: false, message: 'Role không hợp lệ' });
 
     const existing = await prisma.TAIKHOAN.findUnique({ where: { TenDangNhap: username } });
     if (existing) return res.status(400).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
@@ -43,23 +45,24 @@ const register = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashed = await bcrypt.hash(password, salt);
 
-    const newAccount = await prisma.TAIKHOAN.create({ data: { TenDangNhap: username, MatKhau: hashed, Role } });
+    const MaNhom = getMaNhomByRole(Role);
+    const newAccount = await prisma.TAIKHOAN.create({ data: { TenDangNhap: username, MatKhau: hashed, Role, MaNhom } });
 
-    res.status(201).json({ success: true, message: 'Đăng ký thành công', data: { id: newAccount.MaTaiKhoan, username: newAccount.TenDangNhap, Role: newAccount.Role } });
+    res.status(201).json({ success: true, message: 'Đăng ký thành công', data: { id: newAccount.MaTaiKhoan, username: newAccount.TenDangNhap, Role: newAccount.Role, MaNhom: newAccount.MaNhom } });
   } catch (error) { console.error('Register error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 
 const getMe = async (req, res) => {
   try {
     const userId = req.user.id || req.user.MaTaiKhoan;
-    const user = await prisma.TAIKHOAN.findUnique({ where: { MaTaiKhoan: userId }, select: { MaTaiKhoan: true, TenDangNhap: true, Role: true, NgayTao: true } });
+    const user = await prisma.TAIKHOAN.findUnique({ where: { MaTaiKhoan: userId }, select: { MaTaiKhoan: true, TenDangNhap: true, Role: true, MaNhom: true, NgayTao: true } });
     if (!user) return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
 
     let studentInfo = null, adminInfo = null;
     if (user.Role === 'student') { studentInfo = await prisma.SINHVIEN.findFirst({ where: { MaTaiKhoan: userId }, include: { NGANHHOC: { include: { KHOA: true } } } }); }
     else if (user.Role === 'admin') { adminInfo = await prisma.QUANTRIVIEN.findFirst({ where: { MaTaiKhoan: userId } }); }
 
-    res.json({ success: true, data: { user: { id: user.MaTaiKhoan, MaTaiKhoan: user.MaTaiKhoan, username: user.TenDangNhap, Role: user.Role, created_at: user.NgayTao }, student: studentInfo, admin: adminInfo } });
+    res.json({ success: true, data: { user: { id: user.MaTaiKhoan, MaTaiKhoan: user.MaTaiKhoan, username: user.TenDangNhap, Role: user.Role, MaNhom: user.MaNhom, created_at: user.NgayTao }, student: studentInfo, admin: adminInfo } });
   } catch (error) { console.error('GetMe error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 

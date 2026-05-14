@@ -3,38 +3,52 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm kiếm đăng ký..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên sinh viên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(!status)) Tất cả trạng thái
-        option(value="registered" selected=(status === 'registered')) Đã đăng ký
-        option(value="cancelled" selected=(status === 'cancelled')) Đã hủy
+        option(value="Đã đăng ký" selected=(status === 'Đã đăng ký')) Đã đăng ký
+        option(value="Đã hủy" selected=(status === 'Đã hủy')) Đã hủy
 
   .card
+    .card-header
+      h3 Danh sách đăng ký tín chỉ
+      span.card-count= registrations ? `${registrations.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
             th MSSV
             th Họ tên
+            th Học kỳ
             th Môn học
             th Lớp
-            th Ngày ĐK
+            th Tín chỉ
+            th Ngày đăng ký
             th Trạng thái
         tbody
           if registrations && registrations.length > 0
             each r in registrations
+              - const student = r.PHIEUDANGKY ? r.PHIEUDANGKY.SINHVIEN : null
+              - const semester = r.PHIEUDANGKY ? r.PHIEUDANGKY.HOCKY : null
+              - const course = r.LOP ? r.LOP.MONHOC : null
+              - const isCancelled = (r.TrangThai || '').toLowerCase().includes('hủy')
               tr
-                td= r.ma_sv
-                td= r.ho_ten_sv || '-'
-                td= r.ten_mon_hoc || '-'
-                td= r.ma_lop || '-'
-                td= r.ngay_dang_ky ? new Date(r.ngay_dang_ky).toLocaleDateString('vi-VN') : '-'
+                td.mono= student ? student.MaSv : '-'
+                td= student ? student.HoTen : '-'
+                td= semester ? semester.TenHocKy : (r.PHIEUDANGKY ? r.PHIEUDANGKY.MaHocKy : '-')
                 td
-                  span.badge(class=r.trang_thai === 'registered' ? 'badge-success' : 'badge-error')= r.trang_thai === 'registered' ? 'Đã ĐK' : 'Đã hủy'
+                  strong= course ? course.TenMonHoc : '-'
+                  small= course ? course.MaMonHoc : ''
+                td.mono= r.MaLop || '-'
+                td= r.SoTinChi || '-'
+                td= r.NgayDangKy ? new Date(r.NgayDangKy).toLocaleDateString('vi-VN') : '-'
+                td
+                  span.badge(class=isCancelled ? 'badge-error' : 'badge-success')= r.TrangThai || 'Đã đăng ký'
           else
             tr
-              td(colspan="6").text-center Không có dữ liệu
+              td(colspan="8")
+                .empty-state Không có dữ liệu đăng ký
 
   include ../../partials/pagination
 

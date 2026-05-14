@@ -1,57 +1,62 @@
+- const active = activePage || currentPage || ''
+- const adminName = user ? (user.HoTen || user.username || user.TenDangNhap || 'Admin') : 'Admin'
+
 nav.sidebar.sidebar-admin(id="sidebar")
   .sidebar-brand
-    h2 🎓 QL Tín Chỉ
-    small Bảng điều khiển Admin
+    .brand-mark TC
+    div
+      h2 QL Tín Chỉ
+      small Quản trị học phí và đăng ký
 
   .sidebar-nav
     .sidebar-section
       .sidebar-section-title Tổng quan
-      a.sidebar-link(href="/admin/dashboard" class=(currentPage === 'dashboard' ? 'active' : ''))
-        span.icon 📊
-        span Dashboard
+      a.sidebar-link(href="/admin/dashboard" class=(active === 'dashboard' ? 'active' : ''))
+        span.icon BD
+        span Bảng điều khiển
 
     .sidebar-section
-      .sidebar-section-title Quản lý đào tạo
-      a.sidebar-link(href="/admin/students" class=(currentPage === 'students' ? 'active' : ''))
-        span.icon 👨‍🎓
+      .sidebar-section-title Đào tạo
+      a.sidebar-link(href="/admin/students" class=(active === 'students' ? 'active' : ''))
+        span.icon SV
         span Sinh viên
-      a.sidebar-link(href="/admin/courses" class=(currentPage === 'courses' ? 'active' : ''))
-        span.icon 📚
+      a.sidebar-link(href="/admin/courses" class=(active === 'courses' ? 'active' : ''))
+        span.icon MH
         span Môn học
-      a.sidebar-link(href="/admin/classes" class=(currentPage === 'classes' ? 'active' : ''))
-        span.icon 🏫
+      a.sidebar-link(href="/admin/classes" class=(active === 'classes' ? 'active' : ''))
+        span.icon LH
         span Lớp học
-      a.sidebar-link(href="/admin/semesters" class=(currentPage === 'semesters' ? 'active' : ''))
-        span.icon 📅
+      a.sidebar-link(href="/admin/semesters" class=(active === 'semesters' ? 'active' : ''))
+        span.icon HK
         span Học kỳ
 
     .sidebar-section
-      .sidebar-section-title Đăng ký & Học phí
-      a.sidebar-link(href="/admin/registrations" class=(currentPage === 'registrations' ? 'active' : ''))
-        span.icon 📝
-        span Đăng ký
-      a.sidebar-link(href="/admin/tuition" class=(currentPage === 'tuition' ? 'active' : ''))
-        span.icon 💰
+      .sidebar-section-title Tài chính
+      a.sidebar-link(href="/admin/registrations" class=(active === 'registrations' ? 'active' : ''))
+        span.icon DK
+        span Đăng ký tín chỉ
+      a.sidebar-link(href="/admin/tuition" class=(active === 'tuition' ? 'active' : ''))
+        span.icon HP
         span Học phí
-      a.sidebar-link(href="/admin/payments" class=(currentPage === 'payments' ? 'active' : ''))
-        span.icon 💳
-        span Thu phí
+      a.sidebar-link(href="/admin/payments" class=(active === 'payments' ? 'active' : ''))
+        span.icon PT
+        span Phiếu thu
 
     .sidebar-section
       .sidebar-section-title Báo cáo
-      a.sidebar-link(href="/admin/reports" class=(currentPage === 'reports' ? 'active' : ''))
-        span.icon 📈
+      a.sidebar-link(href="/admin/reports" class=(active === 'reports' ? 'active' : ''))
+        span.icon BC
         span Thống kê
 
     .sidebar-section
       .sidebar-section-title Hệ thống
-      a.sidebar-link(href="/admin/users" class=(currentPage === 'users' ? 'active' : ''))
-        span.icon 👥
-        span Quản lý tài khoản
+      a.sidebar-link(href="/admin/users" class=(active === 'users' ? 'active' : ''))
+        span.icon ND
+        span Người dùng
 
   .sidebar-footer
     .sidebar-user
-      .avatar= user ? user.ho_ten ? user.ho_ten.charAt(0).toUpperCase() : 'A' : 'A'
+      .avatar= adminName.charAt(0).toUpperCase()
       div
-        div= user ? user.ho_ten || user.ten_dang_nhap : 'Admin'
+        div= adminName
         small Quản trị viên
