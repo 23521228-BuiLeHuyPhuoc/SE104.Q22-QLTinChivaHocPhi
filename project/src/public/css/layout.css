@@ -308,6 +308,10 @@
   color: #ffffff;
 }
 
+.login-page-student .login-brand .brand-mark {
+  background: var(--bg-sidebar-student);
+}
+
 .login-card h1 {
   color: var(--text-primary);
   font-size: var(--font-size-2xl);
@@ -340,6 +344,13 @@
   font-weight: 800;
   min-height: 44px;
   width: 100%;
+}
+
+.login-switch {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  margin-top: var(--spacing-lg);
+  text-align: center;
 }
 
 @media (max-width: 900px) {

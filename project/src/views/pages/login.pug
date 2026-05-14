@@ -1,17 +1,21 @@
 extends ../layouts/auth
 
 block content
-  .login-page
+  - const role = loginRole || 'student'
+  - const isAdminLogin = role === 'admin'
+  - const actionPath = loginAction || (isAdminLogin ? '/admin/login' : '/login')
+  - const apiPath = loginApiPath || (isAdminLogin ? '/api/auth/admin/login' : '/api/auth/login')
+  .login-page(class=isAdminLogin ? 'login-page-admin' : 'login-page-student')
     .login-card
       .login-brand
-        .brand-mark TC
+        .brand-mark= brandMark || (isAdminLogin ? 'AD' : 'SV')
         div
-          h1 Đăng nhập
-          .subtitle Hệ thống quản lý tín chỉ và học phí
+          h1= loginTitle || (isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên')
+          .subtitle= loginSubtitle || 'Hệ thống quản lý tín chỉ và học phí'
 
       #login-error.login-error
 
-      form#login-form(method="POST" action="/login" onsubmit="return handleLogin(event)")
+      form#login-form(method="POST" action=actionPath data-api=apiPath data-role=role onsubmit="return handleLogin(event)")
         .form-group
           label(for="username") Tên đăng nhập
           input.form-control#username(type="text" name="username" placeholder="Nhập tên đăng nhập" required autofocus autocomplete="username")
@@ -21,6 +25,12 @@ block content
           input.form-control#password(type="password" name="password" placeholder="Nhập mật khẩu" required autocomplete="current-password")
 
         button.btn.btn-primary.btn-login(type="submit" id="btn-login") Đăng nhập
+
+      .login-switch
+        if isAdminLogin
+          a(href="/login") Đăng nhập sinh viên
+        else
+          a(href="/admin/login") Đăng nhập admin
 
 block scripts
   script(src="/js/login.js")

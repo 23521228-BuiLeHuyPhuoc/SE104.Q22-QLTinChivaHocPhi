@@ -4,7 +4,9 @@ const authController = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/auth');
 
 // Public routes
-router.post('/login', authController.login);
+router.post('/login', authController.loginStudent);
+router.post('/student/login', authController.loginStudent);
+router.post('/admin/login', authController.loginAdmin);
 router.post('/register', authController.register);
 
 // Protected routes

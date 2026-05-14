@@ -7,6 +7,10 @@ function clearToken() {
   document.cookie = 'token=; path=/; max-age=0; SameSite=Strict';
 }
 
+function getLoginPathForCurrentPage() {
+  return window.location.pathname.indexOf('/admin') === 0 ? '/admin/login' : '/login';
+}
+
 async function apiFetch(url, options) {
   var opts = options || {};
   var headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
@@ -22,7 +26,7 @@ async function apiFetch(url, options) {
   var res = await fetch(url, fetchOpts);
   if (res.status === 401) {
     clearToken();
-    window.location.href = '/login';
+    window.location.href = getLoginPathForCurrentPage();
     return { success: false, message: 'Phiên đăng nhập hết hạn' };
   }
 
@@ -96,8 +100,8 @@ function formatDate(dateStr) {
 
 (function() {
   var path = window.location.pathname;
-  if (path === '/login' || path === '/') return;
+  if (path === '/login' || path === '/admin/login' || path === '/') return;
 
   var token = getToken();
-  if (!token) window.location.href = '/login';
+  if (!token) window.location.href = getLoginPathForCurrentPage();
 })();

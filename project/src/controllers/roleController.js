@@ -39,12 +39,19 @@ const updateUserRole = async (req, res) => {
     if (!Role || !['admin', 'student'].includes(Role)) return res.status(400).json({ success: false, message: 'Role không hợp lệ' });
     if (parseInt(id) === parseInt(currentUserId)) return res.status(400).json({ success: false, message: 'Không thể thay đổi Role của chính mình' });
 
-    const account = await prisma.TAIKHOAN.findUnique({ where: { MaTaiKhoan: parseInt(id) } });
+    const account = await prisma.TAIKHOAN.findUnique({
+      where: { MaTaiKhoan: parseInt(id) },
+      select: { MaTaiKhoan: true, Role: true }
+    });
     if (!account) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     if (account.Role === Role) return res.status(400).json({ success: false, message: `Tài khoản đã có Role ${Role}` });
 
     const MaNhom = getMaNhomByRole(Role);
-    await prisma.TAIKHOAN.update({ where: { MaTaiKhoan: parseInt(id) }, data: { Role, MaNhom } });
+    await prisma.TAIKHOAN.update({
+      where: { MaTaiKhoan: parseInt(id) },
+      data: { Role, MaNhom },
+      select: { MaTaiKhoan: true }
+    });
     res.json({ success: true, message: `Đã thay đổi Role thành "${Role}"`, data: { MaTaiKhoan: parseInt(id), old_role: account.Role, new_role: Role, MaNhom } });
   } catch (error) { console.error('Update user Role error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };

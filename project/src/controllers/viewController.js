@@ -52,15 +52,19 @@ const renderStudent = (res, view, page, title, req, locals = {}) => {
   });
 };
 
+const getLoginPathForRequest = (req) => (
+  req.path && req.path.startsWith('/admin') ? '/admin/login' : '/login'
+);
+
 const requireViewAuth = async (req, res, next) => {
   const user = await getUserFromToken(getTokenFromCookie(req));
-  if (!user) return res.redirect('/login');
+  if (!user) return res.redirect(getLoginPathForRequest(req));
   req.user = user;
   next();
 };
 
 const requireViewAdmin = (req, res, next) => {
-  if (!req.user || req.user.Role !== 'admin') return res.redirect('/login');
+  if (!req.user || req.user.Role !== 'admin') return res.redirect('/admin/login');
   next();
 };
 
@@ -78,13 +82,39 @@ const root = async (req, res) => {
   res.redirect('/login');
 };
 
-const loginPage = (req, res) => {
-  res.render('pages/login', { pageTitle: 'Đăng nhập' });
+const renderLoginPage = async (req, res, loginRole) => {
+  const user = await getUserFromToken(getTokenFromCookie(req));
+  if (user) {
+    if (user.Role === 'admin') return res.redirect('/admin/dashboard');
+    return res.redirect('/student/dashboard');
+  }
+
+  const isAdminLogin = loginRole === 'admin';
+  res.render('pages/login', {
+    pageTitle: isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên',
+    loginRole,
+    loginAction: isAdminLogin ? '/admin/login' : '/login',
+    loginApiPath: isAdminLogin ? '/api/auth/admin/login' : '/api/auth/login',
+    loginTitle: isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên',
+    loginSubtitle: isAdminLogin
+      ? 'Khu vực quản trị hệ thống tín chỉ và học phí'
+      : 'Cổng sinh viên quản lý tín chỉ và học phí',
+    brandMark: isAdminLogin ? 'AD' : 'SV'
+  });
 };
 
-const logout = (req, res) => {
+const loginPage = (req, res) => {
+  return renderLoginPage(req, res, 'student');
+};
+
+const adminLoginPage = (req, res) => {
+  return renderLoginPage(req, res, 'admin');
+};
+
+const logout = async (req, res) => {
+  const user = await getUserFromToken(getTokenFromCookie(req));
   res.clearCookie('token');
-  res.redirect('/login');
+  res.redirect(user && user.Role === 'admin' ? '/admin/login' : '/login');
 };
 
 const adminDashboard = (req, res) => {
@@ -540,6 +570,7 @@ module.exports = {
   requireViewStudent,
   root,
   loginPage,
+  adminLoginPage,
   logout,
   adminDashboard,
   adminStudents,

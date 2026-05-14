@@ -5,6 +5,7 @@ const vc = require('../controllers/viewController');
 // PUBLIC
 router.get('/', vc.root);
 router.get('/login', vc.loginPage);
+router.get('/admin/login', vc.adminLoginPage);
 router.get('/logout', vc.logout);
 
 // ADMIN
