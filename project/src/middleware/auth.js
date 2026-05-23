@@ -48,10 +48,53 @@ const adminMiddleware = (req, res, next) => {
   }
 };
 
+// Phân quyền admin theo chức vụ (3 loại)
+const ADMIN_PERMISSIONS = {
+  'Quản trị viên hệ thống': ['*'], // Full access - cao nhất
+  'Quản trị viên đào tạo': [
+    '/admin/dashboard', '/admin/students', '/admin/courses',
+    '/admin/classes', '/admin/semesters', '/admin/registrations',
+    '/api/students', '/api/courses', '/api/classes',
+    '/api/semesters', '/api/registrations'
+  ],
+  'Quản trị viên tài chính': [
+    '/admin/dashboard', '/admin/tuition', '/admin/payments',
+    '/admin/reports',
+    '/api/tuition', '/api/payments'
+  ]
+};
+
+const checkAdminPermission = (req, res, next) => {
+  const chucVu = req.user?.ChucVu || 'Quản trị viên hệ thống';
+  const allowed = ADMIN_PERMISSIONS[chucVu] || [];
+  
+  // Full access
+  if (allowed.includes('*')) return next();
+  
+  // Check if current path matches any allowed route
+  const currentPath = req.originalUrl || req.path;
+  const isAllowed = allowed.some(route => currentPath.startsWith(route));
+  
+  if (isAllowed) return next();
+  
+  // Check if it's an API request
+  if (currentPath.startsWith('/api/')) {
+    return res.status(403).json({
+      success: false,
+      message: 'Bạn không có quyền thực hiện thao tác này'
+    });
+  }
+  
+  // Redirect to dashboard for page requests
+  return res.redirect('/admin/dashboard');
+};
+
 module.exports = { 
   authMiddleware, 
   adminMiddleware,
+  checkAdminPermission,
   authenticateToken: authMiddleware,
   isAdmin: adminMiddleware,
-  authorizeAdmin: adminMiddleware
+  authorizeAdmin: adminMiddleware,
+  ADMIN_PERMISSIONS
 };

@@ -1,62 +1,155 @@
 const prisma = require('../config/database');
 
+const getUserId = (req) => Number(req.user?.MaTaiKhoan || req.user?.id || 0);
+
+const toNotification = (row, type = 'personal') => ({
+  ...row,
+  Loai: type === 'public' ? 'chung' : 'ca_nhan',
+  LoaiThongBao: type === 'public' ? 'Chung' : 'Ca nhan',
+  TrangThai: true,
+  GhimTop: false,
+  notification_type: type
+});
+
+const getPersonalRows = (userId, take = 20) => prisma.$queryRaw`
+  SELECT "MaThongBao", "MaTaiKhoanNhan", "TieuDe", "NoiDung", "DuongDan", "DaDoc", "NgayDoc", "NgayTao"
+  FROM "THONGBAO"
+  WHERE "MaTaiKhoanNhan" = ${userId}
+  ORDER BY COALESCE("DaDoc", FALSE) ASC, "NgayTao" DESC
+  LIMIT ${take}
+`;
+
 const getPublicNotifications = async (req, res) => {
   try {
-    const data = await prisma.THONGBAO.findMany({ where: { Loai: 'chung', TrangThai: true }, orderBy: [{ GhimTop: 'desc' }, { NgayTao: 'desc' }], take: 10 });
-    res.json({ success: true, data });
-  } catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+    res.json({ success: true, data: [] });
+  } catch (error) {
+    console.error('Notification public error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
 const getPersonalNotifications = async (req, res) => {
   try {
-    const userId = req.user?.MaTaiKhoan || req.user?.id;
-    if (!userId) return res.status(401).json({ success: false, message: 'Không tìm thấy thông tin người dùng' });
-    const data = await prisma.THONGBAO.findMany({ where: { Loai: 'ca_nhan', MaTaiKhoanNhan: userId }, orderBy: [{ DaDoc: 'asc' }, { NgayTao: 'desc' }], take: 20 });
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Khong tim thay thong tin nguoi dung' });
+    }
+
+    const data = (await getPersonalRows(userId)).map((row) => toNotification(row));
     res.json({ success: true, data });
-  } catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+  } catch (error) {
+    console.error('Notification personal error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
 const getAllNotifications = async (req, res) => {
   try {
-    const userId = req.user?.MaTaiKhoan || req.user?.id;
-    const [publicData, personalData] = await Promise.all([
-      prisma.THONGBAO.findMany({ where: { Loai: 'chung', TrangThai: true }, orderBy: { NgayTao: 'desc' }, take: 10 }),
-      userId ? prisma.THONGBAO.findMany({ where: { Loai: 'ca_nhan', MaTaiKhoanNhan: userId }, orderBy: { NgayTao: 'desc' }, take: 20 }) : []
-    ]);
-    const all = [...publicData.map(n => ({ ...n, notification_type: 'public' })), ...personalData.map(n => ({ ...n, notification_type: 'personal' }))].sort((a, b) => new Date(b.NgayTao) - new Date(a.NgayTao));
-    res.json({ success: true, data: all });
-  } catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Khong tim thay thong tin nguoi dung' });
+    }
+
+    const data = (await getPersonalRows(userId, 30)).map((row) => toNotification(row));
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Notification list error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
 const markAsRead = async (req, res) => {
   try {
-    const userId = req.user?.MaTaiKhoan || req.user?.id;
-    await prisma.THONGBAO.updateMany({ where: { MaThongBao: parseInt(req.params.id), MaTaiKhoanNhan: userId }, data: { DaDoc: true, NgayDoc: new Date() } });
-    res.json({ success: true, message: 'Đã đánh dấu đã đọc' });
-  } catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+    const userId = getUserId(req);
+    const notificationId = Number(req.params.id);
+    if (!userId || !notificationId) {
+      return res.status(400).json({ success: false, message: 'Du lieu khong hop le' });
+    }
+
+    await prisma.$executeRaw`
+      UPDATE "THONGBAO"
+      SET "DaDoc" = TRUE, "NgayDoc" = CURRENT_TIMESTAMP
+      WHERE "MaThongBao" = ${notificationId} AND "MaTaiKhoanNhan" = ${userId}
+    `;
+
+    res.json({ success: true, message: 'Da danh dau da doc' });
+  } catch (error) {
+    console.error('Notification read error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
 const getUnreadCount = async (req, res) => {
   try {
-    const userId = req.user?.MaTaiKhoan || req.user?.id;
+    const userId = getUserId(req);
     if (!userId) return res.json({ success: true, count: 0 });
-    const count = await prisma.THONGBAO.count({ where: { MaTaiKhoanNhan: userId, DaDoc: false } });
-    res.json({ success: true, count });
-  } catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+
+    const rows = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count
+      FROM "THONGBAO"
+      WHERE "MaTaiKhoanNhan" = ${userId} AND "DaDoc" IS NOT TRUE
+    `;
+
+    res.json({ success: true, count: Number(rows[0]?.count || 0) });
+  } catch (error) {
+    console.error('Notification count error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
 const createPublicNotification = async (req, res) => {
   try {
-    const userId = req.user?.MaTaiKhoan || req.user?.id;
-    const { title, content, type, target, pinned, expires_at } = req.body;
-    const data = await prisma.THONGBAO.create({ data: { Loai: 'chung', TieuDe: title, NoiDung: content, LoaiThongBao: type || 'Chung', DOITUONG: target || 'Tất cả', GhimTop: pinned || false, NgayHetHan: expires_at ? new Date(expires_at) : null, NguoiTao: userId } });
-    res.status(201).json({ success: true, message: 'Tạo thông báo thành công', data });
-  } catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+    const { title, content, recipientId, MaTaiKhoanNhan, target, url, DuongDan } = req.body;
+    const targetId = Number(recipientId || MaTaiKhoanNhan || target || 0);
+    if (!targetId || !title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: 'Can co MaTaiKhoanNhan, title va content'
+      });
+    }
+
+    const rows = await prisma.$queryRaw`
+      INSERT INTO "THONGBAO" ("MaTaiKhoanNhan", "TieuDe", "NoiDung", "DuongDan", "DaDoc")
+      VALUES (${targetId}, ${title}, ${content}, ${url || DuongDan || null}, FALSE)
+      RETURNING "MaThongBao", "MaTaiKhoanNhan", "TieuDe", "NoiDung", "DuongDan", "DaDoc", "NgayDoc", "NgayTao"
+    `;
+
+    res.status(201).json({
+      success: true,
+      message: 'Tao thong bao thanh cong',
+      data: toNotification(rows[0])
+    });
+  } catch (error) {
+    console.error('Notification create error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
 const deleteNotification = async (req, res) => {
-  try { await prisma.THONGBAO.delete({ where: { MaThongBao: parseInt(req.params.id) } }); res.json({ success: true, message: 'Xóa thông báo thành công' }); }
-  catch (error) { console.error('Error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
+  try {
+    const notificationId = Number(req.params.id);
+    if (!notificationId) {
+      return res.status(400).json({ success: false, message: 'Du lieu khong hop le' });
+    }
+
+    await prisma.$executeRaw`
+      DELETE FROM "THONGBAO"
+      WHERE "MaThongBao" = ${notificationId}
+    `;
+
+    res.json({ success: true, message: 'Xoa thong bao thanh cong' });
+  } catch (error) {
+    console.error('Notification delete error:', error);
+    res.status(500).json({ success: false, message: 'Loi server' });
+  }
 };
 
-module.exports = { getPublicNotifications, getPersonalNotifications, getAllNotifications, markAsRead, getUnreadCount, createPublicNotification, deleteNotification };
+module.exports = {
+  getPublicNotifications,
+  getPersonalNotifications,
+  getAllNotifications,
+  markAsRead,
+  getUnreadCount,
+  createPublicNotification,
+  deleteNotification
+};

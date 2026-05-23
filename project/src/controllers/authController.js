@@ -44,18 +44,6 @@ const getLoginErrorMessage = (error) => {
 };
 
 const buildLoginResponse = async (user) => {
-  const token = jwt.sign(
-    {
-      id: user.MaTaiKhoan,
-      MaTaiKhoan: user.MaTaiKhoan,
-      username: user.TenDangNhap,
-      Role: user.Role,
-      MaNhom: user.MaNhom
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
-
   let studentInfo = null;
   if (user.Role === 'student') {
     studentInfo = await prisma.SINHVIEN.findFirst({
@@ -65,11 +53,27 @@ const buildLoginResponse = async (user) => {
   }
 
   let adminInfo = null;
+  let chucVu = null;
   if (user.Role === 'admin') {
     adminInfo = await prisma.QUANTRIVIEN.findFirst({
       where: { MaTaiKhoan: user.MaTaiKhoan }
     });
+    chucVu = adminInfo?.ChucVu || 'Quản trị viên hệ thống';
   }
+
+  const token = jwt.sign(
+    {
+      id: user.MaTaiKhoan,
+      MaTaiKhoan: user.MaTaiKhoan,
+      username: user.TenDangNhap,
+      Role: user.Role,
+      MaNhom: user.MaNhom,
+      ChucVu: chucVu,
+      HoTen: adminInfo?.HoTen || studentInfo?.HoTen || null
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
 
   return {
     token,
@@ -78,7 +82,9 @@ const buildLoginResponse = async (user) => {
       MaTaiKhoan: user.MaTaiKhoan,
       username: user.TenDangNhap,
       Role: user.Role,
-      MaNhom: user.MaNhom
+      MaNhom: user.MaNhom,
+      ChucVu: chucVu,
+      HoTen: adminInfo?.HoTen || null
     },
     student: studentInfo,
     admin: adminInfo

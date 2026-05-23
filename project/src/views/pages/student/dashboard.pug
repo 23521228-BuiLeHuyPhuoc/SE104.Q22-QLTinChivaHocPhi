@@ -2,6 +2,10 @@ extends ../../layouts/student
 
 block content
   .page-shell
+    .welcome-banner
+      h2 Xin chào, #{(user && user.HoTen) || (user && user.username) || 'Sinh viên'}! 👋
+      p Chúc bạn có một ngày học tập hiệu quả
+
     .page-heading
       .page-kicker Cổng sinh viên
       h2 Tổng quan học tập và học phí
@@ -50,6 +54,9 @@ block content
             a.action-tile(href="/student/my-schedule")
               strong Thời khóa biểu
               span Xem lịch học theo ngày trong tuần
+            a.action-tile(href="/student/curriculum")
+              strong Chương trình ĐT
+              span Xem tiến độ theo chương trình đào tạo
 
 block scripts
   script(src="/js/student/dashboard.js")

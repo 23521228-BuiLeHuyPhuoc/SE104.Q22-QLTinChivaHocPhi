@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const rateLimit = require('express-rate-limit');
+// const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // Import API routes
@@ -32,21 +32,11 @@ app.set('views', path.join(__dirname, 'views'));
 // Static files (CSS, JS, images)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rate limiting configuration
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau' }
-});
-
-
-
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(generalLimiter); // Apply general rate limiting to all routes
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -59,7 +49,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
-// API Routes - Apply stricter rate limiting to auth routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/courses', courseRoutes);

@@ -1,0 +1,27 @@
+extends ../../layouts/student
+
+block content
+  .page-shell
+    .page-heading
+      .page-kicker Học tập
+      h2 Chương trình đào tạo
+      p Theo dõi tiến độ học tập theo ngành
+
+    .card.mb-3
+      .card-body
+        .progress-label
+          span Tiến độ tích lũy
+          strong
+            span#credits-done 0
+            |  / 
+            span#credits-total 0
+            |  tín chỉ
+        .progress.progress-lg
+          .progress-bar#credits-bar(style="width: 0%")
+
+    #curriculum-container.curriculum-grid
+      .loading-overlay
+        .spinner
+
+block scripts
+  script(src="/js/student/curriculum.js")

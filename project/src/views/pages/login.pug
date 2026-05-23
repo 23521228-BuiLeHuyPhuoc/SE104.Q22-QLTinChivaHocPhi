@@ -24,12 +24,14 @@ block content
           label(for="password") Mật khẩu
           input.form-control#password(type="password" name="password" placeholder="Nhập mật khẩu" required autocomplete="current-password")
 
-        button.btn.btn-primary.btn-login(type="submit" id="btn-login") Đăng nhập
+        button.btn.btn-login(type="submit" id="btn-login") Đăng nhập
 
       .login-switch
         if isAdminLogin
-          a(href="/login") Đăng nhập sinh viên
+          | Bạn là sinh viên? 
+          a(href="/login") Đăng nhập tại đây
         else
+          | Bạn là quản trị viên? 
           a(href="/admin/login") Đăng nhập admin
 
 block scripts

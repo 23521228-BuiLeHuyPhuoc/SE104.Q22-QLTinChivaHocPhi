@@ -20,10 +20,84 @@ const getAllRegistrations = async (req, res) => {
 
 const getStudentCourses = async (req, res) => {
   try {
-    const where = { PHIEUDANGKY: { MaSv: req.params.studentId } };
-    if (req.query.MaHocKy) where.PHIEUDANGKY.MaHocKy = req.query.MaHocKy;
-    const rows = await prisma.CHITIETDANGKY.findMany({ where, include: { LOP: { include: { MONHOC: true } }, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
-    res.json({ success: true, data: { courses: rows, summary: { totalCourses: rows.length, totalCredits: rows.reduce((s, c) => s + (c.SoTinChi || 0), 0) } } });
+    const studentId = req.params.studentId;
+    const semesterId = req.query.MaHocKy || null;
+    const rows = await prisma.$queryRaw`
+      SELECT
+        ctdk."id",
+        ctdk."SoPhieu",
+        ctdk."MaLop",
+        ctdk."MaMonHoc",
+        ctdk."LoaiDangKy",
+        ctdk."DonGia",
+        ctdk."ThanhTien",
+        ctdk."TrangThai",
+        ctdk."NgayDangKy",
+        ctdk."NgayHuy",
+        mh."SoTinChi",
+        l."TenLop",
+        l."LichHoc",
+        l."PhongHoc",
+        mh."TenMonHoc",
+        mh."LoaiMon",
+        pdk."MaHocKy",
+        hk."TenHocKy",
+        nh."TenNamHoc"
+      FROM "CHITIETDANGKY" ctdk
+      JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = ctdk."SoPhieu"
+      LEFT JOIN "LOP" l ON l."MaLop" = ctdk."MaLop"
+      LEFT JOIN "MONHOC" mh ON mh."MaMonHoc" = COALESCE(ctdk."MaMonHoc", l."MaMonHoc")
+      LEFT JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+      LEFT JOIN "NAMHOC" nh ON nh."MaNamHoc" = hk."MaNamHoc"
+      WHERE pdk."MaSv" = ${studentId}
+        AND (${semesterId}::text IS NULL OR pdk."MaHocKy" = ${semesterId})
+      ORDER BY ctdk."NgayDangKy" DESC, ctdk."id" DESC
+    `;
+
+    const courses = rows.map((row) => ({
+      id: row.id,
+      SoPhieu: row.SoPhieu,
+      MaLop: row.MaLop,
+      MaMonHoc: row.MaMonHoc,
+      LoaiDangKy: row.LoaiDangKy,
+      DonGia: row.DonGia,
+      ThanhTien: row.ThanhTien,
+      TrangThai: row.TrangThai,
+      NgayDangKy: row.NgayDangKy,
+      NgayHuy: row.NgayHuy,
+      SoTinChi: row.SoTinChi || 0,
+      LOP: {
+        MaLop: row.MaLop,
+        TenLop: row.TenLop,
+        GiangVien: null,
+        LichHoc: row.LichHoc,
+        PhongHoc: row.PhongHoc,
+        MONHOC: {
+          MaMonHoc: row.MaMonHoc,
+          TenMonHoc: row.TenMonHoc,
+          SoTinChi: row.SoTinChi || 0,
+          LoaiMon: row.LoaiMon
+        }
+      },
+      PHIEUDANGKY: {
+        MaHocKy: row.MaHocKy,
+        HOCKY: {
+          TenHocKy: row.TenHocKy,
+          NAMHOC: { TenNamHoc: row.TenNamHoc }
+        }
+      }
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        courses,
+        summary: {
+          totalCourses: courses.length,
+          totalCredits: courses.reduce((sum, course) => sum + Number(course.SoTinChi || 0), 0)
+        }
+      }
+    });
   } catch (error) { console.error('Get student courses error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 

@@ -14,7 +14,10 @@ header.top-header
 
   .header-right
     button.theme-toggle(type="button" onclick="toggleTheme()" title="Đổi giao diện" aria-label="Đổi giao diện")
-      span#theme-icon Sáng
+      span#theme-icon ☀️
+    - const notifHref = user && user.Role === 'admin' ? '/admin/dashboard' : '/student/notifications'
+    button.notification-bell(type="button" title="Thông báo" aria-label="Thông báo" onclick=`window.location.href='${notifHref}'`)
+      span 🔔
     if displayName
       .header-user
         .user-avatar= displayName.charAt(0).toUpperCase()

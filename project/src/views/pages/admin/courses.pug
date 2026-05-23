@@ -33,7 +33,7 @@ block content
                     small= c.MoTa
                 td= c.SoTinChi || '-'
                 td
-                  span.badge.badge-info= c.LoaiMon || '-'
+                  span.badge(class=c.LoaiMon === 'TH' ? 'badge-success' : 'badge-primary')= c.LoaiMon || '-'
                 td= c.SoTiet
                 td= c.KHOA ? c.KHOA.TenKhoa : c.MaKhoa
                 td.table-actions

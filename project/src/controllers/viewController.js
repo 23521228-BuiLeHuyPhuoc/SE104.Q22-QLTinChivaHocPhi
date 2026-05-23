@@ -38,6 +38,7 @@ const renderAdmin = (res, view, page, title, req, locals = {}) => {
     activePage: page,
     headerTitle: title,
     user: req.user,
+    chucVu: req.user?.ChucVu || 'Quản trị viên hệ thống',
     ...locals
   });
 };
@@ -564,6 +565,10 @@ const studentNotifications = (req, res) => {
   renderStudent(res, 'notifications', 'notifications', 'Thông báo', req);
 };
 
+const studentCurriculum = (req, res) => {
+  renderStudent(res, 'curriculum', 'curriculum', 'Chương trình đào tạo', req);
+};
+
 module.exports = {
   requireViewAuth,
   requireViewAdmin,
@@ -589,5 +594,6 @@ module.exports = {
   studentMyPayments,
   studentMySchedule,
   studentProfile,
-  studentNotifications
+  studentNotifications,
+  studentCurriculum
 };

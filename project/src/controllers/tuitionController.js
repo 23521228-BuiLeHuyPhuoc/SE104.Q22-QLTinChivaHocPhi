@@ -28,10 +28,27 @@ const getTuitionById = async (req, res) => {
 
 const getStudentTuition = async (req, res) => {
   try {
-    const where = { MaSv: req.params.studentId };
-    if (req.query.MaHocKy) where.MaHocKy = req.query.MaHocKy;
-    const rows = await prisma.PHIEUDANGKY.findMany({ where, include: { HOCKY: { include: { NAMHOC: true } }, PHIEUTHUHOCPHI: { where: { TrangThai: 'Thành công' } } }, orderBy: { NgayLap: 'desc' } });
-    const data = rows.map(t => { const daDong = t.PHIEUTHUHOCPHI.reduce((s, p) => s + Number(p.SoTienThu), 0); const phaiDong = Number(t.TongTienPhaiDong) || 0; return { SoPhieu: t.SoPhieu, MaHocKy: t.MaHocKy, TenHocKy: t.HOCKY.TenHocKy, TenNamHoc: t.HOCKY.NAMHOC.TenNamHoc, TongTienPhaiDong: phaiDong, TongTienDaDong: daDong, conNo: phaiDong - daDong }; });
+    const studentId = req.params.studentId;
+    const semesterId = req.query.MaHocKy || null;
+    const rows = await prisma.$queryRaw`
+      SELECT
+        pdk."SoPhieu",
+        pdk."MaHocKy",
+        hk."TenHocKy",
+        nh."TenNamHoc",
+        GREATEST(COALESCE(pdk."TongTienDangKy", 0) - COALESCE(pdk."TienMienGiam", 0), 0) AS "TongTienPhaiDong",
+        COALESCE(SUM(CASE WHEN pthp."TrangThai" = 'Thành công' THEN pthp."SoTienThu" ELSE 0 END), 0) AS "TongTienDaDong"
+      FROM "PHIEUDANGKY" pdk
+      LEFT JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+      LEFT JOIN "NAMHOC" nh ON nh."MaNamHoc" = hk."MaNamHoc"
+      LEFT JOIN "PHIEUTHUHOCPHI" pthp ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
+      WHERE pdk."MaSv" = ${studentId}
+        AND (${semesterId}::text IS NULL OR pdk."MaHocKy" = ${semesterId})
+      GROUP BY pdk."SoPhieu", pdk."MaHocKy", hk."TenHocKy", nh."TenNamHoc",
+        pdk."TongTienDangKy", pdk."TienMienGiam", pdk."NgayLap"
+      ORDER BY pdk."NgayLap" DESC
+    `;
+    const data = rows.map(t => { const daDong = Number(t.TongTienDaDong || 0); const phaiDong = Number(t.TongTienPhaiDong || 0); return { SoPhieu: t.SoPhieu, MaHocKy: t.MaHocKy, TenHocKy: t.TenHocKy, TenNamHoc: t.TenNamHoc, TongTienPhaiDong: phaiDong, TongTienDaDong: daDong, conNo: phaiDong - daDong }; });
     res.json({ success: true, data });
   } catch (error) { console.error('Get student tuition error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };

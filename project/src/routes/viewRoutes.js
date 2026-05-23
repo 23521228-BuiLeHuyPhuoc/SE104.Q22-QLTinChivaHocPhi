@@ -29,5 +29,6 @@ router.get('/student/my-payments', vc.requireViewAuth, vc.requireViewStudent, vc
 router.get('/student/my-schedule', vc.requireViewAuth, vc.requireViewStudent, vc.studentMySchedule);
 router.get('/student/profile', vc.requireViewAuth, vc.requireViewStudent, vc.studentProfile);
 router.get('/student/notifications', vc.requireViewAuth, vc.requireViewStudent, vc.studentNotifications);
+router.get('/student/curriculum', vc.requireViewAuth, vc.requireViewStudent, vc.studentCurriculum);
 
 module.exports = router;

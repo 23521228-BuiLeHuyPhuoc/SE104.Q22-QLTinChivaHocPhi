@@ -65,7 +65,7 @@ function showToast(message, type) {
 
 function setThemeLabel(theme) {
   var icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = theme === 'dark' ? 'Tối' : 'Sáng';
+  if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
 }
 
 function toggleTheme() {
@@ -85,7 +85,20 @@ function toggleTheme() {
 
 function toggleSidebar() {
   var sidebar = document.getElementById('sidebar');
-  if (sidebar) sidebar.classList.toggle('open');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) {
+    sidebar.classList.toggle('open');
+    if (backdrop) {
+      backdrop.classList.toggle('active', sidebar.classList.contains('open'));
+    }
+  }
+}
+
+function closeSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('active');
 }
 
 function formatCurrency(amount) {
@@ -98,6 +111,23 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 }
 
+// Counter animation for stat numbers
+function animateCounter(element, target, duration) {
+  duration = duration || 1000;
+  var start = 0;
+  var startTime = performance.now();
+  function update(currentTime) {
+    var elapsed = currentTime - startTime;
+    var progress = Math.min(elapsed / duration, 1);
+    var eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    var current = Math.round(start + (target - start) * eased);
+    element.textContent = current.toLocaleString('vi-VN');
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// Auto token check
 (function() {
   var path = window.location.pathname;
   if (path === '/login' || path === '/admin/login' || path === '/') return;
@@ -105,3 +135,21 @@ function formatDate(dateStr) {
   var token = getToken();
   if (!token) window.location.href = getLoginPathForCurrentPage();
 })();
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-animate counters
+  document.querySelectorAll('[data-count]').forEach(function(el) {
+    var target = parseInt(el.dataset.count, 10);
+    if (!isNaN(target)) animateCounter(el, target);
+  });
+
+  // Create mobile sidebar backdrop
+  if (!document.getElementById('sidebar-backdrop')) {
+    var backdrop = document.createElement('div');
+    backdrop.id = 'sidebar-backdrop';
+    backdrop.className = 'sidebar-backdrop';
+    backdrop.onclick = closeSidebar;
+    document.body.appendChild(backdrop);
+  }
+});
