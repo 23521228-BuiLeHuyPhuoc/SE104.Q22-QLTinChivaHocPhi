@@ -6,6 +6,11 @@ const vc = require('../controllers/viewController');
 router.get('/', vc.root);
 router.get('/login', vc.loginPage);
 router.get('/admin/login', vc.adminLoginPage);
+router.get('/register', vc.registerPage);
+router.get('/admin/register', vc.adminRegisterPage);
+router.get('/forgot-password', vc.forgotPasswordPage);
+router.get('/admin/forgot-password', vc.adminForgotPasswordPage);
+router.get('/reset-password', vc.resetPasswordPage);
 router.get('/logout', vc.logout);
 
 // ADMIN
@@ -19,6 +24,15 @@ router.get('/admin/tuition', vc.requireViewAuth, vc.requireViewAdmin, vc.adminTu
 router.get('/admin/payments', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPayments);
 router.get('/admin/reports', vc.requireViewAuth, vc.requireViewAdmin, vc.adminReports);
 router.get('/admin/users', vc.requireViewAuth, vc.requireViewAdmin, vc.adminUsers);
+router.get('/admin/faculties', vc.requireViewAuth, vc.requireViewAdmin, vc.adminFaculties);
+router.get('/admin/majors', vc.requireViewAuth, vc.requireViewAdmin, vc.adminMajors);
+router.get('/admin/completed-courses', vc.requireViewAuth, vc.requireViewAdmin, vc.adminCompletedCourses);
+router.get('/admin/grades', vc.requireViewAuth, vc.requireViewAdmin, (req, res) => res.redirect('/admin/completed-courses'));
+router.get('/admin/pricing', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPricing);
+router.get('/admin/beneficiaries', vc.requireViewAuth, vc.requireViewAdmin, vc.adminBeneficiaries);
+router.get('/admin/permissions', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPermissions);
+router.get('/admin/notifications', vc.requireViewAuth, vc.requireViewAdmin, vc.adminNotifications);
+router.get('/admin/settings', vc.requireViewAuth, vc.requireViewAdmin, vc.adminSettings);
 
 // STUDENT
 router.get('/student/dashboard', vc.requireViewAuth, vc.requireViewStudent, vc.studentDashboard);

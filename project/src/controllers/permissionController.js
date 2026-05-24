@@ -1,0 +1,207 @@
+const prisma = require('../config/database');
+
+// ── CHUCNANG (Functions) ──
+
+const getAllFunctions = async (req, res) => {
+  try {
+    const functions = await prisma.CHUCNANG.findMany({
+      orderBy: { MaChucNang: 'asc' },
+      include: { _count: { select: { PHANQUYEN: true } } }
+    });
+    res.json({ success: true, data: functions });
+  } catch (error) {
+    console.error('getAllFunctions error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const createFunction = async (req, res) => {
+  try {
+    const { MaChucNang, TenChucNang, TenManHinhDuocLoad } = req.body;
+    if (!MaChucNang || !TenChucNang || !TenManHinhDuocLoad) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    }
+    const existing = await prisma.CHUCNANG.findUnique({ where: { MaChucNang } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Mã chức năng đã tồn tại' });
+    }
+    const func = await prisma.CHUCNANG.create({
+      data: { MaChucNang, TenChucNang, TenManHinhDuocLoad }
+    });
+    res.status(201).json({ success: true, message: 'Tạo chức năng thành công', data: func });
+  } catch (error) {
+    console.error('createFunction error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const updateFunction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { TenChucNang, TenManHinhDuocLoad } = req.body;
+    const func = await prisma.CHUCNANG.update({
+      where: { MaChucNang: id },
+      data: { TenChucNang, TenManHinhDuocLoad }
+    });
+    res.json({ success: true, message: 'Cập nhật chức năng thành công', data: func });
+  } catch (error) {
+    console.error('updateFunction error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const deleteFunction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.CHUCNANG.delete({ where: { MaChucNang: id } });
+    res.json({ success: true, message: 'Xóa chức năng thành công' });
+  } catch (error) {
+    console.error('deleteFunction error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// ── NHOMNGUOIDUNG (Groups) ──
+
+const getAllGroups = async (req, res) => {
+  try {
+    const groups = await prisma.NHOMNGUOIDUNG.findMany({
+      orderBy: { MaNhom: 'asc' },
+      include: {
+        _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
+      }
+    });
+    res.json({ success: true, data: groups });
+  } catch (error) {
+    console.error('getAllGroups error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const createGroup = async (req, res) => {
+  try {
+    const { MaNhom, TenNhom } = req.body;
+    if (!MaNhom || !TenNhom) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    }
+    const existing = await prisma.NHOMNGUOIDUNG.findUnique({ where: { MaNhom } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Mã nhóm đã tồn tại' });
+    }
+    const group = await prisma.NHOMNGUOIDUNG.create({ data: { MaNhom, TenNhom } });
+    res.status(201).json({ success: true, message: 'Tạo nhóm thành công', data: group });
+  } catch (error) {
+    console.error('createGroup error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const updateGroup = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { TenNhom } = req.body;
+    const group = await prisma.NHOMNGUOIDUNG.update({
+      where: { MaNhom: id },
+      data: { TenNhom }
+    });
+    res.json({ success: true, message: 'Cập nhật nhóm thành công', data: group });
+  } catch (error) {
+    console.error('updateGroup error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const deleteGroup = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (['ADMIN', 'SINHVIEN'].includes(id)) {
+      return res.status(400).json({ success: false, message: 'Không thể xóa nhóm mặc định' });
+    }
+    const count = await prisma.TAIKHOAN.count({ where: { MaNhom: id } });
+    if (count > 0) {
+      return res.status(400).json({ success: false, message: `Nhóm đang có ${count} tài khoản, không thể xóa` });
+    }
+    await prisma.NHOMNGUOIDUNG.delete({ where: { MaNhom: id } });
+    res.json({ success: true, message: 'Xóa nhóm thành công' });
+  } catch (error) {
+    console.error('deleteGroup error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+// ── PHANQUYEN (Permissions) ──
+
+const getGroupPermissions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const permissions = await prisma.PHANQUYEN.findMany({
+      where: { MaNhom: id },
+      include: { CHUCNANG: true }
+    });
+    res.json({ success: true, data: permissions });
+  } catch (error) {
+    console.error('getGroupPermissions error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const assignPermission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { MaChucNang } = req.body;
+    if (!MaChucNang) {
+      return res.status(400).json({ success: false, message: 'Thiếu mã chức năng' });
+    }
+    await prisma.PHANQUYEN.create({
+      data: { MaNhom: id, MaChucNang }
+    });
+    res.status(201).json({ success: true, message: 'Gán quyền thành công' });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'Quyền này đã được gán' });
+    }
+    console.error('assignPermission error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const removePermission = async (req, res) => {
+  try {
+    const { id, funcId } = req.params;
+    await prisma.PHANQUYEN.delete({
+      where: { MaNhom_MaChucNang: { MaNhom: id, MaChucNang: funcId } }
+    });
+    res.json({ success: true, message: 'Xóa quyền thành công' });
+  } catch (error) {
+    console.error('removePermission error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const bulkUpdatePermissions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { permissions } = req.body; // array of MaChucNang strings
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
+    }
+    // Delete all existing permissions for this group
+    await prisma.PHANQUYEN.deleteMany({ where: { MaNhom: id } });
+    // Create new permissions
+    if (permissions.length > 0) {
+      await prisma.PHANQUYEN.createMany({
+        data: permissions.map(MaChucNang => ({ MaNhom: id, MaChucNang }))
+      });
+    }
+    res.json({ success: true, message: `Đã cập nhật ${permissions.length} quyền cho nhóm` });
+  } catch (error) {
+    console.error('bulkUpdatePermissions error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+module.exports = {
+  getAllFunctions, createFunction, updateFunction, deleteFunction,
+  getAllGroups, createGroup, updateGroup, deleteGroup,
+  getGroupPermissions, assignPermission, removePermission, bulkUpdatePermissions
+};

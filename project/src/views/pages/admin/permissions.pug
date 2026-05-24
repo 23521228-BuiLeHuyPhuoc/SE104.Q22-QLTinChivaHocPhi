@@ -1,0 +1,138 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .toolbar-title
+      h2.page-title Phân quyền hệ thống
+      p Quản lý nhóm người dùng, chức năng và phân quyền truy cập.
+    .filter-group
+      button.btn.btn-outline(type="button" onclick="switchTab('functions')") Chức năng
+      button.btn.btn-primary(type="button" onclick="openGroupModal('add')") Thêm nhóm
+
+  //- Tab: Groups
+  #tab-groups.tab-panel
+    .card
+      .card-header
+        h3 Nhóm người dùng
+        span.card-count= groups ? `${groups.length} nhóm` : '0 nhóm'
+      .table-container
+        table.data-table
+          thead
+            tr
+              th Mã nhóm
+              th Tên nhóm
+              th Số tài khoản
+              th Số quyền
+              th Thao tác
+          tbody
+            if groups && groups.length > 0
+              each g in groups
+                tr
+                  td.mono= g.MaNhom
+                  td
+                    strong= g.TenNhom
+                  td= g._count ? g._count.TAIKHOAN : 0
+                  td= g._count ? g._count.PHANQUYEN : 0
+                  td.table-actions
+                    button.btn.btn-sm.btn-primary(type="button" onclick=`openPermissionModal('${g.MaNhom}', '${g.TenNhom}')`) Phân quyền
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(g) onclick="openGroupModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    if g.MaNhom !== 'ADMIN' && g.MaNhom !== 'SINHVIEN'
+                      button.btn.btn-sm.btn-danger(type="button" onclick=`deleteGroup('${g.MaNhom}')`) Xóa
+            else
+              tr
+                td(colspan="5")
+                  .empty-state Chưa có nhóm nào
+
+  //- Tab: Functions
+  #tab-functions.tab-panel(style="display:none")
+    .toolbar
+      .toolbar-title
+        h2.page-title Chức năng hệ thống
+      .filter-group
+        button.btn.btn-outline(type="button" onclick="switchTab('groups')") Nhóm người dùng
+        button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm chức năng
+    .card
+      .card-header
+        h3 Danh sách chức năng
+        span.card-count= functions ? `${functions.length} chức năng` : '0 chức năng'
+      .table-container
+        table.data-table
+          thead
+            tr
+              th Mã chức năng
+              th Tên chức năng
+              th Màn hình
+              th Thao tác
+          tbody
+            if functions && functions.length > 0
+              each f in functions
+                tr
+                  td.mono= f.MaChucNang
+                  td
+                    strong= f.TenChucNang
+                  td= f.TenManHinhDuocLoad
+                  td.table-actions
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openFunctionModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFunction('${f.MaChucNang}')`) Xóa
+            else
+              tr
+                td(colspan="4")
+                  .empty-state Chưa có chức năng nào
+
+block modals
+  //- Group Modal
+  #group-modal.modal-overlay(onclick="if(event.target===this)closeGroupModal()")
+    .modal
+      .modal-header
+        h2#group-modal-title Thêm nhóm
+        button.modal-close(type="button" onclick="closeGroupModal()") ×
+      .modal-body
+        form#group-form
+          .form-row
+            .form-group
+              label(for="grp-ma") Mã nhóm
+              input.form-control#grp-ma(type="text" required placeholder="VD: GIANG_VIEN")
+            .form-group
+              label(for="grp-ten") Tên nhóm
+              input.form-control#grp-ten(type="text" required placeholder="VD: Giảng viên")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeGroupModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveGroup()") Lưu
+
+  //- Function Modal
+  #function-modal.modal-overlay(onclick="if(event.target===this)closeFunctionModal()")
+    .modal
+      .modal-header
+        h2#function-modal-title Thêm chức năng
+        button.modal-close(type="button" onclick="closeFunctionModal()") ×
+      .modal-body
+        form#function-form
+          .form-group
+            label(for="func-ma") Mã chức năng
+            input.form-control#func-ma(type="text" required placeholder="VD: QL_SINHVIEN")
+          .form-group
+            label(for="func-ten") Tên chức năng
+            input.form-control#func-ten(type="text" required placeholder="VD: Quản lý sinh viên")
+          .form-group
+            label(for="func-manhinh") Tên màn hình được load
+            input.form-control#func-manhinh(type="text" required placeholder="VD: /admin/students")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeFunctionModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveFunction()") Lưu
+
+  //- Permission Modal
+  #permission-modal.modal-overlay(onclick="if(event.target===this)closePermissionModal()")
+    .modal
+      .modal-header
+        h2#permission-modal-title Phân quyền
+        button.modal-close(type="button" onclick="closePermissionModal()") ×
+      .modal-body
+        p#perm-group-label.text-muted Đang phân quyền cho nhóm:
+        #permission-list
+          .empty-state Đang tải...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closePermissionModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="savePermissions()") Lưu phân quyền
+
+block scripts
+  script(src="/js/admin/permissions.js")

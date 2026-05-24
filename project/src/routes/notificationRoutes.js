@@ -13,7 +13,9 @@ router.get('/unread-count', authenticateToken, notificationController.getUnreadC
 router.put('/:id/read', authenticateToken, notificationController.markAsRead);
 
 // Admin routes
-router.post('/', authenticateToken, isAdmin, notificationController.createPublicNotification);
+router.post('/', authenticateToken, isAdmin, notificationController.createAdminNotification);
+router.post('/personal', authenticateToken, isAdmin, notificationController.createPublicNotification);
+router.put('/:id', authenticateToken, isAdmin, notificationController.updateNotification);
 router.delete('/:id', authenticateToken, isAdmin, notificationController.deleteNotification);
 
 module.exports = router;

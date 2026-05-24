@@ -24,6 +24,7 @@ block content
             th Môn học
             th Lớp
             th Tín chỉ
+            th Loại đăng ký
             th Ngày đăng ký
             th Trạng thái
         tbody
@@ -42,12 +43,19 @@ block content
                   small= course ? course.MaMonHoc : ''
                 td.mono= r.MaLop || '-'
                 td= r.SoTinChi || '-'
+                td
+                  if r.LoaiDangKy === 'hoc_lai'
+                    span.badge.badge-warning Học lại
+                  else if r.LoaiDangKy === 'hoc_cai_thien'
+                    span.badge.badge-info Cải thiện
+                  else
+                    span.badge.badge-success Học mới
                 td= r.NgayDangKy ? new Date(r.NgayDangKy).toLocaleDateString('vi-VN') : '-'
                 td
                   span.badge(class=isCancelled ? 'badge-error' : 'badge-success')= r.TrangThai || 'Đã đăng ký'
           else
             tr
-              td(colspan="8")
+              td(colspan="9")
                 .empty-state Không có dữ liệu đăng ký
 
   include ../../partials/pagination

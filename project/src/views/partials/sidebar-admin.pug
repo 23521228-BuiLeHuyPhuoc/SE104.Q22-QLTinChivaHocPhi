@@ -1,9 +1,12 @@
 - const active = activePage || currentPage || ''
 - const adminName = user ? (user.HoTen || user.username || user.TenDangNhap || 'Admin') : 'Admin'
-- const chucVu = user ? (user.ChucVu || 'Quản trị viên hệ thống') : 'Quản trị viên hệ thống'
-- const isSystem = chucVu === 'Quản trị viên hệ thống'
-- const isTraining = chucVu === 'Quản trị viên đào tạo'
-- const isFinance = chucVu === 'Quản trị viên tài chính'
+- const rawChucVu = user ? (user.ChucVu || '') : ''
+- const maNhomLower = user ? String(user.MaNhom || '').toLowerCase() : ''
+- const chucVuLower = rawChucVu.toLowerCase()
+- const isSystem = maNhomLower === 'admin' || maNhomLower === 'admin_he_thong' || maNhomLower === 'system_admin' || !rawChucVu || chucVuLower.includes('hệ thống') || chucVuLower.includes('he thong') || chucVuLower === 'admin hệ thống' || chucVuLower === 'admin' || chucVuLower.includes('system')
+- const isTraining = chucVuLower.includes('đào tạo') || chucVuLower.includes('dao tao') || chucVuLower.includes('training')
+- const isFinance = chucVuLower.includes('tài chính') || chucVuLower.includes('tai chinh') || chucVuLower.includes('finance')
+- const chucVuDisplay = rawChucVu || 'Quản trị viên hệ thống'
 
 nav.sidebar.sidebar-admin(id="sidebar")
   .sidebar-brand
@@ -13,68 +16,68 @@ nav.sidebar.sidebar-admin(id="sidebar")
       small Quản trị học phí và đăng ký
 
   .sidebar-nav
-    //- TỔNG QUAN — hiển thị cho TẤT CẢ admin
     .sidebar-section
       .sidebar-section-title Tổng quan
       a.sidebar-link(href="/admin/dashboard" class=(active === 'dashboard' ? 'active' : ''))
-        span.icon BD
         span Bảng điều khiển
 
-    //- ĐÀO TẠO — hiện cho Hệ thống + Đào tạo
     if isSystem || isTraining
       .sidebar-section
         .sidebar-section-title Đào tạo
         a.sidebar-link(href="/admin/students" class=(active === 'students' ? 'active' : ''))
-          span.icon SV
           span Sinh viên
         a.sidebar-link(href="/admin/courses" class=(active === 'courses' ? 'active' : ''))
-          span.icon MH
           span Môn học
         a.sidebar-link(href="/admin/classes" class=(active === 'classes' ? 'active' : ''))
-          span.icon LH
           span Lớp học
         a.sidebar-link(href="/admin/semesters" class=(active === 'semesters' ? 'active' : ''))
-          span.icon HK
           span Học kỳ
+        a.sidebar-link(href="/admin/faculties" class=(active === 'faculties' ? 'active' : ''))
+          span Khoa
+        a.sidebar-link(href="/admin/majors" class=(active === 'majors' ? 'active' : ''))
+          span Ngành học
+        a.sidebar-link(href="/admin/completed-courses" class=(active === 'completed-courses' ? 'active' : ''))
+          span Môn đã học
 
-    //- ĐĂNG KÝ — hiện cho Hệ thống + Đào tạo
     if isSystem || isTraining
       .sidebar-section
         .sidebar-section-title Đăng ký
         a.sidebar-link(href="/admin/registrations" class=(active === 'registrations' ? 'active' : ''))
-          span.icon DK
           span Đăng ký tín chỉ
 
-    //- TÀI CHÍNH — hiện cho Hệ thống + Tài chính
     if isSystem || isFinance
       .sidebar-section
         .sidebar-section-title Tài chính
         a.sidebar-link(href="/admin/tuition" class=(active === 'tuition' ? 'active' : ''))
-          span.icon HP
           span Học phí
         a.sidebar-link(href="/admin/payments" class=(active === 'payments' ? 'active' : ''))
-          span.icon PT
           span Phiếu thu
+        a.sidebar-link(href="/admin/pricing" class=(active === 'pricing' ? 'active' : ''))
+          span Đơn giá tín chỉ
+        a.sidebar-link(href="/admin/beneficiaries" class=(active === 'beneficiaries' ? 'active' : ''))
+          span Đối tượng ưu tiên
 
-    //- BÁO CÁO — hiện cho Hệ thống + Tài chính
     if isSystem || isFinance
       .sidebar-section
         .sidebar-section-title Báo cáo
         a.sidebar-link(href="/admin/reports" class=(active === 'reports' ? 'active' : ''))
-          span.icon BC
           span Thống kê
 
-    //- HỆ THỐNG — chỉ hiện cho Quản trị viên hệ thống
     if isSystem
       .sidebar-section
         .sidebar-section-title Hệ thống
         a.sidebar-link(href="/admin/users" class=(active === 'users' ? 'active' : ''))
-          span.icon ND
           span Người dùng
+        a.sidebar-link(href="/admin/permissions" class=(active === 'permissions' ? 'active' : ''))
+          span Phân quyền
+        a.sidebar-link(href="/admin/notifications" class=(active === 'notifications' ? 'active' : ''))
+          span Thông báo
+        a.sidebar-link(href="/admin/settings" class=(active === 'settings' ? 'active' : ''))
+          span Tham số hệ thống
 
   .sidebar-footer
     .sidebar-user
       .avatar= adminName.charAt(0).toUpperCase()
       div
         div= adminName
-        small= chucVu
+        small= chucVuDisplay

@@ -1,6 +1,7 @@
 extends ../../layouts/admin
 
 block content
+  - const groups = groupOptions || []
   .toolbar
     .search-box
       input#search-input(type="text" placeholder="Tìm tên đăng nhập, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
@@ -9,6 +10,15 @@ block content
         option(value="" selected=(!filterRole)) Tất cả vai trò
         option(value="admin" selected=(filterRole === 'admin')) Quản trị viên
         option(value="student" selected=(filterRole === 'student')) Sinh viên
+      select#filter-group(onchange="applyFilters()")
+        option(value="" selected=(!filterGroup)) Tất cả nhóm
+        each group in groups
+          option(value=group.MaNhom selected=(filterGroup === group.MaNhom))= group.TenNhom || group.MaNhom
+      select#filter-approval(onchange="applyFilters()")
+        option(value="" selected=(!filterApproval)) Tất cả duyệt
+        option(value="pending" selected=(filterApproval === 'pending')) Chờ duyệt
+        option(value="approved" selected=(filterApproval === 'approved')) Đã duyệt
+        option(value="rejected" selected=(filterApproval === 'rejected')) Từ chối
 
   .card
     .card-header
@@ -25,42 +35,57 @@ block content
             th Email
             th Nhóm
             th Vai trò
+            th Duyệt
             th Ngày tạo
             th Thao tác
         tbody#accounts-table
           if accounts && accounts.length > 0
             each acc in accounts
+              - const approval = acc.TrangThaiDuyet || 'approved'
+              - const approvalClass = approval === 'approved' ? 'badge-success' : approval === 'pending' ? 'badge-warning' : 'badge-error'
+              - const group = groups.find(g => g.MaNhom === acc.MaNhom)
+              - const groupName = group ? group.TenNhom : acc.MaNhom
+              - const roleLabel = acc.Role === 'admin' ? (groupName || 'Quản trị viên') : 'Sinh viên'
               tr
                 td.mono= acc.MaTaiKhoan
                 td
                   strong= acc.TenDangNhap
+                  if acc.QUANTRIVIEN && acc.QUANTRIVIEN.ChucVu
+                    small= acc.QUANTRIVIEN.ChucVu
                 td= acc.HoTen || '-'
                 td= acc.MaSv || '-'
                 td= acc.Email || '-'
                 td
-                  span.badge.badge-secondary= acc.MaNhom || '-'
+                  span.badge.badge-secondary= groupName || '-'
                 td
                   if acc.Role === 'admin'
-                    span.badge.badge-info Quản trị viên
+                    span.badge.badge-info= roleLabel
                   else
-                    span.badge.badge-success Sinh viên
+                    span.badge.badge-success= roleLabel
+                td
+                  if approval === 'approved'
+                    span.badge(class=approvalClass) Đã duyệt
+                  else if approval === 'pending'
+                    span.badge(class=approvalClass) Chờ duyệt
+                  else
+                    span.badge(class=approvalClass title=(acc.LyDoTuChoi || '')) Từ chối
                 td= acc.NgayTao ? new Date(acc.NgayTao).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
                     span.text-muted Tài khoản hiện tại
+                  else if canManageAccounts
+                    if approval === 'pending'
+                      button.btn.btn-sm.btn-primary(type="button" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-role=acc.Role data-approval="approved" onclick="handleApprovalClick(this)") Duyệt
+                      button.btn.btn-sm.btn-danger(type="button" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-role=acc.Role data-approval="rejected" onclick="handleApprovalClick(this)") Từ chối
+                    select.account-group-select(id=`group-${acc.MaTaiKhoan}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
+                      each optionGroup in groups
+                        option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
+                    button.btn.btn-sm.btn-secondary(type="button" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)") Đổi nhóm
                   else
-                    button.btn.btn-sm(
-                      type="button"
-                      class=(acc.Role === 'admin' ? 'btn-warning' : 'btn-primary')
-                      data-id=acc.MaTaiKhoan
-                      data-username=acc.TenDangNhap
-                      data-role=acc.Role
-                      onclick="handleRoleClick(this)"
-                      id=`btn-role-${acc.MaTaiKhoan}`
-                    )= acc.Role === 'admin' ? 'Chuyển thành sinh viên' : 'Chuyển thành admin'
+                    span.text-muted Chỉ admin hệ thống
           else
             tr
-              td(colspan="9")
+              td(colspan="10")
                 .empty-state Không có tài khoản phù hợp
 
   include ../../partials/pagination

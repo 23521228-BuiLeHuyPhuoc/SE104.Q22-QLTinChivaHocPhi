@@ -7,10 +7,10 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 router.use(authMiddleware);
 
 // Get all tuition fees
-router.get('/', tuitionController.getAllTuition);
+router.get('/', adminMiddleware, tuitionController.getAllTuition);
 
 // Get tuition statistics
-router.get('/stats', tuitionController.getTuitionStats);
+router.get('/stats', adminMiddleware, tuitionController.getTuitionStats);
 
 // Get credit prices
 router.get('/prices', tuitionController.getCreditPrices);
@@ -19,9 +19,9 @@ router.get('/prices', tuitionController.getCreditPrices);
 router.get('/student/:studentId', tuitionController.getStudentTuition);
 
 // Get tuition fee by ID
-router.get('/:id', tuitionController.getTuitionById);
+router.get('/:id', adminMiddleware, tuitionController.getTuitionById);
 
 // Calculate tuition fee
-router.post('/calculate', tuitionController.calculateTuition);
+router.post('/calculate', adminMiddleware, tuitionController.calculateTuition);
 
 module.exports = router;

@@ -1,0 +1,105 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      select#filter-hocky(onchange="applyFilters()")
+        option(value="" selected=(!filterHocKy)) Tất cả học kỳ
+        if semesters && semesters.length > 0
+          each s in semesters
+            option(value=s.MaHocKy selected=(filterHocKy === s.MaHocKy))= s.TenHocKy
+      select#filter-result(onchange="applyFilters()")
+        option(value="" selected=(!filterResult)) Tất cả kết quả
+        option(value="qua_mon" selected=(filterResult === 'qua_mon')) Qua môn
+        option(value="rot" selected=(filterResult === 'rot')) Rớt
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn đã học
+
+  .card
+    .card-header
+      h3 Danh sách môn đã học
+      span.card-count= completedCourses ? `${completedCourses.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th MSSV
+            th Họ tên
+            th Môn học
+            th Lớp
+            th Học kỳ
+            th Lần
+            th Kết quả
+            th Thao tác
+        tbody
+          if completedCourses && completedCourses.length > 0
+            each c in completedCourses
+              tr
+                td.mono= c.SINHVIEN ? c.SINHVIEN.MaSv : c.MaSv
+                td= c.SINHVIEN ? c.SINHVIEN.HoTen : '-'
+                td
+                  strong= c.MONHOC ? c.MONHOC.TenMonHoc : c.MaMonHoc
+                  small= c.MONHOC ? c.MONHOC.MaMonHoc : ''
+                td= c.LOP ? c.LOP.TenLop : (c.MaLop || '-')
+                td= c.HOCKY ? c.HOCKY.TenHocKy : c.MaHocKy
+                td= c.LanHoc || 1
+                td
+                  if c.KetQua === 'qua_mon'
+                    span.badge.badge-success Qua môn
+                  else
+                    span.badge.badge-error Rớt
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCompletedCourse(${c.id})`) Xóa
+          else
+            tr
+              td(colspan="8")
+                .empty-state Chưa có dữ liệu môn đã học
+
+  include ../../partials/pagination
+
+block modals
+  #completed-course-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm môn đã học
+        button.modal-close(type="button" onclick="closeModal()") ×
+      .modal-body
+        form#completed-course-form
+          .form-row
+            .form-group
+              label(for="cc-masv") MSSV
+              input.form-control#cc-masv(type="text" required placeholder="VD: 23521228")
+            .form-group
+              label(for="cc-mamonhoc") Mã môn học
+              input.form-control#cc-mamonhoc(type="text" required placeholder="VD: IT001")
+          .form-row
+            .form-group
+              label(for="cc-mahocky") Học kỳ
+              select.form-control#cc-mahocky(required)
+                option(value="") Chọn học kỳ
+                if semesters && semesters.length > 0
+                  each s in semesters
+                    option(value=s.MaHocKy)= s.TenHocKy
+            .form-group
+              label(for="cc-malop") Mã lớp
+              input.form-control#cc-malop(type="text" placeholder="VD: IT001.N01")
+          .form-row
+            .form-group
+              label(for="cc-lanhoc") Lần học
+              input.form-control#cc-lanhoc(type="number" min="1" value="1")
+            .form-group
+              label(for="cc-ketqua") Kết quả
+              select.form-control#cc-ketqua(required)
+                option(value="qua_mon") Qua môn
+                option(value="rot") Rớt
+          .form-group
+            label(for="cc-ghichu") Ghi chú
+            textarea.form-control#cc-ghichu(rows="2" placeholder="Ghi chú thêm...")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveCompletedCourse()") Lưu
+
+block scripts
+  script(src="/js/admin/completed-courses.js")

@@ -6,17 +6,17 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 // All routes require authentication
 router.use(authMiddleware);
 
-// Get all payments
-router.get('/', paymentController.getAllPayments);
-
-// Get payment statistics
-router.get('/stats', paymentController.getPaymentStats);
-
 // Get student's payment history
 router.get('/student/:studentId', paymentController.getStudentPayments);
 
+// Get all payments
+router.get('/', adminMiddleware, paymentController.getAllPayments);
+
+// Get payment statistics
+router.get('/stats', adminMiddleware, paymentController.getPaymentStats);
+
 // Get payment by ID
-router.get('/:id', paymentController.getPaymentById);
+router.get('/:id', adminMiddleware, paymentController.getPaymentById);
 
 // Create payment (admin only)
 router.post('/', adminMiddleware, paymentController.createPayment);

@@ -1,0 +1,100 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .toolbar-title
+      h2.page-title Quản lý thông báo
+      p Soạn, gửi và quản lý thông báo cho sinh viên và quản trị viên.
+    .filter-group
+      select#filter-loai(onchange="applyFilters()")
+        option(value="" selected=(!filterLoai)) Tất cả loại
+        option(value="chung" selected=(filterLoai === 'chung')) Chung
+        option(value="hoc_vu" selected=(filterLoai === 'hoc_vu')) Học vụ
+        option(value="tai_chinh" selected=(filterLoai === 'tai_chinh')) Tài chính
+        option(value="he_thong" selected=(filterLoai === 'he_thong')) Hệ thống
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Tạo thông báo
+
+  .card
+    .card-header
+      h3 Danh sách thông báo
+      span.card-count= notifications ? `${notifications.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã
+            th Tiêu đề
+            th Loại
+            th Đối tượng
+            th Ghim
+            th Ngày tạo
+            th Thao tác
+        tbody
+          if notifications && notifications.length > 0
+            each n in notifications
+              - const loaiLabel = n.Loai === 'chung' ? 'Chung' : n.Loai === 'hoc_vu' ? 'Học vụ' : n.Loai === 'tai_chinh' ? 'Tài chính' : n.Loai === 'he_thong' ? 'Hệ thống' : n.Loai
+              - const loaiBadge = n.Loai === 'chung' ? 'badge-info' : n.Loai === 'hoc_vu' ? 'badge-primary' : n.Loai === 'tai_chinh' ? 'badge-warning' : 'badge-error'
+              tr
+                td.mono= n.MaThongBao
+                td
+                  strong= n.TieuDe
+                  small= n.NoiDung ? n.NoiDung.substring(0, 60) + (n.NoiDung.length > 60 ? '...' : '') : ''
+                td
+                  span.badge(class=loaiBadge)= loaiLabel
+                td= n.DOITUONG || 'Tất cả'
+                td
+                  if n.GhimTop
+                    span.badge.badge-warning 📌 Ghim
+                  else
+                    span.text-muted —
+                td= n.NgayTao ? new Date(n.NgayTao).toLocaleDateString('vi-VN') : '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(n) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteNotification(${n.MaThongBao})`) Xóa
+          else
+            tr
+              td(colspan="7")
+                .empty-state Chưa có thông báo nào
+
+block modals
+  #notif-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Tạo thông báo
+        button.modal-close(type="button" onclick="closeModal()") ×
+      .modal-body
+        form#notif-form
+          .form-group
+            label(for="notif-tieude") Tiêu đề
+            input.form-control#notif-tieude(type="text" required placeholder="Tiêu đề thông báo...")
+          .form-group
+            label(for="notif-noidung") Nội dung
+            textarea.form-control#notif-noidung(rows="4" required placeholder="Nội dung thông báo...")
+          .form-row
+            .form-group
+              label(for="notif-loai") Loại thông báo
+              select.form-control#notif-loai
+                option(value="chung") Chung
+                option(value="hoc_vu") Học vụ
+                option(value="tai_chinh") Tài chính
+                option(value="he_thong") Hệ thống
+            .form-group
+              label(for="notif-doituong") Đối tượng
+              select.form-control#notif-doituong
+                option(value="Tất cả") Tất cả
+                option(value="Sinh viên") Sinh viên
+                option(value="Quản trị viên") Quản trị viên
+          .form-row
+            .form-group
+              label
+                input#notif-ghim(type="checkbox")
+                |  Ghim lên đầu
+            .form-group
+              label(for="notif-hethan") Ngày hết hạn
+              input.form-control#notif-hethan(type="date")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveNotification()") Gửi thông báo
+
+block scripts
+  script(src="/js/admin/notifications.js")

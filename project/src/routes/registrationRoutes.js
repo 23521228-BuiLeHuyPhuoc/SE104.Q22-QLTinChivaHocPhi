@@ -6,12 +6,6 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 // All routes require authentication
 router.use(authMiddleware);
 
-// Get all registrations
-router.get('/', registrationController.getAllRegistrations);
-
-// Get registration statistics
-router.get('/stats', registrationController.getRegistrationStats);
-
 // Get available courses for student registration
 router.get('/available', registrationController.getAvailableCourses);
 
@@ -23,5 +17,9 @@ router.post('/', registrationController.registerCourse);
 
 // Cancel registration
 router.put('/:id/cancel', registrationController.cancelRegistration);
+
+// Admin reports and list views
+router.get('/stats', adminMiddleware, registrationController.getRegistrationStats);
+router.get('/', adminMiddleware, registrationController.getAllRegistrations);
 
 module.exports = router;

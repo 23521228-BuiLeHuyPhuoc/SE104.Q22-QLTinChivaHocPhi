@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
+const { isSystemAdminUser } = require('../middleware/auth');
 require('dotenv').config();
 
 function getTokenFromCookie(req) {
@@ -9,7 +10,39 @@ function getTokenFromCookie(req) {
 async function getUserFromToken(token) {
   if (!token) return null;
   try {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret-key');
+    const userId = Number(decoded.MaTaiKhoan || decoded.id || 0);
+    if (!userId) return null;
+
+    const account = await prisma.TAIKHOAN.findUnique({
+      where: { MaTaiKhoan: userId },
+      select: {
+        MaTaiKhoan: true,
+        TenDangNhap: true,
+        Role: true,
+        MaNhom: true,
+        MaSv: true,
+        HoTen: true,
+        TrangThai: true,
+        TrangThaiDuyet: true,
+        SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN: { select: { MaSv: true } },
+        QUANTRIVIEN: { select: { HoTen: true, ChucVu: true } }
+      }
+    });
+
+    if (!account || account.TrangThai === false || account.TrangThaiDuyet !== 'approved') return null;
+
+    return {
+      ...decoded,
+      id: account.MaTaiKhoan,
+      MaTaiKhoan: account.MaTaiKhoan,
+      username: account.TenDangNhap,
+      Role: account.Role,
+      MaNhom: account.MaNhom,
+      MaSv: account.MaSv || account.SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.MaSv || decoded.MaSv,
+      HoTen: account.QUANTRIVIEN?.HoTen || account.HoTen || decoded.HoTen,
+      ChucVu: account.QUANTRIVIEN?.ChucVu || decoded.ChucVu
+    };
   } catch (e) {
     return null;
   }
@@ -96,6 +129,8 @@ const renderLoginPage = async (req, res, loginRole) => {
     loginRole,
     loginAction: isAdminLogin ? '/admin/login' : '/login',
     loginApiPath: isAdminLogin ? '/api/auth/admin/login' : '/api/auth/login',
+    registerPath: isAdminLogin ? '/admin/register' : '/register',
+    forgotPasswordPath: isAdminLogin ? '/admin/forgot-password' : '/forgot-password',
     loginTitle: isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên',
     loginSubtitle: isAdminLogin
       ? 'Khu vực quản trị hệ thống tín chỉ và học phí'
@@ -110,6 +145,66 @@ const loginPage = (req, res) => {
 
 const adminLoginPage = (req, res) => {
   return renderLoginPage(req, res, 'admin');
+};
+
+const renderRegisterPage = async (req, res, registerRole) => {
+  const user = await getUserFromToken(getTokenFromCookie(req));
+  if (user) {
+    if (user.Role === 'admin') return res.redirect('/admin/dashboard');
+    return res.redirect('/student/dashboard');
+  }
+
+  const isAdminRegister = registerRole === 'admin';
+  res.render('pages/register', {
+    pageTitle: isAdminRegister ? 'Đăng ký Admin' : 'Đăng ký Sinh viên',
+    registerRole,
+    registerApiPath: isAdminRegister ? '/api/auth/admin/register' : '/api/auth/student/register',
+    loginPath: isAdminRegister ? '/admin/login' : '/login',
+    registerTitle: isAdminRegister ? 'Đăng ký Admin' : 'Đăng ký Sinh viên',
+    registerSubtitle: isAdminRegister
+      ? 'Tài khoản admin cần được admin hệ thống duyệt trước khi đăng nhập'
+      : 'Tài khoản sinh viên cần được admin hệ thống duyệt và liên kết hồ sơ trước khi đăng nhập',
+    brandMark: isAdminRegister ? 'AD' : 'SV'
+  });
+};
+
+const registerPage = (req, res) => {
+  return renderRegisterPage(req, res, 'student');
+};
+
+const adminRegisterPage = (req, res) => {
+  return renderRegisterPage(req, res, 'admin');
+};
+
+const renderForgotPasswordPage = async (req, res, forgotRole) => {
+  const isAdminForgot = forgotRole === 'admin';
+  res.render('pages/forgot-password', {
+    pageTitle: 'Quên mật khẩu',
+    forgotRole,
+    forgotApiPath: '/api/auth/forgot-password',
+    loginPath: isAdminForgot ? '/admin/login' : '/login',
+    forgotTitle: isAdminForgot ? 'Quên mật khẩu Admin' : 'Quên mật khẩu Sinh viên',
+    forgotSubtitle: 'Nhập tên đăng nhập hoặc email để nhận liên kết đặt lại mật khẩu',
+    brandMark: isAdminForgot ? 'AD' : 'SV'
+  });
+};
+
+const forgotPasswordPage = (req, res) => {
+  return renderForgotPasswordPage(req, res, 'student');
+};
+
+const adminForgotPasswordPage = (req, res) => {
+  return renderForgotPasswordPage(req, res, 'admin');
+};
+
+const resetPasswordPage = (req, res) => {
+  res.render('pages/reset-password', {
+    pageTitle: 'Đặt lại mật khẩu',
+    resetApiPath: '/api/auth/reset-password',
+    token: req.query.token || '',
+    loginPath: '/login',
+    brandMark: 'TC'
+  });
 };
 
 const logout = async (req, res) => {
@@ -382,6 +477,9 @@ const adminTuition = async (req, res) => {
         MaHocKy: registration.MaHocKy,
         TenHocKy: registration.HOCKY?.TenHocKy || registration.MaHocKy,
         TongTinChi: registration.TongTinChi || registration.CHITIETDANGKY.reduce((sum, item) => sum + Number(item.SoTinChi || 0), 0),
+        SoMonHocMoi: registration.SoMonHocMoi || 0,
+        SoMonHocLai: registration.SoMonHocLai || 0,
+        SoMonHocCaiThien: registration.SoMonHocCaiThien || 0,
         TongTienPhaiDong: amountDue,
         TongTienDaDong: amountPaid,
         ConNo: debt,
@@ -475,6 +573,8 @@ const adminUsers = async (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 20;
   const search = req.query.search || '';
   const filterRole = req.query.Role || req.query.role || '';
+  const filterGroup = req.query.MaNhom || req.query.group || '';
+  const filterApproval = req.query.approval || '';
   const where = {};
 
   if (search) {
@@ -485,9 +585,13 @@ const adminUsers = async (req, res) => {
     ];
   }
   if (filterRole && ['admin', 'student'].includes(filterRole)) where.Role = filterRole;
+  if (filterGroup) where.MaNhom = filterGroup;
+  if (filterApproval && ['pending', 'approved', 'rejected'].includes(filterApproval)) {
+    where.TrangThaiDuyet = filterApproval;
+  }
 
   try {
-    const [accounts, total] = await Promise.all([
+    const [accounts, total, groupOptions] = await Promise.all([
       prisma.TAIKHOAN.findMany({
         where,
         skip: (page - 1) * limit,
@@ -502,34 +606,181 @@ const adminUsers = async (req, res) => {
           HoTen: true,
           MaSv: true,
           Email: true,
-          TrangThai: true
+          TrangThai: true,
+          TrangThaiDuyet: true,
+          LyDoTuChoi: true,
+          QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } }
         }
       }),
-      prisma.TAIKHOAN.count({ where })
+      prisma.TAIKHOAN.count({ where }),
+      prisma.NHOMNGUOIDUNG.findMany({ orderBy: { MaNhom: 'asc' }, select: { MaNhom: true, TenNhom: true } })
     ]);
 
     renderAdmin(res, 'users', 'users', 'Quản lý người dùng', req, {
       accounts,
+      groupOptions,
       currentUserId: req.user.id || req.user.MaTaiKhoan,
+      canManageAccounts: isSystemAdminUser(req.user),
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/users',
-      queryParams: { search, Role: filterRole, limit },
+      queryParams: { search, Role: filterRole, MaNhom: filterGroup, approval: filterApproval, limit },
       search,
-      filterRole
+      filterRole,
+      filterGroup,
+      filterApproval
     });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'users', 'users', 'Quản lý người dùng', req, {
       accounts: [],
+      groupOptions: [],
       currentUserId: req.user.id || req.user.MaTaiKhoan,
+      canManageAccounts: isSystemAdminUser(req.user),
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/users',
       queryParams: {},
       search: '',
-      filterRole: ''
+      filterRole: '',
+      filterGroup: '',
+      filterApproval: ''
     });
+  }
+};
+
+// ══════════════════════════════════════════════
+// NEW ADMIN PAGES
+// ══════════════════════════════════════════════
+
+const adminFaculties = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const search = req.query.search || '';
+  const where = {};
+  if (search) {
+    where.OR = [
+      { MaKhoa: { contains: search, mode: 'insensitive' } },
+      { TenKhoa: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+  try {
+    const [faculties, total] = await Promise.all([
+      prisma.KHOA.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { MaKhoa: 'asc' }, include: { _count: { select: { MONHOC: true, NGANHHOC: true } } } }),
+      prisma.KHOA.count({ where })
+    ]);
+    renderAdmin(res, 'faculties', 'faculties', 'Quản lý khoa', req, { faculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/faculties', queryParams: { search, limit }, search });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'faculties', 'faculties', 'Quản lý khoa', req, { faculties: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/faculties', queryParams: {}, search: '' });
+  }
+};
+
+const adminMajors = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const search = req.query.search || '';
+  const filterKhoa = req.query.MaKhoa || '';
+  const where = {};
+  if (search) { where.OR = [{ MaNganh: { contains: search, mode: 'insensitive' } }, { TenNganh: { contains: search, mode: 'insensitive' } }]; }
+  if (filterKhoa) where.MaKhoa = filterKhoa;
+  try {
+    const [majors, total, faculties] = await Promise.all([
+      prisma.NGANHHOC.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { MaNganh: 'asc' }, include: { KHOA: true, _count: { select: { SINHVIEN: true } } } }),
+      prisma.NGANHHOC.count({ where }),
+      prisma.KHOA.findMany({ orderBy: { TenKhoa: 'asc' } })
+    ]);
+    renderAdmin(res, 'majors', 'majors', 'Quản lý ngành học', req, { majors, faculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/majors', queryParams: { search, MaKhoa: filterKhoa, limit }, search, filterKhoa });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'majors', 'majors', 'Quản lý ngành học', req, { majors: [], faculties: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/majors', queryParams: {}, search: '', filterKhoa: '' });
+  }
+};
+
+const adminCompletedCourses = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const search = req.query.search || '';
+  const filterHocKy = req.query.MaHocKy || '';
+  const filterResult = req.query.KetQua || '';
+  const where = {};
+  if (filterHocKy) where.MaHocKy = filterHocKy;
+  if (filterResult) where.KetQua = filterResult;
+  if (search) { where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] }; }
+  try {
+    const [completedCourses, total, semesters] = await Promise.all([
+      prisma.MONDAHOC.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: [{ NgayTao: 'desc' }, { id: 'desc' }], include: { SINHVIEN: { select: { MaSv: true, HoTen: true } }, MONHOC: { select: { MaMonHoc: true, TenMonHoc: true } }, HOCKY: { select: { MaHocKy: true, TenHocKy: true } }, LOP: { select: { MaLop: true, TenLop: true } } } }),
+      prisma.MONDAHOC.count({ where }),
+      prisma.HOCKY.findMany({ orderBy: { NgayBatDau: 'desc' } })
+    ]);
+    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedCourses, semesters, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/completed-courses', queryParams: { search, MaHocKy: filterHocKy, KetQua: filterResult, limit }, search, filterHocKy, filterResult });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedCourses: [], semesters: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/completed-courses', queryParams: {}, search: '', filterHocKy: '', filterResult: '' });
+  }
+};
+
+const adminPricing = async (req, res) => {
+  const filterLoaiMon = req.query.LoaiMon || '';
+  const filterHocKy = req.query.MaHocKy || '';
+  const where = {};
+  if (filterLoaiMon) where.LoaiMon = filterLoaiMon;
+  if (filterHocKy) where.MaHocKy = filterHocKy;
+  try {
+    const [pricing, semesters] = await Promise.all([
+      prisma.DONGIATINCHI.findMany({ where, orderBy: { id: 'desc' }, include: { HOCKY: true } }),
+      prisma.HOCKY.findMany({ orderBy: { NgayBatDau: 'desc' } })
+    ]);
+    renderAdmin(res, 'pricing', 'pricing', 'Đơn giá tín chỉ', req, { pricing, semesters, filterLoaiMon, filterHocKy });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'pricing', 'pricing', 'Đơn giá tín chỉ', req, { pricing: [], semesters: [], filterLoaiMon: '', filterHocKy: '' });
+  }
+};
+
+const adminBeneficiaries = async (req, res) => {
+  try {
+    const beneficiaries = await prisma.DOITUONG.findMany({ orderBy: { DoUuTien: 'asc' }, include: { _count: { select: { DOITUONGSINHVIEN: true } } } });
+    renderAdmin(res, 'beneficiaries', 'beneficiaries', 'Đối tượng ưu tiên', req, { beneficiaries });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'beneficiaries', 'beneficiaries', 'Đối tượng ưu tiên', req, { beneficiaries: [] });
+  }
+};
+
+const adminPermissions = async (req, res) => {
+  try {
+    const [groups, functions] = await Promise.all([
+      prisma.NHOMNGUOIDUNG.findMany({ orderBy: { MaNhom: 'asc' }, include: { _count: { select: { TAIKHOAN: true, PHANQUYEN: true } } } }),
+      prisma.CHUCNANG.findMany({ orderBy: { MaChucNang: 'asc' }, include: { _count: { select: { PHANQUYEN: true } } } })
+    ]);
+    renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, { groups, functions });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, { groups: [], functions: [] });
+  }
+};
+
+const adminNotifications = async (req, res) => {
+  const filterLoai = req.query.Loai || '';
+  const where = {};
+  if (filterLoai) where.Loai = filterLoai;
+  try {
+    const notifications = await prisma.THONGBAO.findMany({ where, orderBy: { NgayTao: 'desc' }, take: 100 });
+    renderAdmin(res, 'notifications', 'notifications', 'Quản lý thông báo', req, { notifications, filterLoai });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'notifications', 'notifications', 'Quản lý thông báo', req, { notifications: [], filterLoai: '' });
+  }
+};
+
+const adminSettings = async (req, res) => {
+  try {
+    const settings = await prisma.THAMSO.findFirst();
+    renderAdmin(res, 'settings', 'settings', 'Tham số hệ thống', req, { settings });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'settings', 'settings', 'Tham số hệ thống', req, { settings: null });
   }
 };
 
@@ -576,6 +827,11 @@ module.exports = {
   root,
   loginPage,
   adminLoginPage,
+  registerPage,
+  adminRegisterPage,
+  forgotPasswordPage,
+  adminForgotPasswordPage,
+  resetPasswordPage,
   logout,
   adminDashboard,
   adminStudents,
@@ -587,6 +843,14 @@ module.exports = {
   adminPayments,
   adminReports,
   adminUsers,
+  adminFaculties,
+  adminMajors,
+  adminCompletedCourses,
+  adminPricing,
+  adminBeneficiaries,
+  adminPermissions,
+  adminNotifications,
+  adminSettings,
   studentDashboard,
   studentCourseReg,
   studentMyCourses,

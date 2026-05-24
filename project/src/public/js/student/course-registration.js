@@ -1,5 +1,11 @@
 var currentStudent = null;
 
+function registrationBadgeClass(type) {
+  if (type === 'hoc_lai') return 'badge-warning';
+  if (type === 'hoc_cai_thien') return 'badge-info';
+  return 'badge-success';
+}
+
 async function ensureStudent() {
   if (currentStudent) return currentStudent;
   var meRes = await apiFetch('/api/auth/me');
@@ -58,6 +64,8 @@ async function loadAvailableCourses() {
         html += '<td>' + (c.GiangVien || '-') + '</td>';
         html += '<td>' + (c.LichHoc || '-') + '</td>';
         html += '<td>' + (c.PhongHoc || '-') + '</td>';
+        html += '<td><span class="badge ' + registrationBadgeClass(c.LoaiDangKy) + '">' + (c.LoaiDangKyLabel || 'Học mới') + '</span></td>';
+        html += '<td class="currency">' + formatCurrency(c.ThanhTienDuKien || 0) + '</td>';
         html += '<td>' + remaining + '</td>';
         html += '<td>';
         if (remaining > 0) {
@@ -69,12 +77,12 @@ async function loadAvailableCourses() {
       });
       tbody.innerHTML = html;
     } else {
-      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Không có lớp mở để đăng ký</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Không có lớp mở để đăng ký</div></td></tr>';
     }
   } catch (e) {
     loading.classList.add('hidden');
     table.classList.remove('hidden');
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
   }
 }
 

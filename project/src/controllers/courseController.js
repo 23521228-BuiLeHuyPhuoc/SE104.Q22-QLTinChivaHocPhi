@@ -89,4 +89,156 @@ const getOpenedClasses = async (req, res) => {
   } catch (error) { console.error('Get opened classes error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }
 };
 
-module.exports = { getAllCourses, getCourseById, createCourse, updateCourse, deleteCourse, getCourseStats, getOpenedClasses };
+const getStudentIdFromRequest = async (req) => {
+  if (req.user?.MaSv) return req.user.MaSv;
+  const student = await prisma.SINHVIEN.findFirst({
+    where: { MaTaiKhoan: Number(req.user?.MaTaiKhoan || req.user?.id || 0) },
+    select: { MaSv: true }
+  });
+  return student?.MaSv || null;
+};
+
+const getMyCurriculum = async (req, res) => {
+  try {
+    const studentId = await getStudentIdFromRequest(req);
+    if (!studentId) {
+      return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
+    }
+
+            const student = await prisma.SINHVIEN.findUnique({
+                where: { MaSv: studentId },
+                select: {
+                    MaSv: true,
+                    HoTen: true,
+                    MaNganh: true,
+                    NGANHHOC: {
+                        select: {
+                            MaNganh: true,
+                            TenNganh: true,
+                            MaKhoa: true
+                        }
+                    }
+                }
+            });
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
+    }
+
+    const columns = await prisma.$queryRaw`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'CHUONGTRINHHOC'
+        AND column_name IN ('HocKyDuKien', 'HocKy', 'BatBuoc', 'TrangThai')
+    `;
+    const curriculumColumns = columns.map((row) => row.column_name);
+    const semesterColumn = curriculumColumns.includes('HocKyDuKien') ? 'HocKyDuKien' : 'HocKy';
+    const requiredSelect = curriculumColumns.includes('BatBuoc') ? 'cth."BatBuoc"' : 'TRUE';
+    const activeCondition = curriculumColumns.includes('TrangThai') ? 'AND COALESCE(cth."TrangThai", TRUE) = TRUE' : '';
+
+    let rows = await prisma.$queryRawUnsafe(`
+      SELECT
+        cth."MaNganh",
+        cth."MaMonHoc",
+        cth."${semesterColumn}" AS "HocKyDuKien",
+        ${requiredSelect} AS "BatBuoc",
+        mh."TenMonHoc",
+        mh."LoaiMon",
+        mh."SoTinChi",
+        mh."MaKhoa",
+        k."TenKhoa"
+      FROM "CHUONGTRINHHOC" cth
+      JOIN "MONHOC" mh ON mh."MaMonHoc" = cth."MaMonHoc"
+      LEFT JOIN "KHOA" k ON k."MaKhoa" = mh."MaKhoa"
+      WHERE cth."MaNganh" = $1
+        ${activeCondition}
+      ORDER BY cth."${semesterColumn}" ASC, mh."MaMonHoc" ASC
+    `, student.MaNganh);
+
+    if (!rows.length && student.NGANHHOC?.MaKhoa) {
+      rows = await prisma.MONHOC.findMany({
+        where: { MaKhoa: student.NGANHHOC.MaKhoa, TrangThai: true },
+        orderBy: { MaMonHoc: 'asc' },
+        include: { KHOA: true }
+      }).then((courses) => courses.map((course) => ({
+        MaNganh: student.MaNganh,
+        MaMonHoc: course.MaMonHoc,
+        HocKyDuKien: null,
+        BatBuoc: true,
+        TenMonHoc: course.TenMonHoc,
+        LoaiMon: course.LoaiMon,
+        SoTinChi: course.SoTinChi,
+        MaKhoa: course.MaKhoa,
+        TenKhoa: course.KHOA?.TenKhoa
+      })));
+    }
+
+    const completedHistory = await prisma.MONDAHOC.findMany({
+      where: { MaSv: studentId },
+      orderBy: [{ LanHoc: 'desc' }, { NgayTao: 'desc' }],
+      select: {
+        MaMonHoc: true,
+        KetQua: true,
+        LanHoc: true
+      }
+    });
+    const historyMap = new Map();
+    completedHistory.forEach((history) => {
+      if (!historyMap.has(history.MaMonHoc)) historyMap.set(history.MaMonHoc, []);
+      historyMap.get(history.MaMonHoc).push(history);
+    });
+
+    const courses = rows.map((course) => {
+      const histories = historyMap.get(course.MaMonHoc) || [];
+      const passed = histories.some((history) => history.KetQua === 'qua_mon');
+      const failed = histories.some((history) => history.KetQua === 'rot');
+      const latestHistory = histories[0] || null;
+      const status = passed ? 'passed' : failed ? 'failed' : 'not_started';
+
+      return {
+        MaNganh: course.MaNganh,
+        MaMonHoc: course.MaMonHoc,
+        TenMonHoc: course.TenMonHoc,
+        LoaiMon: course.LoaiMon,
+        SoTinChi: Number(course.SoTinChi || 0),
+        HocKyDuKien: course.HocKyDuKien,
+        BatBuoc: course.BatBuoc !== false,
+        MaKhoa: course.MaKhoa,
+        TenKhoa: course.TenKhoa,
+        status,
+        history: latestHistory ? {
+          KetQua: latestHistory.KetQua,
+          LanHoc: latestHistory.LanHoc
+        } : null
+      };
+    });
+
+    const totalCredits = courses.reduce((sum, course) => sum + Number(course.SoTinChi || 0), 0);
+    const completedCredits = courses
+      .filter((course) => course.status === 'passed')
+      .reduce((sum, course) => sum + Number(course.SoTinChi || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        student: {
+          MaSv: student.MaSv,
+          HoTen: student.HoTen,
+          MaNganh: student.MaNganh,
+          TenNganh: student.NGANHHOC?.TenNganh
+        },
+        summary: {
+          totalCourses: courses.length,
+          totalCredits,
+          completedCredits,
+          remainingCredits: Math.max(totalCredits - completedCredits, 0)
+        },
+        courses
+      }
+    });
+  } catch (error) {
+    console.error('Get curriculum error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+module.exports = { getAllCourses, getCourseById, createCourse, updateCourse, deleteCourse, getCourseStats, getMyCurriculum, getOpenedClasses };

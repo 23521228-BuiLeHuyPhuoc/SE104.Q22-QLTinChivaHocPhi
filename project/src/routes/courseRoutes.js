@@ -15,6 +15,9 @@ router.get('/stats', courseController.getCourseStats);
 // Get opened classes for semester
 router.get('/opened', courseController.getOpenedClasses);
 
+// Get current student's curriculum and completed credits
+router.get('/curriculum/me', courseController.getMyCurriculum);
+
 // Get course by ID
 router.get('/:id', courseController.getCourseById);
 

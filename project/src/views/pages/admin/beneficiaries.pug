@@ -1,0 +1,93 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .toolbar-title
+      h2.page-title Đối tượng ưu tiên
+      p Quản lý chính sách giảm học phí và đối tượng sinh viên được ưu tiên.
+    .filter-group
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đối tượng
+
+  .card
+    .card-header
+      h3 Danh sách đối tượng
+      span.card-count= beneficiaries ? `${beneficiaries.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã
+            th Tên đối tượng
+            th Tỉ lệ giảm
+            th Độ ưu tiên
+            th Số SV
+            th Mô tả
+            th Thao tác
+        tbody
+          if beneficiaries && beneficiaries.length > 0
+            each b in beneficiaries
+              tr
+                td.mono= b.MaDoiTuong
+                td
+                  strong= b.TenDoiTuong
+                td
+                  span.badge.badge-success= Number(b.TiLeGiamHocPhi || 0) + '%'
+                td= b.DoUuTien
+                td= b._count ? b._count.DOITUONGSINHVIEN : 0
+                td= b.MoTa || '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-primary(type="button" onclick=`openStudentsModal('${b.MaDoiTuong}', '${b.TenDoiTuong}')`) Xem SV
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(b) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteBeneficiary('${b.MaDoiTuong}')`) Xóa
+          else
+            tr
+              td(colspan="7")
+                .empty-state Chưa có đối tượng nào
+
+block modals
+  //- Add/Edit Modal
+  #beneficiary-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm đối tượng
+        button.modal-close(type="button" onclick="closeModal()") ×
+      .modal-body
+        form#beneficiary-form
+          .form-row
+            .form-group
+              label(for="ben-ma") Mã đối tượng
+              input.form-control#ben-ma(type="text" required placeholder="VD: DT01")
+            .form-group
+              label(for="ben-ten") Tên đối tượng
+              input.form-control#ben-ten(type="text" required placeholder="VD: Con thương binh")
+          .form-row
+            .form-group
+              label(for="ben-tile") Tỉ lệ giảm học phí (%)
+              input.form-control#ben-tile(type="number" min="0" max="100" step="0.01" required placeholder="VD: 50")
+            .form-group
+              label(for="ben-uutien") Độ ưu tiên
+              input.form-control#ben-uutien(type="number" min="1" required placeholder="VD: 1")
+          .form-group
+            label(for="ben-mota") Mô tả
+            textarea.form-control#ben-mota(rows="3" placeholder="Mô tả đối tượng...")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveBeneficiary()") Lưu
+
+  //- Students Modal
+  #students-modal.modal-overlay(onclick="if(event.target===this)closeStudentsModal()")
+    .modal
+      .modal-header
+        h2#students-modal-title Sinh viên thuộc đối tượng
+        button.modal-close(type="button" onclick="closeStudentsModal()") ×
+      .modal-body
+        .form-row.mb-2
+          .form-group
+            input.form-control#add-sv-masv(type="text" placeholder="Nhập MSSV để thêm...")
+          .form-group
+            button.btn.btn-primary(type="button" onclick="addStudent()") Thêm SV
+        #students-list
+          .empty-state Đang tải...
+
+block scripts
+  script(src="/js/admin/beneficiaries.js")

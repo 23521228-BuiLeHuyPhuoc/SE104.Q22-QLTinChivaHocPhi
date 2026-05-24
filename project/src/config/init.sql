@@ -48,6 +48,7 @@ DROP TABLE IF EXISTS "THONGBAO" CASCADE;
 DROP TABLE IF EXISTS "PHIEUTHUHOCPHI" CASCADE;
 DROP TABLE IF EXISTS "CHITIETDANGKY" CASCADE;
 DROP TABLE IF EXISTS "PHIEUDANGKY" CASCADE;
+DROP TABLE IF EXISTS "MONDAHOC" CASCADE;
 DROP TABLE IF EXISTS "DIEMSINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "LICHHOCLOP" CASCADE;
 DROP TABLE IF EXISTS "DONGIATINCHI" CASCADE;
@@ -64,6 +65,7 @@ DROP TABLE IF EXISTS "MONHOC" CASCADE;
 DROP TABLE IF EXISTS "DOITUONGSINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "QUANTRIVIEN" CASCADE;
 DROP TABLE IF EXISTS "SINHVIEN" CASCADE;
+DROP TABLE IF EXISTS "DATLAIMATKHAU" CASCADE;
 DROP TABLE IF EXISTS "NGUOIDUNG" CASCADE;
 DROP TABLE IF EXISTS "PHANQUYEN" CASCADE;
 DROP TABLE IF EXISTS "CHUCNANG" CASCADE;
@@ -204,14 +206,38 @@ CREATE TABLE "NGUOIDUNG" (
     "Sdt" VARCHAR(15),
     "AnhDaiDien" VARCHAR(255),
     "TrangThai" BOOLEAN DEFAULT TRUE,
+    "TrangThaiDuyet" VARCHAR(20) NOT NULL DEFAULT 'approved',
+    "NgayDuyet" TIMESTAMP,
+    "NguoiDuyet" INTEGER,
+    "LyDoTuChoi" VARCHAR(300),
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "NgayCapNhat" TIMESTAMP,
     CONSTRAINT nguoi_dung_pkey PRIMARY KEY ("MaTaiKhoan"),
     CONSTRAINT nguoi_dung_ten_dang_nhap_key UNIQUE ("TenDangNhap"),
     CONSTRAINT chk_role CHECK ("Role" IN ('admin', 'student')),
+    CONSTRAINT chk_trang_thai_duyet CHECK ("TrangThaiDuyet" IN ('pending', 'approved', 'rejected')),
     CONSTRAINT fk_nd_nhom FOREIGN KEY ("MaNhom")
         REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- =====================================================
+-- 9A. BẢNG "DATLAIMATKHAU" - Token đặt lại mật khẩu
+-- =====================================================
+CREATE TABLE "DATLAIMATKHAU" (
+    "MaToken" SERIAL NOT NULL,
+    "MaTaiKhoan" INTEGER NOT NULL,
+    "TokenHash" VARCHAR(255) NOT NULL,
+    "HetHanLuc" TIMESTAMP NOT NULL,
+    "DaSuDung" BOOLEAN DEFAULT FALSE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NgaySuDung" TIMESTAMP,
+    CONSTRAINT dat_lai_mat_khau_pkey PRIMARY KEY ("MaToken"),
+    CONSTRAINT dat_lai_mat_khau_token_hash_key UNIQUE ("TokenHash"),
+    CONSTRAINT fk_dlmk_tk FOREIGN KEY ("MaTaiKhoan")
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE INDEX idx_dlmk_taikhoan ON "DATLAIMATKHAU"("MaTaiKhoan");
+CREATE INDEX idx_dlmk_hethan ON "DATLAIMATKHAU"("HetHanLuc");
 
 -- =====================================================
 -- 10. BẢNG "SINHVIEN" - Sinh viên (BM1, QĐ1)
@@ -370,8 +396,6 @@ CREATE TABLE "THAMSO" (
     "SoTinChiDangKyToiThieu" INTEGER NOT NULL DEFAULT 14,
     "SoTinChiDangKyToiDa" INTEGER NOT NULL DEFAULT 24,
     "SoTinChiDangKyToiDaKhiVuot" INTEGER NOT NULL DEFAULT 30,
-    "GPAQuaMon" DECIMAL(4,2) NOT NULL DEFAULT 5.00,
-    "GPADangKyVuot" DECIMAL(4,2) NOT NULL DEFAULT 8.50,
     "NgayCapNhat" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tham_so_pkey PRIMARY KEY (id),
     CONSTRAINT chk_tham_so_singleton CHECK (id = 1),
@@ -379,10 +403,6 @@ CREATE TABLE "THAMSO" (
         "SoTinChiDangKyToiThieu" >= 0
         AND "SoTinChiDangKyToiDa" >= "SoTinChiDangKyToiThieu"
         AND "SoTinChiDangKyToiDaKhiVuot" >= "SoTinChiDangKyToiDa"
-    ),
-    CONSTRAINT chk_tham_so_gpa CHECK (
-        "GPAQuaMon" >= 0 AND "GPAQuaMon" <= 10
-        AND "GPADangKyVuot" >= 0 AND "GPADangKyVuot" <= 10
     )
 );
 
@@ -393,10 +413,13 @@ CREATE TABLE "LOP" (
     "MaLop" VARCHAR(20) NOT NULL,
     "TenLop" VARCHAR(100) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
+    "GiangVien" VARCHAR(100),
     "LichHoc" VARCHAR(200),
     "PhongHoc" VARCHAR(50),
     "SoLuongToiDa" INTEGER DEFAULT 50,
     "MoTa" VARCHAR(300),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT lop_pkey PRIMARY KEY ("MaLop"),
     CONSTRAINT fk_lop_monhoc FOREIGN KEY ("MaMonHoc") 
         REFERENCES "MONHOC"("MaMonHoc") ON DELETE CASCADE ON UPDATE CASCADE
@@ -564,34 +587,37 @@ CREATE TABLE "CHITIETDANGKY" (
 );
 
 -- =====================================================
--- 22. BẢNG "DIEMSINHVIEN" - Điểm của sinh viên
--- Lưu điểm các môn học đã học, xác định đậu/rớt (< 5.0 = rớt)
+-- 22. BẢNG "MONDAHOC" - Lịch sử môn đã học
+-- Lưu kết quả qua/rớt, không lưu điểm số hay điểm chữ
 -- =====================================================
-CREATE TABLE "DIEMSINHVIEN" (
+CREATE TABLE "MONDAHOC" (
     id SERIAL NOT NULL,
     "MaSv" VARCHAR(15) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
     "MaHocKy" VARCHAR(15) NOT NULL,
     "MaLop" VARCHAR(20),
-    "DiemTrungBinh" DECIMAL(4,2),
-    "DiemChu" VARCHAR(2),
-    "LanHoc" INTEGER DEFAULT 1,
-    "KetQua" VARCHAR(20) DEFAULT 'Chưa có',
+    "LanHoc" INTEGER NOT NULL DEFAULT 1,
+    "KetQua" VARCHAR(20) NOT NULL,
     "GhiChu" VARCHAR(300),
-    CONSTRAINT diem_sinh_vien_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_diem_sv_mon_hk UNIQUE ("MaSv", "MaMonHoc", "MaHocKy", "LanHoc"),
-    CONSTRAINT chk_diem_trung_binh CHECK ("DiemTrungBinh" IS NULL OR ("DiemTrungBinh" >= 0 AND "DiemTrungBinh" <= 10)),
-    CONSTRAINT chk_diem_chu CHECK ("DiemChu" IS NULL OR "DiemChu" IN ('A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'F')),
-    CONSTRAINT chk_ket_qua CHECK ("KetQua" IN ('Chưa có', 'Đậu', 'Rớt', 'Vắng thi', 'Cấm thi')),
-    CONSTRAINT fk_dsv_sv FOREIGN KEY ("MaSv") 
+    "NguoiCapNhat" INTEGER,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NgayCapNhat" TIMESTAMP,
+    CONSTRAINT mon_da_hoc_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_mdh_sv_mon_hk UNIQUE ("MaSv", "MaMonHoc", "MaHocKy", "LanHoc"),
+    CONSTRAINT chk_mdh_ket_qua CHECK ("KetQua" IN ('qua_mon', 'rot')),
+    CONSTRAINT fk_mdh_sv FOREIGN KEY ("MaSv") 
         REFERENCES "SINHVIEN"("MaSv") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_dsv_mh FOREIGN KEY ("MaMonHoc") 
+    CONSTRAINT fk_mdh_mh FOREIGN KEY ("MaMonHoc") 
         REFERENCES "MONHOC"("MaMonHoc") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT fk_dsv_hk FOREIGN KEY ("MaHocKy") 
+    CONSTRAINT fk_mdh_hk FOREIGN KEY ("MaHocKy") 
         REFERENCES "HOCKY"("MaHocKy") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT fk_dsv_lop FOREIGN KEY ("MaLop") 
-        REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT fk_mdh_lop FOREIGN KEY ("MaLop") 
+        REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_mdh_nguoi_cap_nhat FOREIGN KEY ("NguoiCapNhat")
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE
 );
+
+CREATE INDEX idx_mdh_sv_mon ON "MONDAHOC"("MaSv", "MaMonHoc");
 
 -- =====================================================
 -- 23. BẢNG "PHIEUTHUHOCPHI" - Phiếu thu học phí (BM6, QĐ6)
@@ -4076,16 +4102,16 @@ INSERT INTO "THAMSO" (
     id,
     "SoTinChiDangKyToiThieu",
     "SoTinChiDangKyToiDa",
-    "SoTinChiDangKyToiDaKhiVuot",
-    "GPAQuaMon",
-    "GPADangKyVuot"
-) VALUES (1, 14, 24, 30, 5.00, 8.50);
+    "SoTinChiDangKyToiDaKhiVuot"
+) VALUES (1, 14, 24, 30);
 
 -- =====================================================
 -- INSERT DATA - Nhóm người dùng, chức năng và phân quyền
 -- =====================================================
 INSERT INTO "NHOMNGUOIDUNG" ("MaNhom", "TenNhom") VALUES
-('ADMIN', 'Quản trị viên'),
+('ADMIN', 'Admin hệ thống'),
+('ADMIN_DAOTAO', 'Quản trị viên đào tạo'),
+('ADMIN_TAICHINH', 'Quản trị viên tài chính'),
 ('SINHVIEN', 'Sinh viên');
 
 INSERT INTO "CHUCNANG" ("MaChucNang", "TenChucNang", "TenManHinhDuocLoad") VALUES
@@ -6463,41 +6489,210 @@ INSERT INTO "THONGBAO" ("TieuDe", "NoiDung", "MaTaiKhoanNhan", "DuongDan", "DaDo
 ('Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2024-2025. Vui lòng kiểm tra danh sách.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/cong-no', FALSE);
 
 -- =====================================================
--- INSERT DATA - Điểm sinh viên (Student Grades)
--- Dữ liệu điểm cho học kỳ 1 năm 2024-2025 (đã kết thúc)
--- Quy định: "DiemTrungBinh" < 5.0 = Rớt, >= 5.0 = Đậu
+-- INSERT DATA - Môn đã học (Completed Courses)
+-- Dữ liệu lịch sử cho học kỳ 1 năm 2024-2025, chỉ giữ kết quả qua/rớt
 -- =====================================================
-INSERT INTO "DIEMSINHVIEN" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "DiemTrungBinh", "DiemChu", "LanHoc", "KetQua") VALUES
+INSERT INTO "MONDAHOC" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "LanHoc", "KetQua") VALUES
 -- Sinh viên 22520001 - Nguyễn Văn An (HK1-2425)
-('22520001', 'IT001', 'HK1-2425', 'IT001.N01', 8.17, 'B+', 1, 'Đậu'),
-('22520001', 'MA001', 'HK1-2425', 'MA001.N01', 7.25, 'B', 1, 'Đậu'),
-('22520001', 'MA003', 'HK1-2425', 'MA003.N01', 8.58, 'A', 1, 'Đậu'),
-('22520001', 'ENG03', 'HK1-2425', 'ENG03.N01', 7.58, 'B', 1, 'Đậu'),
-('22520001', 'IT006', 'HK1-2425', 'IT006.N01', 7.08, 'B', 1, 'Đậu'),
+('22520001', 'IT001', 'HK1-2425', 'IT001.N01', 1, 'qua_mon'),
+('22520001', 'MA001', 'HK1-2425', 'MA001.N01', 1, 'qua_mon'),
+('22520001', 'MA003', 'HK1-2425', 'MA003.N01', 1, 'qua_mon'),
+('22520001', 'ENG03', 'HK1-2425', 'ENG03.N01', 1, 'qua_mon'),
+('22520001', 'IT006', 'HK1-2425', 'IT006.N01', 1, 'qua_mon'),
 -- Sinh viên 22520002 - Trần Thị Bình (HK1-2425)
-('22520002', 'IT001', 'HK1-2425', 'IT001.N02', 9.08, 'A+', 1, 'Đậu'),
-('22520002', 'MA001', 'HK1-2425', 'MA001.N02', 8.25, 'B+', 1, 'Đậu'),
-('22520002', 'MA003', 'HK1-2425', 'MA003.N02', 7.75, 'B', 1, 'Đậu'),
-('22520002', 'ENG03', 'HK1-2425', 'ENG03.N02', 8.08, 'B+', 1, 'Đậu'),
+('22520002', 'IT001', 'HK1-2425', 'IT001.N02', 1, 'qua_mon'),
+('22520002', 'MA001', 'HK1-2425', 'MA001.N02', 1, 'qua_mon'),
+('22520002', 'MA003', 'HK1-2425', 'MA003.N02', 1, 'qua_mon'),
+('22520002', 'ENG03', 'HK1-2425', 'ENG03.N02', 1, 'qua_mon'),
 -- Sinh viên 22520003 - Lê Văn Cường (HK1-2425)
-('22520003', 'IT001', 'HK1-2425', 'IT001.N01', 6.83, 'C+', 1, 'Đậu'),
-('22520003', 'MA001', 'HK1-2425', 'MA001.N01', 5.83, 'C', 1, 'Đậu'),
-('22520003', 'MA003', 'HK1-2425', 'MA003.N01', 5.08, 'C', 1, 'Đậu'),
-('22520003', 'IT005', 'HK1-2425', 'IT005.N01', 6.58, 'C+', 1, 'Đậu'),
-('22520003', 'ENG03', 'HK1-2425', 'ENG03.N01', 7.08, 'B', 1, 'Đậu'),
+('22520003', 'IT001', 'HK1-2425', 'IT001.N01', 1, 'qua_mon'),
+('22520003', 'MA001', 'HK1-2425', 'MA001.N01', 1, 'qua_mon'),
+('22520003', 'MA003', 'HK1-2425', 'MA003.N01', 1, 'qua_mon'),
+('22520003', 'IT005', 'HK1-2425', 'IT005.N01', 1, 'qua_mon'),
+('22520003', 'ENG03', 'HK1-2425', 'ENG03.N01', 1, 'qua_mon'),
 -- Sinh viên 22520004 - Phạm Thị Dung (HK1-2425) - Có môn rớt
-('22520004', 'IT001', 'HK1-2425', 'IT001.N02', 8.08, 'B+', 1, 'Đậu'),
-('22520004', 'MA001', 'HK1-2425', 'MA001.N02', 3.92, 'F', 1, 'Rớt'),
-('22520004', 'MA003', 'HK1-2425', 'MA003.N02', 7.08, 'B', 1, 'Đậu'),
-('22520004', 'IT006', 'HK1-2425', 'IT006.N02', 6.58, 'C+', 1, 'Đậu'),
-('22520004', 'ENG03', 'HK1-2425', 'ENG03.N02', 7.58, 'B', 1, 'Đậu'),
-('22520004', 'IT008', 'HK1-2425', 'IT008.N02', 7.83, 'B', 1, 'Đậu'),
+('22520004', 'IT001', 'HK1-2425', 'IT001.N02', 1, 'qua_mon'),
+('22520004', 'MA001', 'HK1-2425', 'MA001.N02', 1, 'rot'),
+('22520004', 'MA003', 'HK1-2425', 'MA003.N02', 1, 'qua_mon'),
+('22520004', 'IT006', 'HK1-2425', 'IT006.N02', 1, 'qua_mon'),
+('22520004', 'ENG03', 'HK1-2425', 'ENG03.N02', 1, 'qua_mon'),
+('22520004', 'IT008', 'HK1-2425', 'IT008.N02', 1, 'qua_mon'),
 -- Sinh viên 22520005 - Hoàng Minh Đức (HK1-2425)
-('22520005', 'IT001', 'HK1-2425', 'IT001.N01', 8.58, 'A', 1, 'Đậu'),
-('22520005', 'MA001', 'HK1-2425', 'MA001.N01', 7.75, 'B', 1, 'Đậu'),
-('22520005', 'MA003', 'HK1-2425', 'MA003.N01', 8.08, 'B+', 1, 'Đậu'),
-('22520005', 'IT006', 'HK1-2425', 'IT006.N01', 7.58, 'B', 1, 'Đậu'),
-('22520005', 'ENG03', 'HK1-2425', 'ENG03.N01', 8.08, 'B+', 1, 'Đậu');
+('22520005', 'IT001', 'HK1-2425', 'IT001.N01', 1, 'qua_mon'),
+('22520005', 'MA001', 'HK1-2425', 'MA001.N01', 1, 'qua_mon'),
+('22520005', 'MA003', 'HK1-2425', 'MA003.N01', 1, 'qua_mon'),
+('22520005', 'IT006', 'HK1-2425', 'IT006.N01', 1, 'qua_mon'),
+('22520005', 'ENG03', 'HK1-2425', 'ENG03.N01', 1, 'qua_mon');
+
+-- =====================================================
+-- SCHEMA COMPATIBILITY - Bổ sung cột cho Prisma/current app
+-- =====================================================
+ALTER TABLE "NGUOIDUNG"
+  ADD COLUMN IF NOT EXISTS "LanDangNhapCuoi" TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "RefreshToken" VARCHAR(500);
+
+ALTER TABLE "SINHVIEN"
+  ADD COLUMN IF NOT EXISTS "HoTenCha" VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS "SdtCha" VARCHAR(15),
+  ADD COLUMN IF NOT EXISTS "HoTenMe" VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS "SdtMe" VARCHAR(15);
+
+ALTER TABLE "KHOA"
+  ADD COLUMN IF NOT EXISTS "DiaChi" VARCHAR(200),
+  ADD COLUMN IF NOT EXISTS "TruongKhoa" VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "NGANHHOC"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "MONHOC"
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "NAMHOC"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "HOCKY"
+  ADD COLUMN IF NOT EXISTS "ThuTu" INTEGER DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "LOP"
+  ADD COLUMN IF NOT EXISTS "GiangVien" VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "LOPMO"
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "LICHHOCLOP"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "CHUONGTRINHHOC"
+  ADD COLUMN IF NOT EXISTS "HocKyDuKien" INTEGER DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS "BatBuoc" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+UPDATE "CHUONGTRINHHOC"
+SET "HocKyDuKien" = COALESCE("HocKyDuKien", "HocKy", 1);
+
+ALTER TABLE "CHITIETDANGKY"
+  ADD COLUMN IF NOT EXISTS "MaMonHoc" VARCHAR(15),
+  ADD COLUMN IF NOT EXISTS "SoTinChi" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "LoaiMon" VARCHAR(5) DEFAULT 'LT';
+
+UPDATE "CHITIETDANGKY" ctdk
+SET
+  "MaMonHoc" = COALESCE(ctdk."MaMonHoc", mh."MaMonHoc"),
+  "SoTinChi" = COALESCE(ctdk."SoTinChi", mh."SoTinChi", 0),
+  "LoaiMon" = COALESCE(ctdk."LoaiMon", mh."LoaiMon", 'LT')
+FROM "LOP" l
+JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+WHERE l."MaLop" = ctdk."MaLop";
+
+ALTER TABLE "PHIEUDANGKY"
+  ADD COLUMN IF NOT EXISTS "SoMonHocMoi" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "SoTinChiHocMoi" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "TienHocMoi" NUMERIC(15,0) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "SoMonHocLai" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "SoTinChiHocLai" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "TienHocLai" NUMERIC(15,0) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "SoMonHocCaiThien" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "SoTinChiHocCaiThien" INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "TienHocCaiThien" NUMERIC(15,0) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "TiLeGiam" NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "TongTienPhaiDong" NUMERIC(15,0) DEFAULT 0;
+
+WITH totals AS (
+  SELECT
+    p."SoPhieu",
+    p."MaSv",
+    COALESCE(SUM(c."SoTinChi"), 0)::integer AS "TongTinChi",
+    COALESCE(SUM(c."ThanhTien"), 0) AS "TongTienDangKy",
+    COUNT(c.id) FILTER (WHERE c."LoaiDangKy" = 'hoc_moi')::integer AS "SoMonHocMoi",
+    COALESCE(SUM(c."SoTinChi") FILTER (WHERE c."LoaiDangKy" = 'hoc_moi'), 0)::integer AS "SoTinChiHocMoi",
+    COALESCE(SUM(c."ThanhTien") FILTER (WHERE c."LoaiDangKy" = 'hoc_moi'), 0) AS "TienHocMoi",
+    COUNT(c.id) FILTER (WHERE c."LoaiDangKy" = 'hoc_lai')::integer AS "SoMonHocLai",
+    COALESCE(SUM(c."SoTinChi") FILTER (WHERE c."LoaiDangKy" = 'hoc_lai'), 0)::integer AS "SoTinChiHocLai",
+    COALESCE(SUM(c."ThanhTien") FILTER (WHERE c."LoaiDangKy" = 'hoc_lai'), 0) AS "TienHocLai",
+    COUNT(c.id) FILTER (WHERE c."LoaiDangKy" = 'hoc_cai_thien')::integer AS "SoMonHocCaiThien",
+    COALESCE(SUM(c."SoTinChi") FILTER (WHERE c."LoaiDangKy" = 'hoc_cai_thien'), 0)::integer AS "SoTinChiHocCaiThien",
+    COALESCE(SUM(c."ThanhTien") FILTER (WHERE c."LoaiDangKy" = 'hoc_cai_thien'), 0) AS "TienHocCaiThien"
+  FROM "PHIEUDANGKY" p
+  LEFT JOIN "CHITIETDANGKY" c ON c."SoPhieu" = p."SoPhieu" AND c."TrangThai" = 'Đã đăng ký'
+  GROUP BY p."SoPhieu", p."MaSv"
+),
+best_discount AS (
+  SELECT "MaSv", "TiLeGiamHocPhi"
+  FROM (
+    SELECT
+      dtsv."MaSv",
+      dt."TiLeGiamHocPhi",
+      ROW_NUMBER() OVER (PARTITION BY dtsv."MaSv" ORDER BY dt."DoUuTien" ASC) AS rn
+    FROM "DOITUONGSINHVIEN" dtsv
+    JOIN "DOITUONG" dt ON dt."MaDoiTuong" = dtsv."MaDoiTuong"
+    WHERE COALESCE(dt."TrangThai", TRUE) = TRUE
+  ) ranked
+  WHERE rn = 1
+)
+UPDATE "PHIEUDANGKY" p
+SET
+  "TongTinChi" = totals."TongTinChi",
+  "TongTienDangKy" = totals."TongTienDangKy",
+  "SoMonHocMoi" = totals."SoMonHocMoi",
+  "SoTinChiHocMoi" = totals."SoTinChiHocMoi",
+  "TienHocMoi" = totals."TienHocMoi",
+  "SoMonHocLai" = totals."SoMonHocLai",
+  "SoTinChiHocLai" = totals."SoTinChiHocLai",
+  "TienHocLai" = totals."TienHocLai",
+  "SoMonHocCaiThien" = totals."SoMonHocCaiThien",
+  "SoTinChiHocCaiThien" = totals."SoTinChiHocCaiThien",
+  "TienHocCaiThien" = totals."TienHocCaiThien",
+  "TiLeGiam" = COALESCE(best_discount."TiLeGiamHocPhi", 0),
+  "TienMienGiam" = ROUND(totals."TongTienDangKy" * COALESCE(best_discount."TiLeGiamHocPhi", 0) / 100),
+  "TongTienPhaiDong" = GREATEST(totals."TongTienDangKy" - ROUND(totals."TongTienDangKy" * COALESCE(best_discount."TiLeGiamHocPhi", 0) / 100), 0)
+FROM totals
+LEFT JOIN best_discount ON best_discount."MaSv" = totals."MaSv"
+WHERE p."SoPhieu" = totals."SoPhieu";
+
+ALTER TABLE "PHIEUTHUHOCPHI"
+  ADD COLUMN IF NOT EXISTS "NguoiThu" VARCHAR(100);
+
+ALTER TABLE "DOITUONG"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "DIEUKIENMONHOC"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "DANTOC"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "TINH"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "PHUONGXA"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "TIETHOC"
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE "THONGBAO"
+  ADD COLUMN IF NOT EXISTS "Loai" VARCHAR(20) DEFAULT 'chung',
+  ADD COLUMN IF NOT EXISTS "LoaiThongBao" VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS "DOITUONG" VARCHAR(30) DEFAULT 'Tất cả',
+  ADD COLUMN IF NOT EXISTS "GhimTop" BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS "NgayHetHan" TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "NguoiTao" INTEGER,
+  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE;
 
 -- =====================================================
 -- END OF INIT.SQL

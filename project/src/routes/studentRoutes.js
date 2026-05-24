@@ -7,10 +7,10 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 router.use(authMiddleware);
 
 // Get all students (with pagination and search)
-router.get('/', studentController.getAllStudents);
+router.get('/', adminMiddleware, studentController.getAllStudents);
 
 // Get student statistics
-router.get('/stats', studentController.getStudentStats);
+router.get('/stats', adminMiddleware, studentController.getStudentStats);
 
 // Get majors list
 router.get('/majors', studentController.getMajors);
@@ -22,7 +22,7 @@ router.get('/provinces', studentController.getProvinces);
 router.get('/provinces/:provinceId/districts', studentController.getDistrictsByProvince);
 
 // Get student by ID
-router.get('/:id', studentController.getStudentById);
+router.get('/:id', adminMiddleware, studentController.getStudentById);
 
 // Admin only routes
 router.post('/', adminMiddleware, studentController.createStudent);

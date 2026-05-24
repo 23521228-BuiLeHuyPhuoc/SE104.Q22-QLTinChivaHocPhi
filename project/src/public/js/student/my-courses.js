@@ -17,6 +17,7 @@
         html += '<td class="mono">' + (c.LOP.MaLop || '-') + '</td>';
         html += '<td><strong>' + (c.LOP.MONHOC.TenMonHoc || '-') + '</strong><small>' + (c.LOP.MONHOC.MaMonHoc || '') + '</small></td>';
         html += '<td>' + (c.SoTinChi || '-') + '</td>';
+        html += '<td><span class="badge ' + registrationBadgeClass(c.LoaiDangKy) + '">' + (c.LoaiDangKyLabel || 'Học mới') + '</span></td>';
         html += '<td>' + (c.LOP.GiangVien || '-') + '</td>';
         html += '<td>' + (c.LOP.LichHoc || '-') + '</td>';
         html += '<td>' + (c.LOP.PhongHoc || '-') + '</td>';
@@ -27,14 +28,20 @@
       });
       tbody.innerHTML = html;
     } else {
-      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Chưa đăng ký môn nào</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">Chưa đăng ký môn nào</div></td></tr>';
     }
   } catch (e) {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('courses-table').classList.remove('hidden');
-    document.getElementById('my-courses').innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
+    document.getElementById('my-courses').innerHTML = '<tr><td colspan="9"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
   }
 })();
+
+function registrationBadgeClass(type) {
+  if (type === 'hoc_lai') return 'badge-warning';
+  if (type === 'hoc_cai_thien') return 'badge-info';
+  return 'badge-success';
+}
 
 async function cancelRegistration(id) {
   if (!confirm('Bạn có chắc muốn hủy đăng ký?')) return;

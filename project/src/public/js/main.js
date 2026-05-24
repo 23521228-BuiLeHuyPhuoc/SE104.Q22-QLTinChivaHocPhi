@@ -130,7 +130,17 @@ function animateCounter(element, target, duration) {
 // Auto token check
 (function() {
   var path = window.location.pathname;
-  if (path === '/login' || path === '/admin/login' || path === '/') return;
+  var publicPaths = [
+    '/',
+    '/login',
+    '/admin/login',
+    '/register',
+    '/admin/register',
+    '/forgot-password',
+    '/admin/forgot-password',
+    '/reset-password'
+  ];
+  if (publicPaths.indexOf(path) >= 0) return;
 
   var token = getToken();
   if (!token) window.location.href = getLoginPathForCurrentPage();

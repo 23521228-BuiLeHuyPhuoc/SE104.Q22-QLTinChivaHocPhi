@@ -1,11 +1,16 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const prisma = require('../config/database');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 60);
 
+const normalize = (value) => String(value || '').trim();
+const normalizeEmail = (value) => normalize(value).toLowerCase();
 const getMaNhomByRole = (Role) => (Role === 'admin' ? 'ADMIN' : 'SINHVIEN');
 
 const studentInfoSelect = {
@@ -43,6 +48,60 @@ const getLoginErrorMessage = (error) => {
   return 'Lỗi server';
 };
 
+const hashPassword = async (password) => {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(password, salt);
+};
+
+const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const getBaseUrl = () => (process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
+
+const createMailer = () => {
+  if (!process.env.SMTP_HOST) {
+    throw new Error('SMTP_NOT_CONFIGURED');
+  }
+
+  const port = Number(process.env.SMTP_PORT || 587);
+  const auth = process.env.SMTP_USER && process.env.SMTP_PASS
+    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    : undefined;
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: port === 465,
+    auth
+  });
+};
+
+const sendResetEmail = async (account, token) => {
+  const resetUrl = `${getBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+  const transporter = createMailer();
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com',
+    to: account.Email,
+    subject: 'Đặt lại mật khẩu hệ thống tín chỉ',
+    text: [
+      `Xin chào ${account.HoTen || account.TenDangNhap},`,
+      '',
+      'Bạn vừa yêu cầu đặt lại mật khẩu.',
+      `Mở liên kết sau trong vòng ${RESET_TOKEN_TTL_MINUTES} phút:`,
+      resetUrl,
+      '',
+      'Nếu bạn không yêu cầu thao tác này, vui lòng bỏ qua email.'
+    ].join('\n'),
+    html: `
+      <p>Xin chào ${account.HoTen || account.TenDangNhap},</p>
+      <p>Bạn vừa yêu cầu đặt lại mật khẩu.</p>
+      <p><a href="${resetUrl}">Đặt lại mật khẩu</a></p>
+      <p>Liên kết có hiệu lực trong ${RESET_TOKEN_TTL_MINUTES} phút.</p>
+      <p>Nếu bạn không yêu cầu thao tác này, vui lòng bỏ qua email.</p>
+    `
+  });
+};
+
 const buildLoginResponse = async (user) => {
   let studentInfo = null;
   if (user.Role === 'student') {
@@ -61,6 +120,7 @@ const buildLoginResponse = async (user) => {
     chucVu = adminInfo?.ChucVu || 'Quản trị viên hệ thống';
   }
 
+  const displayName = adminInfo?.HoTen || studentInfo?.HoTen || user.HoTen || null;
   const token = jwt.sign(
     {
       id: user.MaTaiKhoan,
@@ -68,8 +128,9 @@ const buildLoginResponse = async (user) => {
       username: user.TenDangNhap,
       Role: user.Role,
       MaNhom: user.MaNhom,
+      MaSv: studentInfo?.MaSv || user.MaSv || null,
       ChucVu: chucVu,
-      HoTen: adminInfo?.HoTen || studentInfo?.HoTen || null
+      HoTen: displayName
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -83,17 +144,32 @@ const buildLoginResponse = async (user) => {
       username: user.TenDangNhap,
       Role: user.Role,
       MaNhom: user.MaNhom,
+      MaSv: studentInfo?.MaSv || user.MaSv || null,
       ChucVu: chucVu,
-      HoTen: adminInfo?.HoTen || null
+      HoTen: displayName,
+      TrangThaiDuyet: user.TrangThaiDuyet
     },
     student: studentInfo,
     admin: adminInfo
   };
 };
 
+const getApprovalMessage = (user) => {
+  if (user.TrangThaiDuyet === 'pending') {
+    return 'Tài khoản đang chờ admin hệ thống duyệt';
+  }
+  if (user.TrangThaiDuyet === 'rejected') {
+    return user.LyDoTuChoi
+      ? `Tài khoản đã bị từ chối: ${user.LyDoTuChoi}`
+      : 'Tài khoản đã bị từ chối';
+  }
+  return 'Tài khoản chưa được phép đăng nhập';
+};
+
 const loginWithRole = (expectedRole) => async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const username = normalize(req.body.username);
+    const { password } = req.body;
     if (!username || !password) {
       return res.status(400).json({
         success: false,
@@ -108,7 +184,13 @@ const loginWithRole = (expectedRole) => async (req, res) => {
         TenDangNhap: true,
         MatKhau: true,
         Role: true,
-        MaNhom: true
+        MaNhom: true,
+        MaSv: true,
+        HoTen: true,
+        Email: true,
+        TrangThai: true,
+        TrangThaiDuyet: true,
+        LyDoTuChoi: true
       }
     });
     if (!user) {
@@ -119,10 +201,24 @@ const loginWithRole = (expectedRole) => async (req, res) => {
     }
 
     if (expectedRole && user.Role !== expectedRole) {
-      const message = expectedRole === 'admin'
-        ? 'Tài khoản này không có quyền đăng nhập admin'
-        : 'Vui lòng đăng nhập admin tại /admin/login';
-      return res.status(403).json({ success: false, message });
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản không phù hợp với cổng đăng nhập này'
+      });
+    }
+
+    if (user.TrangThai === false) {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản đã bị khóa'
+      });
+    }
+
+    if (user.TrangThaiDuyet !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: getApprovalMessage(user)
+      });
     }
 
     const isValid = await bcrypt.compare(password, user.MatKhau);
@@ -132,6 +228,31 @@ const loginWithRole = (expectedRole) => async (req, res) => {
         message: 'Tên đăng nhập hoặc mật khẩu không đúng'
       });
     }
+
+    if (user.Role === 'student') {
+      const linkedStudent = await prisma.SINHVIEN.findFirst({
+        where: {
+          OR: [
+            { MaTaiKhoan: user.MaTaiKhoan },
+            ...(user.MaSv ? [{ MaSv: user.MaSv }] : [])
+          ]
+        },
+        select: { MaSv: true }
+      });
+
+      if (!linkedStudent) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản sinh viên chưa được liên kết hồ sơ sinh viên'
+        });
+      }
+    }
+
+    await prisma.TAIKHOAN.update({
+      where: { MaTaiKhoan: user.MaTaiKhoan },
+      data: { LanDangNhapCuoi: new Date() },
+      select: { MaTaiKhoan: true }
+    }).catch(() => null);
 
     res.json({
       success: true,
@@ -148,56 +269,279 @@ const login = loginWithRole();
 const loginStudent = loginWithRole('student');
 const loginAdmin = loginWithRole('admin');
 
-const register = async (req, res) => {
+const registerStudent = async (req, res) => {
   try {
-    const { username, password, Role = 'student' } = req.body;
-    if (!username || !password) {
+    const username = normalize(req.body.username || req.body.TenDangNhap || req.body.MaSv || req.body.maSv);
+    const HoTen = normalize(req.body.HoTen || req.body.fullName);
+    const email = normalizeEmail(req.body.email || req.body.Email);
+    const Sdt = normalize(req.body.Sdt || req.body.phone);
+    const { password } = req.body;
+
+    if (!username || !password || !HoTen || !email) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập đầy đủ thông tin'
+        message: 'Vui lòng nhập tên đăng nhập, họ tên, email và mật khẩu'
       });
     }
-    if (!['admin', 'student'].includes(Role)) {
-      return res.status(400).json({ success: false, message: 'Role không hợp lệ' });
-    }
 
-    const existing = await prisma.TAIKHOAN.findUnique({
-      where: { TenDangNhap: username },
+    const existing = await prisma.TAIKHOAN.findFirst({
+      where: {
+        OR: [
+          { TenDangNhap: username },
+          { Email: { equals: email, mode: 'insensitive' } }
+        ]
+      },
       select: { MaTaiKhoan: true }
     });
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Tên đăng nhập đã tồn tại'
-      });
+      return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(password, salt);
-
-    const MaNhom = getMaNhomByRole(Role);
-    const newAccount = await prisma.TAIKHOAN.create({
-      data: { TenDangNhap: username, MatKhau: hashed, Role, MaNhom },
+    const hashed = await hashPassword(password);
+    const account = await prisma.TAIKHOAN.create({
+      data: {
+        TenDangNhap: username,
+        MatKhau: hashed,
+        Role: 'student',
+        MaNhom: getMaNhomByRole('student'),
+        HoTen,
+        Email: email,
+        Sdt: Sdt || null,
+        TrangThai: true,
+        TrangThaiDuyet: 'pending'
+      },
       select: {
         MaTaiKhoan: true,
         TenDangNhap: true,
         Role: true,
-        MaNhom: true
+        MaNhom: true,
+        TrangThaiDuyet: true
       }
     });
 
     res.status(201).json({
       success: true,
-      message: 'Đăng ký thành công',
+      message: 'Đăng ký sinh viên thành công. Vui lòng chờ admin hệ thống duyệt tài khoản.',
       data: {
-        id: newAccount.MaTaiKhoan,
-        username: newAccount.TenDangNhap,
-        Role: newAccount.Role,
-        MaNhom: newAccount.MaNhom
+        id: account.MaTaiKhoan,
+        username: account.TenDangNhap,
+        Role: account.Role,
+        MaNhom: account.MaNhom,
+        TrangThaiDuyet: account.TrangThaiDuyet
       }
     });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error('Student register error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const registerAdmin = async (req, res) => {
+  try {
+    const username = normalize(req.body.username || req.body.TenDangNhap);
+    const HoTen = normalize(req.body.HoTen || req.body.fullName);
+    const Email = normalizeEmail(req.body.Email || req.body.email);
+    const Sdt = normalize(req.body.Sdt || req.body.phone);
+    const ChucVu = normalize(req.body.ChucVu) || 'Quản trị viên';
+    const PhongBan = normalize(req.body.PhongBan);
+    const { password } = req.body;
+
+    if (!username || !password || !HoTen || !Email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập tên đăng nhập, họ tên, email và mật khẩu'
+      });
+    }
+
+    const existing = await prisma.TAIKHOAN.findFirst({
+      where: {
+        OR: [
+          { TenDangNhap: username },
+          { Email: { equals: Email, mode: 'insensitive' } }
+        ]
+      },
+      select: { MaTaiKhoan: true, TenDangNhap: true, Email: true }
+    });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
+    }
+
+    const hashed = await hashPassword(password);
+    const account = await prisma.$transaction(async (tx) => {
+      const created = await tx.TAIKHOAN.create({
+        data: {
+          TenDangNhap: username,
+          MatKhau: hashed,
+          Role: 'admin',
+          MaNhom: getMaNhomByRole('admin'),
+          HoTen,
+          Email,
+          Sdt: Sdt || null,
+          TrangThai: true,
+          TrangThaiDuyet: 'pending'
+        },
+        select: {
+          MaTaiKhoan: true,
+          TenDangNhap: true,
+          Role: true,
+          MaNhom: true,
+          TrangThaiDuyet: true
+        }
+      });
+
+      await tx.QUANTRIVIEN.create({
+        data: {
+          MaTaiKhoan: created.MaTaiKhoan,
+          HoTen,
+          Email,
+          Sdt: Sdt || null,
+          ChucVu,
+          PhongBan: PhongBan || null,
+          TrangThai: true
+        }
+      });
+
+      return created;
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký admin thành công. Vui lòng chờ admin hệ thống duyệt tài khoản.',
+      data: {
+        id: account.MaTaiKhoan,
+        username: account.TenDangNhap,
+        Role: account.Role,
+        MaNhom: account.MaNhom,
+        TrangThaiDuyet: account.TrangThaiDuyet
+      }
+    });
+  } catch (error) {
+    console.error('Admin register error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const identifier = normalize(req.body.identifier || req.body.username || req.body.email);
+    const role = normalize(req.body.role);
+    if (!identifier) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập hoặc email' });
+    }
+
+    const account = await prisma.TAIKHOAN.findFirst({
+      where: {
+        ...(role && ['admin', 'student'].includes(role) ? { Role: role } : {}),
+        OR: [
+          { TenDangNhap: identifier },
+          { MaSv: identifier },
+          { Email: { equals: identifier, mode: 'insensitive' } }
+        ]
+      },
+      select: {
+        MaTaiKhoan: true,
+        TenDangNhap: true,
+        HoTen: true,
+        Email: true,
+        TrangThai: true,
+        TrangThaiDuyet: true
+      }
+    });
+
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản phù hợp' });
+    }
+    if (account.TrangThai === false || account.TrangThaiDuyet !== 'approved') {
+      return res.status(403).json({ success: false, message: 'Tài khoản chưa được phép đặt lại mật khẩu' });
+    }
+    if (!account.Email) {
+      return res.status(400).json({ success: false, message: 'Tài khoản chưa có email để đặt lại mật khẩu' });
+    }
+    if (!process.env.SMTP_HOST) {
+      return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashResetToken(token);
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
+
+    await prisma.$transaction([
+      prisma.DATLAIMATKHAU.updateMany({
+        where: { MaTaiKhoan: account.MaTaiKhoan, DaSuDung: false },
+        data: { DaSuDung: true, NgaySuDung: new Date() }
+      }),
+      prisma.DATLAIMATKHAU.create({
+        data: {
+          MaTaiKhoan: account.MaTaiKhoan,
+          TokenHash: tokenHash,
+          HetHanLuc: expiresAt,
+          DaSuDung: false
+        }
+      })
+    ]);
+
+    await sendResetEmail(account, token);
+
+    res.json({
+      success: true,
+      message: 'Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư.'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    if (error.message === 'SMTP_NOT_CONFIGURED') {
+      return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
+    }
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const token = normalize(req.body.token);
+    const { newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập token và mật khẩu mới' });
+    }
+
+    const tokenHash = hashResetToken(token);
+    const reset = await prisma.DATLAIMATKHAU.findFirst({
+      where: {
+        TokenHash: tokenHash,
+        DaSuDung: false,
+        HetHanLuc: { gt: new Date() }
+      },
+      include: {
+        TAIKHOAN: {
+          select: {
+            MaTaiKhoan: true,
+            TrangThai: true,
+            TrangThaiDuyet: true
+          }
+        }
+      }
+    });
+
+    if (!reset || !reset.TAIKHOAN || reset.TAIKHOAN.TrangThai === false || reset.TAIKHOAN.TrangThaiDuyet !== 'approved') {
+      return res.status(400).json({ success: false, message: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn' });
+    }
+
+    const hashed = await hashPassword(newPassword);
+    await prisma.$transaction([
+      prisma.TAIKHOAN.update({
+        where: { MaTaiKhoan: reset.MaTaiKhoan },
+        data: { MatKhau: hashed, NgayCapNhat: new Date() },
+        select: { MaTaiKhoan: true }
+      }),
+      prisma.DATLAIMATKHAU.update({
+        where: { MaToken: reset.MaToken },
+        data: { DaSuDung: true, NgaySuDung: new Date() },
+        select: { MaToken: true }
+      })
+    ]);
+
+    res.json({ success: true, message: 'Đặt lại mật khẩu thành công' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -212,6 +556,8 @@ const getMe = async (req, res) => {
         TenDangNhap: true,
         Role: true,
         MaNhom: true,
+        TrangThai: true,
+        TrangThaiDuyet: true,
         NgayTao: true
       }
     });
@@ -244,6 +590,8 @@ const getMe = async (req, res) => {
           username: user.TenDangNhap,
           Role: user.Role,
           MaNhom: user.MaNhom,
+          TrangThai: user.TrangThai,
+          TrangThaiDuyet: user.TrangThaiDuyet,
           created_at: user.NgayTao
         },
         student: studentInfo,
@@ -286,11 +634,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(newPassword, salt);
     await prisma.TAIKHOAN.update({
       where: { MaTaiKhoan: userId },
-      data: { MatKhau: hashed },
+      data: { MatKhau: await hashPassword(newPassword), NgayCapNhat: new Date() },
       select: { MaTaiKhoan: true }
     });
 
@@ -305,7 +651,11 @@ module.exports = {
   login,
   loginStudent,
   loginAdmin,
-  register,
+  register: registerStudent,
+  registerStudent,
+  registerAdmin,
+  forgotPassword,
+  resetPassword,
   getMe,
   changePassword
 };

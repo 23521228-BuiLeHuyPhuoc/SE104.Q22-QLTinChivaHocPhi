@@ -1,0 +1,90 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm mã ngành, tên ngành..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      select#filter-khoa(onchange="applyFilters()")
+        option(value="" selected=(!filterKhoa)) Tất cả khoa
+        if faculties && faculties.length > 0
+          each k in faculties
+            option(value=k.MaKhoa selected=(filterKhoa === k.MaKhoa))= k.TenKhoa
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm ngành
+
+  .card
+    .card-header
+      h3 Danh sách ngành học
+      span.card-count= majors ? `${majors.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã ngành
+            th Tên ngành
+            th Khoa
+            th Số TC tối thiểu
+            th Thời gian ĐT
+            th Số SV
+            th Thao tác
+        tbody
+          if majors && majors.length > 0
+            each m in majors
+              tr
+                td.mono= m.MaNganh
+                td
+                  strong= m.TenNganh
+                td= m.KHOA ? m.KHOA.TenKhoa : m.MaKhoa
+                td= m.SoTinChiToiThieu || 120
+                td= m.ThoiGianDaoTao ? `${m.ThoiGianDaoTao} năm` : '4 năm'
+                td= m._count ? m._count.SINHVIEN : 0
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(m) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteMajor('${m.MaNganh}')`) Xóa
+          else
+            tr
+              td(colspan="7")
+                .empty-state Không có ngành phù hợp
+
+  include ../../partials/pagination
+
+block modals
+  #major-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm ngành học
+        button.modal-close(type="button" onclick="closeModal()") ×
+      .modal-body
+        form#major-form
+          .form-row
+            .form-group
+              label(for="maj-ma") Mã ngành
+              input.form-control#maj-ma(type="text" required placeholder="VD: KTPM")
+            .form-group
+              label(for="maj-ten") Tên ngành
+              input.form-control#maj-ten(type="text" required placeholder="VD: Kỹ thuật phần mềm")
+          .form-row
+            .form-group
+              label(for="maj-khoa") Khoa
+              select.form-control#maj-khoa(required)
+                option(value="") Chọn khoa
+                if faculties && faculties.length > 0
+                  each k in faculties
+                    option(value=k.MaKhoa)= k.TenKhoa
+            .form-group
+              label(for="maj-tinchi") Số tín chỉ tối thiểu
+              input.form-control#maj-tinchi(type="number" min="1" value="120")
+          .form-row
+            .form-group
+              label(for="maj-thoigian") Thời gian đào tạo (năm)
+              input.form-control#maj-thoigian(type="number" min="1" max="10" step="0.5" value="4")
+            .form-group
+          .form-group
+            label(for="maj-mota") Mô tả
+            textarea.form-control#maj-mota(rows="3" placeholder="Mô tả ngành học...")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveMajor()") Lưu
+
+block scripts
+  script(src="/js/admin/majors.js")

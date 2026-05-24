@@ -1,0 +1,87 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm mã khoa, tên khoa..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm khoa
+
+  .card
+    .card-header
+      h3 Danh sách khoa
+      span.card-count= faculties ? `${faculties.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã khoa
+            th Tên khoa
+            th Viết tắt
+            th Trưởng khoa
+            th Liên hệ
+            th Số ngành
+            th Số môn
+            th Thao tác
+        tbody
+          if faculties && faculties.length > 0
+            each f in faculties
+              tr
+                td.mono= f.MaKhoa
+                td
+                  strong= f.TenKhoa
+                td= f.TenVietTat || '-'
+                td= f.TruongKhoa || '-'
+                td
+                  div= f.Email || '-'
+                  small= f.Sdt || ''
+                td= f._count ? f._count.NGANHHOC : 0
+                td= f._count ? f._count.MONHOC : 0
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFaculty('${f.MaKhoa}')`) Xóa
+          else
+            tr
+              td(colspan="8")
+                .empty-state Không có khoa phù hợp
+
+  include ../../partials/pagination
+
+block modals
+  #faculty-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm khoa
+        button.modal-close(type="button" onclick="closeModal()") ×
+      .modal-body
+        form#faculty-form
+          .form-row
+            .form-group
+              label(for="fac-ma") Mã khoa
+              input.form-control#fac-ma(type="text" required placeholder="VD: CNTT")
+            .form-group
+              label(for="fac-ten") Tên khoa
+              input.form-control#fac-ten(type="text" required placeholder="VD: Công nghệ thông tin")
+          .form-row
+            .form-group
+              label(for="fac-viettat") Tên viết tắt
+              input.form-control#fac-viettat(type="text" placeholder="VD: CNTT")
+            .form-group
+              label(for="fac-truongkhoa") Trưởng khoa
+              input.form-control#fac-truongkhoa(type="text" placeholder="Họ tên trưởng khoa")
+          .form-row
+            .form-group
+              label(for="fac-email") Email
+              input.form-control#fac-email(type="email" placeholder="Email liên hệ")
+            .form-group
+              label(for="fac-sdt") Số điện thoại
+              input.form-control#fac-sdt(type="text" placeholder="Số điện thoại")
+          .form-group
+            label(for="fac-diachi") Địa chỉ
+            input.form-control#fac-diachi(type="text" placeholder="Địa chỉ khoa")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveFaculty()") Lưu
+
+block scripts
+  script(src="/js/admin/faculties.js")

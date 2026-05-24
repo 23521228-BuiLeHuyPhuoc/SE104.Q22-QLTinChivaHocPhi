@@ -1,87 +1,88 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  const container = document.getElementById('curriculum-container');
-  const creditsDone = document.getElementById('credits-done');
-  const creditsTotal = document.getElementById('credits-total');
-  const creditsBar = document.getElementById('credits-bar');
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+document.addEventListener('DOMContentLoaded', async function() {
+  var container = document.getElementById('curriculum-container');
+  var creditsDone = document.getElementById('credits-done');
+  var creditsTotal = document.getElementById('credits-total');
+  var creditsBar = document.getElementById('credits-bar');
 
   try {
-    // Fetch courses data
-    let courses = [];
-    try {
-      const res = await apiFetch('/api/courses');
-      if (res && res.success && res.data) {
-        courses = Array.isArray(res.data) ? res.data : (res.data.rows || res.data.courses || []);
-      }
-    } catch (e) {
-      console.log('Could not fetch courses:', e);
-    }
-
-    if (!courses || courses.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">📚</div>
-          <h4>Chương trình đào tạo</h4>
-          <p>Dữ liệu chương trình đào tạo đang được cập nhật. Vui lòng thử lại sau.</p>
-        </div>`;
+    var res = await apiFetch('/api/courses/curriculum/me');
+    if (!res || !res.success || !res.data) {
+      container.innerHTML = '<div class="empty-state">Không thể tải chương trình đào tạo</div>';
       return;
     }
 
-    // Group by some criteria (semester or department)
-    const totalCredits = courses.reduce((sum, c) => sum + (c.SoTinChi || 0), 0);
-    const completedCredits = 0; // Would need grade data
+    var courses = res.data.courses || [];
+    var summary = res.data.summary || {};
+    var totalCredits = Number(summary.totalCredits || 0);
+    var completedCredits = Number(summary.completedCredits || 0);
 
     if (creditsDone) creditsDone.textContent = completedCredits;
     if (creditsTotal) creditsTotal.textContent = totalCredits;
     if (creditsBar) {
-      const pct = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
-      creditsBar.style.width = pct + '%';
+      var pct = totalCredits > 0 ? Math.round((completedCredits / totalCredits) * 100) : 0;
+      creditsBar.style.width = Math.min(pct, 100) + '%';
     }
 
-    // Render courses as a list
-    let html = '';
-    const grouped = {};
-    courses.forEach(c => {
-      const type = c.LoaiMon || 'LT';
-      if (!grouped[type]) grouped[type] = [];
-      grouped[type].push(c);
+    if (!courses.length) {
+      container.innerHTML = '<div class="empty-state">Chưa có dữ liệu chương trình đào tạo cho ngành của bạn</div>';
+      return;
+    }
+
+    var grouped = {};
+    courses.forEach(function(course) {
+      var semester = course.HocKyDuKien || 'Khác';
+      if (!grouped[semester]) grouped[semester] = [];
+      grouped[semester].push(course);
     });
 
-    Object.entries(grouped).forEach(([type, items]) => {
-      const typeName = type === 'LT' ? 'Lý thuyết' : 'Thực hành';
-      html += `
-        <div class="curriculum-semester">
-          <div class="curriculum-semester-header">
-            <span class="badge ${type === 'LT' ? 'badge-primary' : 'badge-success'}">${type}</span>
-            ${typeName} — ${items.length} môn
-          </div>
-          <div class="curriculum-courses">`;
+    var html = '';
+    Object.keys(grouped).sort(function(a, b) {
+      return Number(a) - Number(b);
+    }).forEach(function(semester) {
+      var items = grouped[semester];
+      html += '<div class="curriculum-semester">';
+      html += '<div class="curriculum-semester-header">';
+      html += '<span class="badge badge-primary">' + (semester === 'Khác' ? 'Khác' : 'HK ' + escapeHtml(semester)) + '</span>';
+      html += escapeHtml(items.length + ' môn');
+      html += '</div>';
+      html += '<div class="curriculum-courses">';
 
-      items.forEach(c => {
-        html += `
-            <div class="curriculum-course">
-              <div class="course-info">
-                <div class="course-name">${c.TenMonHoc || c.ten_mon_hoc || 'N/A'}</div>
-                <div class="course-code">${c.MaMonHoc || c.ma_mon_hoc || ''}</div>
-              </div>
-              <div class="course-credits">${c.SoTinChi || c.so_tin_chi || 0} TC</div>
-              <span class="badge badge-secondary">Chưa học</span>
-            </div>`;
+      items.forEach(function(course) {
+        var statusText = 'Chưa học';
+        var statusClass = 'badge-secondary';
+        if (course.status === 'passed') {
+          statusText = 'Đã đạt';
+          statusClass = 'badge-success';
+        } else if (course.status === 'failed') {
+          statusText = 'Rớt';
+          statusClass = 'badge-error';
+        }
+
+        html += '<div class="curriculum-course">';
+        html += '<div class="course-info">';
+        html += '<div class="course-name">' + escapeHtml(course.TenMonHoc || 'N/A') + '</div>';
+        html += '<div class="course-code">' + escapeHtml(course.MaMonHoc || '') + '</div>';
+        html += '</div>';
+        html += '<div class="course-credits">' + Number(course.SoTinChi || 0) + ' TC</div>';
+        html += '<span class="badge ' + statusClass + '">' + statusText + '</span>';
+        html += '</div>';
       });
 
-      html += `
-          </div>
-        </div>`;
+      html += '</div></div>';
     });
 
     container.innerHTML = html;
-
   } catch (err) {
     console.error('Curriculum error:', err);
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">⚠️</div>
-        <h4>Không thể tải dữ liệu</h4>
-        <p>Đã xảy ra lỗi khi tải chương trình đào tạo.</p>
-      </div>`;
+    container.innerHTML = '<div class="empty-state text-error">Đã xảy ra lỗi khi tải chương trình đào tạo</div>';
   }
 });

@@ -1,0 +1,99 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .toolbar-title
+      h2.page-title Đơn giá tín chỉ
+      p Thiết lập đơn giá cho từng loại môn và loại đăng ký theo học kỳ.
+    .filter-group
+      select#filter-loaimon(onchange="applyFilters()")
+        option(value="" selected=(!filterLoaiMon)) Tất cả loại môn
+        option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết (LT)
+        option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành (TH)
+      select#filter-hocky(onchange="applyFilters()")
+        option(value="" selected=(!filterHocKy)) Tất cả học kỳ
+        if semesters && semesters.length > 0
+          each s in semesters
+            option(value=s.MaHocKy selected=(filterHocKy === s.MaHocKy))= s.TenHocKy
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đơn giá
+
+  .card
+    .card-header
+      h3 Bảng đơn giá tín chỉ
+      span.card-count= pricing ? `${pricing.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th #
+            th Loại môn
+            th Loại học
+            th Đơn giá / TC
+            th Học kỳ
+            th Trạng thái
+            th Thao tác
+        tbody
+          if pricing && pricing.length > 0
+            each p in pricing
+              - const loaiHocLabel = p.LoaiHoc === 'hoc_moi' ? 'Học mới' : p.LoaiHoc === 'hoc_lai' ? 'Học lại' : p.LoaiHoc === 'hoc_cai_thien' ? 'Cải thiện' : p.LoaiHoc
+              tr
+                td.mono= p.id
+                td
+                  span.badge(class=p.LoaiMon === 'LT' ? 'badge-info' : 'badge-success')= p.LoaiMon === 'LT' ? 'Lý thuyết' : 'Thực hành'
+                td
+                  span.badge.badge-secondary= loaiHocLabel
+                td.currency= Number(p.DonGia || 0).toLocaleString('vi-VN') + ' đ'
+                td= p.HOCKY ? p.HOCKY.TenHocKy : 'Mặc định'
+                td
+                  if p.TrangThai !== false
+                    span.badge.badge-success Đang áp dụng
+                  else
+                    span.badge.badge-secondary Ngưng
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deletePricing(${p.id})`) Xóa
+          else
+            tr
+              td(colspan="7")
+                .empty-state Chưa có đơn giá nào
+
+block modals
+  #pricing-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
+    .modal
+      .modal-header
+        h2#modal-title Thêm đơn giá
+        button.modal-close(type="button" onclick="closeModal()") ×
+      .modal-body
+        form#pricing-form
+          .form-row
+            .form-group
+              label(for="pr-loaimon") Loại môn
+              select.form-control#pr-loaimon(required)
+                option(value="LT") Lý thuyết (LT)
+                option(value="TH") Thực hành (TH)
+            .form-group
+              label(for="pr-loaihoc") Loại học
+              select.form-control#pr-loaihoc(required)
+                option(value="hoc_moi") Học mới
+                option(value="hoc_lai") Học lại
+                option(value="hoc_cai_thien") Cải thiện
+          .form-row
+            .form-group
+              label(for="pr-dongia") Đơn giá / tín chỉ (VNĐ)
+              input.form-control#pr-dongia(type="number" min="0" required placeholder="VD: 27000")
+            .form-group
+              label(for="pr-hocky") Học kỳ áp dụng
+              select.form-control#pr-hocky
+                option(value="") Mặc định (tất cả)
+                if semesters && semesters.length > 0
+                  each s in semesters
+                    option(value=s.MaHocKy)= s.TenHocKy
+          .form-group
+            label(for="pr-ghichu") Ghi chú
+            input.form-control#pr-ghichu(type="text" placeholder="Ghi chú thêm...")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="savePricing()") Lưu
+
+block scripts
+  script(src="/js/admin/pricing.js")

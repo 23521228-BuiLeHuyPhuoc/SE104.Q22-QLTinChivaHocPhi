@@ -125,6 +125,54 @@ const createPublicNotification = async (req, res) => {
   }
 };
 
+// ── Admin CRUD ──
+const createAdminNotification = async (req, res) => {
+  try {
+    const { TieuDe, NoiDung, Loai, DOITUONG, GhimTop, NgayHetHan } = req.body;
+    if (!TieuDe || !NoiDung) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tiêu đề và nội dung' });
+    }
+    const nguoiTao = Number(req.user?.id || req.user?.MaTaiKhoan || 0) || null;
+    const notif = await prisma.THONGBAO.create({
+      data: {
+        TieuDe, NoiDung,
+        Loai: Loai || 'chung',
+        DOITUONG: DOITUONG || 'Tất cả',
+        GhimTop: GhimTop || false,
+        NgayHetHan: NgayHetHan ? new Date(NgayHetHan) : null,
+        NguoiTao: nguoiTao
+      }
+    });
+    res.status(201).json({ success: true, message: 'Tạo thông báo thành công', data: notif });
+  } catch (error) {
+    console.error('Admin notification create error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const updateNotification = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+    const { TieuDe, NoiDung, Loai, DOITUONG, GhimTop, NgayHetHan } = req.body;
+    const notif = await prisma.THONGBAO.update({
+      where: { MaThongBao: id },
+      data: {
+        ...(TieuDe && { TieuDe }),
+        ...(NoiDung && { NoiDung }),
+        ...(Loai && { Loai }),
+        ...(DOITUONG && { DOITUONG }),
+        ...(GhimTop !== undefined && { GhimTop }),
+        ...(NgayHetHan !== undefined && { NgayHetHan: NgayHetHan ? new Date(NgayHetHan) : null })
+      }
+    });
+    res.json({ success: true, message: 'Cập nhật thành công', data: notif });
+  } catch (error) {
+    console.error('Notification update error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
 const deleteNotification = async (req, res) => {
   try {
     const notificationId = Number(req.params.id);
@@ -132,10 +180,7 @@ const deleteNotification = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Du lieu khong hop le' });
     }
 
-    await prisma.$executeRaw`
-      DELETE FROM "THONGBAO"
-      WHERE "MaThongBao" = ${notificationId}
-    `;
+    await prisma.THONGBAO.delete({ where: { MaThongBao: notificationId } });
 
     res.json({ success: true, message: 'Xoa thong bao thanh cong' });
   } catch (error) {
@@ -151,5 +196,7 @@ module.exports = {
   markAsRead,
   getUnreadCount,
   createPublicNotification,
+  createAdminNotification,
+  updateNotification,
   deleteNotification
 };

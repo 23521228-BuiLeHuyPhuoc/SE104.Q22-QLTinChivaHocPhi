@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const roleController = require('../controllers/roleController');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware, systemAdminMiddleware } = require('../middleware/auth');
 
 // Xác thực
 router.use(authMiddleware);
@@ -16,6 +16,9 @@ router.get('/', adminMiddleware, roleController.getAllRoles);
 router.get('/accounts', adminMiddleware, roleController.getAllAccounts);
 
 // Cập nhật role tài khoản (admin only)
-router.put('/accounts/:id/role', adminMiddleware, roleController.updateUserRole);
+router.put('/accounts/:id/role', adminMiddleware, systemAdminMiddleware, roleController.updateUserRole);
+
+// Duyệt hoặc từ chối tài khoản admin đang chờ duyệt (system admin only)
+router.put('/accounts/:id/approval', adminMiddleware, systemAdminMiddleware, roleController.updateAccountApproval);
 
 module.exports = router;

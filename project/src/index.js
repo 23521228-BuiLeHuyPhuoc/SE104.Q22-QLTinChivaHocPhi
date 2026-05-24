@@ -16,6 +16,14 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const semesterRoutes = require('./routes/semesterRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const roleRoutes = require('./routes/roleRoutes');
+const permissionRoutes = require('./routes/permissionRoutes');
+const facultyRoutes = require('./routes/facultyRoutes');
+const majorRoutes = require('./routes/majorRoutes');
+const pricingRoutes = require('./routes/pricingRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
+const beneficiaryRoutes = require('./routes/beneficiaryRoutes');
+const completedCourseRoutes = require('./routes/completedCourseRoutes');
+const prisma = require('./config/database');
 
 // Import SSR view routes
 const viewRoutes = require('./routes/viewRoutes');
@@ -60,6 +68,13 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/semesters', semesterRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/permissions', permissionRoutes);
+app.use('/api/faculties', facultyRoutes);
+app.use('/api/majors', majorRoutes);
+app.use('/api/pricing', pricingRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/beneficiaries', beneficiaryRoutes);
+app.use('/api/completed-courses', completedCourseRoutes);
 
 // ==========================================
 // SSR View Routes (Pug pages)
@@ -93,11 +108,13 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Homepage: http://localhost:${PORT}/`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
+// Start server after the lightweight DB bootstrap has had a chance to run.
+Promise.resolve(prisma.ready).finally(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Homepage: http://localhost:${PORT}/`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
+  });
 });
 
 module.exports = app;

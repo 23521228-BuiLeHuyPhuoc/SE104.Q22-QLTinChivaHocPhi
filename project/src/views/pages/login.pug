@@ -28,11 +28,15 @@ block content
 
       .login-switch
         if isAdminLogin
-          | Bạn là sinh viên? 
-          a(href="/login") Đăng nhập tại đây
+          a(href=forgotPasswordPath || "/admin/forgot-password") Quên mật khẩu
+          |  · 
+          a(href=registerPath || "/admin/register") Đăng ký admin
+          |  · 
+          a(href="/login") Đăng nhập sinh viên
         else
-          | Bạn là quản trị viên? 
-          a(href="/admin/login") Đăng nhập admin
+          a(href=forgotPasswordPath || "/forgot-password") Quên mật khẩu
+          |  · 
+          a(href=registerPath || "/register") Đăng ký sinh viên
 
 block scripts
   script(src="/js/login.js")

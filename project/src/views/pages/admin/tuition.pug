@@ -24,6 +24,7 @@ block content
             th Họ tên
             th Học kỳ
             th Tín chỉ
+            th Loại học
             th Tổng phải đóng
             th Đã đóng
             th Còn nợ
@@ -37,6 +38,13 @@ block content
                 td= t.HoTen || '-'
                 td= t.TenHocKy || t.MaHocKy || '-'
                 td= t.TongTinChi || 0
+                td
+                  if Number(t.SoMonHocMoi || 0) > 0
+                    span.badge.badge-success= 'Mới ' + t.SoMonHocMoi
+                  if Number(t.SoMonHocLai || 0) > 0
+                    span.badge.badge-warning= 'Lại ' + t.SoMonHocLai
+                  if Number(t.SoMonHocCaiThien || 0) > 0
+                    span.badge.badge-info= 'Cải thiện ' + t.SoMonHocCaiThien
                 td.currency= money(t.TongTienPhaiDong)
                 td.currency= money(t.TongTienDaDong)
                 td.currency(class=(Number(t.ConNo || 0) > 0 ? 'text-danger' : 'text-success'))= money(t.ConNo)
@@ -44,7 +52,7 @@ block content
                   span.badge(class=badge)= t.TrangThaiHocPhi
           else
             tr
-              td(colspan="8")
+              td(colspan="9")
                 .empty-state Không có dữ liệu học phí
 
   include ../../partials/pagination

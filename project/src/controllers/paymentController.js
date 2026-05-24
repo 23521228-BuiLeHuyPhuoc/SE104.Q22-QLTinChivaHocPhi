@@ -1,5 +1,23 @@
 const prisma = require('../config/database');
 
+const getStudentIdFromRequest = async (req) => {
+  if (req.user?.Role === 'admin') return null;
+  if (req.user?.MaSv) return req.user.MaSv;
+  const student = await prisma.SINHVIEN.findFirst({
+    where: { MaTaiKhoan: Number(req.user?.MaTaiKhoan || req.user?.id || 0) },
+    select: { MaSv: true }
+  });
+  return student?.MaSv || null;
+};
+
+const ensureStudentAccess = async (req, res, studentId) => {
+  if (req.user?.Role === 'admin') return true;
+  const currentStudentId = await getStudentIdFromRequest(req);
+  if (currentStudentId && currentStudentId === studentId) return true;
+  res.status(403).json({ success: false, message: 'Không có quyền truy cập dữ liệu sinh viên này' });
+  return false;
+};
+
 const getAllPayments = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', MaHocKy, HinhThucThu, TrangThai } = req.query;
@@ -29,6 +47,7 @@ const getPaymentById = async (req, res) => {
 
 const getStudentPayments = async (req, res) => {
   try {
+    if (!(await ensureStudentAccess(req, res, req.params.studentId))) return;
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({ where: { MaSv: req.params.studentId }, orderBy: { NgayLap: 'desc' }, include: { PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
     res.json({ success: true, data: rows.map(p => ({ SoPhieuThu: p.SoPhieuThu, MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy, SoTienThu: Number(p.SoTienThu), HinhThucThu: p.HinhThucThu, NgayLap: p.NgayLap, GhiChu: p.GhiChu, TrangThai: p.TrangThai })) });
   } catch (error) { console.error('Get student payments error:', error); res.status(500).json({ success: false, message: 'Lỗi server' }); }

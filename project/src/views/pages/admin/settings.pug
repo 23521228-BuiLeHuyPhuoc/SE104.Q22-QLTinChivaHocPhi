@@ -1,0 +1,34 @@
+extends ../../layouts/admin
+
+block content
+  .page-shell
+    .page-heading
+      .page-kicker Cài đặt hệ thống
+      h2 Tham số quy chế đăng ký
+      p Thiết lập giới hạn tín chỉ đăng ký cho toàn hệ thống.
+
+    .content-grid
+      .card
+        .card-header
+          h3 Quy định đăng ký tín chỉ
+        .card-body
+          .form-group
+            label(for="st-toithieu") Số tín chỉ tối thiểu / kỳ
+            input.form-control#st-toithieu(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiThieu : 14))
+          .form-group
+            label(for="st-toida") Số tín chỉ tối đa / kỳ
+            input.form-control#st-toida(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiDa : 24))
+          .form-group
+            label(for="st-toidavuot") Số tín chỉ tối đa khi vượt
+            input.form-control#st-toidavuot(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiDaKhiVuot : 30))
+
+    .card
+      .card-body.d-flex.justify-between.align-center
+        if settings && settings.NgayCapNhat
+          span.text-muted Cập nhật lần cuối: #{new Date(settings.NgayCapNhat).toLocaleString('vi-VN')}
+        else
+          span.text-muted Chưa cập nhật
+        button.btn.btn-primary(type="button" onclick="saveSettings()") Cập nhật tham số
+
+block scripts
+  script(src="/js/admin/settings.js")
