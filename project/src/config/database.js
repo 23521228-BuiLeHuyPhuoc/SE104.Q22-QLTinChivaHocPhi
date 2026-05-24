@@ -17,11 +17,13 @@ const AUDITED_SOFT_DELETE_TABLES = [
   'KHOA',
   'NGANHHOC',
   'MONDAHOC',
+  'DIEUKIENMONHOC',
   'DONGIATINCHI',
   'DOITUONG',
   'THONGBAO',
   'CHUCNANG',
-  'NHOMNGUOIDUNG'
+  'NHOMNGUOIDUNG',
+  'TIETHOC'
 ];
 
 const ensureAuthSchema = async () => {
