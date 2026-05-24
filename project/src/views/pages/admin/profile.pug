@@ -1,0 +1,49 @@
+extends ../../layouts/admin
+
+block content
+  .page-shell
+    .page-heading.compact
+      .page-kicker Cá nhân
+      h2 Hồ sơ quản trị viên
+
+    .card
+      .card-header
+        h3 Thông tin tài khoản
+      .card-body
+        .loading-overlay#loading
+          .spinner
+        form#admin-profile-form.hidden
+          .profile-avatar-panel
+            .profile-avatar-preview
+              img#profile-avatar-img.hidden(src="" alt="Ảnh đại diện")
+              span#profile-avatar-initials AD
+            .profile-avatar-actions
+              label.btn.btn-outline(for="avatar-input") Chọn ảnh
+              input#avatar-input(type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden)
+              button.btn.btn-primary#btn-upload-avatar(type="button" disabled) Cập nhật ảnh
+              small JPG, PNG, WebP hoặc GIF, tối đa 3MB.
+
+          .form-row
+            .form-group
+              label(for="p-username") Tên đăng nhập
+              input.form-control#p-username(type="text" readonly)
+            .form-group
+              label(for="p-hoten") Họ tên
+              input.form-control#p-hoten(type="text" readonly)
+          .form-row
+            .form-group
+              label(for="p-email") Email
+              input.form-control#p-email(type="email" readonly)
+            .form-group
+              label(for="p-sdt") Số điện thoại
+              input.form-control#p-sdt(type="text" readonly)
+          .form-row
+            .form-group
+              label(for="p-chucvu") Chức vụ
+              input.form-control#p-chucvu(type="text" readonly)
+            .form-group
+              label(for="p-phongban") Phòng ban
+              input.form-control#p-phongban(type="text" readonly)
+
+block scripts
+  script(src="/js/admin/profile.js")

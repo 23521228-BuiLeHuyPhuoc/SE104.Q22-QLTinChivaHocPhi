@@ -493,7 +493,6 @@ model TAIKHOAN {
   LyDoTuChoi                                 String?        @db.VarChar(300)
   NgayTao                                    DateTime?      @default(now()) @db.Timestamp(6)
   NgayCapNhat                                DateTime?      @db.Timestamp(6)
-  DATLAIMATKHAU                              DATLAIMATKHAU[]
   MONDAHOC                                   MONDAHOC[]
   NHOMNGUOIDUNG                              NHOMNGUOIDUNG  @relation(fields: [MaNhom], references: [MaNhom], map: "fk_nd_nhom")
   QUANTRIVIEN                                QUANTRIVIEN?
@@ -503,20 +502,6 @@ model TAIKHOAN {
   THONGBAO_THONGBAO_NguoiTaoToTAIKHOAN       THONGBAO[]     @relation("THONGBAO_NguoiTaoToTAIKHOAN")
 
   @@map("NGUOIDUNG")
-}
-
-model DATLAIMATKHAU {
-  MaToken     Int       @id(map: "dat_lai_mat_khau_pkey") @default(autoincrement())
-  MaTaiKhoan  Int
-  TokenHash   String    @unique(map: "dat_lai_mat_khau_token_hash_key") @db.VarChar(255)
-  HetHanLuc   DateTime  @db.Timestamp(6)
-  DaSuDung    Boolean?  @default(false)
-  NgayTao     DateTime? @default(now()) @db.Timestamp(6)
-  NgaySuDung  DateTime? @db.Timestamp(6)
-  TAIKHOAN    TAIKHOAN  @relation(fields: [MaTaiKhoan], references: [MaTaiKhoan], onDelete: Cascade, map: "fk_dlmk_tk")
-
-  @@index([MaTaiKhoan], map: "idx_dlmk_taikhoan")
-  @@index([HetHanLuc], map: "idx_dlmk_hethan")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

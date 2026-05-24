@@ -48,6 +48,20 @@ const TRASH_ENTITIES = {
     type: 'int',
     title: ['MaSv', 'MaMonHoc']
   },
+  periods: {
+    label: 'Tiết học',
+    model: 'TIETHOC',
+    pk: 'MaTiet',
+    type: 'string',
+    title: ['TenTiet', 'MaTiet']
+  },
+  prerequisites: {
+    label: 'Ràng buộc môn học',
+    model: 'DIEUKIENMONHOC',
+    pk: 'id',
+    type: 'int',
+    title: ['MaMonHoc', 'MaMonDieuKien']
+  },
   pricing: {
     label: 'Đơn giá tín chỉ',
     model: 'DONGIATINCHI',

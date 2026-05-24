@@ -136,9 +136,11 @@ const ROLE_PERMISSIONS = {
     '/admin/dashboard', '/admin/students', '/admin/courses',
     '/admin/classes', '/admin/semesters', '/admin/registrations',
     '/admin/faculties', '/admin/majors', '/admin/completed-courses',
+    '/admin/periods', '/admin/prerequisites', '/admin/profile',
     '/api/students', '/api/courses', '/api/classes',
     '/api/semesters', '/api/registrations',
-    '/api/faculties', '/api/majors', '/api/completed-courses'
+    '/api/faculties', '/api/majors', '/api/completed-courses',
+    '/api/periods', '/api/prerequisites', '/api/auth/me', '/api/auth/avatar'
   ],
   finance: [
     '/admin/dashboard', '/admin/tuition', '/admin/payments',

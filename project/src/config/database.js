@@ -55,25 +55,6 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "DATLAIMATKHAU" (
-      "MaToken" SERIAL NOT NULL,
-      "MaTaiKhoan" INTEGER NOT NULL,
-      "TokenHash" VARCHAR(255) NOT NULL,
-      "HetHanLuc" TIMESTAMP NOT NULL,
-      "DaSuDung" BOOLEAN DEFAULT FALSE,
-      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      "NgaySuDung" TIMESTAMP,
-      CONSTRAINT dat_lai_mat_khau_pkey PRIMARY KEY ("MaToken"),
-      CONSTRAINT dat_lai_mat_khau_token_hash_key UNIQUE ("TokenHash"),
-      CONSTRAINT fk_dlmk_tk FOREIGN KEY ("MaTaiKhoan")
-        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
-    )
-  `);
-
-  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_dlmk_taikhoan ON "DATLAIMATKHAU"("MaTaiKhoan")');
-  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_dlmk_hethan ON "DATLAIMATKHAU"("HetHanLuc")');
-
-  await prisma.$executeRawUnsafe(`
     ALTER TABLE "NGUOIDUNG"
       ADD COLUMN IF NOT EXISTS "LanDangNhapCuoi" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "RefreshToken" VARCHAR(500),

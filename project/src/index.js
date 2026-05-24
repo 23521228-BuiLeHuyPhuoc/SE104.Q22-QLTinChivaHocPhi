@@ -26,6 +26,8 @@ const beneficiaryRoutes = require('./routes/beneficiaryRoutes');
 const completedCourseRoutes = require('./routes/completedCourseRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const trashRoutes = require('./routes/trashRoutes');
+const periodRoutes = require('./routes/periodRoutes');
+const prerequisiteRoutes = require('./routes/prerequisiteRoutes');
 const prisma = require('./config/database');
 
 // Import SSR view routes
@@ -114,6 +116,8 @@ app.use('/api/beneficiaries', beneficiaryRoutes);
 app.use('/api/completed-courses', completedCourseRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/trash', trashRoutes);
+app.use('/api/periods', periodRoutes);
+app.use('/api/prerequisites', prerequisiteRoutes);
 
 // ==========================================
 // SSR View Routes (Pug pages)

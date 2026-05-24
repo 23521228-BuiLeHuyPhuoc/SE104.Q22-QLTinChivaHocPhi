@@ -65,7 +65,6 @@ DROP TABLE IF EXISTS "MONHOC" CASCADE;
 DROP TABLE IF EXISTS "DOITUONGSINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "QUANTRIVIEN" CASCADE;
 DROP TABLE IF EXISTS "SINHVIEN" CASCADE;
-DROP TABLE IF EXISTS "DATLAIMATKHAU" CASCADE;
 DROP TABLE IF EXISTS "NGUOIDUNG" CASCADE;
 DROP TABLE IF EXISTS "PHANQUYEN" CASCADE;
 DROP TABLE IF EXISTS "CHUCNANG" CASCADE;
@@ -220,26 +219,6 @@ CREATE TABLE "NGUOIDUNG" (
         REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- =====================================================
--- 9A. BẢNG "DATLAIMATKHAU" - Token đặt lại mật khẩu
--- =====================================================
-CREATE TABLE "DATLAIMATKHAU" (
-    "MaToken" SERIAL NOT NULL,
-    "MaTaiKhoan" INTEGER NOT NULL,
-    "TokenHash" VARCHAR(255) NOT NULL,
-    "HetHanLuc" TIMESTAMP NOT NULL,
-    "DaSuDung" BOOLEAN DEFAULT FALSE,
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "NgaySuDung" TIMESTAMP,
-    CONSTRAINT dat_lai_mat_khau_pkey PRIMARY KEY ("MaToken"),
-    CONSTRAINT dat_lai_mat_khau_token_hash_key UNIQUE ("TokenHash"),
-    CONSTRAINT fk_dlmk_tk FOREIGN KEY ("MaTaiKhoan")
-        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX idx_dlmk_taikhoan ON "DATLAIMATKHAU"("MaTaiKhoan");
-CREATE INDEX idx_dlmk_hethan ON "DATLAIMATKHAU"("HetHanLuc");
-
--- =====================================================
 -- 10. BẢNG "SINHVIEN" - Sinh viên (BM1, QĐ1)
 -- Ghi chú: Đối tượng "vùng sâu vùng xa" = sinh viên ở KV3 VÀ là dân tộc thiểu số
 -- =====================================================
@@ -6700,8 +6679,8 @@ DECLARE
 BEGIN
   FOREACH audited_table IN ARRAY ARRAY[
     'SINHVIEN', 'MONHOC', 'LOP', 'HOCKY', 'KHOA', 'NGANHHOC',
-    'MONDAHOC', 'DONGIATINCHI', 'DOITUONG', 'THONGBAO',
-    'CHUCNANG', 'NHOMNGUOIDUNG'
+    'MONDAHOC', 'DIEUKIENMONHOC', 'DONGIATINCHI', 'DOITUONG', 'THONGBAO',
+    'CHUCNANG', 'NHOMNGUOIDUNG', 'TIETHOC'
   ]
   LOOP
     EXECUTE format(

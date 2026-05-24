@@ -31,9 +31,15 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/courses" title="Môn học" class=(active === 'courses' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded menu_book
           span.link-label Môn học
+        a.sidebar-link(href="/admin/prerequisites" title="Ràng buộc môn học" class=(active === 'prerequisites' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded rule
+          span.link-label Ràng buộc môn học
         a.sidebar-link(href="/admin/classes" title="Lớp học" class=(active === 'classes' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded meeting_room
           span.link-label Lớp học
+        a.sidebar-link(href="/admin/periods" title="Tiết học" class=(active === 'periods' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded schedule
+          span.link-label Tiết học
         a.sidebar-link(href="/admin/semesters" title="Học kỳ" class=(active === 'semesters' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded event
           span.link-label Học kỳ
@@ -82,6 +88,9 @@ nav.sidebar.sidebar-admin(id="sidebar")
       a.sidebar-link(href="/admin/users" title="Người dùng" class=(active === 'users' ? 'active' : ''))
         span.sidebar-icon.material-symbols-rounded manage_accounts
         span.link-label Người dùng
+      a.sidebar-link(href="/admin/profile" title="Hồ sơ" class=(active === 'profile' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded account_circle
+        span.link-label Hồ sơ
 
     if isSystem
       .sidebar-section

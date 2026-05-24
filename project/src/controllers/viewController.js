@@ -54,6 +54,19 @@ async function getUserFromToken(token) {
 
 const toNumber = (value) => Number(value || 0);
 
+const formatTimeValue = (value) => {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(11, 16);
+};
+
+const conditionTypeLabel = (value) => {
+  if (value === 'tien_quyet') return 'Tiên quyết';
+  if (value === 'hoc_truoc') return 'Học trước';
+  return value || '-';
+};
+
 const getTuitionStatus = (amountDue, amountPaid, dueDate) => {
   if (amountDue <= 0) return 'Chưa phát sinh';
   if (amountPaid < amountDue && dueDate && new Date(dueDate) < new Date()) return 'Quá hạn';
@@ -418,6 +431,130 @@ const adminSemesters = async (req, res) => {
       totalPages: 0,
       baseUrl: '/admin/semesters',
       queryParams: {}
+    });
+  }
+};
+
+const adminPeriods = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const where = { DaXoa: false };
+  if (search) {
+    where.OR = [
+      { MaTiet: { contains: search, mode: 'insensitive' } },
+      { TenTiet: { contains: search, mode: 'insensitive' } },
+      { MoTa: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  try {
+    const [periods, total] = await Promise.all([
+      prisma.TIETHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ ThuTu: 'asc' }, { MaTiet: 'asc' }]
+      }),
+      prisma.TIETHOC.count({ where })
+    ]);
+    const displayPeriods = (await attachUpdaterNames(periods)).map((period) => ({
+      ...period,
+      GioBatDauText: formatTimeValue(period.GioBatDau),
+      GioKetThucText: formatTimeValue(period.GioKetThuc)
+    }));
+
+    renderAdmin(res, 'periods', 'periods', 'Quản lý tiết học', req, {
+      periods: displayPeriods,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/periods',
+      queryParams: { search, limit },
+      search
+    });
+  } catch (err) {
+    console.error('adminPeriods error:', err);
+    renderAdmin(res, 'periods', 'periods', 'Quản lý tiết học', req, {
+      periods: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/periods',
+      queryParams: {},
+      search: ''
+    });
+  }
+};
+
+const adminPrerequisites = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const filterType = req.query.LoaiDieuKien || '';
+  const where = { DaXoa: false };
+  if (filterType) where.LoaiDieuKien = filterType;
+  if (search) {
+    where.OR = [
+      { MaMonHoc: { contains: search, mode: 'insensitive' } },
+      { MaMonDieuKien: { contains: search, mode: 'insensitive' } },
+      { MoTa: { contains: search, mode: 'insensitive' } },
+      {
+        MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC: {
+          TenMonHoc: { contains: search, mode: 'insensitive' }
+        }
+      },
+      {
+        MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: {
+          TenMonHoc: { contains: search, mode: 'insensitive' }
+        }
+      }
+    ];
+  }
+
+  try {
+    const [prerequisites, total, courses] = await Promise.all([
+      prisma.DIEUKIENMONHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ MaMonHoc: 'asc' }, { LoaiDieuKien: 'asc' }, { MaMonDieuKien: 'asc' }],
+        include: {
+          MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC: true,
+          MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: true
+        }
+      }),
+      prisma.DIEUKIENMONHOC.count({ where }),
+      prisma.MONHOC.findMany({
+        where: { DaXoa: false, TrangThai: true },
+        orderBy: { MaMonHoc: 'asc' },
+        select: { MaMonHoc: true, TenMonHoc: true }
+      })
+    ]);
+    const displayPrerequisites = (await attachUpdaterNames(prerequisites)).map((row) => ({
+      ...row,
+      LoaiDieuKienLabel: conditionTypeLabel(row.LoaiDieuKien)
+    }));
+
+    renderAdmin(res, 'prerequisites', 'prerequisites', 'Ràng buộc môn học trước', req, {
+      prerequisites: displayPrerequisites,
+      courses,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/prerequisites',
+      queryParams: { search, LoaiDieuKien: filterType, limit },
+      search,
+      filterType
+    });
+  } catch (err) {
+    console.error('adminPrerequisites error:', err);
+    renderAdmin(res, 'prerequisites', 'prerequisites', 'Ràng buộc môn học trước', req, {
+      prerequisites: [],
+      courses: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/prerequisites',
+      queryParams: {},
+      search: '',
+      filterType: ''
     });
   }
 };
@@ -1018,6 +1155,10 @@ const adminTrash = (req, res) => {
   });
 };
 
+const adminProfile = (req, res) => {
+  renderAdmin(res, 'profile', 'profile', 'Hồ sơ quản trị viên', req);
+};
+
 const studentDashboard = (req, res) => {
   renderStudent(res, 'dashboard', 'dashboard', 'Bảng điều khiển', req);
 };
@@ -1074,6 +1215,8 @@ module.exports = {
   adminCourses,
   adminClasses,
   adminSemesters,
+  adminPeriods,
+  adminPrerequisites,
   adminRegistrations,
   adminTuition,
   adminPayments,
@@ -1088,6 +1231,7 @@ module.exports = {
   adminNotifications,
   adminSettings,
   adminTrash,
+  adminProfile,
   studentDashboard,
   studentCourseReg,
   studentMyCourses,

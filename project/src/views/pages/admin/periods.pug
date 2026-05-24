@@ -1,0 +1,93 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm mã, tên hoặc mô tả tiết học..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group
+      button.btn.btn-primary(type="button" onclick="openPeriodModal('add')") Thêm tiết học
+      a.btn.btn-outline(href="/admin/trash?entity=periods") Thùng rác
+
+  .card
+    .card-header
+      h3 Danh sách tiết học
+      span.card-count= periods ? `${periods.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã tiết
+            th Tên tiết
+            th Thứ tự
+            th Bắt đầu
+            th Kết thúc
+            th Trạng thái
+            th Sửa bởi
+            th Sửa lúc
+            th Thao tác
+        tbody
+          if periods && periods.length > 0
+            each p in periods
+              tr
+                td.mono= p.MaTiet
+                td
+                  strong= p.TenTiet
+                  if p.MoTa
+                    small= p.MoTa
+                td= p.ThuTu
+                td.mono= p.GioBatDauText || '-'
+                td.mono= p.GioKetThucText || '-'
+                td
+                  span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
+                td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
+                td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPeriodModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deletePeriod('${p.MaTiet}')`) Xóa
+          else
+            tr
+              td(colspan="9")
+                .empty-state Chưa có tiết học phù hợp
+
+  include ../../partials/pagination
+
+block modals
+  #period-modal.modal-overlay(onclick="if(event.target===this)closePeriodModal()")
+    .modal
+      .modal-header
+        h2#period-modal-title Thêm tiết học
+        button.modal-close(type="button" onclick="closePeriodModal()" aria-label="Đóng") ×
+      .modal-body
+        form#period-form
+          .form-row
+            .form-group
+              label(for="period-ma") Mã tiết
+              input.form-control#period-ma(type="text" required placeholder="VD: T1")
+            .form-group
+              label(for="period-ten") Tên tiết
+              input.form-control#period-ten(type="text" required placeholder="VD: Tiết 1")
+          .form-row
+            .form-group
+              label(for="period-thutu") Thứ tự
+              input.form-control#period-thutu(type="number" min="1" max="11" required)
+            .form-group
+              label(for="period-trangthai") Trạng thái
+              select.form-control#period-trangthai
+                option(value="true") Đang dùng
+                option(value="false") Tạm khóa
+          .form-row
+            .form-group
+              label(for="period-batdau") Giờ bắt đầu
+              input.form-control#period-batdau(type="time" required)
+            .form-group
+              label(for="period-ketthuc") Giờ kết thúc
+              input.form-control#period-ketthuc(type="time" required)
+          .form-group
+            label(for="period-mota") Mô tả
+            textarea.form-control#period-mota(rows="3")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closePeriodModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="savePeriod()") Lưu
+
+block scripts
+  script(src="/js/admin/periods.js")

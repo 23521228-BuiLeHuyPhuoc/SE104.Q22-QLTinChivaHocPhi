@@ -1,6 +1,6 @@
 # Bảng tầm ảnh hưởng cơ sở dữ liệu
 
-Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ khóa ngoại**.
+Nguồn phân tích: `project/src/config/init.sql` — **29 bảng, 39 quan hệ khóa ngoại**.
 
 ## Quy ước
 
@@ -25,7 +25,7 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 
 ---
 
-## Danh sách 30 bảng (đánh số thứ tự)
+## Danh sách 29 bảng (đánh số thứ tự)
 
 | STT | Tên bảng | Viết tắt | Mô tả |
 |-----|----------|----------|-------|
@@ -39,26 +39,25 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 | 8 | `NHOMNGUOIDUNG` | NND | Nhóm người dùng |
 | 9 | `PHANQUYEN` | PQ | Phân quyền |
 | 10 | `NGUOIDUNG` | ND | Người dùng (tài khoản) |
-| 11 | `DATLAIMATKHAU` | DLMK | Đặt lại mật khẩu |
-| 12 | `SINHVIEN` | SV | Sinh viên |
-| 13 | `DOITUONGSINHVIEN` | DTSV | Đối tượng sinh viên |
-| 14 | `QUANTRIVIEN` | QTV | Quản trị viên |
-| 15 | `MONHOC` | MH | Môn học |
-| 16 | `DIEUKIENMONHOC` | DKMH | Điều kiện môn học |
-| 17 | `TIETHOC` | TIET | Tiết học |
-| 18 | `THAMSO` | TS | Tham số hệ thống |
-| 19 | `LOP` | LOP | Lớp học |
-| 20 | `CHUONGTRINHHOC` | CTH | Chương trình học |
-| 21 | `NAMHOC` | NAM | Năm học |
-| 22 | `HOCKY` | HK | Học kỳ |
-| 23 | `LOPMO` | LM | Lớp mở |
-| 24 | `LICHHOCLOP` | LHL | Lịch học lớp |
-| 25 | `DONGIATINCHI` | DGTC | Đơn giá tín chỉ |
-| 26 | `PHIEUDANGKY` | PDK | Phiếu đăng ký |
-| 27 | `CHITIETDANGKY` | CTDK | Chi tiết đăng ký |
-| 28 | `MONDAHOC` | MDH | Môn đã học |
-| 29 | `PHIEUTHUHOCPHI` | PTHP | Phiếu thu học phí |
-| 30 | `THONGBAO` | TB | Thông báo |
+| 11 | `SINHVIEN` | SV | Sinh viên |
+| 12 | `DOITUONGSINHVIEN` | DTSV | Đối tượng sinh viên |
+| 13 | `QUANTRIVIEN` | QTV | Quản trị viên |
+| 14 | `MONHOC` | MH | Môn học |
+| 15 | `DIEUKIENMONHOC` | DKMH | Điều kiện môn học |
+| 16 | `TIETHOC` | TIET | Tiết học |
+| 17 | `THAMSO` | TS | Tham số hệ thống |
+| 18 | `LOP` | LOP | Lớp học |
+| 19 | `CHUONGTRINHHOC` | CTH | Chương trình học |
+| 20 | `NAMHOC` | NAM | Năm học |
+| 21 | `HOCKY` | HK | Học kỳ |
+| 22 | `LOPMO` | LM | Lớp mở |
+| 23 | `LICHHOCLOP` | LHL | Lịch học lớp |
+| 24 | `DONGIATINCHI` | DGTC | Đơn giá tín chỉ |
+| 25 | `PHIEUDANGKY` | PDK | Phiếu đăng ký |
+| 26 | `CHITIETDANGKY` | CTDK | Chi tiết đăng ký |
+| 27 | `MONDAHOC` | MDH | Môn đã học |
+| 28 | `PHIEUTHUHOCPHI` | PTHP | Phiếu thu học phí |
+| 29 | `THONGBAO` | TB | Thông báo |
 
 ---
 
@@ -66,38 +65,37 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 
 > Khi **thêm** bản ghi vào bảng ở **hàng**, bảng nào ở **cột** cần kiểm tra (FK phụ thuộc)?
 
-| Hàng \ Cột | TINH | DT | PX | DTG | KHOA | NH | CN | NND | PQ | ND | DLMK | SV | DTSV | QTV | MH | DKMH | TIET | TS | LOP | CTH | NAM | HK | LM | LHL | DGTC | PDK | CTDK | MDH | PTHP | TB |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **TINH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DT** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PX** | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DTG** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **KHOA** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NH** | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **CN** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NND** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PQ** | - | - | - | - | - | - | + | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **ND** | - | - | - | - | - | - | - | + | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DLMK** | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **SV** | - | + | + | - | - | + | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DTSV** | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **QTV** | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **MH** | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DKMH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **TIET** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **TS** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **LOP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **CTH** | - | - | - | - | - | + | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NAM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **HK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - |
-| **LM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - |
-| **LHL** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | + | - | - | - | - | - | - | - |
-| **DGTC** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
-| **PDK** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
-| **CTDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | + | - | - | - | - | - | - | + | - | - | - | - |
-| **MDH** | - | - | - | - | - | - | - | - | - | + | - | + | - | - | + | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - |
-| **PTHP** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - |
-| **TB** | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| Hàng \ Cột | TINH | DT | PX | DTG | KHOA | NH | CN | NND | PQ | ND | SV | DTSV | QTV | MH | DKMH | TIET | TS | LOP | CTH | NAM | HK | LM | LHL | DGTC | PDK | CTDK | MDH | PTHP | TB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **TINH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DT** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PX** | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DTG** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **KHOA** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NH** | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **CN** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NND** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PQ** | - | - | - | - | - | - | + | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **ND** | - | - | - | - | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **SV** | - | + | + | - | - | + | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DTSV** | - | - | - | + | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **QTV** | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **MH** | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DKMH** | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **TIET** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **TS** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **LOP** | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **CTH** | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NAM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **HK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - |
+| **LM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - |
+| **LHL** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | + | - | - | - | - | - | - | - |
+| **DGTC** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
+| **PDK** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
+| **CTDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | + | - | - | - | - | - | - | + | - | - | - | - |
+| **MDH** | - | - | - | - | - | - | - | - | - | + | + | - | - | + | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - |
+| **PTHP** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - |
+| **TB** | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
 
 ---
 
@@ -105,38 +103,37 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 
 > Khi **xóa** bản ghi ở bảng **hàng**, bảng nào ở **cột** bị ảnh hưởng?
 
-| Hàng \ Cột | TINH | DT | PX | DTG | KHOA | NH | CN | NND | PQ | ND | DLMK | SV | DTSV | QTV | MH | DKMH | TIET | TS | LOP | CTH | NAM | HK | LM | LHL | DGTC | PDK | CTDK | MDH | PTHP | TB |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **TINH** | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DT** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PX** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DTG** | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **KHOA** | - | - | - | - | - | + | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NH** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - |
-| **CN** | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NND** | - | - | - | - | - | - | - | - | + | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PQ** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **ND** | - | - | - | - | - | - | - | - | - | - | + | + | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + |
-| **DLMK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **SV** | - | - | - | - | - | - | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - |
-| **DTSV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **QTV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **MH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | + | + | - | - | - | - | - | - | + | + | - | - |
-| **DKMH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **TIET** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
-| **TS** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **LOP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | + | + | - | - |
-| **CTH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NAM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
-| **HK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - | + | - | - |
-| **LM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
-| **LHL** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DGTC** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | - |
-| **CTDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **MDH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PTHP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **TB** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| Hàng \ Cột | TINH | DT | PX | DTG | KHOA | NH | CN | NND | PQ | ND | SV | DTSV | QTV | MH | DKMH | TIET | TS | LOP | CTH | NAM | HK | LM | LHL | DGTC | PDK | CTDK | MDH | PTHP | TB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **TINH** | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DT** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PX** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DTG** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **KHOA** | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NH** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - |
+| **CN** | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NND** | - | - | - | - | - | - | - | - | + | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PQ** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **ND** | - | - | - | - | - | - | - | - | - | - | + | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + |
+| **SV** | - | - | - | - | - | - | - | - | - | + | - | + | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - |
+| **DTSV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **QTV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **MH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | + | + | - | - | - | - | - | - | + | + | - | - |
+| **DKMH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **TIET** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
+| **TS** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **LOP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | + | + | - | - |
+| **CTH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NAM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
+| **HK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - | + | - | - |
+| **LM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
+| **LHL** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DGTC** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | - |
+| **CTDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **MDH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PTHP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **TB** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
 
 ---
 
@@ -144,215 +141,205 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 
 > Khi **sửa khóa chính** của bảng ở **hàng**, bảng nào ở **cột** bị ảnh hưởng (ON UPDATE CASCADE)?
 
-| Hàng \ Cột | TINH | DT | PX | DTG | KHOA | NH | CN | NND | PQ | ND | DLMK | SV | DTSV | QTV | MH | DKMH | TIET | TS | LOP | CTH | NAM | HK | LM | LHL | DGTC | PDK | CTDK | MDH | PTHP | TB |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **TINH** | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DT** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PX** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DTG** | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **KHOA** | - | - | - | - | - | + | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NH** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - |
-| **CN** | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NND** | - | - | - | - | - | - | - | - | + | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PQ** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **ND** | - | - | - | - | - | - | - | - | - | - | + | + | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + |
-| **DLMK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **SV** | - | - | - | - | - | - | - | - | - | + | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - |
-| **DTSV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **QTV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **MH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | + | + | - | - | - | - | - | - | + | + | - | - |
-| **DKMH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **TIET** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
-| **TS** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **LOP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | + | + | - | - |
-| **CTH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **NAM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
-| **HK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - | + | - | - |
-| **LM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
-| **LHL** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **DGTC** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | - |
-| **CTDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **MDH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **PTHP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
-| **TB** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| Hàng \ Cột | TINH | DT | PX | DTG | KHOA | NH | CN | NND | PQ | ND | SV | DTSV | QTV | MH | DKMH | TIET | TS | LOP | CTH | NAM | HK | LM | LHL | DGTC | PDK | CTDK | MDH | PTHP | TB |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **TINH** | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DT** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PX** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DTG** | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **KHOA** | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NH** | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - |
+| **CN** | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NND** | - | - | - | - | - | - | - | - | + | + | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PQ** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **ND** | - | - | - | - | - | - | - | - | - | - | + | - | + | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + |
+| **SV** | - | - | - | - | - | - | - | - | - | + | - | + | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - |
+| **DTSV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **QTV** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **MH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | + | + | - | - | - | - | - | - | + | + | - | - |
+| **DKMH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **TIET** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
+| **TS** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **LOP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | + | + | - | - |
+| **CTH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **NAM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - | - | - |
+| **HK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | + | - | + | - | - |
+| **LM** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | - | - | - | - | - |
+| **LHL** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **DGTC** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | + | - | + | - |
+| **CTDK** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **MDH** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **PTHP** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| **TB** | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
 
 ---
 
 ## CHÚ THÍCH CHI TIẾT — BẢNG TẦM ẢNH HƯỞNG TỪNG BẢNG
 
-> **Cách đọc:** Mỗi hàng là một ràng buộc (quan hệ FK) liên quan đến bảng đang xét. Cột Thêm/Xóa/Sửa cho biết ảnh hưởng (`+`) hoặc không ảnh hưởng (`-`).
+> **Cách đọc:** Cột **Tên Bảng** là bảng được kiểm tra khi thêm hoặc bị ảnh hưởng khi xóa/sửa từ thao tác trên bảng đang xét.
 
 ---
 
 ### 1. Bảng `TINH`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHUONGXA.MaTinh` → `TINH.MaTinh` | - | + RESTRICT: chặn xóa nếu còn PHUONGXA tham chiếu | + CASCADE: cập nhật `MaTinh` lan truyền đến PHUONGXA |
+| `PHUONGXA` | - | + RESTRICT: chặn xóa nếu còn PHUONGXA tham chiếu | + CASCADE: cập nhật `MaTinh` lan truyền đến PHUONGXA |
 
 ---
 
 ### 2. Bảng `DANTOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `SINHVIEN.MaDanToc` → `DANTOC.MaDanToc` | - | + SET NULL: đặt `MaDanToc` của SV thành NULL | + CASCADE: cập nhật `MaDanToc` lan truyền đến SINHVIEN |
+| `SINHVIEN` | - | + SET NULL: đặt `MaDanToc` của SV thành NULL | + CASCADE: cập nhật `MaDanToc` lan truyền đến SINHVIEN |
 
 ---
 
 ### 3. Bảng `PHUONGXA`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHUONGXA.MaTinh` → `TINH.MaTinh` | + Kiểm tra `TINH.MaTinh` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTinh` |
-| R2: `SINHVIEN.MaPhuongXa` → `PHUONGXA.MaPhuongXa` | - | + RESTRICT: chặn xóa nếu còn SV tham chiếu | + CASCADE: cập nhật `MaPhuongXa` lan truyền đến SINHVIEN |
+| `TINH` | + Kiểm tra `TINH.MaTinh` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTinh` |
+| `SINHVIEN` | - | + RESTRICT: chặn xóa nếu còn SV tham chiếu | + CASCADE: cập nhật `MaPhuongXa` lan truyền đến SINHVIEN |
 
 ---
 
 ### 4. Bảng `DOITUONG`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `DOITUONGSINHVIEN.MaDoiTuong` → `DOITUONG.MaDoiTuong` | - | + RESTRICT: chặn xóa nếu còn DTSV tham chiếu | + CASCADE: cập nhật `MaDoiTuong` lan truyền đến DOITUONGSINHVIEN |
+| `DOITUONGSINHVIEN` | - | + RESTRICT: chặn xóa nếu còn DTSV tham chiếu | + CASCADE: cập nhật `MaDoiTuong` lan truyền đến DOITUONGSINHVIEN |
 
 ---
 
 ### 5. Bảng `KHOA`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `NGANHHOC.MaKhoa` → `KHOA.MaKhoa` | - | + RESTRICT: chặn xóa nếu còn ngành thuộc khoa | + CASCADE: cập nhật `MaKhoa` lan truyền đến NGANHHOC |
-| R2: `MONHOC.MaKhoa` → `KHOA.MaKhoa` | - | + RESTRICT: chặn xóa nếu còn môn thuộc khoa | + CASCADE: cập nhật `MaKhoa` lan truyền đến MONHOC |
+| `NGANHHOC` | - | + RESTRICT: chặn xóa nếu còn ngành thuộc khoa | + CASCADE: cập nhật `MaKhoa` lan truyền đến NGANHHOC |
+| `MONHOC` | - | + RESTRICT: chặn xóa nếu còn môn thuộc khoa | + CASCADE: cập nhật `MaKhoa` lan truyền đến MONHOC |
 
 ---
 
 ### 6. Bảng `NGANHHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `NGANHHOC.MaKhoa` → `KHOA.MaKhoa` | + Kiểm tra `KHOA.MaKhoa` phải tồn tại | - | + Kiểm tra FK khi sửa `MaKhoa` |
-| R2: `SINHVIEN.MaNganh` → `NGANHHOC.MaNganh` | - | + RESTRICT: chặn xóa nếu còn SV thuộc ngành | + CASCADE: cập nhật `MaNganh` lan truyền đến SINHVIEN |
-| R3: `CHUONGTRINHHOC.MaNganh` → `NGANHHOC.MaNganh` | - | + CASCADE: xóa chương trình học liên quan | + CASCADE: cập nhật `MaNganh` lan truyền đến CHUONGTRINHHOC |
+| `KHOA` | + Kiểm tra `KHOA.MaKhoa` phải tồn tại | - | + Kiểm tra FK khi sửa `MaKhoa` |
+| `SINHVIEN` | - | + RESTRICT: chặn xóa nếu còn SV thuộc ngành | + CASCADE: cập nhật `MaNganh` lan truyền đến SINHVIEN |
+| `CHUONGTRINHHOC` | - | + CASCADE: xóa chương trình học liên quan | + CASCADE: cập nhật `MaNganh` lan truyền đến CHUONGTRINHHOC |
 
 ---
 
 ### 7. Bảng `CHUCNANG`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHANQUYEN.MaChucNang` → `CHUCNANG.MaChucNang` | - | + CASCADE: xóa phân quyền liên quan | + CASCADE: cập nhật `MaChucNang` lan truyền đến PHANQUYEN |
+| `PHANQUYEN` | - | + CASCADE: xóa phân quyền liên quan | + CASCADE: cập nhật `MaChucNang` lan truyền đến PHANQUYEN |
 
 ---
 
 ### 8. Bảng `NHOMNGUOIDUNG`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHANQUYEN.MaNhom` → `NHOMNGUOIDUNG.MaNhom` | - | + CASCADE: xóa phân quyền liên quan | + CASCADE: cập nhật `MaNhom` lan truyền đến PHANQUYEN |
-| R2: `NGUOIDUNG.MaNhom` → `NHOMNGUOIDUNG.MaNhom` | - | + RESTRICT: chặn xóa nếu còn người dùng thuộc nhóm | + CASCADE: cập nhật `MaNhom` lan truyền đến NGUOIDUNG |
+| `PHANQUYEN` | - | + CASCADE: xóa phân quyền liên quan | + CASCADE: cập nhật `MaNhom` lan truyền đến PHANQUYEN |
+| `NGUOIDUNG` | - | + RESTRICT: chặn xóa nếu còn người dùng thuộc nhóm | + CASCADE: cập nhật `MaNhom` lan truyền đến NGUOIDUNG |
 
 ---
 
 ### 9. Bảng `PHANQUYEN`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHANQUYEN.MaNhom` → `NHOMNGUOIDUNG.MaNhom` | + Kiểm tra `NHOMNGUOIDUNG.MaNhom` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNhom` |
-| R2: `PHANQUYEN.MaChucNang` → `CHUCNANG.MaChucNang` | + Kiểm tra `CHUCNANG.MaChucNang` phải tồn tại | - | + Kiểm tra FK khi sửa `MaChucNang` |
+| `NHOMNGUOIDUNG` | + Kiểm tra `NHOMNGUOIDUNG.MaNhom` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNhom` |
+| `CHUCNANG` | + Kiểm tra `CHUCNANG.MaChucNang` phải tồn tại | - | + Kiểm tra FK khi sửa `MaChucNang` |
 
 ---
 
 ### 10. Bảng `NGUOIDUNG`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `NGUOIDUNG.MaNhom` → `NHOMNGUOIDUNG.MaNhom` | + Kiểm tra `NHOMNGUOIDUNG.MaNhom` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNhom` |
-| R2: `NGUOIDUNG.MaSv` → `SINHVIEN.MaSv` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaSv` |
-| R3: `DATLAIMATKHAU.MaTaiKhoan` → `NGUOIDUNG.MaTaiKhoan` | - | + CASCADE: xóa tất cả token đặt lại MK | + CASCADE: cập nhật `MaTaiKhoan` lan truyền đến DATLAIMATKHAU |
-| R4: `SINHVIEN.MaTaiKhoan` → `NGUOIDUNG.MaTaiKhoan` | - | + SET NULL: đặt `MaTaiKhoan` của SV thành NULL | + CASCADE: cập nhật `MaTaiKhoan` lan truyền đến SINHVIEN |
-| R5: `QUANTRIVIEN.MaTaiKhoan` → `NGUOIDUNG.MaTaiKhoan` | - | + CASCADE: xóa quản trị viên liên quan | + CASCADE: cập nhật `MaTaiKhoan` lan truyền đến QUANTRIVIEN |
-| R6: `MONDAHOC.NguoiCapNhat` → `NGUOIDUNG.MaTaiKhoan` | - | + SET NULL: đặt `NguoiCapNhat` thành NULL | + CASCADE: cập nhật `NguoiCapNhat` lan truyền đến MONDAHOC |
-| R7: `THONGBAO.MaTaiKhoanNhan` → `NGUOIDUNG.MaTaiKhoan` | - | + CASCADE: xóa thông báo cá nhân | + CASCADE: cập nhật `MaTaiKhoanNhan` lan truyền đến THONGBAO |
+| `NHOMNGUOIDUNG` | + Kiểm tra `NHOMNGUOIDUNG.MaNhom` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNhom` |
+| `SINHVIEN` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaSv` |
+| `SINHVIEN` | - | + SET NULL: đặt `MaTaiKhoan` của SV thành NULL | + CASCADE: cập nhật `MaTaiKhoan` lan truyền đến SINHVIEN |
+| `QUANTRIVIEN` | - | + CASCADE: xóa quản trị viên liên quan | + CASCADE: cập nhật `MaTaiKhoan` lan truyền đến QUANTRIVIEN |
+| `MONDAHOC` | - | + SET NULL: đặt `NguoiCapNhat` thành NULL | + CASCADE: cập nhật `NguoiCapNhat` lan truyền đến MONDAHOC |
+| `THONGBAO` | - | + CASCADE: xóa thông báo cá nhân | + CASCADE: cập nhật `MaTaiKhoanNhan` lan truyền đến THONGBAO |
 
 ---
 
-### 11. Bảng `DATLAIMATKHAU`
+### 11. Bảng `SINHVIEN`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `DATLAIMATKHAU.MaTaiKhoan` → `NGUOIDUNG.MaTaiKhoan` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTaiKhoan` |
+| `PHUONGXA` | + Kiểm tra `PHUONGXA.MaPhuongXa` phải tồn tại | - | + Kiểm tra FK khi sửa `MaPhuongXa` |
+| `DANTOC` | + Kiểm tra `DANTOC.MaDanToc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaDanToc` |
+| `NGANHHOC` | + Kiểm tra `NGANHHOC.MaNganh` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNganh` |
+| `NGUOIDUNG` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaTaiKhoan` |
+| `NGUOIDUNG` | - | + SET NULL: đặt `MaSv` trong NGUOIDUNG thành NULL | + CASCADE: cập nhật `MaSv` lan truyền đến NGUOIDUNG |
+| `DOITUONGSINHVIEN` | - | + CASCADE: xóa tất cả đối tượng SV liên quan | + CASCADE: cập nhật `MaSv` lan truyền đến DOITUONGSINHVIEN |
+| `PHIEUDANGKY` | - | + RESTRICT: chặn xóa nếu còn phiếu đăng ký | + CASCADE: cập nhật `MaSv` lan truyền đến PHIEUDANGKY |
+| `MONDAHOC` | - | + CASCADE: xóa tất cả môn đã học liên quan | + CASCADE: cập nhật `MaSv` lan truyền đến MONDAHOC |
+| `PHIEUTHUHOCPHI` | - | + RESTRICT: chặn xóa nếu còn phiếu thu HP | + CASCADE: cập nhật `MaSv` lan truyền đến PHIEUTHUHOCPHI |
 
 ---
 
-### 12. Bảng `SINHVIEN`
+### 12. Bảng `DOITUONGSINHVIEN`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `SINHVIEN.MaPhuongXa` → `PHUONGXA.MaPhuongXa` | + Kiểm tra `PHUONGXA.MaPhuongXa` phải tồn tại | - | + Kiểm tra FK khi sửa `MaPhuongXa` |
-| R2: `SINHVIEN.MaDanToc` → `DANTOC.MaDanToc` | + Kiểm tra `DANTOC.MaDanToc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaDanToc` |
-| R3: `SINHVIEN.MaNganh` → `NGANHHOC.MaNganh` | + Kiểm tra `NGANHHOC.MaNganh` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNganh` |
-| R4: `SINHVIEN.MaTaiKhoan` → `NGUOIDUNG.MaTaiKhoan` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaTaiKhoan` |
-| R5: `NGUOIDUNG.MaSv` → `SINHVIEN.MaSv` | - | + SET NULL: đặt `MaSv` trong NGUOIDUNG thành NULL | + CASCADE: cập nhật `MaSv` lan truyền đến NGUOIDUNG |
-| R6: `DOITUONGSINHVIEN.MaSv` → `SINHVIEN.MaSv` | - | + CASCADE: xóa tất cả đối tượng SV liên quan | + CASCADE: cập nhật `MaSv` lan truyền đến DOITUONGSINHVIEN |
-| R7: `PHIEUDANGKY.MaSv` → `SINHVIEN.MaSv` | - | + RESTRICT: chặn xóa nếu còn phiếu đăng ký | + CASCADE: cập nhật `MaSv` lan truyền đến PHIEUDANGKY |
-| R8: `MONDAHOC.MaSv` → `SINHVIEN.MaSv` | - | + CASCADE: xóa tất cả môn đã học liên quan | + CASCADE: cập nhật `MaSv` lan truyền đến MONDAHOC |
-| R9: `PHIEUTHUHOCPHI.MaSv` → `SINHVIEN.MaSv` | - | + RESTRICT: chặn xóa nếu còn phiếu thu HP | + CASCADE: cập nhật `MaSv` lan truyền đến PHIEUTHUHOCPHI |
+| `SINHVIEN` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
+| `DOITUONG` | + Kiểm tra `DOITUONG.MaDoiTuong` phải tồn tại | - | + Kiểm tra FK khi sửa `MaDoiTuong` |
 
 ---
 
-### 13. Bảng `DOITUONGSINHVIEN`
+### 13. Bảng `QUANTRIVIEN`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `DOITUONGSINHVIEN.MaSv` → `SINHVIEN.MaSv` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
-| R2: `DOITUONGSINHVIEN.MaDoiTuong` → `DOITUONG.MaDoiTuong` | + Kiểm tra `DOITUONG.MaDoiTuong` phải tồn tại | - | + Kiểm tra FK khi sửa `MaDoiTuong` |
+| `NGUOIDUNG` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTaiKhoan` |
 
 ---
 
-### 14. Bảng `QUANTRIVIEN`
+### 14. Bảng `MONHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `QUANTRIVIEN.MaTaiKhoan` → `NGUOIDUNG.MaTaiKhoan` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTaiKhoan` |
+| `KHOA` | + Kiểm tra `KHOA.MaKhoa` phải tồn tại | - | + Kiểm tra FK khi sửa `MaKhoa` |
+| `DIEUKIENMONHOC` | - | + CASCADE: xóa điều kiện môn học liên quan | + CASCADE: cập nhật `MaMonHoc` lan truyền đến DIEUKIENMONHOC |
+| `DIEUKIENMONHOC` | - | + CASCADE: xóa điều kiện môn học liên quan | + CASCADE: cập nhật `MaMonDieuKien` lan truyền đến DIEUKIENMONHOC |
+| `LOP` | - | + CASCADE: xóa tất cả lớp của môn | + CASCADE: cập nhật `MaMonHoc` lan truyền đến LOP |
+| `CHUONGTRINHHOC` | - | + CASCADE: xóa khỏi chương trình học | + CASCADE: cập nhật `MaMonHoc` lan truyền đến CHUONGTRINHHOC |
+| `CHITIETDANGKY` | - | + RESTRICT: chặn xóa nếu còn chi tiết đăng ký | + CASCADE: cập nhật `MaMonHoc` lan truyền đến CHITIETDANGKY |
+| `MONDAHOC` | - | + RESTRICT: chặn xóa nếu còn môn đã học | + CASCADE: cập nhật `MaMonHoc` lan truyền đến MONDAHOC |
 
 ---
 
-### 15. Bảng `MONHOC`
+### 15. Bảng `DIEUKIENMONHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `MONHOC.MaKhoa` → `KHOA.MaKhoa` | + Kiểm tra `KHOA.MaKhoa` phải tồn tại | - | + Kiểm tra FK khi sửa `MaKhoa` |
-| R2: `DIEUKIENMONHOC.MaMonHoc` → `MONHOC.MaMonHoc` | - | + CASCADE: xóa điều kiện môn học liên quan | + CASCADE: cập nhật `MaMonHoc` lan truyền đến DIEUKIENMONHOC |
-| R3: `DIEUKIENMONHOC.MaMonDieuKien` → `MONHOC.MaMonHoc` | - | + CASCADE: xóa điều kiện môn học liên quan | + CASCADE: cập nhật `MaMonDieuKien` lan truyền đến DIEUKIENMONHOC |
-| R4: `LOP.MaMonHoc` → `MONHOC.MaMonHoc` | - | + CASCADE: xóa tất cả lớp của môn | + CASCADE: cập nhật `MaMonHoc` lan truyền đến LOP |
-| R5: `CHUONGTRINHHOC.MaMonHoc` → `MONHOC.MaMonHoc` | - | + CASCADE: xóa khỏi chương trình học | + CASCADE: cập nhật `MaMonHoc` lan truyền đến CHUONGTRINHHOC |
-| R6: `CHITIETDANGKY.MaMonHoc` → `MONHOC.MaMonHoc` | - | + RESTRICT: chặn xóa nếu còn chi tiết đăng ký | + CASCADE: cập nhật `MaMonHoc` lan truyền đến CHITIETDANGKY |
-| R7: `MONDAHOC.MaMonHoc` → `MONHOC.MaMonHoc` | - | + RESTRICT: chặn xóa nếu còn môn đã học | + CASCADE: cập nhật `MaMonHoc` lan truyền đến MONDAHOC |
+| `MONHOC` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại (môn chính) | - | + Kiểm tra FK khi sửa `MaMonHoc` |
+| `MONHOC` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại (môn điều kiện) | - | + Kiểm tra FK khi sửa `MaMonDieuKien` |
 
 ---
 
-### 16. Bảng `DIEUKIENMONHOC`
+### 16. Bảng `TIETHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `DIEUKIENMONHOC.MaMonHoc` → `MONHOC.MaMonHoc` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại (môn chính) | - | + Kiểm tra FK khi sửa `MaMonHoc` |
-| R2: `DIEUKIENMONHOC.MaMonDieuKien` → `MONHOC.MaMonHoc` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại (môn điều kiện) | - | + Kiểm tra FK khi sửa `MaMonDieuKien` |
+| `LICHHOCLOP` | - | + RESTRICT: chặn xóa nếu còn lịch học tham chiếu (tiết bắt đầu) | + CASCADE: cập nhật `MaTietBatDau` lan truyền đến LICHHOCLOP |
+| `LICHHOCLOP` | - | + RESTRICT: chặn xóa nếu còn lịch học tham chiếu (tiết kết thúc) | + CASCADE: cập nhật `MaTietKetThuc` lan truyền đến LICHHOCLOP |
 
 ---
 
-### 17. Bảng `TIETHOC`
+### 17. Bảng `THAMSO`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
-|---|---|---|---|
-| R1: `LICHHOCLOP.MaTietBatDau` → `TIETHOC.MaTiet` | - | + RESTRICT: chặn xóa nếu còn lịch học tham chiếu (tiết bắt đầu) | + CASCADE: cập nhật `MaTietBatDau` lan truyền đến LICHHOCLOP |
-| R2: `LICHHOCLOP.MaTietKetThuc` → `TIETHOC.MaTiet` | - | + RESTRICT: chặn xóa nếu còn lịch học tham chiếu (tiết kết thúc) | + CASCADE: cập nhật `MaTietKetThuc` lan truyền đến LICHHOCLOP |
-
----
-
-### 18. Bảng `THAMSO`
-
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
 | *(Không có ràng buộc FK)* | - | - | - |
 
@@ -360,121 +347,121 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 
 ---
 
-### 19. Bảng `LOP`
+### 18. Bảng `LOP`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `LOP.MaMonHoc` → `MONHOC.MaMonHoc` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
-| R2: `LOPMO.MaLop` → `LOP.MaLop` | - | + CASCADE: xóa tất cả lớp mở liên quan | + CASCADE: cập nhật `MaLop` lan truyền đến LOPMO |
-| R3: `CHITIETDANGKY.MaLop` → `LOP.MaLop` | - | + RESTRICT: chặn xóa nếu còn chi tiết đăng ký | + CASCADE: cập nhật `MaLop` lan truyền đến CHITIETDANGKY |
-| R4: `MONDAHOC.MaLop` → `LOP.MaLop` | - | + SET NULL: đặt `MaLop` trong MONDAHOC thành NULL | + CASCADE: cập nhật `MaLop` lan truyền đến MONDAHOC |
+| `MONHOC` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
+| `LOPMO` | - | + CASCADE: xóa tất cả lớp mở liên quan | + CASCADE: cập nhật `MaLop` lan truyền đến LOPMO |
+| `CHITIETDANGKY` | - | + RESTRICT: chặn xóa nếu còn chi tiết đăng ký | + CASCADE: cập nhật `MaLop` lan truyền đến CHITIETDANGKY |
+| `MONDAHOC` | - | + SET NULL: đặt `MaLop` trong MONDAHOC thành NULL | + CASCADE: cập nhật `MaLop` lan truyền đến MONDAHOC |
 
 ---
 
-### 20. Bảng `CHUONGTRINHHOC`
+### 19. Bảng `CHUONGTRINHHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `CHUONGTRINHHOC.MaNganh` → `NGANHHOC.MaNganh` | + Kiểm tra `NGANHHOC.MaNganh` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNganh` |
-| R2: `CHUONGTRINHHOC.MaMonHoc` → `MONHOC.MaMonHoc` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
+| `NGANHHOC` | + Kiểm tra `NGANHHOC.MaNganh` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNganh` |
+| `MONHOC` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
 
 ---
 
-### 21. Bảng `NAMHOC`
+### 20. Bảng `NAMHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `HOCKY.MaNamHoc` → `NAMHOC.MaNamHoc` | - | + RESTRICT: chặn xóa nếu còn học kỳ thuộc năm | + CASCADE: cập nhật `MaNamHoc` lan truyền đến HOCKY |
+| `HOCKY` | - | + RESTRICT: chặn xóa nếu còn học kỳ thuộc năm | + CASCADE: cập nhật `MaNamHoc` lan truyền đến HOCKY |
 
 ---
 
-### 22. Bảng `HOCKY`
+### 21. Bảng `HOCKY`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `HOCKY.MaNamHoc` → `NAMHOC.MaNamHoc` | + Kiểm tra `NAMHOC.MaNamHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNamHoc` |
-| R2: `LOPMO.MaHocKy` → `HOCKY.MaHocKy` | - | + CASCADE: xóa tất cả lớp mở trong HK | + CASCADE: cập nhật `MaHocKy` lan truyền đến LOPMO |
-| R3: `DONGIATINCHI.MaHocKy` → `HOCKY.MaHocKy` | - | + SET NULL: đặt `MaHocKy` thành NULL | + CASCADE: cập nhật `MaHocKy` lan truyền đến DONGIATINCHI |
-| R4: `PHIEUDANGKY.MaHocKy` → `HOCKY.MaHocKy` | - | + RESTRICT: chặn xóa nếu còn phiếu đăng ký | + CASCADE: cập nhật `MaHocKy` lan truyền đến PHIEUDANGKY |
-| R5: `MONDAHOC.MaHocKy` → `HOCKY.MaHocKy` | - | + RESTRICT: chặn xóa nếu còn môn đã học | + CASCADE: cập nhật `MaHocKy` lan truyền đến MONDAHOC |
+| `NAMHOC` | + Kiểm tra `NAMHOC.MaNamHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaNamHoc` |
+| `LOPMO` | - | + CASCADE: xóa tất cả lớp mở trong HK | + CASCADE: cập nhật `MaHocKy` lan truyền đến LOPMO |
+| `DONGIATINCHI` | - | + SET NULL: đặt `MaHocKy` thành NULL | + CASCADE: cập nhật `MaHocKy` lan truyền đến DONGIATINCHI |
+| `PHIEUDANGKY` | - | + RESTRICT: chặn xóa nếu còn phiếu đăng ký | + CASCADE: cập nhật `MaHocKy` lan truyền đến PHIEUDANGKY |
+| `MONDAHOC` | - | + RESTRICT: chặn xóa nếu còn môn đã học | + CASCADE: cập nhật `MaHocKy` lan truyền đến MONDAHOC |
 
 ---
 
-### 23. Bảng `LOPMO`
+### 22. Bảng `LOPMO`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `LOPMO.MaHocKy` → `HOCKY.MaHocKy` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại | - | + Kiểm tra FK khi sửa `MaHocKy` |
-| R2: `LOPMO.MaLop` → `LOP.MaLop` | + Kiểm tra `LOP.MaLop` phải tồn tại | - | + Kiểm tra FK khi sửa `MaLop` |
-| R3: `LICHHOCLOP.LopMoId` → `LOPMO.id` | - | + CASCADE: xóa tất cả lịch học liên quan | + CASCADE: cập nhật `LopMoId` lan truyền đến LICHHOCLOP |
+| `HOCKY` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại | - | + Kiểm tra FK khi sửa `MaHocKy` |
+| `LOP` | + Kiểm tra `LOP.MaLop` phải tồn tại | - | + Kiểm tra FK khi sửa `MaLop` |
+| `LICHHOCLOP` | - | + CASCADE: xóa tất cả lịch học liên quan | + CASCADE: cập nhật `LopMoId` lan truyền đến LICHHOCLOP |
 
 ---
 
-### 24. Bảng `LICHHOCLOP`
+### 23. Bảng `LICHHOCLOP`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `LICHHOCLOP.LopMoId` → `LOPMO.id` | + Kiểm tra `LOPMO.id` phải tồn tại | - | + Kiểm tra FK khi sửa `LopMoId` |
-| R2: `LICHHOCLOP.MaTietBatDau` → `TIETHOC.MaTiet` | + Kiểm tra `TIETHOC.MaTiet` phải tồn tại (tiết bắt đầu) | - | + Kiểm tra FK khi sửa `MaTietBatDau` |
-| R3: `LICHHOCLOP.MaTietKetThuc` → `TIETHOC.MaTiet` | + Kiểm tra `TIETHOC.MaTiet` phải tồn tại (tiết kết thúc) | - | + Kiểm tra FK khi sửa `MaTietKetThuc` |
+| `LOPMO` | + Kiểm tra `LOPMO.id` phải tồn tại | - | + Kiểm tra FK khi sửa `LopMoId` |
+| `TIETHOC` | + Kiểm tra `TIETHOC.MaTiet` phải tồn tại (tiết bắt đầu) | - | + Kiểm tra FK khi sửa `MaTietBatDau` |
+| `TIETHOC` | + Kiểm tra `TIETHOC.MaTiet` phải tồn tại (tiết kết thúc) | - | + Kiểm tra FK khi sửa `MaTietKetThuc` |
 
 ---
 
-### 25. Bảng `DONGIATINCHI`
+### 24. Bảng `DONGIATINCHI`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `DONGIATINCHI.MaHocKy` → `HOCKY.MaHocKy` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaHocKy` |
+| `HOCKY` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaHocKy` |
 
 ---
 
-### 26. Bảng `PHIEUDANGKY`
+### 25. Bảng `PHIEUDANGKY`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHIEUDANGKY.MaSv` → `SINHVIEN.MaSv` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
-| R2: `PHIEUDANGKY.MaHocKy` → `HOCKY.MaHocKy` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại | - | + Kiểm tra FK khi sửa `MaHocKy` |
-| R3: `CHITIETDANGKY.SoPhieu` → `PHIEUDANGKY.SoPhieu` | - | + CASCADE: xóa tất cả chi tiết đăng ký | + CASCADE: cập nhật `SoPhieu` lan truyền đến CHITIETDANGKY |
-| R4: `PHIEUTHUHOCPHI.SoPhieuDangKy` → `PHIEUDANGKY.SoPhieu` | - | + RESTRICT: chặn xóa nếu còn phiếu thu HP | + CASCADE: cập nhật `SoPhieuDangKy` lan truyền đến PHIEUTHUHOCPHI |
+| `SINHVIEN` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
+| `HOCKY` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại | - | + Kiểm tra FK khi sửa `MaHocKy` |
+| `CHITIETDANGKY` | - | + CASCADE: xóa tất cả chi tiết đăng ký | + CASCADE: cập nhật `SoPhieu` lan truyền đến CHITIETDANGKY |
+| `PHIEUTHUHOCPHI` | - | + RESTRICT: chặn xóa nếu còn phiếu thu HP | + CASCADE: cập nhật `SoPhieuDangKy` lan truyền đến PHIEUTHUHOCPHI |
 
 ---
 
-### 27. Bảng `CHITIETDANGKY`
+### 26. Bảng `CHITIETDANGKY`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `CHITIETDANGKY.SoPhieu` → `PHIEUDANGKY.SoPhieu` | + Kiểm tra `PHIEUDANGKY.SoPhieu` phải tồn tại | - | + Kiểm tra FK khi sửa `SoPhieu` |
-| R2: `CHITIETDANGKY.MaLop` → `LOP.MaLop` | + Kiểm tra `LOP.MaLop` phải tồn tại | - | + Kiểm tra FK khi sửa `MaLop` |
-| R3: `CHITIETDANGKY.MaMonHoc` → `MONHOC.MaMonHoc` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
+| `PHIEUDANGKY` | + Kiểm tra `PHIEUDANGKY.SoPhieu` phải tồn tại | - | + Kiểm tra FK khi sửa `SoPhieu` |
+| `LOP` | + Kiểm tra `LOP.MaLop` phải tồn tại | - | + Kiểm tra FK khi sửa `MaLop` |
+| `MONHOC` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
 
 ---
 
-### 28. Bảng `MONDAHOC`
+### 27. Bảng `MONDAHOC`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `MONDAHOC.MaSv` → `SINHVIEN.MaSv` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
-| R2: `MONDAHOC.MaMonHoc` → `MONHOC.MaMonHoc` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
-| R3: `MONDAHOC.MaHocKy` → `HOCKY.MaHocKy` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại | - | + Kiểm tra FK khi sửa `MaHocKy` |
-| R4: `MONDAHOC.MaLop` → `LOP.MaLop` | + Kiểm tra `LOP.MaLop` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaLop` |
-| R5: `MONDAHOC.NguoiCapNhat` → `NGUOIDUNG.MaTaiKhoan` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `NguoiCapNhat` |
+| `SINHVIEN` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
+| `MONHOC` | + Kiểm tra `MONHOC.MaMonHoc` phải tồn tại | - | + Kiểm tra FK khi sửa `MaMonHoc` |
+| `HOCKY` | + Kiểm tra `HOCKY.MaHocKy` phải tồn tại | - | + Kiểm tra FK khi sửa `MaHocKy` |
+| `LOP` | + Kiểm tra `LOP.MaLop` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `MaLop` |
+| `NGUOIDUNG` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại (nếu NOT NULL) | - | + Kiểm tra FK khi sửa `NguoiCapNhat` |
 
 ---
 
-### 29. Bảng `PHIEUTHUHOCPHI`
+### 28. Bảng `PHIEUTHUHOCPHI`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `PHIEUTHUHOCPHI.SoPhieuDangKy` → `PHIEUDANGKY.SoPhieu` | + Kiểm tra `PHIEUDANGKY.SoPhieu` phải tồn tại | - | + Kiểm tra FK khi sửa `SoPhieuDangKy` |
-| R2: `PHIEUTHUHOCPHI.MaSv` → `SINHVIEN.MaSv` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
+| `PHIEUDANGKY` | + Kiểm tra `PHIEUDANGKY.SoPhieu` phải tồn tại | - | + Kiểm tra FK khi sửa `SoPhieuDangKy` |
+| `SINHVIEN` | + Kiểm tra `SINHVIEN.MaSv` phải tồn tại | - | + Kiểm tra FK khi sửa `MaSv` |
 
 ---
 
-### 30. Bảng `THONGBAO`
+### 29. Bảng `THONGBAO`
 
-| Ràng buộc R<sub>i</sub> | Thêm | Xóa | Sửa |
+| Tên Bảng | Thêm | Xóa | Sửa |
 |---|---|---|---|
-| R1: `THONGBAO.MaTaiKhoanNhan` → `NGUOIDUNG.MaTaiKhoan` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTaiKhoanNhan` |
+| `NGUOIDUNG` | + Kiểm tra `NGUOIDUNG.MaTaiKhoan` phải tồn tại | - | + Kiểm tra FK khi sửa `MaTaiKhoanNhan` |
 
 ---
 
@@ -493,33 +480,32 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 | 7 | `CHUCNANG` | 0 | 1 (PQ) | 1 (PQ) |
 | 8 | `NHOMNGUOIDUNG` | 0 | 2 (PQ, ND) | 2 (PQ, ND) |
 | 9 | `PHANQUYEN` | 2 (CN, NND) | 0 | 0 |
-| 10 | `NGUOIDUNG` | 2 (NND, SV) | 5 (DLMK, SV, QTV, MDH, TB) | 5 (DLMK, SV, QTV, MDH, TB) |
-| 11 | `DATLAIMATKHAU` | 1 (ND) | 0 | 0 |
-| 12 | `SINHVIEN` | 4 (PX, DT, NH, ND) | 5 (ND, DTSV, PDK, MDH, PTHP) | 5 (ND, DTSV, PDK, MDH, PTHP) |
-| 13 | `DOITUONGSINHVIEN` | 2 (SV, DTG) | 0 | 0 |
-| 14 | `QUANTRIVIEN` | 1 (ND) | 0 | 0 |
-| 15 | `MONHOC` | 1 (KHOA) | 5 (DKMH, LOP, CTH, CTDK, MDH) | 5 (DKMH, LOP, CTH, CTDK, MDH) |
-| 16 | `DIEUKIENMONHOC` | 1 (MH) | 0 | 0 |
-| 17 | `TIETHOC` | 0 | 1 (LHL) | 1 (LHL) |
-| 18 | `THAMSO` | 0 | 0 | 0 |
-| 19 | `LOP` | 1 (MH) | 3 (LM, CTDK, MDH) | 3 (LM, CTDK, MDH) |
-| 20 | `CHUONGTRINHHOC` | 2 (NH, MH) | 0 | 0 |
-| 21 | `NAMHOC` | 0 | 1 (HK) | 1 (HK) |
-| 22 | `HOCKY` | 1 (NAM) | 4 (LM, DGTC, PDK, MDH) | 4 (LM, DGTC, PDK, MDH) |
-| 23 | `LOPMO` | 2 (HK, LOP) | 1 (LHL) | 1 (LHL) |
-| 24 | `LICHHOCLOP` | 2 (LM, TIET) | 0 | 0 |
-| 25 | `DONGIATINCHI` | 1 (HK) | 0 | 0 |
-| 26 | `PHIEUDANGKY` | 2 (SV, HK) | 2 (CTDK, PTHP) | 2 (CTDK, PTHP) |
-| 27 | `CHITIETDANGKY` | 3 (PDK, LOP, MH) | 0 | 0 |
-| 28 | `MONDAHOC` | 5 (SV, MH, HK, LOP, ND) | 0 | 0 |
-| 29 | `PHIEUTHUHOCPHI` | 2 (PDK, SV) | 0 | 0 |
-| 30 | `THONGBAO` | 1 (ND) | 0 | 0 |
+| 10 | `NGUOIDUNG` | 2 (NND, SV) | 4 (SV, QTV, MDH, TB) | 4 (SV, QTV, MDH, TB) |
+| 11 | `SINHVIEN` | 4 (PX, DT, NH, ND) | 5 (ND, DTSV, PDK, MDH, PTHP) | 5 (ND, DTSV, PDK, MDH, PTHP) |
+| 12 | `DOITUONGSINHVIEN` | 2 (SV, DTG) | 0 | 0 |
+| 13 | `QUANTRIVIEN` | 1 (ND) | 0 | 0 |
+| 14 | `MONHOC` | 1 (KHOA) | 5 (DKMH, LOP, CTH, CTDK, MDH) | 5 (DKMH, LOP, CTH, CTDK, MDH) |
+| 15 | `DIEUKIENMONHOC` | 1 (MH) | 0 | 0 |
+| 16 | `TIETHOC` | 0 | 1 (LHL) | 1 (LHL) |
+| 17 | `THAMSO` | 0 | 0 | 0 |
+| 18 | `LOP` | 1 (MH) | 3 (LM, CTDK, MDH) | 3 (LM, CTDK, MDH) |
+| 19 | `CHUONGTRINHHOC` | 2 (NH, MH) | 0 | 0 |
+| 20 | `NAMHOC` | 0 | 1 (HK) | 1 (HK) |
+| 21 | `HOCKY` | 1 (NAM) | 4 (LM, DGTC, PDK, MDH) | 4 (LM, DGTC, PDK, MDH) |
+| 22 | `LOPMO` | 2 (HK, LOP) | 1 (LHL) | 1 (LHL) |
+| 23 | `LICHHOCLOP` | 2 (LM, TIET) | 0 | 0 |
+| 24 | `DONGIATINCHI` | 1 (HK) | 0 | 0 |
+| 25 | `PHIEUDANGKY` | 2 (SV, HK) | 2 (CTDK, PTHP) | 2 (CTDK, PTHP) |
+| 26 | `CHITIETDANGKY` | 3 (PDK, LOP, MH) | 0 | 0 |
+| 27 | `MONDAHOC` | 5 (SV, MH, HK, LOP, ND) | 0 | 0 |
+| 28 | `PHIEUTHUHOCPHI` | 2 (PDK, SV) | 0 | 0 |
+| 29 | `THONGBAO` | 1 (ND) | 0 | 0 |
 
 ### Bảng có tầm ảnh hưởng lớn nhất (khi Xóa/Sửa PK)
 
-1. **`NGUOIDUNG`** — ảnh hưởng 5 bảng: DATLAIMATKHAU, SINHVIEN, QUANTRIVIEN, MONDAHOC, THONGBAO
-2. **`SINHVIEN`** — ảnh hưởng 5 bảng: NGUOIDUNG, DOITUONGSINHVIEN, PHIEUDANGKY, MONDAHOC, PHIEUTHUHOCPHI
-3. **`MONHOC`** — ảnh hưởng 5 bảng: DIEUKIENMONHOC, LOP, CHUONGTRINHHOC, CHITIETDANGKY, MONDAHOC
+1. **`SINHVIEN`** — ảnh hưởng 5 bảng: NGUOIDUNG, DOITUONGSINHVIEN, PHIEUDANGKY, MONDAHOC, PHIEUTHUHOCPHI
+2. **`MONHOC`** — ảnh hưởng 5 bảng: DIEUKIENMONHOC, LOP, CHUONGTRINHHOC, CHITIETDANGKY, MONDAHOC
+3. **`NGUOIDUNG`** — ảnh hưởng 4 bảng: SINHVIEN, QUANTRIVIEN, MONDAHOC, THONGBAO
 4. **`HOCKY`** — ảnh hưởng 4 bảng: LOPMO, DONGIATINCHI, PHIEUDANGKY, MONDAHOC
 
 ### Bảng phụ thuộc nhiều nhất (khi Thêm — cần kiểm tra FK)
@@ -530,7 +516,7 @@ Nguồn phân tích: `project/src/config/init.sql` — **30 bảng, 40 quan hệ
 
 ### Bảng lá (không ảnh hưởng bảng nào khi Xóa/Sửa PK)
 
-`PHANQUYEN`, `DATLAIMATKHAU`, `DOITUONGSINHVIEN`, `QUANTRIVIEN`, `DIEUKIENMONHOC`, `THAMSO`, `CHUONGTRINHHOC`, `LICHHOCLOP`, `DONGIATINCHI`, `CHITIETDANGKY`, `MONDAHOC`, `PHIEUTHUHOCPHI`, `THONGBAO`
+`PHANQUYEN`, `DOITUONGSINHVIEN`, `QUANTRIVIEN`, `DIEUKIENMONHOC`, `THAMSO`, `CHUONGTRINHHOC`, `LICHHOCLOP`, `DONGIATINCHI`, `CHITIETDANGKY`, `MONDAHOC`, `PHIEUTHUHOCPHI`, `THONGBAO`
 
 ### Quan hệ vòng (Circular FK)
 

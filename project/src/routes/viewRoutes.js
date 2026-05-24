@@ -17,6 +17,8 @@ router.get('/admin/students', vc.requireViewAuth, vc.requireViewAdmin, vc.adminS
 router.get('/admin/courses', vc.requireViewAuth, vc.requireViewAdmin, vc.adminCourses);
 router.get('/admin/classes', vc.requireViewAuth, vc.requireViewAdmin, vc.adminClasses);
 router.get('/admin/semesters', vc.requireViewAuth, vc.requireViewAdmin, vc.adminSemesters);
+router.get('/admin/periods', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPeriods);
+router.get('/admin/prerequisites', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPrerequisites);
 router.get('/admin/registrations', vc.requireViewAuth, vc.requireViewAdmin, vc.adminRegistrations);
 router.get('/admin/tuition', vc.requireViewAuth, vc.requireViewAdmin, vc.adminTuition);
 router.get('/admin/payments', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPayments);
@@ -32,6 +34,7 @@ router.get('/admin/permissions', vc.requireViewAuth, vc.requireViewAdmin, vc.adm
 router.get('/admin/notifications', vc.requireViewAuth, vc.requireViewAdmin, vc.adminNotifications);
 router.get('/admin/settings', vc.requireViewAuth, vc.requireViewAdmin, vc.adminSettings);
 router.get('/admin/trash', vc.requireViewAuth, vc.requireViewAdmin, vc.adminTrash);
+router.get('/admin/profile', vc.requireViewAuth, vc.requireViewAdmin, vc.adminProfile);
 
 // STUDENT
 router.get('/student/dashboard', vc.requireViewAuth, vc.requireViewStudent, vc.studentDashboard);

@@ -366,7 +366,6 @@ const deleteAccount = async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.DATLAIMATKHAU.deleteMany({ where: { MaTaiKhoan: accountId } });
       await tx.THONGBAO.deleteMany({ where: { MaTaiKhoanNhan: accountId } });
       await tx.THONGBAO.updateMany({ where: { NguoiTao: accountId }, data: { NguoiTao: null } });
       await tx.THONGBAO.updateMany({ where: { NguoiCapNhat: accountId }, data: { NguoiCapNhat: null } });
