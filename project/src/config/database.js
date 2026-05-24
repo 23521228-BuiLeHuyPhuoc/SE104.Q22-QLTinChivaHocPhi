@@ -448,6 +448,17 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_loai_hoc') THEN
+        ALTER TABLE "DONGIATINCHI" DROP CONSTRAINT chk_loai_hoc;
+      END IF;
+      ALTER TABLE "DONGIATINCHI"
+        ADD CONSTRAINT chk_loai_hoc CHECK ("LoaiHoc" IN ('hoc_moi', 'hoc_lai', 'hoc_cai_thien', 'hoc_he'));
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
     UPDATE "THAMSO"
     SET
       "DanhSachMonAnhVanBatBuoc" = COALESCE(NULLIF("DanhSachMonAnhVanBatBuoc", ''), 'ENG01,ENG02,ENG03'),

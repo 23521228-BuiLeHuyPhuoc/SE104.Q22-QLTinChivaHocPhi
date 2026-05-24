@@ -26,6 +26,9 @@ router.post('/checkout', paymentController.checkoutPayment);
 // Get all payments
 router.get('/', adminMiddleware, paymentController.getAllPayments);
 
+// Confirm pending payment (admin only)
+router.put('/:id/confirm', adminMiddleware, paymentController.confirmPayment);
+
 // Cancel payment (admin only)
 router.put('/:id/cancel', adminMiddleware, paymentController.cancelPayment);
 

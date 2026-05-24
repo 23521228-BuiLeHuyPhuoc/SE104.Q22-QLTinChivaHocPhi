@@ -6,6 +6,7 @@ block content
       input#search-input(type="text" placeholder="Tìm mã lớp, tên lớp hoặc giảng viên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm lớp
+      a.btn.btn-outline(href="/admin/trash?entity=classes") Thùng rác
 
   .card
     .card-header
@@ -40,7 +41,7 @@ block content
                 td= cl.PhongHoc || '-'
                 td= cl.CHITIETDANGKY ? cl.CHITIETDANGKY.length : 0
                 td= cl.SoLuongToiDa || '-'
-                td= cl.NguoiCapNhat || '-'
+                td= cl.NguoiCapNhatTen || cl.NguoiCapNhat || '-'
                 td= cl.NgayCapNhat ? new Date(cl.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa

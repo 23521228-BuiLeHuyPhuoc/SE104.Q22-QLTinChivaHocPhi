@@ -6,6 +6,7 @@ block content
       input#search-input(type="text" placeholder="Tìm mã khoa, tên khoa..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm khoa
+      a.btn.btn-outline(href="/admin/trash?entity=faculties") Thùng rác
 
   .card
     .card-header
@@ -39,7 +40,7 @@ block content
                   small= f.Sdt || ''
                 td= f._count ? f._count.NGANHHOC : 0
                 td= f._count ? f._count.MONHOC : 0
-                td= f.NguoiCapNhat || '-'
+                td= f.NguoiCapNhatTen || f.NguoiCapNhat || '-'
                 td= f.NgayCapNhat ? new Date(f.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa

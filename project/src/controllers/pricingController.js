@@ -21,6 +21,17 @@ const isPricingScopeComplete = async (LoaiMon, MaHocKy, excludeId = null) => {
   return REQUIRED_PRICE_TYPES.every((type) => found.has(type));
 };
 
+const findActivePricing = (LoaiMon, LoaiHoc, MaHocKy, excludeId = null) => prisma.DONGIATINCHI.findFirst({
+  where: {
+    LoaiMon,
+    LoaiHoc,
+    MaHocKy: normalizeSemester(MaHocKy),
+    DaXoa: false,
+    TrangThai: true,
+    ...(excludeId ? { id: { not: excludeId } } : {})
+  }
+});
+
 const getAllPricing = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
@@ -43,8 +54,14 @@ const createPricing = async (req, res) => {
   try {
     const { LoaiMon, LoaiHoc, DonGia, MaHocKy, GhiChu } = req.body;
     if (!LoaiMon || !LoaiHoc || !DonGia) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    if (!REQUIRED_PRICE_TYPES.includes(LoaiHoc)) {
+      return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
+    }
     if (await isPricingScopeComplete(LoaiMon, MaHocKy)) {
       return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ học mới, học lại, cải thiện và học hè' });
+    }
+    if (await findActivePricing(LoaiMon, LoaiHoc, MaHocKy)) {
+      return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
     }
     const pricing = await prisma.DONGIATINCHI.create({
       data: { LoaiMon, LoaiHoc, DonGia: parseInt(DonGia, 10), MaHocKy: normalizeSemester(MaHocKy), GhiChu, ...updateAudit(req) }
@@ -65,6 +82,7 @@ const updatePricing = async (req, res) => {
     if (!current || current.DaXoa) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn giá' });
 
     const nextLoaiMon = LoaiMon || current.LoaiMon;
+    const nextLoaiHoc = LoaiHoc || current.LoaiHoc;
     const nextMaHocKy = MaHocKy !== undefined ? normalizeSemester(MaHocKy) : current.MaHocKy;
     const data = updateAudit(req);
     if (LoaiMon) data.LoaiMon = LoaiMon;
@@ -76,6 +94,9 @@ const updatePricing = async (req, res) => {
 
     if (LoaiHoc && !REQUIRED_PRICE_TYPES.includes(LoaiHoc)) {
       return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
+    }
+    if (await findActivePricing(nextLoaiMon, nextLoaiHoc, nextMaHocKy, id)) {
+      return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
     }
     if (!current.TrangThai && data.TrangThai === true && await isPricingScopeComplete(nextLoaiMon, nextMaHocKy, id)) {
       return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ bốn loại đơn giá' });

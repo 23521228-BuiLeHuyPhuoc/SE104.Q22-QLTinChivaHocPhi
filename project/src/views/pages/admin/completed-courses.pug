@@ -15,57 +15,58 @@ block content
         option(value="qua_mon" selected=(filterResult === 'qua_mon')) Qua môn
         option(value="rot" selected=(filterResult === 'rot')) Rớt
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn đã học
+      a.btn.btn-outline(href="/admin/trash?entity=completedCourses") Thùng rác
 
   .card
     .card-header
-      h3 Danh sách môn đã học
-      span.card-count= completedCourses ? `${completedCourses.length} bản ghi` : '0 bản ghi'
+      h3 Sinh viên có môn đã học
+      span.card-count= completedStudents ? `${completedStudents.length} sinh viên` : '0 sinh viên'
     .table-container
       table.data-table
         thead
           tr
             th MSSV
             th Họ tên
-            th Môn học
-            th Lớp
-            th Học kỳ
-            th Năm học
-            th Lần
-            th Kết quả
+            th Số lượt học
+            th Qua môn
+            th Rớt
+            th Tín chỉ tích lũy
+            th Cập nhật gần nhất
             th Sửa bởi
-            th Sửa lúc
             th Thao tác
         tbody
-          if completedCourses && completedCourses.length > 0
-            each c in completedCourses
+          if completedStudents && completedStudents.length > 0
+            each s in completedStudents
               tr
-                td.mono= c.SINHVIEN ? c.SINHVIEN.MaSv : c.MaSv
-                td= c.SINHVIEN ? c.SINHVIEN.HoTen : '-'
+                td.mono= s.MaSv
+                td= s.HoTen || '-'
+                td= s.totalAttempts || 0
                 td
-                  strong= c.MONHOC ? c.MONHOC.TenMonHoc : c.MaMonHoc
-                  small= c.MONHOC ? c.MONHOC.MaMonHoc : ''
-                td= c.LOP ? c.LOP.TenLop : (c.MaLop || '-')
-                td= c.HOCKY ? c.HOCKY.TenHocKy : c.MaHocKy
-                td= c.HOCKY && c.HOCKY.NAMHOC ? c.HOCKY.NAMHOC.TenNamHoc : '-'
-                td= c.LanHoc || 1
+                  span.badge.badge-success= s.passedCount || 0
                 td
-                  if c.KetQua === 'qua_mon'
-                    span.badge.badge-success Qua môn
-                  else
-                    span.badge.badge-error Rớt
-                td= c.TAIKHOAN ? (c.TAIKHOAN.HoTen || c.TAIKHOAN.TenDangNhap) : '-'
-                td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
+                  span.badge.badge-error= s.failedCount || 0
+                td= s.passedCredits || 0
+                td= s.NgayCapNhatGanNhat ? new Date(s.NgayCapNhatGanNhat).toLocaleDateString('vi-VN') : '-'
+                td= s.NguoiCapNhatTen || '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCompletedCourse(${c.id})`) Xóa
+                  button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem môn đã học" aria-label="Xem môn đã học" data-ma-sv=s.MaSv onclick="openCompletedCourseDetail(this.dataset.maSv)")
+                    span.icon-eye(aria-hidden="true")
           else
             tr
-              td(colspan="11")
-                .empty-state Chưa có dữ liệu môn đã học
+              td(colspan="9")
+                .empty-state Chưa có sinh viên nào có môn đã học
 
   include ../../partials/pagination
 
 block modals
+  #completed-course-detail-modal.modal-overlay(onclick="if(event.target===this)closeCompletedCourseDetail()")
+    .modal.modal-wide
+      .modal-header
+        h3 Chi tiết môn đã học
+        button.modal-close(type="button" onclick="closeCompletedCourseDetail()") ×
+      .modal-body
+        #completed-course-detail-content Đang tải...
+
   #completed-course-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
     .modal
       .modal-header

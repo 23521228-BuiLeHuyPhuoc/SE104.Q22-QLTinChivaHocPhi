@@ -39,15 +39,30 @@ const getAllSemesters = async (req, res) => {
 
 const getRegistrationOptions = async (req, res) => {
   try {
-    const latestYear = await prisma.NAMHOC.findFirst({ where: { TrangThai: true }, orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }] });
-    if (!latestYear) return res.json({ success: true, data: [] });
-    const semesters = await prisma.HOCKY.findMany({
-      where: { MaNamHoc: latestYear.MaNamHoc, DaXoa: false },
+    const years = await prisma.NAMHOC.findMany({
+      where: { TrangThai: true },
+      orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
+    });
+
+    for (const year of years) {
+      const semesters = await prisma.HOCKY.findMany({
+        where: { MaNamHoc: year.MaNamHoc, DaXoa: false },
+        take: 3,
+        orderBy: [{ ThuTu: 'asc' }, { NgayBatDau: 'asc' }],
+        include: { NAMHOC: true }
+      });
+      if (semesters.length) {
+        return res.json({ success: true, data: semesters.map(semesterSelect) });
+      }
+    }
+
+    const fallbackSemesters = await prisma.HOCKY.findMany({
+      where: { DaXoa: false },
       take: 3,
-      orderBy: [{ ThuTu: 'asc' }, { NgayBatDau: 'asc' }],
+      orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
       include: { NAMHOC: true }
     });
-    res.json({ success: true, data: semesters.map(semesterSelect) });
+    res.json({ success: true, data: fallbackSemesters.map(semesterSelect).reverse() });
   } catch (error) {
     console.error('Get registration options error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });

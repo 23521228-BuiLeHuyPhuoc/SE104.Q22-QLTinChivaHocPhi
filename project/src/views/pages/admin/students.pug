@@ -12,6 +12,7 @@ block content
         option(value="Bảo lưu" selected=(status === 'Bảo lưu')) Bảo lưu
         option(value="Đã thôi học" selected=(status === 'Đã thôi học')) Đã thôi học
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm sinh viên
+      a.btn.btn-outline(href="/admin/trash?entity=students") Thùng rác
 
   .card
     .card-header
@@ -26,6 +27,8 @@ block content
             th Liên hệ
             th Ngành
             th Khoa
+            th Dân tộc
+            th Đối tượng
             th Trạng thái
             th Duyệt
             th Sửa bởi
@@ -38,6 +41,7 @@ block content
               - const faculty = major.KHOA || {}
               - const account = sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN || {}
               - const approval = account.TrangThaiDuyet || 'approved'
+              - const beneficiaries = (sv.DOITUONGSINHVIEN || []).map(item => item.DOITUONG ? item.DOITUONG.TenDoiTuong : item.MaDoiTuong).filter(Boolean).join(', ')
               tr
                 td.mono= sv.MaSv
                 td
@@ -46,8 +50,11 @@ block content
                 td
                   div= sv.Email || '-'
                   small= sv.Sdt || ''
+                  small= sv.DiaChiLienHe || ''
                 td= major.TenNganh || sv.MaNganh || '-'
                 td= faculty.TenKhoa || '-'
+                td= sv.DANTOC ? sv.DANTOC.TenDanToc : (sv.MaDanToc || '-')
+                td= beneficiaries || '-'
                 td
                   span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
                 td
@@ -57,7 +64,7 @@ block content
                     span.badge.badge-error Từ chối
                   else
                     span.badge.badge-success Đã duyệt
-                td= sv.NguoiCapNhat || '-'
+                td= sv.NguoiCapNhatTen || sv.NguoiCapNhat || '-'
                 td= sv.NgayCapNhat ? new Date(sv.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(sv) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
@@ -67,7 +74,7 @@ block content
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteStudent('${sv.MaSv}')`) Xóa
           else
             tr
-              td(colspan="10")
+              td(colspan="12")
                 .empty-state Không có sinh viên phù hợp
 
   include ../../partials/pagination

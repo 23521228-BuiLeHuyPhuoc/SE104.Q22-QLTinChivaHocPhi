@@ -7,6 +7,7 @@ block content
       p Quản lý chính sách giảm học phí và đối tượng sinh viên được ưu tiên.
     .filter-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đối tượng
+      a.btn.btn-outline(href="/admin/trash?entity=beneficiaries") Thùng rác
 
   .card
     .card-header
@@ -37,7 +38,7 @@ block content
                 td= b.DoUuTien
                 td= b._count ? b._count.DOITUONGSINHVIEN : 0
                 td= b.MoTa || '-'
-                td= b.NguoiCapNhat || '-'
+                td= b.NguoiCapNhatTen || b.NguoiCapNhat || '-'
                 td= b.NgayCapNhat ? new Date(b.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-primary(type="button" onclick=`openStudentsModal('${b.MaDoiTuong}', '${b.TenDoiTuong}')`) Xem SV

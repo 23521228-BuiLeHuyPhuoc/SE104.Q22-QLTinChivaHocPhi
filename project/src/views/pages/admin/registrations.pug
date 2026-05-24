@@ -12,16 +12,16 @@ block content
 
   .card
     .card-header
-      h3 Danh sách phiếu đăng ký tín chỉ
-      span.card-count= registrations ? `${registrations.length} bản ghi` : '0 bản ghi'
+      h3 Sinh viên đã đăng ký tín chỉ
+      span.card-count= registrations ? `${registrations.length} sinh viên` : '0 sinh viên'
     .table-container
       table.data-table
         thead
           tr
-            th Số phiếu
             th MSSV
             th Họ tên
-            th Học kỳ
+            th Số phiếu
+            th Học kỳ gần nhất
             th Môn đã đăng ký
             th Tín chỉ
             th Học phí
@@ -31,22 +31,24 @@ block content
         tbody
           if registrations && registrations.length > 0
             each r in registrations
-              - const paid = (r.PHIEUTHUHOCPHI || []).reduce((sum, item) => sum + Number(item.SoTienThu || 0), 0)
-              - const totalFee = Number(r.TongTienPhaiDong || r.TongTienDangKy || 0)
-              - const semesterName = r.HOCKY ? `${r.HOCKY.TenHocKy}${r.HOCKY.NAMHOC ? ' - ' + r.HOCKY.NAMHOC.TenNamHoc : ''}` : r.MaHocKy
+              - const totalFee = Number(r.TongTienPhaiDong || 0)
+              - const paid = Number(r.DaThu || 0)
               tr
-                td.mono= r.SoPhieu
                 td.mono= r.MaSv
                 td= r.SINHVIEN ? r.SINHVIEN.HoTen : '-'
-                td= semesterName
-                td= r.CHITIETDANGKY ? r.CHITIETDANGKY.length : 0
+                td= r.soPhieu || 0
+                td
+                  div= r.HocKyGanNhat || '-'
+                  small= r.DanhSachHocKy || ''
+                td= r.soMon || 0
                 td= r.TongTinChi || 0
                 td= totalFee.toLocaleString('vi-VN') + ' đ'
                 td= paid.toLocaleString('vi-VN') + ' đ'
                 td
-                  span.badge(class=((r.TrangThai || '').includes('hủy') || (r.TrangThai || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThai || 'Đã đăng ký'
-                td.actions
-                  button.btn-icon(type="button" title="Xem chi tiết" data-so-phieu=r.SoPhieu onclick="openRegistrationDetail(this.dataset.soPhieu)") 👁
+                  span.badge(class=((r.TrangThaiTongHop || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThaiTongHop || 'Đã đăng ký'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem chi tiết" aria-label="Xem chi tiết" data-ma-sv=r.MaSv onclick="openStudentRegistrationDetail(this.dataset.maSv)")
+                    span.icon-eye(aria-hidden="true")
           else
             tr
               td(colspan="10")

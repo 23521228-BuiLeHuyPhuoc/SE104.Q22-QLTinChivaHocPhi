@@ -5,6 +5,25 @@ function getTrashEntity() {
   return select ? select.value : 'students';
 }
 
+function setInitialTrashEntity() {
+  var select = document.getElementById('trash-entity');
+  if (!select) return;
+  var entity = new URLSearchParams(window.location.search).get('entity');
+  if (!entity) return;
+  var exists = Array.prototype.some.call(select.options, function(option) {
+    return option.value === entity;
+  });
+  if (exists) select.value = entity;
+}
+
+function syncTrashUrl(entity) {
+  if (!window.history || !window.history.replaceState) return;
+  var params = new URLSearchParams(window.location.search);
+  params.set('entity', entity);
+  var query = params.toString();
+  window.history.replaceState(null, '', window.location.pathname + (query ? '?' + query : ''));
+}
+
 function renderTrashRows(items) {
   var tbody = document.getElementById('trash-body');
   var count = document.getElementById('trash-count');
@@ -55,6 +74,7 @@ function renderTrashPagination(meta) {
 async function loadTrash(page) {
   trashPage = page || trashPage || 1;
   var entity = getTrashEntity();
+  syncTrashUrl(entity);
   var tbody = document.getElementById('trash-body');
   if (tbody) tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state">Đang tải dữ liệu...</div></td></tr>';
   var res = await apiFetch('/api/trash/' + encodeURIComponent(entity) + '?page=' + trashPage);
@@ -91,5 +111,6 @@ async function purgeTrashItem(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  setInitialTrashEntity();
   loadTrash(1);
 });

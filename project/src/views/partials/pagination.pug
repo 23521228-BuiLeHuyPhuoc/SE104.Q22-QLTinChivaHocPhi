@@ -2,6 +2,7 @@
 
 if totalPages && totalPages > 1
   - const pageNow = Number(currentPage || 1)
+  - const pageKey = pageParam || 'page'
   - const maxVisible = 5
   - let startPage = Math.max(1, pageNow - Math.floor(maxVisible / 2))
   - let endPage = Math.min(totalPages, startPage + maxVisible - 1)
@@ -10,15 +11,15 @@ if totalPages && totalPages > 1
 
   nav.pagination(aria-label="Phân trang")
     if pageNow > 1
-      - const prevParams = Object.assign({}, queryParams || {}, { page: pageNow - 1 })
+      - const prevParams = Object.assign({}, queryParams || {}, { [pageKey]: pageNow - 1 })
       a(href=baseUrl + '?' + makeQuery(prevParams)) Trước
 
     each i in Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index)
-      - const pageParams = Object.assign({}, queryParams || {}, { page: i })
+      - const pageParams = Object.assign({}, queryParams || {}, { [pageKey]: i })
       a(href=baseUrl + '?' + makeQuery(pageParams) class=(i === pageNow ? 'active' : ''))= i
 
     if pageNow < totalPages
-      - const nextParams = Object.assign({}, queryParams || {}, { page: pageNow + 1 })
+      - const nextParams = Object.assign({}, queryParams || {}, { [pageKey]: pageNow + 1 })
       a(href=baseUrl + '?' + makeQuery(nextParams)) Sau
 
   .pagination-info Trang #{pageNow} / #{totalPages}

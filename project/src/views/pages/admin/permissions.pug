@@ -8,6 +8,7 @@ block content
     .filter-group
       button.btn.btn-outline(type="button" onclick="switchTab('functions')") Chức năng
       button.btn.btn-primary(type="button" onclick="openGroupModal('add')") Thêm nhóm
+      a.btn.btn-outline(href="/admin/trash?entity=groups") Thùng rác nhóm
 
   //- Tab: Groups
   #tab-groups.tab-panel
@@ -42,6 +43,12 @@ block content
               tr
                 td(colspan="5")
                   .empty-state Chưa có nhóm nào
+    - var currentPage = groupPage || 1
+    - var totalPages = groupTotalPages || 0
+    - var baseUrl = '/admin/permissions'
+    - var queryParams = { functionPage: functionPage || 1, tab: 'groups' }
+    - var pageParam = 'groupPage'
+    include ../../partials/pagination
 
   //- Tab: Functions
   #tab-functions.tab-panel(style="display:none")
@@ -51,6 +58,7 @@ block content
       .filter-group
         button.btn.btn-outline(type="button" onclick="switchTab('groups')") Nhóm người dùng
         button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm chức năng
+        a.btn.btn-outline(href="/admin/trash?entity=functions") Thùng rác chức năng
     .card
       .card-header
         h3 Danh sách chức năng
@@ -78,6 +86,12 @@ block content
               tr
                 td(colspan="4")
                   .empty-state Chưa có chức năng nào
+    - currentPage = functionPage || 1
+    - totalPages = functionTotalPages || 0
+    - baseUrl = '/admin/permissions'
+    - queryParams = { groupPage: groupPage || 1, tab: 'functions' }
+    - pageParam = 'functionPage'
+    include ../../partials/pagination
 
 block modals
   //- Group Modal

@@ -123,42 +123,50 @@ const getStudentTuition = async (req, res) => {
   try {
     const studentId = req.params.studentId;
     if (!(await ensureStudentAccess(req, res, studentId))) return;
+    const { page, limit, skip } = getPagination(req.query);
     const semesterId = req.query.MaHocKy || null;
-    const rows = await prisma.$queryRaw`
-      SELECT
-        pdk."SoPhieu",
-        pdk."MaHocKy",
-        hk."TenHocKy",
-        nh."TenNamHoc",
-        hk."HanDongHocPhi",
-        COALESCE(pdk."TongTienPhaiDong", 0) AS "TongTienPhaiDong",
-        COALESCE(SUM(CASE WHEN pthp."TrangThai" = ${PAYMENT_SUCCESS} THEN pthp."SoTienThu" ELSE 0 END), 0) AS "TongTienDaDong"
-      FROM "PHIEUDANGKY" pdk
-      LEFT JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
-      LEFT JOIN "NAMHOC" nh ON nh."MaNamHoc" = hk."MaNamHoc"
-      LEFT JOIN "PHIEUTHUHOCPHI" pthp ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
-      WHERE pdk."MaSv" = ${studentId}
-        AND (${semesterId}::text IS NULL OR pdk."MaHocKy" = ${semesterId})
-      GROUP BY pdk."SoPhieu", pdk."MaHocKy", hk."TenHocKy", nh."TenNamHoc", hk."HanDongHocPhi",
-        pdk."TongTienPhaiDong", pdk."NgayLap"
-      ORDER BY pdk."NgayLap" DESC
-    `;
+    const where = { MaSv: studentId, ...(semesterId ? { MaHocKy: semesterId } : {}) };
+    const include = {
+      HOCKY: { include: { NAMHOC: true } },
+      PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS }, select: { SoTienThu: true } }
+    };
+    const [rows, allRows, total] = await Promise.all([
+      prisma.PHIEUDANGKY.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { NgayLap: 'desc' },
+        include
+      }),
+      prisma.PHIEUDANGKY.findMany({ where, include }),
+      prisma.PHIEUDANGKY.count({ where })
+    ]);
     const data = rows.map((t) => {
-      const daDong = Number(t.TongTienDaDong || 0);
+      const daDong = t.PHIEUTHUHOCPHI.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
       const phaiDong = Number(t.TongTienPhaiDong || 0);
       return {
         SoPhieu: t.SoPhieu,
         MaHocKy: t.MaHocKy,
-        TenHocKy: t.TenHocKy,
-        TenNamHoc: t.TenNamHoc,
-        HanDongHocPhi: t.HanDongHocPhi,
+        TenHocKy: t.HOCKY?.TenHocKy,
+        TenNamHoc: t.HOCKY?.NAMHOC?.TenNamHoc,
+        HanDongHocPhi: t.HOCKY?.HanDongHocPhi,
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: daDong,
         conNo: Math.max(phaiDong - daDong, 0),
-        TrangThai: tuitionStatus(phaiDong, daDong, t.HanDongHocPhi)
+        TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY?.HanDongHocPhi)
       };
     });
-    res.json({ success: true, data });
+
+    const summary = allRows.reduce((acc, row) => {
+      const due = Number(row.TongTienPhaiDong || 0);
+      const paid = row.PHIEUTHUHOCPHI.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
+      acc.totalFee += due;
+      acc.totalPaid += paid;
+      acc.totalRemaining += Math.max(due - paid, 0);
+      return acc;
+    }, { totalFee: 0, totalPaid: 0, totalRemaining: 0 });
+
+    res.json({ success: true, data, summary, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
     console.error('Get student tuition error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });

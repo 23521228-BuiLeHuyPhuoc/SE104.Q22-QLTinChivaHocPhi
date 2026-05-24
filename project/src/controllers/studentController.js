@@ -142,6 +142,12 @@ const updateStudent = async (req, res) => {
     if (MaNganh) data.MaNganh = MaNganh;
     if (TrangThai) data.TrangThai = TrangThai;
     if (AnhDaiDien !== undefined) data.AnhDaiDien = AnhDaiDien;
+    const nextCccd = Cccd !== undefined ? Cccd : existing.Cccd;
+    const nextMaDanToc = MaDanToc !== undefined ? MaDanToc : existing.MaDanToc;
+    const nextDiaChi = DiaChiLienHe !== undefined ? DiaChiLienHe : existing.DiaChiLienHe;
+    if (!nextCccd || !nextMaDanToc || !nextDiaChi) {
+      return res.status(400).json({ success: false, message: 'CCCD, dân tộc và địa chỉ liên hệ là bắt buộc' });
+    }
     Object.assign(data, updateAudit(req));
 
     const updated = await prisma.SINHVIEN.update({ where: { MaSv: req.params.id }, data });

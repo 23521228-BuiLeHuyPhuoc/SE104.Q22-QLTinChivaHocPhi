@@ -14,16 +14,30 @@ function slotOverlapsCourse(slot, courseTime) {
   return courseTime.start < slot.end && courseTime.end > slot.start;
 }
 
+async function loadAllRegisteredCourses(studentId) {
+  var page = 1;
+  var courses = [];
+  var totalPages = 1;
+  do {
+    var res = await apiFetch('/api/registrations/student/' + studentId + '?page=' + page);
+    if (!res.success || !res.data) return courses;
+    courses = courses.concat(res.data.courses || []);
+    totalPages = Number(res.pagination && res.pagination.totalPages || 1);
+    page += 1;
+  } while (page <= totalPages);
+  return courses;
+}
+
 (async function() {
   try {
     var meRes = await apiFetch('/api/auth/me');
     if (!meRes.success || !meRes.data.student) return;
     var sid = meRes.data.student.MaSv;
 
-    var res = await apiFetch('/api/registrations/student/' + sid);
+    var courses = await loadAllRegisteredCourses(sid);
     document.getElementById('loading').classList.add('hidden');
 
-    if (res.success && res.data.courses && res.data.courses.length > 0) {
+    if (courses.length > 0) {
       document.getElementById('schedule-container').classList.remove('hidden');
       var grid = document.querySelector('.schedule-grid');
       var timeSlots = [
@@ -41,7 +55,7 @@ function slotOverlapsCourse(slot, courseTime) {
       var schedule = {};
       for (var d = 2; d <= 7; d++) schedule[d] = [];
 
-      res.data.courses.forEach(function(c) {
+      courses.forEach(function(c) {
         var isCancelled = String(c.TrangThai || '').toLowerCase().indexOf('hủy') >= 0;
         if (!isCancelled && c.LOP && c.LOP.LichHoc) {
           var parsed = parseScheduleText(c.LOP.LichHoc);

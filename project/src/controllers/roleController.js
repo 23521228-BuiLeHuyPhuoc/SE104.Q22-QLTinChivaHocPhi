@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { getPagination, getPaginationMeta } = require('../utils/pagination');
 
 const normalize = (value) => String(value || '').trim();
 const isStudentGroup = (MaNhom) => normalize(MaNhom).toUpperCase() === 'SINHVIEN';
@@ -66,8 +67,8 @@ const getMyRole = async (req, res) => {
 
 const getAllAccounts = async (req, res) => {
   try {
-    const { search, Role: filterRole, role, MaNhom, approval, page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const { page, limit, skip } = getPagination(req.query);
+    const { search, Role: filterRole, role, MaNhom, approval } = req.query;
     const where = {};
 
     if (search) {
@@ -86,7 +87,7 @@ const getAllAccounts = async (req, res) => {
       prisma.TAIKHOAN.findMany({
         where,
         skip,
-        take: parseInt(limit, 10),
+        take: limit,
         orderBy: { NgayTao: 'desc' },
         select: {
           MaTaiKhoan: true,
@@ -109,12 +110,7 @@ const getAllAccounts = async (req, res) => {
     res.json({
       success: true,
       data: rows,
-      pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
-        total,
-        totalPages: Math.ceil(total / parseInt(limit, 10))
-      }
+      pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
     console.error('Get all accounts error:', error);

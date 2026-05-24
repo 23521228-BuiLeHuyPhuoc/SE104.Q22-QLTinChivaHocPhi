@@ -51,12 +51,13 @@ function renderCompletedCourses(rows) {
   }).join('');
 }
 
-async function loadCompletedCourses() {
+async function loadCompletedCourses(page) {
   var loading = document.getElementById('completed-loading');
   var table = document.getElementById('completed-table');
   var search = document.getElementById('completed-search').value.trim();
   var result = document.getElementById('completed-result').value;
   var params = new URLSearchParams();
+  params.set('page', page || 1);
   if (search) params.set('search', search);
   if (result) params.set('KetQua', result);
 
@@ -64,7 +65,7 @@ async function loadCompletedCourses() {
   table.classList.add('hidden');
 
   try {
-    var url = '/api/completed-courses/me' + (params.toString() ? '?' + params.toString() : '');
+    var url = '/api/completed-courses/me?' + params.toString();
     var res = await apiFetch(url);
     loading.classList.add('hidden');
     table.classList.remove('hidden');
@@ -72,25 +73,28 @@ async function loadCompletedCourses() {
     if (!res.success) {
       document.getElementById('completed-list').innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
       updateCompletedSummary({});
+      renderClientPagination('completed-pagination', null, 'loadCompletedCourses');
       return;
     }
 
     updateCompletedSummary(res.summary || {});
     renderCompletedCourses(res.data || []);
+    renderClientPagination('completed-pagination', res.pagination, 'loadCompletedCourses');
   } catch (e) {
     loading.classList.add('hidden');
     table.classList.remove('hidden');
     document.getElementById('completed-list').innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
     updateCompletedSummary({});
+    renderClientPagination('completed-pagination', null, 'loadCompletedCourses');
   }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   var searchTimer = null;
-  document.getElementById('completed-result').addEventListener('change', loadCompletedCourses);
+  document.getElementById('completed-result').addEventListener('change', function() { loadCompletedCourses(1); });
   document.getElementById('completed-search').addEventListener('input', function() {
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(loadCompletedCourses, 300);
+    searchTimer = setTimeout(function() { loadCompletedCourses(1); }, 300);
   });
-  loadCompletedCourses();
+  loadCompletedCourses(1);
 });

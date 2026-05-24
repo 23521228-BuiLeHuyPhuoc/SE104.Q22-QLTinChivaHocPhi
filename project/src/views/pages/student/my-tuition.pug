@@ -41,6 +41,7 @@ block content
                 th Trạng thái
                 th Thao tác
             tbody#tuition-list
+        nav.pagination#tuition-pagination(style="display:none")
 
 block modals
   #payment-modal.modal-overlay(onclick="if(event.target===this)closePaymentModal()")
@@ -56,6 +57,7 @@ block modals
         .form-group
           label(for="payment-method") Phương thức
           select.form-control#payment-method
+            option(value="cash") Tiền mặt tại quầy
             option(value="qr") QR chuyển khoản
             option(value="vnpay") VNPAY sandbox
             option(value="zalopay") ZaloPay sandbox

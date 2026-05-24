@@ -7,6 +7,7 @@ block content
       p Cấu hình kỳ học, thời gian đăng ký và hạn đóng học phí.
     .filter-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm học kỳ
+      a.btn.btn-outline(href="/admin/trash?entity=semesters") Thùng rác
 
   .card
     .card-header
@@ -38,7 +39,7 @@ block content
                 td= s.HanDongHocPhi ? new Date(s.HanDongHocPhi).toLocaleDateString('vi-VN') : '-'
                 td
                   span.badge(class=s.TrangThai === 'Đang diễn ra' ? 'badge-success' : s.TrangThai === 'Sắp diễn ra' || s.TrangThai === 'Sắp tới' ? 'badge-warning' : 'badge-secondary')= s.TrangThai || '-'
-                td= s.NguoiCapNhat || '-'
+                td= s.NguoiCapNhatTen || s.NguoiCapNhat || '-'
                 td= s.NgayCapNhat ? new Date(s.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(s) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa

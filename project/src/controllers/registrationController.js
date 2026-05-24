@@ -47,7 +47,7 @@ const getCreditPrice = async (tx, loaiMon, loaiHoc, maHocKy) => {
 const determineRegistrationType = async (tx, maSv, maMonHoc) => {
   if (!maSv || !maMonHoc) return 'hoc_moi';
   const history = await tx.MONDAHOC.findMany({
-    where: { MaSv: maSv, MaMonHoc: maMonHoc },
+    where: { MaSv: maSv, MaMonHoc: maMonHoc, DaXoa: false },
     select: { KetQua: true }
   });
   if (history.some((item) => item.KetQua === 'qua_mon')) return 'hoc_cai_thien';
@@ -275,84 +275,82 @@ const getStudentCourses = async (req, res) => {
   try {
     const studentId = req.params.studentId;
     if (!(await ensureStudentAccess(req, res, studentId))) return;
+    const { page, limit, skip } = getPagination(req.query);
     const semesterId = req.query.MaHocKy || null;
-    const rows = await prisma.$queryRaw`
-      SELECT
-        ctdk."id",
-        ctdk."SoPhieu",
-        ctdk."MaLop",
-        ctdk."MaMonHoc",
-        ctdk."LoaiDangKy",
-        ctdk."DonGia",
-        ctdk."ThanhTien",
-        ctdk."TrangThai",
-        ctdk."NgayDangKy",
-        ctdk."NgayHuy",
-        mh."SoTinChi",
-        l."TenLop",
-        l."GiangVien",
-        l."LichHoc",
-        l."PhongHoc",
-        mh."TenMonHoc",
-        mh."LoaiMon",
-        pdk."MaHocKy",
-        hk."TenHocKy",
-        nh."TenNamHoc"
-      FROM "CHITIETDANGKY" ctdk
-      JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = ctdk."SoPhieu"
-      LEFT JOIN "LOP" l ON l."MaLop" = ctdk."MaLop"
-      LEFT JOIN "MONHOC" mh ON mh."MaMonHoc" = COALESCE(ctdk."MaMonHoc", l."MaMonHoc")
-      LEFT JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
-      LEFT JOIN "NAMHOC" nh ON nh."MaNamHoc" = hk."MaNamHoc"
-      WHERE pdk."MaSv" = ${studentId}
-        AND (${semesterId}::text IS NULL OR pdk."MaHocKy" = ${semesterId})
-      ORDER BY ctdk."NgayDangKy" DESC, ctdk."id" DESC
-    `;
-
-    const courses = rows.map((row) => ({
-      id: row.id,
-      SoPhieu: row.SoPhieu,
-      MaLop: row.MaLop,
-      MaMonHoc: row.MaMonHoc,
-      LoaiDangKy: row.LoaiDangKy,
-      LoaiDangKyLabel: getRegistrationTypeLabel(row.LoaiDangKy),
-      DonGia: row.DonGia,
-      ThanhTien: row.ThanhTien,
-      TrangThai: row.TrangThai,
-      NgayDangKy: row.NgayDangKy,
-      NgayHuy: row.NgayHuy,
-      SoTinChi: row.SoTinChi || 0,
-      LOP: {
-        MaLop: row.MaLop,
-        TenLop: row.TenLop,
-        GiangVien: row.GiangVien,
-        LichHoc: row.LichHoc,
-        PhongHoc: row.PhongHoc,
-        MONHOC: {
-          MaMonHoc: row.MaMonHoc,
-          TenMonHoc: row.TenMonHoc,
-          SoTinChi: row.SoTinChi || 0,
-          LoaiMon: row.LoaiMon
-        }
-      },
+    const where = {
       PHIEUDANGKY: {
-        MaHocKy: row.MaHocKy,
-        HOCKY: {
-          TenHocKy: row.TenHocKy,
-          NAMHOC: { TenNamHoc: row.TenNamHoc }
-        }
+        MaSv: studentId,
+        ...(semesterId ? { MaHocKy: semesterId } : {})
       }
-    }));
+    };
+
+    const [rows, total, totals] = await Promise.all([
+      prisma.CHITIETDANGKY.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ NgayDangKy: 'desc' }, { id: 'desc' }],
+        include: {
+          LOP: { include: { MONHOC: true } },
+          MONHOC: true,
+          PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } }
+        }
+      }),
+      prisma.CHITIETDANGKY.count({ where }),
+      prisma.CHITIETDANGKY.aggregate({
+        where,
+        _sum: { SoTinChi: true }
+      })
+    ]);
+
+    const courses = rows.map((row) => {
+      const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
+      return {
+        id: row.id,
+        SoPhieu: row.SoPhieu,
+        MaLop: row.MaLop,
+        MaMonHoc: row.MaMonHoc || monHoc.MaMonHoc,
+        LoaiDangKy: row.LoaiDangKy,
+        LoaiDangKyLabel: getRegistrationTypeLabel(row.LoaiDangKy),
+        DonGia: row.DonGia,
+        ThanhTien: row.ThanhTien,
+        TrangThai: row.TrangThai,
+        NgayDangKy: row.NgayDangKy,
+        NgayHuy: row.NgayHuy,
+        SoTinChi: row.SoTinChi || monHoc.SoTinChi || 0,
+        LOP: {
+          MaLop: row.MaLop,
+          TenLop: row.LOP?.TenLop,
+          GiangVien: row.LOP?.GiangVien,
+          LichHoc: row.LOP?.LichHoc,
+          PhongHoc: row.LOP?.PhongHoc,
+          MONHOC: {
+            MaMonHoc: row.MaMonHoc || monHoc.MaMonHoc,
+            TenMonHoc: monHoc.TenMonHoc,
+            SoTinChi: row.SoTinChi || monHoc.SoTinChi || 0,
+            LoaiMon: monHoc.LoaiMon
+          }
+        },
+        PHIEUDANGKY: {
+          MaHocKy: row.PHIEUDANGKY?.MaHocKy,
+          HOCKY: {
+            TenHocKy: row.PHIEUDANGKY?.HOCKY?.TenHocKy,
+            NAMHOC: { TenNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc }
+          }
+        }
+      };
+    });
 
     res.json({
       success: true,
       data: {
         courses,
         summary: {
-          totalCourses: courses.length,
-          totalCredits: courses.reduce((sum, course) => sum + Number(course.SoTinChi || 0), 0)
+          totalCourses: total,
+          totalCredits: Number(totals._sum.SoTinChi || 0)
         }
-      }
+      },
+      pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
     console.error('Get student courses error:', error);
@@ -369,17 +367,23 @@ const getAvailableCourses = async (req, res) => {
     let studentId = req.query.MaSv || null;
     if (!studentId && req.user?.Role !== 'admin') studentId = await getStudentIdFromRequest(req);
 
-    const where = { MaHocKy };
-    if (search || MaKhoa) {
-      where.LOP = { MONHOC: {} };
-      if (search) {
-        where.LOP.MONHOC.OR = [
-          { MaMonHoc: { contains: search, mode: 'insensitive' } },
-          { TenMonHoc: { contains: search, mode: 'insensitive' } }
-        ];
+    const where = {
+      MaHocKy,
+      TrangThai: true,
+      HOCKY: { DaXoa: false },
+      LOP: {
+        DaXoa: false,
+        TrangThai: true,
+        MONHOC: { DaXoa: false, TrangThai: true }
       }
-      if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
+    };
+    if (search) {
+      where.LOP.MONHOC.OR = [
+        { MaMonHoc: { contains: search, mode: 'insensitive' } },
+        { TenMonHoc: { contains: search, mode: 'insensitive' } }
+      ];
     }
+    if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
 
     const [rows, total] = await Promise.all([
       prisma.LOPMO.findMany({
@@ -390,7 +394,7 @@ const getAvailableCourses = async (req, res) => {
         LOP: {
           include: {
             MONHOC: { include: { KHOA: true } },
-            CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } }
+            CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy } } }
           }
         },
         HOCKY: true

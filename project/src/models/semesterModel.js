@@ -4,6 +4,8 @@ const formatSemester = (hk) => ({
   LoaiHocKy: hk.LoaiHocKy, ThuTu: hk.ThuTu,
   NgayBatDau: hk.NgayBatDau, NgayKetThuc: hk.NgayKetThuc,
   HanDongHocPhi: hk.HanDongHocPhi, TrangThai: hk.TrangThai,
+  NguoiCapNhat: hk.NguoiCapNhat,
+  NgayCapNhat: hk.NgayCapNhat,
   TenNamHoc: hk.NAMHOC?.TenNamHoc || null,
 });
 const formatSemesterList = (rows) => rows.map(formatSemester);

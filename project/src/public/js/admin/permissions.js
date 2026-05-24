@@ -11,6 +11,11 @@ function switchTab(tab) {
   document.getElementById('tab-functions').style.display = tab === 'functions' ? '' : 'none';
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+  var tab = new URLSearchParams(window.location.search).get('tab');
+  if (tab === 'functions') switchTab('functions');
+});
+
 // ── Group Modal ──
 function openGroupModal(mode, data) {
   groupEditMode = mode === 'edit';
@@ -109,7 +114,7 @@ async function openPermissionModal(groupId, groupName) {
   listEl.innerHTML = '<div class="empty-state">Đang tải...</div>';
 
   try {
-    var funcRes = await apiFetch('/api/permissions/functions');
+    var funcRes = await apiFetch('/api/permissions/functions?all=true');
     var permRes = await apiFetch('/api/permissions/groups/' + groupId + '/permissions');
 
     var allFuncs = funcRes.data || [];

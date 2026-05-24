@@ -151,8 +151,23 @@ const getPaymentById = async (req, res) => {
 const getStudentPayments = async (req, res) => {
   try {
     if (!(await ensureStudentAccess(req, res, req.params.studentId))) return;
-    const rows = await prisma.PHIEUTHUHOCPHI.findMany({ where: { MaSv: req.params.studentId }, orderBy: { NgayLap: 'desc' }, include: { PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
-    res.json({ success: true, data: rows.map((p) => ({ ...p, SoTienThu: Number(p.SoTienThu), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })) });
+    const { page, limit, skip } = getPagination(req.query);
+    const where = { MaSv: req.params.studentId };
+    const [rows, total] = await Promise.all([
+      prisma.PHIEUTHUHOCPHI.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { NgayLap: 'desc' },
+        include: { PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+      }),
+      prisma.PHIEUTHUHOCPHI.count({ where })
+    ]);
+    res.json({
+      success: true,
+      data: rows.map((p) => ({ ...p, SoTienThu: Number(p.SoTienThu), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })),
+      pagination: getPaginationMeta(total, page, limit)
+    });
   } catch (error) {
     console.error('Get student payments error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
@@ -198,6 +213,16 @@ const checkoutPayment = async (req, res) => {
     const isCash = provider === 'cash';
     const isQr = provider === 'qr' || provider === 'bank_qr';
     const hinhThuc = isCash ? 'Tiền mặt' : isQr ? 'Chuyển khoản' : 'Ví điện tử';
+    const pending = await prisma.PHIEUTHUHOCPHI.aggregate({
+      where: { SoPhieuDangKy: registration.SoPhieu, TrangThai: PAYMENT_PENDING },
+      _sum: { SoTienThu: true }
+    });
+    if (Number(pending._sum.SoTienThu || 0) + amount > getRemainingAmount(registration)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sinh viên đã có yêu cầu thanh toán đang chờ xác nhận cho khoản học phí này'
+      });
+    }
 
     let receipt = await prisma.PHIEUTHUHOCPHI.create({
       data: {
@@ -288,6 +313,47 @@ const zalopayCallback = async (req, res) => {
   }
 };
 
+const confirmPayment = async (req, res) => {
+  try {
+    const existing = await prisma.PHIEUTHUHOCPHI.findUnique({
+      where: { SoPhieuThu: parseInt(req.params.id, 10) },
+      include: {
+        PHIEUDANGKY: {
+          include: {
+            PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS } }
+          }
+        }
+      }
+    });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
+    if (existing.TrangThai === PAYMENT_SUCCESS) {
+      return res.json({ success: true, message: 'Phiếu thu đã được xác nhận', data: existing });
+    }
+    if ([PAYMENT_FAILED, PAYMENT_CANCELLED].includes(existing.TrangThai)) {
+      return res.status(400).json({ success: false, message: 'Không thể xác nhận phiếu thu đã thất bại hoặc đã hủy' });
+    }
+
+    const remaining = getRemainingAmount(existing.PHIEUDANGKY);
+    if (Number(existing.SoTienThu || 0) > remaining) {
+      return res.status(400).json({ success: false, message: 'Số tiền phiếu thu vượt số học phí còn nợ' });
+    }
+
+    const payment = await prisma.PHIEUTHUHOCPHI.update({
+      where: { SoPhieuThu: existing.SoPhieuThu },
+      data: {
+        TrangThai: PAYMENT_SUCCESS,
+        NguoiThu: getActorName(req),
+        NgayXacNhan: new Date(),
+        NgayCapNhat: new Date()
+      }
+    });
+    res.json({ success: true, message: 'Đã xác nhận thanh toán', data: payment });
+  } catch (error) {
+    console.error('Confirm payment error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
 const cancelPayment = async (req, res) => {
   try {
     const existing = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: parseInt(req.params.id, 10) } });
@@ -329,6 +395,7 @@ module.exports = {
   vnpayReturn,
   vnpayIpn,
   zalopayCallback,
+  confirmPayment,
   cancelPayment,
   getPaymentStats
 };

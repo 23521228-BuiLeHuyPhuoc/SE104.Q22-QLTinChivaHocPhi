@@ -69,6 +69,21 @@ const filterTuitionByStatus = (row, status) => {
   return row.TrangThaiHocPhi === status;
 };
 
+const attachUpdaterNames = async (rows = []) => {
+  const ids = Array.from(new Set(rows.map((row) => row.NguoiCapNhat).filter(Boolean)));
+  if (!ids.length) return rows;
+
+  const users = await prisma.TAIKHOAN.findMany({
+    where: { MaTaiKhoan: { in: ids } },
+    select: { MaTaiKhoan: true, HoTen: true, TenDangNhap: true }
+  });
+  const userMap = new Map(users.map((user) => [user.MaTaiKhoan, user.HoTen || user.TenDangNhap]));
+  return rows.map((row) => ({
+    ...row,
+    NguoiCapNhatTen: userMap.get(row.NguoiCapNhat) || row.NguoiCapNhat
+  }));
+};
+
 const renderAdmin = (res, view, page, title, req, locals = {}) => {
   res.render(`pages/admin/${view}`, {
     pageTitle: title,
@@ -250,6 +265,7 @@ const adminStudents = async (req, res) => {
           NGANHHOC: { include: { KHOA: true } },
           PHUONGXA: true,
           DANTOC: true,
+          DOITUONGSINHVIEN: { include: { DOITUONG: true } },
           TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN: {
             select: { MaTaiKhoan: true, TrangThaiDuyet: true, NgayDuyet: true, LyDoTuChoi: true }
           }
@@ -257,9 +273,10 @@ const adminStudents = async (req, res) => {
       }),
       prisma.SINHVIEN.count({ where })
     ]);
+    const displayStudents = await attachUpdaterNames(students);
 
     renderAdmin(res, 'students', 'students', 'Quản lý sinh viên', req, {
-      students,
+      students: displayStudents,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/students',
@@ -305,9 +322,10 @@ const adminCourses = async (req, res) => {
       }),
       prisma.MONHOC.count({ where })
     ]);
+    const displayCourses = await attachUpdaterNames(courses);
 
     renderAdmin(res, 'courses', 'courses', 'Quản lý môn học', req, {
-      courses,
+      courses: displayCourses,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/courses',
@@ -355,9 +373,10 @@ const adminClasses = async (req, res) => {
       }),
       prisma.LOP.count({ where })
     ]);
+    const displayClasses = await attachUpdaterNames(classes);
 
     renderAdmin(res, 'classes', 'classes', 'Quản lý lớp học', req, {
-      classes,
+      classes: displayClasses,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/classes',
@@ -391,8 +410,9 @@ const adminSemesters = async (req, res) => {
       }),
       prisma.HOCKY.count({ where: { DaXoa: false } })
     ]);
+    const displaySemesters = await attachUpdaterNames(semesters);
     renderAdmin(res, 'semesters', 'semesters', 'Quản lý học kỳ', req, {
-      semesters,
+      semesters: displaySemesters,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/semesters',
@@ -428,27 +448,63 @@ const adminRegistrations = async (req, res) => {
   }
 
   try {
-    const [registrations, total] = await Promise.all([
-      prisma.PHIEUDANGKY.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { NgayLap: 'desc' },
-        include: {
-          SINHVIEN: true,
-          HOCKY: { include: { NAMHOC: true } },
-          CHITIETDANGKY: {
-            where: { TrangThai: 'Đã đăng ký' },
-            include: { LOP: { include: { MONHOC: true } }, MONHOC: true }
-          },
-          PHIEUTHUHOCPHI: { where: { TrangThai: 'Thành công' } }
-        }
-      }),
-      prisma.PHIEUDANGKY.count({ where })
-    ]);
+    const registrations = await prisma.PHIEUDANGKY.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: {
+        SINHVIEN: true,
+        HOCKY: { include: { NAMHOC: true } },
+        CHITIETDANGKY: {
+          where: { TrangThai: 'Đã đăng ký' },
+          select: { id: true, SoTinChi: true }
+        },
+        PHIEUTHUHOCPHI: { where: { TrangThai: 'Thành công' } }
+      }
+    });
+
+    const grouped = Array.from(registrations.reduce((map, registration) => {
+      const key = registration.MaSv;
+      if (!map.has(key)) {
+        map.set(key, {
+          MaSv: registration.MaSv,
+          SINHVIEN: registration.SINHVIEN,
+          latestRegistration: registration,
+          soPhieu: 0,
+          soMon: 0,
+          TongTinChi: 0,
+          TongTienPhaiDong: 0,
+          DaThu: 0,
+          statuses: new Set(),
+          semesters: new Set()
+        });
+      }
+
+      const row = map.get(key);
+      row.soPhieu += 1;
+      row.soMon += registration.CHITIETDANGKY.length;
+      row.TongTinChi += Number(registration.TongTinChi || registration.CHITIETDANGKY.reduce((sum, item) => sum + Number(item.SoTinChi || 0), 0));
+      row.TongTienPhaiDong += Number(registration.TongTienPhaiDong || registration.TongTienDangKy || 0);
+      row.DaThu += registration.PHIEUTHUHOCPHI.reduce((sum, item) => sum + Number(item.SoTienThu || 0), 0);
+      if (registration.TrangThai) row.statuses.add(registration.TrangThai);
+      const semesterName = registration.HOCKY
+        ? `${registration.HOCKY.TenHocKy}${registration.HOCKY.NAMHOC ? ' - ' + registration.HOCKY.NAMHOC.TenNamHoc : ''}`
+        : registration.MaHocKy;
+      row.semesters.add(semesterName);
+      return map;
+    }, new Map()).values()).map((row) => ({
+      ...row,
+      TrangThaiTongHop: Array.from(row.statuses).join(', ') || 'Đã đăng ký',
+      HocKyGanNhat: row.latestRegistration?.HOCKY
+        ? `${row.latestRegistration.HOCKY.TenHocKy}${row.latestRegistration.HOCKY.NAMHOC ? ' - ' + row.latestRegistration.HOCKY.NAMHOC.TenNamHoc : ''}`
+        : row.latestRegistration?.MaHocKy,
+      DanhSachHocKy: Array.from(row.semesters).join(', ')
+    }));
+
+    const total = grouped.length;
+    const registrationStudents = grouped.slice((page - 1) * limit, page * limit);
 
     renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký tín chỉ', req, {
-      registrations,
+      registrations: registrationStudents,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/registrations',
@@ -703,7 +759,8 @@ const adminFaculties = async (req, res) => {
       prisma.KHOA.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { MaKhoa: 'asc' }, include: { _count: { select: { MONHOC: true, NGANHHOC: true } } } }),
       prisma.KHOA.count({ where })
     ]);
-    renderAdmin(res, 'faculties', 'faculties', 'Quản lý khoa', req, { faculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/faculties', queryParams: { search, limit }, search });
+    const displayFaculties = await attachUpdaterNames(faculties);
+    renderAdmin(res, 'faculties', 'faculties', 'Quản lý khoa', req, { faculties: displayFaculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/faculties', queryParams: { search, limit }, search });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'faculties', 'faculties', 'Quản lý khoa', req, { faculties: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/faculties', queryParams: {}, search: '' });
@@ -724,7 +781,8 @@ const adminMajors = async (req, res) => {
       prisma.NGANHHOC.count({ where }),
       prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' } })
     ]);
-    renderAdmin(res, 'majors', 'majors', 'Quản lý ngành học', req, { majors, faculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/majors', queryParams: { search, MaKhoa: filterKhoa, limit }, search, filterKhoa });
+    const displayMajors = await attachUpdaterNames(majors);
+    renderAdmin(res, 'majors', 'majors', 'Quản lý ngành học', req, { majors: displayMajors, faculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/majors', queryParams: { search, MaKhoa: filterKhoa, limit }, search, filterKhoa });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'majors', 'majors', 'Quản lý ngành học', req, { majors: [], faculties: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/majors', queryParams: {}, search: '', filterKhoa: '' });
@@ -742,15 +800,67 @@ const adminCompletedCourses = async (req, res) => {
   if (filterResult) where.KetQua = filterResult;
   if (search) { where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] }; }
   try {
-    const [completedCourses, total, semesters] = await Promise.all([
-      prisma.MONDAHOC.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: [{ NgayTao: 'desc' }, { id: 'desc' }], include: { SINHVIEN: { select: { MaSv: true, HoTen: true } }, MONHOC: { select: { MaMonHoc: true, TenMonHoc: true } }, HOCKY: { select: { MaHocKy: true, TenHocKy: true, NAMHOC: true } }, LOP: { select: { MaLop: true, TenLop: true } }, TAIKHOAN: { select: { HoTen: true, TenDangNhap: true } } } }),
-      prisma.MONDAHOC.count({ where }),
+    const [completedRows, semesters] = await Promise.all([
+      prisma.MONDAHOC.findMany({
+        where,
+        orderBy: [{ NgayCapNhat: 'desc' }, { NgayTao: 'desc' }, { id: 'desc' }],
+        include: {
+          SINHVIEN: { select: { MaSv: true, HoTen: true } },
+          MONHOC: { select: { MaMonHoc: true, SoTinChi: true } },
+          TAIKHOAN: { select: { HoTen: true, TenDangNhap: true } }
+        }
+      }),
       prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' } })
     ]);
-    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedCourses, semesters, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/completed-courses', queryParams: { search, MaHocKy: filterHocKy, KetQua: filterResult, limit }, search, filterHocKy, filterResult });
+
+    const studentMap = new Map();
+    completedRows.forEach((row) => {
+      if (!studentMap.has(row.MaSv)) {
+        studentMap.set(row.MaSv, {
+          MaSv: row.MaSv,
+          HoTen: row.SINHVIEN?.HoTen || '',
+          totalAttempts: 0,
+          passedCount: 0,
+          failedCount: 0,
+          passedCreditsByCourse: new Map(),
+          passedCredits: 0,
+          NgayCapNhatGanNhat: null,
+          NguoiCapNhatTen: '-'
+        });
+      }
+
+      const item = studentMap.get(row.MaSv);
+      item.totalAttempts += 1;
+      if (row.KetQua === 'qua_mon') {
+        item.passedCount += 1;
+        item.passedCreditsByCourse.set(row.MaMonHoc, Number(row.MONHOC?.SoTinChi || 0));
+      } else if (row.KetQua === 'rot') {
+        item.failedCount += 1;
+      }
+
+      const updatedAt = row.NgayCapNhat || row.NgayTao;
+      if (updatedAt && (!item.NgayCapNhatGanNhat || new Date(updatedAt) > new Date(item.NgayCapNhatGanNhat))) {
+        item.NgayCapNhatGanNhat = updatedAt;
+        item.NguoiCapNhatTen = row.TAIKHOAN ? (row.TAIKHOAN.HoTen || row.TAIKHOAN.TenDangNhap) : '-';
+      }
+    });
+
+    const completedStudentRows = Array.from(studentMap.values()).map((item) => ({
+      ...item,
+      passedCredits: Array.from(item.passedCreditsByCourse.values()).reduce((sum, credits) => sum + credits, 0),
+      passedCreditsByCourse: undefined
+    })).sort((a, b) => {
+      const dateDiff = new Date(b.NgayCapNhatGanNhat || 0) - new Date(a.NgayCapNhatGanNhat || 0);
+      return dateDiff || String(a.MaSv).localeCompare(String(b.MaSv));
+    });
+
+    const total = completedStudentRows.length;
+    const completedStudents = completedStudentRows.slice((page - 1) * limit, page * limit);
+
+    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents, semesters, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/completed-courses', queryParams: { search, MaHocKy: filterHocKy, KetQua: filterResult, limit }, search, filterHocKy, filterResult });
   } catch (err) {
     console.error('Error:', err);
-    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedCourses: [], semesters: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/completed-courses', queryParams: {}, search: '', filterHocKy: '', filterResult: '' });
+    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents: [], semesters: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/completed-courses', queryParams: {}, search: '', filterHocKy: '', filterResult: '' });
   }
 };
 
@@ -768,8 +878,9 @@ const adminPricing = async (req, res) => {
       prisma.DONGIATINCHI.count({ where }),
       prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' } })
     ]);
+    const displayPricing = await attachUpdaterNames(pricing);
     renderAdmin(res, 'pricing', 'pricing', 'Đơn giá tín chỉ', req, {
-      pricing,
+      pricing: displayPricing,
       semesters,
       filterLoaiMon,
       filterHocKy,
@@ -801,8 +912,9 @@ const adminBeneficiaries = async (req, res) => {
       prisma.DOITUONG.findMany({ where: { DaXoa: false }, skip: (page - 1) * limit, take: limit, orderBy: { DoUuTien: 'asc' }, include: { _count: { select: { DOITUONGSINHVIEN: true } } } }),
       prisma.DOITUONG.count({ where: { DaXoa: false } })
     ]);
+    const displayBeneficiaries = await attachUpdaterNames(beneficiaries);
     renderAdmin(res, 'beneficiaries', 'beneficiaries', 'Đối tượng ưu tiên', req, {
-      beneficiaries,
+      beneficiaries: displayBeneficiaries,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/beneficiaries',
@@ -821,15 +933,46 @@ const adminBeneficiaries = async (req, res) => {
 };
 
 const adminPermissions = async (req, res) => {
+  const groupPage = parseInt(req.query.groupPage, 10) || 1;
+  const functionPage = parseInt(req.query.functionPage, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
   try {
-    const [groups, functions] = await Promise.all([
-      prisma.NHOMNGUOIDUNG.findMany({ where: { DaXoa: false }, orderBy: { MaNhom: 'asc' }, include: { _count: { select: { TAIKHOAN: true, PHANQUYEN: true } } } }),
-      prisma.CHUCNANG.findMany({ where: { DaXoa: false }, orderBy: { MaChucNang: 'asc' }, include: { _count: { select: { PHANQUYEN: true } } } })
+    const [groups, groupTotal, functions, functionTotal] = await Promise.all([
+      prisma.NHOMNGUOIDUNG.findMany({
+        where: { DaXoa: false },
+        skip: (groupPage - 1) * limit,
+        take: limit,
+        orderBy: { MaNhom: 'asc' },
+        include: { _count: { select: { TAIKHOAN: true, PHANQUYEN: true } } }
+      }),
+      prisma.NHOMNGUOIDUNG.count({ where: { DaXoa: false } }),
+      prisma.CHUCNANG.findMany({
+        where: { DaXoa: false },
+        skip: (functionPage - 1) * limit,
+        take: limit,
+        orderBy: { MaChucNang: 'asc' },
+        include: { _count: { select: { PHANQUYEN: true } } }
+      }),
+      prisma.CHUCNANG.count({ where: { DaXoa: false } })
     ]);
-    renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, { groups, functions });
+    renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, {
+      groups,
+      functions,
+      groupPage,
+      functionPage,
+      groupTotalPages: Math.ceil(groupTotal / limit),
+      functionTotalPages: Math.ceil(functionTotal / limit)
+    });
   } catch (err) {
     console.error('Error:', err);
-    renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, { groups: [], functions: [] });
+    renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, {
+      groups: [],
+      functions: [],
+      groupPage: 1,
+      functionPage: 1,
+      groupTotalPages: 0,
+      functionTotalPages: 0
+    });
   }
 };
 

@@ -38,9 +38,16 @@ const PORT = process.env.PORT || 5000;
 // ==========================================
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
+app.disable('view cache');
 
 // Static files (CSS, JS, images)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: false,
+  maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+}));
 
 // Middleware
 app.use(cors());

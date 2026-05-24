@@ -117,6 +117,31 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 }
 
+function renderClientPagination(elementId, meta, loadFunctionName) {
+  var nav = document.getElementById(elementId);
+  if (!nav) return;
+  var totalPages = Number(meta && meta.totalPages || 0);
+  var current = Number(meta && meta.page || 1);
+  if (totalPages <= 1) {
+    nav.style.display = 'none';
+    nav.innerHTML = '';
+    return;
+  }
+
+  var start = Math.max(1, current - 2);
+  var end = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+
+  nav.style.display = '';
+  var html = '';
+  if (current > 1) html += '<button type="button" onclick="' + loadFunctionName + '(' + (current - 1) + ')">Trước</button>';
+  for (var i = start; i <= end; i += 1) {
+    html += '<button type="button" class="' + (i === current ? 'active' : '') + '" onclick="' + loadFunctionName + '(' + i + ')">' + i + '</button>';
+  }
+  if (current < totalPages) html += '<button type="button" onclick="' + loadFunctionName + '(' + (current + 1) + ')">Sau</button>';
+  nav.innerHTML = html;
+}
+
 // Counter animation for stat numbers
 function animateCounter(element, target, duration) {
   duration = duration || 1000;

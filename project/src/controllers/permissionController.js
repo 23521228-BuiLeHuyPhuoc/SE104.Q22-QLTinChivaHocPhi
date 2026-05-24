@@ -1,16 +1,33 @@
 const prisma = require('../config/database');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { getPagination, getPaginationMeta } = require('../utils/pagination');
 
 // ── CHUCNANG (Functions) ──
 
 const getAllFunctions = async (req, res) => {
   try {
-    const functions = await prisma.CHUCNANG.findMany({
-      where: { DaXoa: false },
-      orderBy: { MaChucNang: 'asc' },
-      include: { _count: { select: { PHANQUYEN: true } } }
-    });
-    res.json({ success: true, data: functions });
+    const where = { DaXoa: false };
+    if (req.query.all === 'true') {
+      const functions = await prisma.CHUCNANG.findMany({
+        where,
+        orderBy: { MaChucNang: 'asc' },
+        include: { _count: { select: { PHANQUYEN: true } } }
+      });
+      return res.json({ success: true, data: functions });
+    }
+
+    const { page, limit, skip } = getPagination(req.query);
+    const [functions, total] = await Promise.all([
+      prisma.CHUCNANG.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { MaChucNang: 'asc' },
+        include: { _count: { select: { PHANQUYEN: true } } }
+      }),
+      prisma.CHUCNANG.count({ where })
+    ]);
+    res.json({ success: true, data: functions, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
     console.error('getAllFunctions error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
@@ -67,14 +84,32 @@ const deleteFunction = async (req, res) => {
 
 const getAllGroups = async (req, res) => {
   try {
-    const groups = await prisma.NHOMNGUOIDUNG.findMany({
-      where: { DaXoa: false },
-      orderBy: { MaNhom: 'asc' },
-      include: {
-        _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
-      }
-    });
-    res.json({ success: true, data: groups });
+    const where = { DaXoa: false };
+    if (req.query.all === 'true') {
+      const groups = await prisma.NHOMNGUOIDUNG.findMany({
+        where,
+        orderBy: { MaNhom: 'asc' },
+        include: {
+          _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
+        }
+      });
+      return res.json({ success: true, data: groups });
+    }
+
+    const { page, limit, skip } = getPagination(req.query);
+    const [groups, total] = await Promise.all([
+      prisma.NHOMNGUOIDUNG.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { MaNhom: 'asc' },
+        include: {
+          _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
+        }
+      }),
+      prisma.NHOMNGUOIDUNG.count({ where })
+    ]);
+    res.json({ success: true, data: groups, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
     console.error('getAllGroups error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });

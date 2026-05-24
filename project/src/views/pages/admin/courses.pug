@@ -6,6 +6,7 @@ block content
       input#search-input(type="text" placeholder="Tìm mã hoặc tên môn học..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn học
+      a.btn.btn-outline(href="/admin/trash?entity=courses") Thùng rác
 
   .card
     .card-header
@@ -38,7 +39,7 @@ block content
                   span.badge(class=c.LoaiMon === 'TH' ? 'badge-success' : 'badge-primary')= c.LoaiMon || '-'
                 td= c.SoTiet
                 td= c.KHOA ? c.KHOA.TenKhoa : c.MaKhoa
-                td= c.NguoiCapNhat || '-'
+                td= c.NguoiCapNhatTen || c.NguoiCapNhat || '-'
                 td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa

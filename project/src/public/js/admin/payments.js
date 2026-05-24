@@ -45,6 +45,36 @@ async function savePayment() {
   }
 }
 
+async function confirmPayment(id) {
+  if (!confirm('Xác nhận phiếu thu này đã thanh toán?')) return;
+  try {
+    var res = await apiFetch('/api/payments/' + id + '/confirm', { method: 'PUT' });
+    if (res.success) {
+      showToast(res.message || 'Đã xác nhận thanh toán', 'success');
+      setTimeout(function() { location.reload(); }, 500);
+    } else {
+      showToast(res.message || 'Không thể xác nhận thanh toán', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function cancelPayment(id) {
+  if (!confirm('Hủy phiếu thu này?')) return;
+  try {
+    var res = await apiFetch('/api/payments/' + id + '/cancel', { method: 'PUT' });
+    if (res.success) {
+      showToast(res.message || 'Đã hủy phiếu thu', 'success');
+      setTimeout(function() { location.reload(); }, 500);
+    } else {
+      showToast(res.message || 'Không thể hủy phiếu thu', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
 var searchTimer;
 function debounceSearch() {
   clearTimeout(searchTimer);
