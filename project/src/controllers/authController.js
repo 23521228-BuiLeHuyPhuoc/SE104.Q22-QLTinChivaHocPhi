@@ -3,11 +3,15 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const prisma = require('../config/database');
+const { uploadAvatarBuffer } = require('../utils/cloudinary');
+const redisClient = require('../utils/redisClient');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
-const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 60);
+const RESET_OTP_TTL_MINUTES = Number(process.env.RESET_OTP_TTL_MINUTES || 10);
+const RESET_OTP_LENGTH = Math.min(8, Math.max(4, Number(process.env.RESET_OTP_LENGTH || 6)));
+const RESET_OTP_MAX_ATTEMPTS = Math.max(1, Number(process.env.RESET_OTP_MAX_ATTEMPTS || 5));
 
 const normalize = (value) => String(value || '').trim();
 const normalizeEmail = (value) => normalize(value).toLowerCase();
@@ -17,11 +21,22 @@ const studentInfoSelect = {
   HoTen: true,
   NgaySinh: true,
   GioiTinh: true,
+  Cccd: true,
+  DiaChiLienHe: true,
+  MaPhuongXa: true,
+  MaDanToc: true,
   MaNganh: true,
   Sdt: true,
   Email: true,
   AnhDaiDien: true,
+  NgayNhapHoc: true,
   TrangThai: true,
+  DANTOC: {
+    select: {
+      MaDanToc: true,
+      TenDanToc: true
+    }
+  },
   NGANHHOC: {
     select: {
       MaNganh: true,
@@ -51,9 +66,85 @@ const hashPassword = async (password) => {
   return bcrypt.hash(password, salt);
 };
 
-const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const getResetOtpTtlSeconds = () => Math.max(60, Math.floor(RESET_OTP_TTL_MINUTES * 60));
+const getResetOtpKey = (accountId) => `password-reset:otp:${accountId}`;
+const normalizeOtp = (value) => normalize(value).replace(/\s+/g, '');
+const hashResetOtp = (accountId, otp) => crypto
+  .createHash('sha256')
+  .update(`${accountId}:${otp}:${JWT_SECRET}`)
+  .digest('hex');
+
+const generateOtp = () => {
+  const upperBound = 10 ** RESET_OTP_LENGTH;
+  return String(crypto.randomInt(0, upperBound)).padStart(RESET_OTP_LENGTH, '0');
+};
+
+const isRedisConnectionError = (error) => {
+  const message = String(error?.message || '');
+  return ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT', 'ECONNRESET'].includes(error?.code)
+    || message.includes('Socket closed unexpectedly')
+    || message.includes('The client is closed');
+};
+
+const getRedisUnavailableMessage = () => 'Không thể kết nối Redis để lưu hoặc kiểm tra mã OTP. Kiểm tra REDIS_URL và Redis server.';
+
+const storeResetOtp = async (accountId, otp) => {
+  const ttlSeconds = getResetOtpTtlSeconds();
+  await redisClient.setJson(getResetOtpKey(accountId), {
+    otpHash: hashResetOtp(accountId, otp),
+    attempts: 0,
+    expiresAt: Date.now() + ttlSeconds * 1000
+  }, ttlSeconds);
+};
+
+const clearResetOtp = async (accountId) => {
+  await redisClient.deleteKey(getResetOtpKey(accountId));
+};
+
+const verifyResetOtp = async (accountId, otp) => {
+  const key = getResetOtpKey(accountId);
+  const payload = await redisClient.getJson(key);
+  if (!payload || !payload.otpHash || Number(payload.expiresAt || 0) <= Date.now()) {
+    await redisClient.deleteKey(key).catch(() => null);
+    return { success: false, message: 'Mã OTP không hợp lệ hoặc đã hết hạn' };
+  }
+
+  const attempts = Number(payload.attempts || 0);
+  if (attempts >= RESET_OTP_MAX_ATTEMPTS) {
+    await redisClient.deleteKey(key).catch(() => null);
+    return { success: false, message: 'Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.' };
+  }
+
+  if (payload.otpHash !== hashResetOtp(accountId, otp)) {
+    const nextAttempts = attempts + 1;
+    if (nextAttempts >= RESET_OTP_MAX_ATTEMPTS) {
+      await redisClient.deleteKey(key).catch(() => null);
+      return { success: false, message: 'Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.' };
+    }
+
+    const ttlSeconds = Math.max(1, Math.ceil((Number(payload.expiresAt) - Date.now()) / 1000));
+    await redisClient.setJson(key, { ...payload, attempts: nextAttempts }, ttlSeconds);
+    return { success: false, message: 'Mã OTP không đúng' };
+  }
+
+  return { success: true };
+};
 
 const getBaseUrl = () => (process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
+
+const getCloudinaryUploadErrorMessage = (error) => {
+  const rawMessage = String(error?.message || '');
+  if (error?.http_code === 401 && /invalid cloud_name/i.test(rawMessage)) {
+    return 'Cloudinary cloud name không hợp lệ. Kiểm tra CLOUDINARY_CLOUD_NAME trong .env, dùng đúng Cloud name trong Cloudinary dashboard.';
+  }
+  if (error?.http_code === 401) {
+    return 'Cloudinary từ chối xác thực. Kiểm tra lại CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET trong .env.';
+  }
+  if (error?.http_code) {
+    return `Cloudinary trả lỗi ${error.http_code}: ${rawMessage || 'Không thể upload ảnh đại diện'}`;
+  }
+  return 'Không thể upload ảnh đại diện lên Cloudinary';
+};
 
 const createMailer = () => {
   if (!process.env.SMTP_HOST) {
@@ -73,19 +164,50 @@ const createMailer = () => {
   });
 };
 
-const sendResetEmail = async (account, token) => {
-  const resetUrl = `${getBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+const getResetPath = (account) => {
+  const query = new URLSearchParams({
+    identifier: account.TenDangNhap || account.Email,
+    role: account.Role || 'student'
+  });
+  return `/reset-password?${query.toString()}`;
+};
+
+const findResetAccount = (identifier, role) => prisma.TAIKHOAN.findFirst({
+  where: {
+    ...(role && ['admin', 'student'].includes(role) ? { Role: role } : {}),
+    OR: [
+      { TenDangNhap: identifier },
+      { MaSv: identifier },
+      { Email: { equals: identifier, mode: 'insensitive' } }
+    ]
+  },
+  select: {
+    MaTaiKhoan: true,
+    TenDangNhap: true,
+    Role: true,
+    HoTen: true,
+    Email: true,
+    TrangThai: true,
+    TrangThaiDuyet: true
+  }
+});
+
+const sendResetEmail = async (account, otp) => {
+  const resetUrl = `${getBaseUrl()}${getResetPath(account)}`;
   const transporter = createMailer();
 
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com',
     to: account.Email,
-    subject: 'Đặt lại mật khẩu hệ thống tín chỉ',
+    subject: 'Mã OTP đặt lại mật khẩu hệ thống tín chỉ',
     text: [
       `Xin chào ${account.HoTen || account.TenDangNhap},`,
       '',
       'Bạn vừa yêu cầu đặt lại mật khẩu.',
-      `Mở liên kết sau trong vòng ${RESET_TOKEN_TTL_MINUTES} phút:`,
+      `Mã OTP của bạn là: ${otp}`,
+      `Mã có hiệu lực trong ${RESET_OTP_TTL_MINUTES} phút.`,
+      '',
+      'Nhập mã OTP tại liên kết sau:',
       resetUrl,
       '',
       'Nếu bạn không yêu cầu thao tác này, vui lòng bỏ qua email.'
@@ -93,8 +215,9 @@ const sendResetEmail = async (account, token) => {
     html: `
       <p>Xin chào ${account.HoTen || account.TenDangNhap},</p>
       <p>Bạn vừa yêu cầu đặt lại mật khẩu.</p>
-      <p><a href="${resetUrl}">Đặt lại mật khẩu</a></p>
-      <p>Liên kết có hiệu lực trong ${RESET_TOKEN_TTL_MINUTES} phút.</p>
+      <p>Mã OTP của bạn là: <strong style="font-size: 20px; letter-spacing: 2px;">${otp}</strong></p>
+      <p>Mã có hiệu lực trong ${RESET_OTP_TTL_MINUTES} phút.</p>
+      <p><a href="${resetUrl}">Nhập mã OTP và đặt lại mật khẩu</a></p>
       <p>Nếu bạn không yêu cầu thao tác này, vui lòng bỏ qua email.</p>
     `
   });
@@ -119,6 +242,7 @@ const buildLoginResponse = async (user) => {
   }
 
   const displayName = adminInfo?.HoTen || studentInfo?.HoTen || user.HoTen || null;
+  const avatarUrl = adminInfo?.AnhDaiDien || studentInfo?.AnhDaiDien || user.AnhDaiDien || null;
   const token = jwt.sign(
     {
       id: user.MaTaiKhoan,
@@ -128,7 +252,8 @@ const buildLoginResponse = async (user) => {
       MaNhom: user.MaNhom,
       MaSv: studentInfo?.MaSv || user.MaSv || null,
       ChucVu: chucVu,
-      HoTen: displayName
+      HoTen: displayName,
+      AnhDaiDien: avatarUrl
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -144,7 +269,8 @@ const buildLoginResponse = async (user) => {
       MaNhom: user.MaNhom,
       MaSv: studentInfo?.MaSv || user.MaSv || null,
       ChucVu: chucVu,
-      HoTen: displayName
+      HoTen: displayName,
+      AnhDaiDien: avatarUrl
     },
     student: studentInfo,
     admin: adminInfo
@@ -173,6 +299,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
         MaSv: true,
         HoTen: true,
         Email: true,
+        AnhDaiDien: true,
         TrangThai: true,
         TrangThaiDuyet: true
       }
@@ -261,25 +388,7 @@ const forgotPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập hoặc email' });
     }
 
-    const account = await prisma.TAIKHOAN.findFirst({
-      where: {
-        ...(role && ['admin', 'student'].includes(role) ? { Role: role } : {}),
-        OR: [
-          { TenDangNhap: identifier },
-          { MaSv: identifier },
-          { Email: { equals: identifier, mode: 'insensitive' } }
-        ]
-      },
-      select: {
-        MaTaiKhoan: true,
-        TenDangNhap: true,
-        HoTen: true,
-        Email: true,
-        TrangThai: true,
-        TrangThaiDuyet: true
-      }
-    });
-
+    const account = await findResetAccount(identifier, role);
     if (!account) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản phù hợp' });
     }
@@ -293,35 +402,29 @@ const forgotPassword = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const tokenHash = hashResetToken(token);
-    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
-
-    await prisma.$transaction([
-      prisma.DATLAIMATKHAU.updateMany({
-        where: { MaTaiKhoan: account.MaTaiKhoan, DaSuDung: false },
-        data: { DaSuDung: true, NgaySuDung: new Date() }
-      }),
-      prisma.DATLAIMATKHAU.create({
-        data: {
-          MaTaiKhoan: account.MaTaiKhoan,
-          TokenHash: tokenHash,
-          HetHanLuc: expiresAt,
-          DaSuDung: false
-        }
-      })
-    ]);
-
-    await sendResetEmail(account, token);
+    const otp = generateOtp();
+    await storeResetOtp(account.MaTaiKhoan, otp);
+    try {
+      await sendResetEmail(account, otp);
+    } catch (emailError) {
+      await clearResetOtp(account.MaTaiKhoan).catch(() => null);
+      throw emailError;
+    }
 
     res.json({
       success: true,
-      message: 'Đã gửi email đặt lại mật khẩu. Vui lòng kiểm tra hộp thư.'
+      message: `Đã gửi mã OTP đặt lại mật khẩu. Mã có hiệu lực trong ${RESET_OTP_TTL_MINUTES} phút.`,
+      data: {
+        resetPath: getResetPath(account)
+      }
     });
   } catch (error) {
     console.error('Forgot password error:', error);
     if (error.message === 'SMTP_NOT_CONFIGURED') {
       return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
+    }
+    if (isRedisConnectionError(error)) {
+      return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
     }
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
@@ -329,51 +432,42 @@ const forgotPassword = async (req, res) => {
 
 const resetPassword = async (req, res) => {
   try {
-    const token = normalize(req.body.token);
+    const identifier = normalize(req.body.identifier || req.body.username || req.body.email);
+    const role = normalize(req.body.role);
+    const otp = normalizeOtp(req.body.otp || req.body.code);
     const { newPassword } = req.body;
-    if (!token || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập token và mật khẩu mới' });
+
+    if (!identifier || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tài khoản, mã OTP và mật khẩu mới' });
+    }
+    if (!/^\d+$/.test(otp) || otp.length !== RESET_OTP_LENGTH) {
+      return res.status(400).json({ success: false, message: `Mã OTP phải gồm ${RESET_OTP_LENGTH} chữ số` });
     }
 
-    const tokenHash = hashResetToken(token);
-    const reset = await prisma.DATLAIMATKHAU.findFirst({
-      where: {
-        TokenHash: tokenHash,
-        DaSuDung: false,
-        HetHanLuc: { gt: new Date() }
-      },
-      include: {
-        TAIKHOAN: {
-          select: {
-            MaTaiKhoan: true,
-            TrangThai: true,
-            TrangThaiDuyet: true
-          }
-        }
-      }
-    });
+    const account = await findResetAccount(identifier, role);
+    if (!account || account.TrangThai === false || account.TrangThaiDuyet !== 'approved') {
+      return res.status(400).json({ success: false, message: 'Mã OTP không hợp lệ hoặc đã hết hạn' });
+    }
 
-    if (!reset || !reset.TAIKHOAN || reset.TAIKHOAN.TrangThai === false || reset.TAIKHOAN.TrangThaiDuyet !== 'approved') {
-      return res.status(400).json({ success: false, message: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn' });
+    const verification = await verifyResetOtp(account.MaTaiKhoan, otp);
+    if (!verification.success) {
+      return res.status(400).json({ success: false, message: verification.message });
     }
 
     const hashed = await hashPassword(newPassword);
-    await prisma.$transaction([
-      prisma.TAIKHOAN.update({
-        where: { MaTaiKhoan: reset.MaTaiKhoan },
-        data: { MatKhau: hashed, NgayCapNhat: new Date() },
-        select: { MaTaiKhoan: true }
-      }),
-      prisma.DATLAIMATKHAU.update({
-        where: { MaToken: reset.MaToken },
-        data: { DaSuDung: true, NgaySuDung: new Date() },
-        select: { MaToken: true }
-      })
-    ]);
+    await prisma.TAIKHOAN.update({
+      where: { MaTaiKhoan: account.MaTaiKhoan },
+      data: { MatKhau: hashed, NgayCapNhat: new Date() },
+      select: { MaTaiKhoan: true }
+    });
+    await clearResetOtp(account.MaTaiKhoan).catch(() => null);
 
     res.json({ success: true, message: 'Đặt lại mật khẩu thành công' });
   } catch (error) {
     console.error('Reset password error:', error);
+    if (isRedisConnectionError(error)) {
+      return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
+    }
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -389,6 +483,7 @@ const getMe = async (req, res) => {
         Role: true,
         MaNhom: true,
         TrangThai: true,
+        AnhDaiDien: true,
         NgayTao: true
       }
     });
@@ -422,6 +517,7 @@ const getMe = async (req, res) => {
           Role: user.Role,
           MaNhom: user.MaNhom,
           TrangThai: user.TrangThai,
+          AnhDaiDien: adminInfo?.AnhDaiDien || studentInfo?.AnhDaiDien || user.AnhDaiDien || null,
           created_at: user.NgayTao
         },
         student: studentInfo,
@@ -431,6 +527,209 @@ const getMe = async (req, res) => {
   } catch (error) {
     console.error('GetMe error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const updateStudentProfile = async (req, res) => {
+  try {
+    if ((req.user.Role || req.user.role) !== 'student') {
+      return res.status(403).json({ success: false, message: 'Chỉ sinh viên mới được cập nhật hồ sơ cá nhân' });
+    }
+
+    const forbiddenFields = {
+      MaSv: 'MSSV',
+      maSv: 'MSSV',
+      mssv: 'MSSV',
+      HoTen: 'họ tên',
+      hoTen: 'họ tên',
+      Email: 'email',
+      email: 'email',
+      Gmail: 'email',
+      gmail: 'email',
+      NgaySinh: 'ngày sinh',
+      ngaySinh: 'ngày sinh',
+      Cccd: 'CCCD',
+      cccd: 'CCCD',
+      CMND: 'CCCD',
+      cmnd: 'CCCD',
+      MaDanToc: 'dân tộc',
+      maDanToc: 'dân tộc',
+      DanToc: 'dân tộc',
+      danToc: 'dân tộc',
+      MaNganh: 'ngành',
+      maNganh: 'ngành',
+      Nganh: 'ngành',
+      nganh: 'ngành',
+      Khoa: 'khoa',
+      khoa: 'khoa',
+      TenKhoa: 'khoa',
+      TrangThai: 'trạng thái',
+      trangThai: 'trạng thái',
+      NgayNhapHoc: 'khóa',
+      ngayNhapHoc: 'khóa',
+      KhoaHoc: 'khóa',
+      khoaHoc: 'khóa'
+    };
+    const blocked = Object.keys(req.body || {}).find((key) => Object.prototype.hasOwnProperty.call(forbiddenFields, key));
+    if (blocked) {
+      return res.status(400).json({
+        success: false,
+        message: `${forbiddenFields[blocked]} không được phép chỉnh sửa`
+      });
+    }
+
+    const userId = Number(req.user.id || req.user.MaTaiKhoan || 0);
+    const account = await prisma.TAIKHOAN.findUnique({
+      where: { MaTaiKhoan: userId },
+      select: { MaTaiKhoan: true, MaSv: true }
+    });
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+    }
+
+    const student = await prisma.SINHVIEN.findFirst({
+      where: {
+        OR: [
+          { MaTaiKhoan: account.MaTaiKhoan },
+          ...(account.MaSv ? [{ MaSv: account.MaSv }] : [])
+        ],
+        DaXoa: false
+      },
+      select: { MaSv: true }
+    });
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ sinh viên' });
+    }
+
+    const data = {};
+    if (req.body.Sdt !== undefined) data.Sdt = normalize(req.body.Sdt) || null;
+    if (req.body.GioiTinh !== undefined) {
+      const gender = normalize(req.body.GioiTinh);
+      const validGenders = ['', 'Nam', 'Nữ', 'Nu', 'Khác', 'Khac'];
+      if (!validGenders.includes(gender)) {
+        return res.status(400).json({ success: false, message: 'Giới tính không hợp lệ' });
+      }
+      data.GioiTinh = gender === 'Nu' ? 'Nữ' : gender === 'Khac' ? 'Khác' : gender;
+    }
+    if (req.body.DiaChiLienHe !== undefined) {
+      const address = normalize(req.body.DiaChiLienHe);
+      if (!address) {
+        return res.status(400).json({ success: false, message: 'Địa chỉ liên hệ không được để trống' });
+      }
+      data.DiaChiLienHe = address;
+    }
+
+    if (!Object.keys(data).length) {
+      return res.status(400).json({ success: false, message: 'Không có thông tin hợp lệ để cập nhật' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.SINHVIEN.update({
+        where: { MaSv: student.MaSv },
+        data: {
+          ...data,
+          NguoiCapNhat: account.MaTaiKhoan,
+          NgayCapNhat: new Date()
+        },
+        select: studentInfoSelect
+      });
+
+      if (data.Sdt !== undefined) {
+        await tx.TAIKHOAN.update({
+          where: { MaTaiKhoan: account.MaTaiKhoan },
+          data: { Sdt: data.Sdt, NgayCapNhat: new Date() },
+          select: { MaTaiKhoan: true }
+        });
+      }
+
+      return row;
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật hồ sơ cá nhân thành công',
+      data: { student: updated }
+    });
+  } catch (error) {
+    console.error('Update student profile error:', error);
+    res.status(500).json({ success: false, message: 'Không thể cập nhật hồ sơ cá nhân' });
+  }
+};
+
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ảnh đại diện' });
+    }
+
+    const userId = Number(req.user.id || req.user.MaTaiKhoan || 0);
+    const account = await prisma.TAIKHOAN.findUnique({
+      where: { MaTaiKhoan: userId },
+      select: {
+        MaTaiKhoan: true,
+        Role: true,
+        MaSv: true
+      }
+    });
+
+    if (!account) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+    }
+
+    const uploadResult = await uploadAvatarBuffer(req.file.buffer, {
+      publicId: `${account.Role || 'user'}-${account.MaTaiKhoan}`
+    });
+    const avatarUrl = uploadResult.secure_url || uploadResult.url;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.TAIKHOAN.update({
+        where: { MaTaiKhoan: account.MaTaiKhoan },
+        data: { AnhDaiDien: avatarUrl, NgayCapNhat: new Date() },
+        select: { MaTaiKhoan: true }
+      });
+
+      if (account.Role === 'student') {
+        await tx.SINHVIEN.updateMany({
+          where: {
+            OR: [
+              { MaTaiKhoan: account.MaTaiKhoan },
+              ...(account.MaSv ? [{ MaSv: account.MaSv }] : [])
+            ]
+          },
+          data: {
+            AnhDaiDien: avatarUrl,
+            NguoiCapNhat: account.MaTaiKhoan,
+            NgayCapNhat: new Date()
+          }
+        });
+      } else if (account.Role === 'admin') {
+        await tx.QUANTRIVIEN.updateMany({
+          where: { MaTaiKhoan: account.MaTaiKhoan },
+          data: { AnhDaiDien: avatarUrl, NgayCapNhat: new Date() }
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật ảnh đại diện thành công',
+      data: {
+        avatarUrl,
+        publicId: uploadResult.public_id
+      }
+    });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    if (error.code === 'CLOUDINARY_NOT_CONFIGURED') {
+      const missing = Array.isArray(error.missing) && error.missing.length
+        ? ` Thiếu: ${error.missing.join(', ')}.`
+        : '';
+      return res.status(500).json({
+        success: false,
+        message: `Chưa cấu hình đủ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET.${missing}`
+      });
+    }
+    res.status(500).json({ success: false, message: getCloudinaryUploadErrorMessage(error) });
   }
 };
 
@@ -484,5 +783,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  updateStudentProfile,
+  uploadAvatar,
   changePassword
 };

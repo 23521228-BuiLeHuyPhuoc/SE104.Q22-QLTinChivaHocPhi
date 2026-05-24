@@ -1,5 +1,6 @@
 var currentTuitionStudent = null;
 var payableTuitionRows = [];
+var blockedTuitionRows = [];
 
 function tuitionEscapeHtml(value) {
   return String(value || '')
@@ -37,6 +38,10 @@ function updatePayTuitionButton() {
     button.disabled = false;
     button.textContent = 'Đóng học phí';
     button.title = 'Mở khoản học phí còn nợ gần nhất';
+  } else if (blockedTuitionRows.length > 0) {
+    button.disabled = true;
+    button.textContent = 'Chưa mở thanh toán';
+    button.title = blockedTuitionRows[0].reason || 'Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.';
   } else {
     button.disabled = true;
     button.textContent = 'Đã đóng đủ';
@@ -107,12 +112,24 @@ async function loadMyTuition(page) {
 
     if (res.success && res.data && res.data.length > 0) {
       payableTuitionRows = [];
+      blockedTuitionRows = [];
       tbody.innerHTML = res.data.map(function(t) {
         var fee = Number(t.TongTienPhaiDong || 0);
         var paid = Number(t.TongTienDaDong || 0);
         var remaining = Number(t.conNo || Math.max(fee - paid, 0));
+        var canPay = remaining > 0 && t.CoTheThanhToan !== false;
+        var unavailableReason = tuitionEscapeHtml(t.LyDoChuaTheThanhToan || 'Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.');
         var badgeClass = remaining <= 0 ? 'badge-success' : t.TrangThai === 'Quá hạn' ? 'badge-error' : paid > 0 ? 'badge-warning' : 'badge-error';
-        if (remaining > 0) payableTuitionRows.push({ SoPhieu: t.SoPhieu, remaining: remaining });
+        var actionHtml = remaining <= 0
+          ? '<button class="btn btn-sm btn-outline" type="button" disabled>Đã đóng đủ</button>'
+          : canPay
+            ? '<button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + t.SoPhieu + ', ' + remaining + ')">Đóng học phí</button>'
+            : '<button class="btn btn-sm btn-outline" type="button" title="' + unavailableReason + '" disabled>Chưa mở thanh toán</button>';
+        if (canPay) {
+          payableTuitionRows.push({ SoPhieu: t.SoPhieu, remaining: remaining });
+        } else if (remaining > 0) {
+          blockedTuitionRows.push({ SoPhieu: t.SoPhieu, remaining: remaining, reason: t.LyDoChuaTheThanhToan });
+        }
         return '<tr>' +
           '<td>' + tuitionEscapeHtml(t.TenHocKy || '-') + (t.TenNamHoc ? '<small>' + tuitionEscapeHtml(t.TenNamHoc) + '</small>' : '') + '</td>' +
           '<td class="currency">' + formatCurrency(fee) + '</td>' +
@@ -120,11 +137,12 @@ async function loadMyTuition(page) {
           '<td class="currency ' + (remaining > 0 ? 'text-danger' : 'text-success') + '">' + formatCurrency(remaining) + '</td>' +
           '<td>' + (t.HanDongHocPhi ? formatDate(t.HanDongHocPhi) : '-') + '</td>' +
           '<td><span class="badge ' + badgeClass + '">' + tuitionEscapeHtml(t.TrangThai || '-') + '</span></td>' +
-          '<td>' + (remaining > 0 ? '<button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + t.SoPhieu + ', ' + remaining + ')">Đóng học phí</button>' : '<button class="btn btn-sm btn-outline" type="button" disabled>Đã đóng đủ</button>') + '</td>' +
+          '<td>' + actionHtml + '</td>' +
         '</tr>';
       }).join('');
     } else {
       payableTuitionRows = [];
+      blockedTuitionRows = [];
       tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Không có dữ liệu học phí</div></td></tr>';
     }
 
@@ -136,6 +154,7 @@ async function loadMyTuition(page) {
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
     renderTuitionSummary({});
     payableTuitionRows = [];
+    blockedTuitionRows = [];
     updatePayTuitionButton();
     renderClientPagination('tuition-pagination', null, 'loadMyTuition');
   }

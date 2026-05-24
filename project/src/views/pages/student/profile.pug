@@ -13,51 +13,65 @@ block content
         .loading-overlay#loading
           .spinner
         form#profile-form.hidden
+          .profile-avatar-panel
+            .profile-avatar-preview
+              img#profile-avatar-img.hidden(src="" alt="Ảnh đại diện")
+              span#profile-avatar-initials SV
+            .profile-avatar-actions
+              label.btn.btn-outline(for="avatar-input") Chọn ảnh
+              input#avatar-input(type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden)
+              button.btn.btn-primary#btn-upload-avatar(type="button" disabled) Cập nhật ảnh
+              small JPG, PNG, WebP hoặc GIF, tối đa 3MB.
           .form-row
             .form-group
               label(for="p-mssv") MSSV
-              input.form-control#p-mssv(type="text" disabled)
+              input.form-control.profile-locked-field#p-mssv(type="text" readonly data-lock-label="MSSV")
             .form-group
               label(for="p-hoten") Họ tên
-              input.form-control#p-hoten(type="text" disabled)
+              input.form-control.profile-locked-field#p-hoten(type="text" readonly data-lock-label="họ tên")
           .form-row
             .form-group
-              label(for="p-email") Email
-              input.form-control#p-email(type="email" disabled)
+              label(for="p-email") Gmail
+              input.form-control.profile-locked-field#p-email(type="email" readonly data-lock-label="Gmail")
             .form-group
               label(for="p-sdt") Số điện thoại
-              input.form-control#p-sdt(type="text" disabled)
+              input.form-control#p-sdt(type="text")
           .form-row
             .form-group
               label(for="p-ngaysinh") Ngày sinh
-              input.form-control#p-ngaysinh(type="text" disabled)
+              input.form-control.profile-locked-field#p-ngaysinh(type="text" readonly data-lock-label="ngày sinh")
             .form-group
               label(for="p-gioitinh") Giới tính
-              input.form-control#p-gioitinh(type="text" disabled)
+              select.form-control#p-gioitinh
+                option(value="Nam") Nam
+                option(value="Nữ") Nữ
+                option(value="Khác") Khác
           .form-row
             .form-group
               label(for="p-cmnd") CMND/CCCD
-              input.form-control#p-cmnd(type="text" disabled)
+              input.form-control.profile-locked-field#p-cmnd(type="text" readonly data-lock-label="CCCD")
             .form-group
               label(for="p-dantoc") Dân tộc
-              input.form-control#p-dantoc(type="text" disabled)
+              input.form-control.profile-locked-field#p-dantoc(type="text" readonly data-lock-label="dân tộc")
           .form-group
             label(for="p-diachi") Địa chỉ
-            input.form-control#p-diachi(type="text" disabled)
+            input.form-control#p-diachi(type="text")
           .form-row
             .form-group
               label(for="p-nganh") Ngành
-              input.form-control#p-nganh(type="text" disabled)
+              input.form-control.profile-locked-field#p-nganh(type="text" readonly data-lock-label="ngành")
             .form-group
               label(for="p-khoa") Khoa
-              input.form-control#p-khoa(type="text" disabled)
+              input.form-control.profile-locked-field#p-khoa(type="text" readonly data-lock-label="khoa")
           .form-row
             .form-group
               label(for="p-trangthai") Trạng thái
-              input.form-control#p-trangthai(type="text" disabled)
+              input.form-control.profile-locked-field#p-trangthai(type="text" readonly data-lock-label="trạng thái")
             .form-group
               label(for="p-khoahoc") Khóa
-              input.form-control#p-khoahoc(type="text" disabled)
+              input.form-control.profile-locked-field#p-khoahoc(type="text" readonly data-lock-label="khóa")
+          .form-actions
+            button.btn.btn-primary#btn-save-profile(type="button") Lưu thay đổi
 
 block scripts
   script(src="/js/student/profile.js")

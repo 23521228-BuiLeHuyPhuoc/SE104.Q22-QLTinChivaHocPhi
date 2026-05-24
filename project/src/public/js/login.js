@@ -77,17 +77,25 @@ async function handleForgotPassword(e) {
   var form = document.getElementById('forgot-form');
   var btn = document.getElementById('btn-forgot');
   var resetButton = setButtonLoading(btn, 'Đang gửi...');
+  var identifier = document.getElementById('identifier').value.trim();
+  var role = form.dataset.role || 'student';
   clearAuthMessage('forgot-error');
 
   try {
     var data = await postJson(form.dataset.api || '/api/auth/forgot-password', {
-      identifier: document.getElementById('identifier').value.trim(),
-      role: form.dataset.role || 'student'
+      identifier: identifier,
+      role: role
     });
     if (data.success) {
-      setAuthMessage('forgot-error', data.message || 'Đã gửi email đặt lại mật khẩu', 'success');
+      setAuthMessage('forgot-error', data.message || 'Đã gửi mã OTP đặt lại mật khẩu', 'success');
+      var resetPath = data.data && data.data.resetPath
+        ? data.data.resetPath
+        : '/reset-password?identifier=' + encodeURIComponent(identifier) + '&role=' + encodeURIComponent(role);
+      window.setTimeout(function() {
+        window.location.href = resetPath;
+      }, 900);
     } else {
-      setAuthMessage('forgot-error', data.message || 'Không thể gửi email đặt lại mật khẩu');
+      setAuthMessage('forgot-error', data.message || 'Không thể gửi mã OTP đặt lại mật khẩu');
     }
   } catch (err) {
     setAuthMessage('forgot-error', err.message || 'Lỗi kết nối server');
@@ -102,6 +110,9 @@ async function handleResetPassword(e) {
 
   var form = document.getElementById('reset-form');
   var btn = document.getElementById('btn-reset');
+  var identifier = document.getElementById('reset-identifier').value.trim();
+  var otp = document.getElementById('reset-otp').value.trim();
+  var role = document.getElementById('reset-role').value || 'student';
   var newPassword = document.getElementById('new-password').value;
   var confirmPassword = document.getElementById('confirm-password').value;
   clearAuthMessage('reset-error');
@@ -114,7 +125,9 @@ async function handleResetPassword(e) {
   var resetButton = setButtonLoading(btn, 'Đang cập nhật...');
   try {
     var data = await postJson(form.dataset.api || '/api/auth/reset-password', {
-      token: document.getElementById('reset-token').value,
+      identifier: identifier,
+      otp: otp,
+      role: role,
       newPassword: newPassword
     });
     if (data.success) {

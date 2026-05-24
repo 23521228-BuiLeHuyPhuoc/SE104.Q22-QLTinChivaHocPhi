@@ -1,6 +1,10 @@
 const prisma = require('../config/database');
 const { recalculateRegistrationTotals, getRegistrationTypeLabel } = require('./registrationController');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const {
+  PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE,
+  getPaymentRegistrationBlock
+} = require('../utils/paymentRules');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const PAYMENT_SUCCESS = 'Thành công';
@@ -59,6 +63,7 @@ const getAllTuition = async (req, res) => {
       const daDong = t.PHIEUTHUHOCPHI.reduce((s, p) => s + Number(p.SoTienThu), 0);
       const phaiDong = Number(t.TongTienPhaiDong) || 0;
       const conNo = Math.max(phaiDong - daDong, 0);
+      const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
       return {
         SoPhieu: t.SoPhieu,
         MaSv: t.MaSv,
@@ -72,6 +77,8 @@ const getAllTuition = async (req, res) => {
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: daDong,
         conNo,
+        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
+        LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
         QuaHan: conNo > 0 && t.HOCKY.HanDongHocPhi && new Date(t.HOCKY.HanDongHocPhi) < new Date(),
         TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY.HanDongHocPhi)
       };
@@ -97,6 +104,8 @@ const getTuitionById = async (req, res) => {
     if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
     const daDong = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS).reduce((s, p) => s + Number(p.SoTienThu), 0);
     const phaiDong = Number(t.TongTienPhaiDong || 0);
+    const conNo = Math.max(phaiDong - daDong, 0);
+    const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
     res.json({
       success: true,
       data: {
@@ -105,9 +114,12 @@ const getTuitionById = async (req, res) => {
         HoTen: t.SINHVIEN.HoTen,
         TenHocKy: t.HOCKY.TenHocKy,
         HanDongHocPhi: t.HOCKY.HanDongHocPhi,
+        NgayKetThucDangKy: t.HOCKY.NgayKetThucDangKy,
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: daDong,
-        conNo: Math.max(phaiDong - daDong, 0),
+        conNo,
+        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
+        LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
         TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY.HanDongHocPhi),
         courses: t.CHITIETDANGKY.map((c) => ({ MaMonHoc: c.MaMonHoc || c.LOP.MaMonHoc, TenMonHoc: c.MONHOC?.TenMonHoc || c.LOP.MONHOC.TenMonHoc, SoTinChi: c.SoTinChi, LoaiDangKy: c.LoaiDangKy, LoaiDangKyLabel: getRegistrationTypeLabel(c.LoaiDangKy), DonGia: Number(c.DonGia), ThanhTien: Number(c.ThanhTien) })),
         payments: t.PHIEUTHUHOCPHI
@@ -144,15 +156,20 @@ const getStudentTuition = async (req, res) => {
     const data = rows.map((t) => {
       const daDong = t.PHIEUTHUHOCPHI.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
       const phaiDong = Number(t.TongTienPhaiDong || 0);
+      const conNo = Math.max(phaiDong - daDong, 0);
+      const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
       return {
         SoPhieu: t.SoPhieu,
         MaHocKy: t.MaHocKy,
         TenHocKy: t.HOCKY?.TenHocKy,
         TenNamHoc: t.HOCKY?.NAMHOC?.TenNamHoc,
         HanDongHocPhi: t.HOCKY?.HanDongHocPhi,
+        NgayKetThucDangKy: t.HOCKY?.NgayKetThucDangKy,
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: daDong,
-        conNo: Math.max(phaiDong - daDong, 0),
+        conNo,
+        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
+        LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
         TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY?.HanDongHocPhi)
       };
     });

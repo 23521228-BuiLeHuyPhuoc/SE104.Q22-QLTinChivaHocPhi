@@ -1,0 +1,58 @@
+<svg width="1130" height="470" viewBox="60 390 1130 470" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="blueCyan" x1="155" y1="480" x2="430" y2="770" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0EA5FF"/>
+      <stop offset="0.55" stop-color="#1268FF"/>
+      <stop offset="1" stop-color="#00E0C6"/>
+    </linearGradient>
+    <linearGradient id="capGrad" x1="120" y1="430" x2="480" y2="590" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#18C6FF"/>
+      <stop offset="0.55" stop-color="#1477FF"/>
+      <stop offset="1" stop-color="#004DFF"/>
+    </linearGradient>
+    <linearGradient id="payGrad" x1="830" y1="570" x2="1150" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B82FF"/>
+      <stop offset="1" stop-color="#00E0C6"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="190" y1="610" x2="425" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1258FF"/>
+      <stop offset="1" stop-color="#00D7C7"/>
+    </linearGradient>
+    <filter id="softGlow" x="60" y="390" width="1130" height="470" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.000 0 0 0 0 0.650 0 0 0 0 1.000 0 0 0 0.35 0"/>
+      <feBlend mode="normal" in2="SourceGraphic" result="effect"/>
+    </filter>
+    <filter id="textShadow" x="480" y="520" width="700" height="230" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#00CFFF" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softGlow)">
+    <!-- Payment card / book base -->
+    <rect x="193" y="635" width="230" height="136" rx="28" fill="url(#cardGrad)"/>
+    <path d="M193 636C193 607 216 590 245 590H372C392 590 405 582 410 563V585C410 609 391 626 367 626H235C215 626 199 629 193 636Z" fill="#071C45" opacity="0.95"/>
+    <path d="M193 658C193 625 218 617 245 617H374C396 617 410 606 416 587" stroke="#00E7C7" stroke-width="12" stroke-linecap="round" opacity="0.95"/>
+
+    <!-- Graduation cap -->
+    <path d="M116 522L296 452L476 522L296 590L116 522Z" fill="url(#capGrad)"/>
+    <path d="M189 547H406V585C406 606 390 619 369 619H225C204 619 189 606 189 585V547Z" fill="url(#capGrad)"/>
+    <path d="M145 543V637" stroke="#08BFFF" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="145" cy="641" r="14" fill="#0B7CFF"/>
+    <path d="M132 664C132 651 139 644 145 644C151 644 159 651 159 664V676H132V664Z" fill="#0B7CFF"/>
+
+    <!-- Chip -->
+    <rect x="228" y="693" width="48" height="40" rx="7" fill="#FFD86B"/>
+    <path d="M244 693V733M228 707H276M228 720H276M258 693V733" stroke="#EAB84E" stroke-width="4"/>
+
+    <!-- Contactless icon -->
+    <path d="M366 698C374 705 378 713 378 724C378 734 374 743 366 750" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.95"/>
+    <path d="M380 689C392 700 398 711 398 724C398 737 392 749 380 759" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+    <path d="M392 680C408 694 416 709 416 724C416 740 408 756 392 770" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g filter="url(#textShadow)">
+    <text x="505" y="706" font-family="Inter, Montserrat, Arial, sans-serif" font-size="148" font-weight="800" letter-spacing="-5"><tspan fill="#F5F7FB">Edu</tspan><tspan fill="url(#payGrad)">Pay</tspan></text>
+  </g>
+</svg>

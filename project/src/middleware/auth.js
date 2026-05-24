@@ -31,15 +31,17 @@ const getTokenUser = async (decoded) => {
       MaNhom: true,
       MaSv: true,
       HoTen: true,
+      AnhDaiDien: true,
       TrangThai: true,
       TrangThaiDuyet: true,
       SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN: {
-        select: { MaSv: true }
+        select: { MaSv: true, AnhDaiDien: true }
       },
       QUANTRIVIEN: {
         select: {
           HoTen: true,
-          ChucVu: true
+          ChucVu: true,
+          AnhDaiDien: true
         }
       }
     }
@@ -59,7 +61,8 @@ const getTokenUser = async (decoded) => {
     MaNhom: account.MaNhom,
     MaSv: account.MaSv || account.SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.MaSv || decoded.MaSv,
     HoTen: account.QUANTRIVIEN?.HoTen || account.HoTen || decoded.HoTen,
-    ChucVu: account.QUANTRIVIEN?.ChucVu || decoded.ChucVu
+    ChucVu: account.QUANTRIVIEN?.ChucVu || decoded.ChucVu,
+    AnhDaiDien: account.QUANTRIVIEN?.AnhDaiDien || account.SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.AnhDaiDien || account.AnhDaiDien || decoded.AnhDaiDien
   };
 };
 

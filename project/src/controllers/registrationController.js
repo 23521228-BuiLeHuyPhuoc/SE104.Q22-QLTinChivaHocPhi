@@ -291,7 +291,23 @@ const getStudentCourses = async (req, res) => {
         take: limit,
         orderBy: [{ NgayDangKy: 'desc' }, { id: 'desc' }],
         include: {
-          LOP: { include: { MONHOC: true } },
+          LOP: {
+            include: {
+              MONHOC: true,
+              LOPMO: {
+                include: {
+                  LICHHOCLOP: {
+                    where: { TrangThai: true },
+                    include: {
+                      TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
+                      TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+                    },
+                    orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
+                  }
+                }
+              }
+            }
+          },
           MONHOC: true,
           PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } }
         }
@@ -305,6 +321,7 @@ const getStudentCourses = async (req, res) => {
 
     const courses = rows.map((row) => {
       const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
+      const openedClasses = (row.LOP?.LOPMO || []).filter((item) => item.MaHocKy === row.PHIEUDANGKY?.MaHocKy);
       return {
         id: row.id,
         SoPhieu: row.SoPhieu,
@@ -324,6 +341,12 @@ const getStudentCourses = async (req, res) => {
           GiangVien: row.LOP?.GiangVien,
           LichHoc: row.LOP?.LichHoc,
           PhongHoc: row.LOP?.PhongHoc,
+          LOPMO: openedClasses.map((item) => ({
+            id: item.id,
+            MaHocKy: item.MaHocKy,
+            MaLop: item.MaLop,
+            LICHHOCLOP: item.LICHHOCLOP
+          })),
           MONHOC: {
             MaMonHoc: row.MaMonHoc || monHoc.MaMonHoc,
             TenMonHoc: monHoc.TenMonHoc,

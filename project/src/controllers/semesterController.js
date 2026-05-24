@@ -11,6 +11,8 @@ const semesterSelect = (hk) => ({
   ThuTu: hk.ThuTu,
   NgayBatDau: hk.NgayBatDau,
   NgayKetThuc: hk.NgayKetThuc,
+  NgayBatDauDangKy: hk.NgayBatDauDangKy,
+  NgayKetThucDangKy: hk.NgayKetThucDangKy,
   HanDongHocPhi: hk.HanDongHocPhi,
   TrangThai: hk.TrangThai,
   NgayCapNhat: hk.NgayCapNhat,

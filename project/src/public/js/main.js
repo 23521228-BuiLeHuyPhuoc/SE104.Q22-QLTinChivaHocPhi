@@ -13,7 +13,8 @@ function getLoginPathForCurrentPage() {
 
 async function apiFetch(url, options) {
   var opts = options || {};
-  var headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  var isFormData = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+  var headers = Object.assign(isFormData ? {} : { 'Content-Type': 'application/json' }, opts.headers || {});
   var token = getToken();
   if (token) headers.Authorization = 'Bearer ' + token;
 
@@ -21,7 +22,7 @@ async function apiFetch(url, options) {
     method: opts.method || 'GET',
     headers: headers
   };
-  if (opts.body) fetchOpts.body = JSON.stringify(opts.body);
+  if (opts.body) fetchOpts.body = isFormData ? opts.body : JSON.stringify(opts.body);
 
   var res = await fetch(url, fetchOpts);
   if (res.status === 401) {
@@ -65,7 +66,7 @@ function showToast(message, type) {
 
 function setThemeLabel(theme) {
   var icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = theme === 'dark' ? '🌙' : '☀️';
+  if (icon) icon.textContent = theme === 'dark' ? 'dark_mode' : 'light_mode';
 }
 
 function toggleTheme() {
@@ -90,6 +91,7 @@ function toggleSidebar() {
   if (!isMobile) {
     document.body.classList.toggle('sidebar-collapsed');
     localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+    syncSidebarToggleIcon();
     return;
   }
   if (sidebar) {
@@ -97,6 +99,7 @@ function toggleSidebar() {
     if (backdrop) {
       backdrop.classList.toggle('active', sidebar.classList.contains('open'));
     }
+    syncSidebarToggleIcon();
   }
 }
 
@@ -105,6 +108,19 @@ function closeSidebar() {
   var backdrop = document.getElementById('sidebar-backdrop');
   if (sidebar) sidebar.classList.remove('open');
   if (backdrop) backdrop.classList.remove('active');
+  syncSidebarToggleIcon();
+}
+
+function syncSidebarToggleIcon() {
+  var icon = document.getElementById('sidebar-toggle-icon');
+  if (!icon) return;
+  var sidebar = document.getElementById('sidebar');
+  var isMobile = window.matchMedia('(max-width: 768px)').matches;
+  if (isMobile) {
+    icon.textContent = sidebar && sidebar.classList.contains('open') ? 'close' : 'menu';
+    return;
+  }
+  icon.textContent = document.body.classList.contains('sidebar-collapsed') ? 'menu' : 'menu_open';
 }
 
 function formatCurrency(amount) {
@@ -180,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (localStorage.getItem('sidebarCollapsed') === '1') {
     document.body.classList.add('sidebar-collapsed');
   }
+  syncSidebarToggleIcon();
 
   // Auto-animate counters
   document.querySelectorAll('[data-count]').forEach(function(el) {
@@ -196,3 +213,5 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.appendChild(backdrop);
   }
 });
+
+window.addEventListener('resize', syncSidebarToggleIcon);

@@ -74,7 +74,9 @@ const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "NGUOIDUNG"
       ADD COLUMN IF NOT EXISTS "LanDangNhapCuoi" TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS "RefreshToken" VARCHAR(500)
+      ADD COLUMN IF NOT EXISTS "RefreshToken" VARCHAR(500),
+      ADD COLUMN IF NOT EXISTS "AnhDaiDien" VARCHAR(500),
+      ALTER COLUMN "AnhDaiDien" TYPE VARCHAR(500)
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -82,7 +84,15 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "HoTenCha" VARCHAR(100),
       ADD COLUMN IF NOT EXISTS "SdtCha" VARCHAR(15),
       ADD COLUMN IF NOT EXISTS "HoTenMe" VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS "SdtMe" VARCHAR(15)
+      ADD COLUMN IF NOT EXISTS "SdtMe" VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS "AnhDaiDien" VARCHAR(500),
+      ALTER COLUMN "AnhDaiDien" TYPE VARCHAR(500)
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "QUANTRIVIEN"
+      ADD COLUMN IF NOT EXISTS "AnhDaiDien" VARCHAR(500),
+      ALTER COLUMN "AnhDaiDien" TYPE VARCHAR(500)
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -113,6 +123,8 @@ const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "HOCKY"
       ADD COLUMN IF NOT EXISTS "ThuTu" INTEGER DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS "NgayBatDauDangKy" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayKetThucDangKy" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   `);
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 // const rateLimit = require('express-rate-limit');
@@ -32,6 +33,19 @@ const viewRoutes = require('./routes/viewRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const logoFileName = 'logo_tin_chi_hoc_phi_dark.svg';
+const logoDiskPath = path.join(__dirname, '..', 'uploads', 'logos', logoFileName);
+const authLogoFileName = 'logo_tin_chi_hoc_phi_light.svg';
+const authLogoDiskPath = path.join(__dirname, '..', 'uploads', 'logos', authLogoFileName);
+
+function getVersionedUploadLogoUrl(fileName, diskPath) {
+  try {
+    const version = Math.floor(fs.statSync(diskPath).mtimeMs);
+    return `/uploads/logos/${fileName}?v=${version}`;
+  } catch (error) {
+    return `/uploads/logos/${fileName}`;
+  }
+}
 
 // ==========================================
 // View Engine Setup (Pug SSR)
@@ -39,6 +53,14 @@ const PORT = process.env.PORT || 5000;
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('view cache');
+
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  etag: false,
+  maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+}));
 
 // Static files (CSS, JS, images)
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -54,6 +76,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+app.use((req, res, next) => {
+  res.locals.logoUrl = getVersionedUploadLogoUrl(logoFileName, logoDiskPath);
+  res.locals.authLogoUrl = getVersionedUploadLogoUrl(authLogoFileName, authLogoDiskPath);
+  next();
+});
 
 // Request logging middleware
 app.use((req, res, next) => {

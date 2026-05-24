@@ -1,50 +1,66 @@
 - const active = activePage || currentPage || ''
 - const studentName = user && user.studentInfo ? (user.studentInfo.HoTen || user.studentInfo.ho_ten || 'Sinh viên') : (user ? (user.HoTen || user.username || 'Sinh viên') : 'Sinh viên')
 - const studentCode = user && user.studentInfo ? (user.studentInfo.MaSv || user.studentInfo.ma_sv || '') : (user ? (user.MaSv || '') : '')
+- const studentAvatarUrl = user ? (user.AnhDaiDien || (user.studentInfo ? user.studentInfo.AnhDaiDien : '') || '') : ''
+- const systemLogoUrl = typeof logoUrl !== 'undefined' ? logoUrl : '/uploads/logos/logo_tin_chi_hoc_phi_dark.svg?v=20260524201000'
 
 nav.sidebar.sidebar-student(id="sidebar")
   .sidebar-brand
-    .brand-mark TC
-    div
-      h2 Cổng Sinh Viên
-      small Tín chỉ, lịch học và học phí
+    .sidebar-logo-wrap
+      img.sidebar-logo(src=systemLogoUrl alt="Logo hệ thống")
 
   .sidebar-nav
     .sidebar-section
       .sidebar-section-title Tổng quan
-      a.sidebar-link(href="/student/dashboard" class=(active === 'dashboard' ? 'active' : ''))
-        span Bảng điều khiển
+      a.sidebar-link(href="/student/dashboard" title="Bảng điều khiển" class=(active === 'dashboard' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded dashboard
+        span.link-label Bảng điều khiển
 
     .sidebar-section
       .sidebar-section-title Học tập
-      a.sidebar-link(href="/student/course-registration" class=(active === 'course-registration' ? 'active' : ''))
-        span Đăng ký môn
-      a.sidebar-link(href="/student/my-courses" class=(active === 'my-courses' ? 'active' : ''))
-        span Môn đã đăng ký
-      a.sidebar-link(href="/student/completed-courses" class=(active === 'completed-courses' ? 'active' : ''))
-        span Môn đã học
-      a.sidebar-link(href="/student/my-schedule" class=(active === 'my-schedule' ? 'active' : ''))
-        span Thời khóa biểu
-      a.sidebar-link(href="/student/curriculum" class=(active === 'curriculum' ? 'active' : ''))
-        span Chương trình ĐT
+      a.sidebar-link(href="/student/course-registration" title="Đăng ký môn" class=(active === 'course-registration' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded add_task
+        span.link-label Đăng ký môn
+      a.sidebar-link(href="/student/my-courses" title="Môn đã đăng ký" class=(active === 'my-courses' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded checklist
+        span.link-label Môn đã đăng ký
+      a.sidebar-link(href="/student/completed-courses" title="Môn đã học" class=(active === 'completed-courses' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded history_edu
+        span.link-label Môn đã học
+      a.sidebar-link(href="/student/my-schedule" title="Thời khóa biểu" class=(active === 'my-schedule' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded calendar_month
+        span.link-label Thời khóa biểu
+      a.sidebar-link(href="/student/curriculum" title="Chương trình đào tạo" class=(active === 'curriculum' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded account_tree
+        span.link-label Chương trình ĐT
 
     .sidebar-section
       .sidebar-section-title Tài chính
-      a.sidebar-link(href="/student/my-tuition" class=(active === 'my-tuition' ? 'active' : ''))
-        span Học phí
-      a.sidebar-link(href="/student/my-payments" class=(active === 'my-payments' ? 'active' : ''))
-        span Lịch sử thanh toán
+      a.sidebar-link(href="/student/my-tuition" title="Học phí" class=(active === 'my-tuition' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded account_balance_wallet
+        span.link-label Học phí
+      a.sidebar-link(href="/student/my-payments" title="Lịch sử thanh toán" class=(active === 'my-payments' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded receipt_long
+        span.link-label Lịch sử thanh toán
 
     .sidebar-section
       .sidebar-section-title Cá nhân
-      a.sidebar-link(href="/student/profile" class=(active === 'profile' ? 'active' : ''))
-        span Hồ sơ
-      a.sidebar-link(href="/student/notifications" class=(active === 'notifications' ? 'active' : ''))
-        span Thông báo
+      a.sidebar-link(href="/student/profile" title="Hồ sơ" class=(active === 'profile' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded person
+        span.link-label Hồ sơ
+      a.sidebar-link(href="/student/notifications" title="Thông báo" class=(active === 'notifications' ? 'active' : ''))
+        span.sidebar-icon.material-symbols-rounded notifications
+        span.link-label Thông báo
 
   .sidebar-footer
     .sidebar-user
-      .avatar= studentName.charAt(0).toUpperCase()
-      div
+      if studentAvatarUrl
+        img.avatar.avatar-image(src=studentAvatarUrl alt=studentName)
+      else
+        .avatar= studentName.charAt(0).toUpperCase()
+      .sidebar-user-info
         div= studentName
         small= studentCode
+    a.sidebar-logout(href="/logout" title="Đăng xuất")
+      span.sidebar-icon.material-symbols-rounded logout
+      span.link-label Đăng xuất

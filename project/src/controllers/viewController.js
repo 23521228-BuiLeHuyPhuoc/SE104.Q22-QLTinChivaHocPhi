@@ -25,10 +25,11 @@ async function getUserFromToken(token) {
         MaNhom: true,
         MaSv: true,
         HoTen: true,
+        AnhDaiDien: true,
         TrangThai: true,
         TrangThaiDuyet: true,
-        SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN: { select: { MaSv: true } },
-        QUANTRIVIEN: { select: { HoTen: true, ChucVu: true } }
+        SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN: { select: { MaSv: true, AnhDaiDien: true } },
+        QUANTRIVIEN: { select: { HoTen: true, ChucVu: true, AnhDaiDien: true } }
       }
     });
 
@@ -43,7 +44,8 @@ async function getUserFromToken(token) {
       MaNhom: account.MaNhom,
       MaSv: account.MaSv || account.SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.MaSv || decoded.MaSv,
       HoTen: account.QUANTRIVIEN?.HoTen || account.HoTen || decoded.HoTen,
-      ChucVu: account.QUANTRIVIEN?.ChucVu || decoded.ChucVu
+      ChucVu: account.QUANTRIVIEN?.ChucVu || decoded.ChucVu,
+      AnhDaiDien: account.QUANTRIVIEN?.AnhDaiDien || account.SINHVIEN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.AnhDaiDien || account.AnhDaiDien || decoded.AnhDaiDien
     };
   } catch (e) {
     return null;
@@ -191,7 +193,7 @@ const renderForgotPasswordPage = async (req, res, forgotRole) => {
     forgotApiPath: '/api/auth/forgot-password',
     loginPath: isAdminForgot ? '/admin/login' : '/login',
     forgotTitle: isAdminForgot ? 'Quên mật khẩu Admin' : 'Quên mật khẩu Sinh viên',
-    forgotSubtitle: 'Nhập tên đăng nhập hoặc email để nhận liên kết đặt lại mật khẩu',
+    forgotSubtitle: 'Nhập tên đăng nhập hoặc email để nhận mã OTP đặt lại mật khẩu',
     brandMark: isAdminForgot ? 'AD' : 'SV'
   });
 };
@@ -205,11 +207,13 @@ const adminForgotPasswordPage = (req, res) => {
 };
 
 const resetPasswordPage = (req, res) => {
+  const resetRole = req.query.role === 'admin' ? 'admin' : 'student';
   res.render('pages/reset-password', {
     pageTitle: 'Đặt lại mật khẩu',
     resetApiPath: '/api/auth/reset-password',
-    token: req.query.token || '',
-    loginPath: '/login',
+    identifier: req.query.identifier || req.query.username || req.query.email || '',
+    resetRole,
+    loginPath: resetRole === 'admin' ? '/admin/login' : '/login',
     brandMark: 'TC'
   });
 };

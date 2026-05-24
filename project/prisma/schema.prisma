@@ -133,6 +133,11 @@ model DIEUKIENMONHOC {
   MoTa                                        String?   @db.VarChar(200)
   TrangThai                                   Boolean?  @default(true)
   NgayTao                                     DateTime? @default(now()) @db.Timestamp(6)
+  NguoiCapNhat                                Int?
+  NgayCapNhat                                 DateTime? @db.Timestamp(6)
+  DaXoa                                       Boolean   @default(false)
+  NguoiXoa                                    Int?
+  NgayXoa                                     DateTime? @db.Timestamp(6)
   MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC      MONHOC    @relation("DIEUKIENMONHOC_MaMonHocToMONHOC", fields: [MaMonHoc], references: [MaMonHoc], onDelete: Cascade, map: "fk_dkmh_monhoc")
   MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC MONHOC    @relation("DIEUKIENMONHOC_MaMonDieuKienToMONHOC", fields: [MaMonDieuKien], references: [MaMonHoc], onDelete: Cascade, map: "fk_dkmh_monhoc_dk")
 
@@ -420,7 +425,7 @@ model QUANTRIVIEN {
   DiaChi        String?   @db.VarChar(200)
   ChucVu        String?   @db.VarChar(100)
   PhongBan      String?   @db.VarChar(100)
-  AnhDaiDien    String?   @db.VarChar(255)
+  AnhDaiDien    String?   @db.VarChar(500)
   GhiChu        String?   @db.VarChar(300)
   TrangThai     Boolean?  @default(true)
   NgayTao       DateTime? @default(now()) @db.Timestamp(6)
@@ -442,7 +447,7 @@ model SINHVIEN {
   DiaChiLienHe                           String             @db.VarChar(200)
   Sdt                                    String?            @db.VarChar(15)
   Email                                  String?            @db.VarChar(100)
-  AnhDaiDien                             String?            @db.VarChar(255)
+  AnhDaiDien                             String?            @db.VarChar(500)
   HoTenCha                               String?            @db.VarChar(100)
   SdtCha                                 String?            @db.VarChar(15)
   HoTenMe                                String?            @db.VarChar(100)
@@ -478,7 +483,7 @@ model TAIKHOAN {
   HoTen                                      String?        @db.VarChar(100)
   Email                                      String?        @db.VarChar(100)
   Sdt                                        String?        @db.VarChar(15)
-  AnhDaiDien                                 String?        @db.VarChar(255)
+  AnhDaiDien                                 String?        @db.VarChar(500)
   LanDangNhapCuoi                            DateTime?      @db.Timestamp(6)
   RefreshToken                               String?        @db.VarChar(500)
   TrangThai                                  Boolean?       @default(true)
@@ -550,6 +555,11 @@ model TIETHOC {
   MoTa                                         String?      @db.VarChar(200)
   TrangThai                                    Boolean?     @default(true)
   NgayTao                                      DateTime?    @default(now()) @db.Timestamp(6)
+  NguoiCapNhat                                 Int?
+  NgayCapNhat                                  DateTime?    @db.Timestamp(6)
+  DaXoa                                        Boolean      @default(false)
+  NguoiXoa                                     Int?
+  NgayXoa                                      DateTime?    @db.Timestamp(6)
   LICHHOCLOP_LICHHOCLOP_MaTietBatDauToTIETHOC  LICHHOCLOP[] @relation("LICHHOCLOP_MaTietBatDauToTIETHOC")
   LICHHOCLOP_LICHHOCLOP_MaTietKetThucToTIETHOC LICHHOCLOP[] @relation("LICHHOCLOP_MaTietKetThucToTIETHOC")
 }

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { getActorName } = require('../utils/audit');
+const { assertRegistrationPeriodClosedForPayment } = require('../utils/paymentRules');
 
 const PAYMENT_SUCCESS = 'Thành công';
 const PAYMENT_PENDING = 'Chờ xác nhận';
@@ -180,16 +181,7 @@ const createPayment = async (req, res) => {
     if (!MaSv || !MaHocKy || !SoTienThu) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ thông tin' });
     const registration = await getRegistrationForPayment({ MaSv, MaHocKy });
     const amount = assertPayableAmount(registration, SoTienThu);
-
-    // Block payment if course registration period is still ongoing
-    const now = new Date();
-    const deadline = registration.HOCKY?.NgayKetThucDangKy;
-    if (deadline && now <= new Date(deadline)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Học kỳ này vẫn đang trong thời hạn đăng ký học phần. Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.'
-      });
-    }
+    assertRegistrationPeriodClosedForPayment(registration);
 
     const payment = await prisma.PHIEUTHUHOCPHI.create({
       data: {
@@ -220,16 +212,7 @@ const checkoutPayment = async (req, res) => {
     const registration = await getRegistrationForPayment({ SoPhieu, MaSv: currentStudentId || MaSv, MaHocKy });
     if (!(await ensureStudentAccess(req, res, registration?.MaSv))) return;
     const amount = assertPayableAmount(registration, SoTienThu);
-
-    // Block payment if course registration period is still ongoing
-    const now = new Date();
-    const deadline = registration.HOCKY?.NgayKetThucDangKy;
-    if (deadline && now <= new Date(deadline)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Học kỳ này vẫn đang trong thời hạn đăng ký học phần. Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.'
-      });
-    }
+    assertRegistrationPeriodClosedForPayment(registration);
 
     const provider = String(method).toLowerCase();
     const isCash = provider === 'cash';
@@ -290,6 +273,13 @@ const checkoutPayment = async (req, res) => {
 const markOnlineResult = async (receiptId, success, transactionCode) => {
   const id = parseInt(receiptId, 10);
   if (!Number.isFinite(id)) return null;
+  const existing = await prisma.PHIEUTHUHOCPHI.findUnique({
+    where: { SoPhieuThu: id },
+    include: { PHIEUDANGKY: { include: { HOCKY: true } } }
+  });
+  if (!existing) return null;
+  if (success) assertRegistrationPeriodClosedForPayment(existing.PHIEUDANGKY);
+
   return prisma.PHIEUTHUHOCPHI.update({
     where: { SoPhieuThu: id },
     data: {
@@ -307,6 +297,7 @@ const vnpayReturn = async (req, res) => {
     const payment = await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo);
     res.json({ success: true, data: payment, message: success ? 'Thanh toán VNPAY thành công' : 'Thanh toán VNPAY thất bại' });
   } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
     console.error('VNPAY return error:', error);
     res.status(500).json({ success: false, message: 'Không thể cập nhật thanh toán VNPAY' });
   }
@@ -342,6 +333,7 @@ const confirmPayment = async (req, res) => {
       include: {
         PHIEUDANGKY: {
           include: {
+            HOCKY: true,
             PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS } }
           }
         }
@@ -354,6 +346,7 @@ const confirmPayment = async (req, res) => {
     if ([PAYMENT_FAILED, PAYMENT_CANCELLED].includes(existing.TrangThai)) {
       return res.status(400).json({ success: false, message: 'Không thể xác nhận phiếu thu đã thất bại hoặc đã hủy' });
     }
+    assertRegistrationPeriodClosedForPayment(existing.PHIEUDANGKY);
 
     const remaining = getRemainingAmount(existing.PHIEUDANGKY);
     if (Number(existing.SoTienThu || 0) > remaining) {
@@ -371,6 +364,7 @@ const confirmPayment = async (req, res) => {
     });
     res.json({ success: true, message: 'Đã xác nhận thanh toán', data: payment });
   } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
     console.error('Confirm payment error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }

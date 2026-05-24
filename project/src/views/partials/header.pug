@@ -1,12 +1,10 @@
 - const displayName = user ? (user.HoTen || user.username || user.TenDangNhap || user.Role || 'Người dùng') : ''
+- const userAvatarUrl = user ? (user.AnhDaiDien || '') : ''
 
 header.top-header
   .header-left
     button.sidebar-toggle(type="button" onclick="toggleSidebar()" aria-label="Mở menu")
-      span.menu-bars
-        span
-        span
-        span
+      span#sidebar-toggle-icon.material-symbols-rounded menu_open
     div
       h1= headerTitle || pageTitle || 'Bảng điều khiển'
       if headerSubtitle
@@ -14,12 +12,14 @@ header.top-header
 
   .header-right
     button.theme-toggle(type="button" onclick="toggleTheme()" title="Đổi giao diện" aria-label="Đổi giao diện")
-      span#theme-icon ☀️
+      span#theme-icon.material-symbols-rounded light_mode
     - const notifHref = user && user.Role === 'admin' ? '/admin/dashboard' : '/student/notifications'
     button.notification-bell(type="button" title="Thông báo" aria-label="Thông báo" onclick=`window.location.href='${notifHref}'`)
-      span 🔔
+      span.material-symbols-rounded notifications
     if displayName
       .header-user
-        .user-avatar= displayName.charAt(0).toUpperCase()
+        if userAvatarUrl
+          img.user-avatar.avatar-image(src=userAvatarUrl alt=displayName)
+        else
+          .user-avatar= displayName.charAt(0).toUpperCase()
         span= displayName
-    a.btn-logout(href="/logout") Đăng xuất

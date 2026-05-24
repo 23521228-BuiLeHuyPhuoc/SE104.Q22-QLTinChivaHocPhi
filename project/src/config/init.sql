@@ -204,7 +204,7 @@ CREATE TABLE "NGUOIDUNG" (
     "HoTen" VARCHAR(100),
     "Email" VARCHAR(100),
     "Sdt" VARCHAR(15),
-    "AnhDaiDien" VARCHAR(255),
+    "AnhDaiDien" VARCHAR(500),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "TrangThaiDuyet" VARCHAR(20) NOT NULL DEFAULT 'approved',
     "NgayDuyet" TIMESTAMP,
@@ -256,7 +256,7 @@ CREATE TABLE "SINHVIEN" (
     "DiaChiLienHe" VARCHAR(200),
     "Sdt" VARCHAR(15),
     "Email" VARCHAR(100),
-    "AnhDaiDien" VARCHAR(255),
+    "AnhDaiDien" VARCHAR(500),
     "NgayNhapHoc" DATE DEFAULT CURRENT_DATE,
     "TrangThai" VARCHAR(30) DEFAULT 'Đang học',
     "GhiChu" VARCHAR(300),
@@ -318,7 +318,7 @@ CREATE TABLE "QUANTRIVIEN" (
     "DiaChi" VARCHAR(200),
     "ChucVu" VARCHAR(100),
     "PhongBan" VARCHAR(100),
-    "AnhDaiDien" VARCHAR(255),
+    "AnhDaiDien" VARCHAR(500),
     "GhiChu" VARCHAR(300),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -5997,15 +5997,15 @@ INSERT INTO "NAMHOC" ("MaNamHoc", "TenNamHoc", "NamBatDau", "NamKetThuc") VALUES
 -- =====================================================
 -- INSERT DATA - Học kỳ (Semesters)
 -- =====================================================
-INSERT INTO "HOCKY" ("MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "NgayBatDau", "NgayKetThuc", "HanDongHocPhi", "TrangThai") VALUES
-('HK1-2324', 'Học kỳ I', '2023-2024', 'Chính', '2023-09-01', '2024-01-15', '2023-10-15', 'Đã kết thúc'),
-('HK2-2324', 'Học kỳ II', '2023-2024', 'Chính', '2024-02-01', '2024-06-15', '2024-03-15', 'Đã kết thúc'),
-('HKH-2324', 'Học kỳ Hè', '2023-2024', 'Hè', '2024-07-01', '2024-08-15', '2024-07-15', 'Đã kết thúc'),
-('HK1-2425', 'Học kỳ I', '2024-2025', 'Chính', '2024-09-01', '2025-01-15', '2024-10-15', 'Đã kết thúc'),
-('HK2-2425', 'Học kỳ II', '2024-2025', 'Chính', '2025-02-01', '2025-06-15', '2025-03-15', 'Đang diễn ra'),
-('HKH-2425', 'Học kỳ Hè', '2024-2025', 'Hè', '2025-07-01', '2025-08-15', '2025-07-15', 'Sắp diễn ra'),
-('HK1-2526', 'Học kỳ I', '2025-2026', 'Chính', '2025-09-01', '2026-01-15', '2025-10-15', 'Sắp diễn ra'),
-('HK2-2526', 'Học kỳ II', '2025-2026', 'Chính', '2026-02-01', '2026-06-15', '2026-03-15', 'Sắp diễn ra');
+INSERT INTO "HOCKY" ("MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "NgayBatDau", "NgayKetThuc", "NgayBatDauDangKy", "NgayKetThucDangKy", "HanDongHocPhi", "TrangThai") VALUES
+('HK1-2324', 'Học kỳ I', '2023-2024', 'Chính', '2023-09-01', '2024-01-15', '2023-08-15 00:00:00', '2023-08-31 23:59:59', '2023-10-15', 'Đã kết thúc'),
+('HK2-2324', 'Học kỳ II', '2023-2024', 'Chính', '2024-02-01', '2024-06-15', '2024-01-15 00:00:00', '2024-01-31 23:59:59', '2024-03-15', 'Đã kết thúc'),
+('HKH-2324', 'Học kỳ Hè', '2023-2024', 'Hè', '2024-07-01', '2024-08-15', '2024-06-15 00:00:00', '2024-06-30 23:59:59', '2024-07-15', 'Đã kết thúc'),
+('HK1-2425', 'Học kỳ I', '2024-2025', 'Chính', '2024-09-01', '2025-01-15', '2024-09-01 00:00:00', '2024-09-19 23:59:59', '2024-10-15', 'Đã kết thúc'),
+('HK2-2425', 'Học kỳ II', '2024-2025', 'Chính', '2025-02-01', '2025-06-15', '2025-01-15 00:00:00', '2025-01-24 23:59:59', '2025-03-15', 'Đang diễn ra'),
+('HKH-2425', 'Học kỳ Hè', '2024-2025', 'Hè', '2025-07-01', '2025-08-15', '2025-06-15 00:00:00', '2025-06-30 23:59:59', '2025-07-15', 'Sắp diễn ra'),
+('HK1-2526', 'Học kỳ I', '2025-2026', 'Chính', '2025-09-01', '2026-01-15', '2025-08-15 00:00:00', '2025-08-31 23:59:59', '2025-10-15', 'Sắp diễn ra'),
+('HK2-2526', 'Học kỳ II', '2025-2026', 'Chính', '2026-02-01', '2026-06-15', '2026-01-15 00:00:00', '2026-01-31 23:59:59', '2026-03-15', 'Sắp diễn ra');
 
 -- =====================================================
 -- INSERT DATA - Đơn giá tín chỉ (Unit Prices per Credit)

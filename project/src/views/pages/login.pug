@@ -5,10 +5,12 @@ block content
   - const isAdminLogin = role === 'admin'
   - const actionPath = loginAction || (isAdminLogin ? '/admin/login' : '/login')
   - const apiPath = loginApiPath || (isAdminLogin ? '/api/auth/admin/login' : '/api/auth/login')
+  - const systemLogoUrl = typeof authLogoUrl !== 'undefined' ? authLogoUrl : '/uploads/logos/logo_tin_chi_hoc_phi_light.svg?v=20260524200000'
   .login-page(class=isAdminLogin ? 'login-page-admin' : 'login-page-student')
     .login-card
       .login-brand
-        .brand-mark= brandMark || (isAdminLogin ? 'AD' : 'SV')
+        .login-logo-wrap
+          img.login-logo(src=systemLogoUrl alt="Logo hệ thống")
         div
           h1= loginTitle || (isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên')
           .subtitle= loginSubtitle || 'Hệ thống quản lý tín chỉ và học phí'
