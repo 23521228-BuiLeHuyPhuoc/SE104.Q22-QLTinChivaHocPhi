@@ -55,54 +55,102 @@ Dự án tuân thủ chặt chẽ mô hình kiến trúc MVC rõ ràng:
 └── README.md
 ```
 
-## ⚙️ Hướng dẫn cài đặt & Chạy trên máy cá nhân
+## ⚙️ Hướng dẫn cài đặt & Khởi chạy dự án
 
 ### Yêu cầu tiên quyết (Prerequisites)
-- [Node.js](https://nodejs.org/en/) (>= phiên bản 18.x)
-- [PostgreSQL](https://www.postgresql.org/download/) (>= phiên bản 14) chạy nền
-- npm hoặc yarn package manager
+* [Node.js](https://nodejs.org/en/) (phiên bản khuyến nghị >= 18.x)
+* [PostgreSQL](https://www.postgresql.org/download/) (phiên bản >= 14) đã được cài đặt và đang chạy.
 
-### Các bước cài đặt
+---
 
-**1. Clone dự án và cài đặt dependencies**
+### Các bước triển khai chi tiết
+
+#### 1. Tải mã nguồn dự án
 ```bash
 git clone https://github.com/23521228-BuiLeHuyPhuoc/SE104.Q22-QLTinChivaHocPhi.git
-cd SE104.Q22-QLTinChivaHocPhi/project
-yarn install
+cd SE104.Q22-QLTinChivaHocPhi
 ```
 
-**2. Cấu hình biến môi trường (`.env`)**
-Tạo file `.env` ở thư mục `project/` (hoặc copy từ `.env.example`) với nội dung tương tự sau:
-```dotenv
-PORT=5000
-DATABASE_URL="postgresql://postgres:MAT_KHAU_CUA_BAN@localhost:5432/ql_dangky_hocphi?schema=public"
-JWT_SECRET="SE104_SECRET_KEY_DANGKY_HOCPHI"
-```
+#### 2. Khởi tạo Cơ sở dữ liệu (Database Setup)
+Hệ thống sử dụng PostgreSQL làm CSDL chính. Hãy thực hiện các bước sau để thiết lập:
 
-**3. Khởi tạo Database (Prisma)**
-Kéo toàn bộ Data models từ DB PostgreSQL đã chuẩn bị (đảm bảo DB rỗng hoặc mới tạo theo tên trong URL) vào môi trường Prisma:
+* **Bước A**: Đăng nhập vào PostgreSQL (pgAdmin hoặc Command Line) và tạo một cơ sở dữ liệu mới mang tên `ql_dangky_hocphi`:
+  ```sql
+  CREATE DATABASE ql_dangky_hocphi;
+  ```
+* **Bước B**: Nạp cấu hình bảng và dữ liệu mẫu ban đầu từ tệp `init.sql`:
+  ```bash
+  psql -U postgres -d ql_dangky_hocphi -f project/src/config/init.sql
+  ```
+* **Bước C**: Nạp dữ liệu danh sách Tỉnh/Thành phố/Phường/Xã từ tệp `ITExpressLocation.sql` ở thư mục gốc (bắt buộc để phục vụ tính năng chọn Địa chỉ và đối tượng miễn giảm học phí):
+  ```bash
+  psql -U postgres -d ql_dangky_hocphi -f ITExpressLocation.sql
+  ```
+  *(Thay thế `-U postgres` bằng username PostgreSQL của bạn nếu sử dụng tài khoản khác).*
+
+---
+
+#### 3. Cấu hình ứng dụng
+Di chuyển vào thư mục `project/` để thiết lập môi trường:
 ```bash
-npx prisma db pull
+cd project
+```
+* Tạo tệp cấu hình môi trường `.env` bằng cách nhân bản từ tệp `.env.example`:
+  ```bash
+  cp .env.example .env
+  ```
+* Mở tệp `.env` vừa tạo và cập nhật chính xác thông tin đăng nhập PostgreSQL của bạn tại dòng `DATABASE_URL`:
+  ```dotenv
+  PORT=5000
+  DATABASE_URL="postgresql://postgres:MAT_KHAU_POSTGRES_CUA_BAN@localhost:5432/ql_dangky_hocphi?schema=public"
+  JWT_SECRET="builehuyphuoc"
+  JWT_EXPIRES_IN="24h"
+  ```
+
+---
+
+#### 4. Cài đặt thư viện & Khởi tạo Prisma Client
+Tại thư mục `project/`, chạy các lệnh sau:
+```bash
+# Cài đặt toàn bộ dependencies của dự án
+yarn install
+# (Hoặc sử dụng npm: npm install)
+
+# Sinh mã Prisma Client tương ứng với Schema hiện tại
 npx prisma generate
 ```
 
-**4. Chạy dự án**
-```bash
-# Chạy ở chế độ dành cho nhà phát triển (Development Mode - Live server reload)
-yarn dev
+---
 
-# Hoặc chế độ khởi động tiêu chuẩn
+#### 5. Khởi chạy Ứng dụng
+```bash
+# Khởi chạy chế độ phát triển (Development Mode - Hỗ trợ Hot Reload tự động cập nhật code)
+yarn dev
+# (Hoặc sử dụng npm: npm run dev)
+
+# Khởi chạy chế độ Production tiêu chuẩn
 yarn start
+# (Hoặc sử dụng npm: npm start)
 ```
 
-Sau khi chạy xong, Server sẽ mở cổng tại địa chỉ: `http://localhost:5000`
+Sau khi khởi chạy thành công, mở trình duyệt của bạn và truy cập địa chỉ: **[http://localhost:5000](http://localhost:5000)**
 
-### 🔐 Thông tin Đăng nhập Mặc định
-- Quản trị viên (Admin):
-  - Tên đăng nhập: `admin`
-  - Mật khẩu: `admin123`
-- Đối với sinh viên, vui lòng vào giao diện Admin để tạo tài khoản hoặc sử dụng mã sinh viên có sẵn (VD: Mã SV làm tên đăng nhập, mk: `student123`).
+---
 
-## 📝 Bản quyền & Tác giả
-- Đồ án phát triển Hệ thống Môn học (SE104.Q22).
-- Tác giả: Nhóm sinh viên thực hiện đồ án (Bui Le Huy Phuoc).
+### 🔐 Thông tin Đăng nhập Mẫu (Mặc định)
+
+Hệ thống đã chèn sẵn các tài khoản mẫu phục vụ quá trình dùng thử và chấm điểm đồ án:
+
+| Vai trò (Role) | Cổng đăng nhập | Tài khoản (Username) | Mật khẩu (Password) | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- |
+| **Quản trị viên** | `/admin/login` | `admin` | `admin123` | Toàn quyền quản trị hệ thống |
+| **Sinh viên Mẫu** | `/student/login` | `student` | `student123` | Tài khoản sinh viên liên kết hồ sơ mẫu |
+| **Sinh viên 1** | `/student/login` | `22520001` | `student123` | Sinh viên Nguyễn Văn An (Lớp KTPM) |
+| **Sinh viên 2** | `/student/login` | `22520002` | `student123` | Sinh viên Trần Thị Bình (Lớp KHMT) |
+
+---
+
+## 📝 Bản quyền & Đóng góp
+* Đồ án phát triển Hệ thống Môn học (SE104.Q22).
+* Người đóng góp chính: **Bui Le Huy Phuoc** và các thành viên nhóm.
+

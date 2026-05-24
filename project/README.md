@@ -54,48 +54,92 @@ Dự án tuân thủ chặt chẽ mô hình kiến trúc MVC rõ ràng:
 └── .env                     # Biến môi trường
 ```
 
-## ⚙️ Hướng dẫn cài đặt & Chạy trên máy cá nhân
+## ⚙️ Hướng dẫn cài đặt & Khởi chạy dự án
 
 ### Yêu cầu tiên quyết (Prerequisites)
-- [Node.js](https://nodejs.org/en/) (>= phiên bản 18.x)
-- [PostgreSQL](https://www.postgresql.org/download/) (>= phiên bản 14)
-- Yarn package manager (`npm install -g yarn`)
+* [Node.js](https://nodejs.org/en/) (phiên bản khuyến nghị >= 18.x)
+* [PostgreSQL](https://www.postgresql.org/download/) (phiên bản >= 14) đã được cài đặt và đang chạy.
 
-### Các bước cài đặt
+---
 
-**1. Clone dự án và cài đặt dependencies**
+### Các bước triển khai chi tiết
+
+#### 1. Khởi tạo Cơ sở dữ liệu (Database Setup)
+Hệ thống sử dụng PostgreSQL làm CSDL chính. Hãy thực hiện các bước sau để thiết lập:
+
+* **Bước A**: Đăng nhập vào PostgreSQL (pgAdmin hoặc Command Line) và tạo một cơ sở dữ liệu mới mang tên `ql_dangky_hocphi`:
+  ```sql
+  CREATE DATABASE ql_dangky_hocphi;
+  ```
+* **Bước B**: Nạp cấu hình bảng và dữ liệu mẫu ban đầu từ tệp `init.sql`:
+  ```bash
+  psql -U postgres -d ql_dangky_hocphi -f src/config/init.sql
+  ```
+* **Bước C**: Nạp dữ liệu danh sách Tỉnh/Thành phố/Phường/Xã từ tệp `ITExpressLocation.sql` ở thư mục cha:
+  ```bash
+  psql -U postgres -d ql_dangky_hocphi -f ../ITExpressLocation.sql
+  ```
+  *(Thay thế `-U postgres` bằng username PostgreSQL của bạn nếu sử dụng tài khoản khác).*
+
+---
+
+#### 2. Cấu hình ứng dụng
+Tạo tệp cấu hình môi trường `.env` bằng cách sao chép từ tệp `.env.example`:
 ```bash
-git clone https://github.com/23521228-BuiLeHuyPhuoc/SE104.Q22-QLTinChivaHocPhi.git
-cd SE104.Q22-QLTinChivaHocPhi/project
+cp .env.example .env
+```
+* Mở tệp `.env` vừa tạo và cập nhật chính xác thông tin đăng nhập PostgreSQL của bạn tại dòng `DATABASE_URL`:
+  ```dotenv
+  PORT=5000
+  DATABASE_URL="postgresql://postgres:MAT_KHAU_POSTGRES_CUA_BAN@localhost:5432/ql_dangky_hocphi?schema=public"
+  JWT_SECRET="builehuyphuoc"
+  JWT_EXPIRES_IN="24h"
+  ```
+
+---
+
+#### 3. Cài đặt thư viện & Khởi tạo Prisma Client
+Chạy các lệnh sau:
+```bash
+# Cài đặt toàn bộ dependencies của dự án
 yarn install
-```
+# (Hoặc sử dụng npm: npm install)
 
-**2. Cấu hình biến môi trường (`.env`)**
-Tạo file `.env` ở thư mục gốc (hoặc sửa đổi cấu hình trong `.env.example` thành `.env`) với nội dung:
-```dotenv
-PORT=5000
-DATABASE_URL="postgresql://<user>:<password>@localhost:5432/<database_name>?schema=public"
-JWT_SECRET="YOUR_SECRET_KEY"
-```
-
-**3. Khởi tạo Database (Prisma)**
-Trích xuất database xuống Schema Prisma:
-```bash
-npx prisma db pull
+# Sinh mã Prisma Client tương ứng với Schema hiện tại
 npx prisma generate
 ```
 
-**4. Chạy dự án**
-```bash
-# Chạy ở chế độ dành cho nhà phát triển (Development Mode)
-yarn dev
+---
 
-# Hoặc chế độ khởi động tiêu chuẩn
+#### 4. Khởi chạy Ứng dụng
+```bash
+# Khởi chạy chế độ phát triển (Development Mode - Hỗ trợ Hot Reload tự động cập nhật code)
+yarn dev
+# (Hoặc sử dụng npm: npm run dev)
+
+# Khởi chạy chế độ Production tiêu chuẩn
 yarn start
+# (Hoặc sử dụng npm: npm start)
 ```
 
-Dự án sẽ khởi chạy tại: `http://localhost:5000`
+Sau khi khởi chạy thành công, mở trình duyệt của bạn và truy cập địa chỉ: **[http://localhost:5000](http://localhost:5000)**
+
+---
+
+### 🔐 Thông tin Đăng nhập Mẫu (Mặc định)
+
+Hệ thống đã chèn sẵn các tài khoản mẫu phục vụ quá trình dùng thử và chấm điểm đồ án:
+
+| Vai trò (Role) | Cổng đăng nhập | Tài khoản (Username) | Mật khẩu (Password) | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- |
+| **Quản trị viên** | `/admin/login` | `admin` | `admin123` | Toàn quyền quản trị hệ thống |
+| **Sinh viên Mẫu** | `/student/login` | `student` | `student123` | Tài khoản sinh viên liên kết hồ sơ mẫu |
+| **Sinh viên 1** | `/student/login` | `22520001` | `student123` | Sinh viên Nguyễn Văn An (Lớp KTPM) |
+| **Sinh viên 2** | `/student/login` | `22520002` | `student123` | Sinh viên Trần Thị Bình (Lớp KHMT) |
+
+---
 
 ## 👥 Tác giả
-- Nhóm sinh viên thực hiện đồ án môn học SE104.
-- Đóng góp: **Bui Le Huy Phuoc** và các thành viên nhóm.
+* Đồ án phát triển Hệ thống Môn học (SE104.Q22).
+* Người đóng góp chính: **Bui Le Huy Phuoc** và các thành viên nhóm.
+
