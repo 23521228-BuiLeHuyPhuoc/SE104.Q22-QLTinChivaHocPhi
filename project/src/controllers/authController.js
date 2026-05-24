@@ -11,8 +11,6 @@ const RESET_TOKEN_TTL_MINUTES = Number(process.env.RESET_TOKEN_TTL_MINUTES || 60
 
 const normalize = (value) => String(value || '').trim();
 const normalizeEmail = (value) => normalize(value).toLowerCase();
-const getMaNhomByRole = (Role) => (Role === 'admin' ? 'ADMIN' : 'SINHVIEN');
-
 const studentInfoSelect = {
   MaSv: true,
   MaTaiKhoan: true,
@@ -146,24 +144,11 @@ const buildLoginResponse = async (user) => {
       MaNhom: user.MaNhom,
       MaSv: studentInfo?.MaSv || user.MaSv || null,
       ChucVu: chucVu,
-      HoTen: displayName,
-      TrangThaiDuyet: user.TrangThaiDuyet
+      HoTen: displayName
     },
     student: studentInfo,
     admin: adminInfo
   };
-};
-
-const getApprovalMessage = (user) => {
-  if (user.TrangThaiDuyet === 'pending') {
-    return 'Tài khoản đang chờ admin hệ thống duyệt';
-  }
-  if (user.TrangThaiDuyet === 'rejected') {
-    return user.LyDoTuChoi
-      ? `Tài khoản đã bị từ chối: ${user.LyDoTuChoi}`
-      : 'Tài khoản đã bị từ chối';
-  }
-  return 'Tài khoản chưa được phép đăng nhập';
 };
 
 const loginWithRole = (expectedRole) => async (req, res) => {
@@ -189,8 +174,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
         HoTen: true,
         Email: true,
         TrangThai: true,
-        TrangThaiDuyet: true,
-        LyDoTuChoi: true
+        TrangThaiDuyet: true
       }
     });
     if (!user) {
@@ -217,7 +201,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
     if (user.TrangThaiDuyet !== 'approved') {
       return res.status(403).json({
         success: false,
-        message: getApprovalMessage(user)
+        message: 'Tài khoản chưa được phép đăng nhập'
       });
     }
 
@@ -268,158 +252,6 @@ const loginWithRole = (expectedRole) => async (req, res) => {
 const login = loginWithRole();
 const loginStudent = loginWithRole('student');
 const loginAdmin = loginWithRole('admin');
-
-const registerStudent = async (req, res) => {
-  try {
-    const username = normalize(req.body.username || req.body.TenDangNhap || req.body.MaSv || req.body.maSv);
-    const HoTen = normalize(req.body.HoTen || req.body.fullName);
-    const email = normalizeEmail(req.body.email || req.body.Email);
-    const Sdt = normalize(req.body.Sdt || req.body.phone);
-    const { password } = req.body;
-
-    if (!username || !password || !HoTen || !email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng nhập tên đăng nhập, họ tên, email và mật khẩu'
-      });
-    }
-
-    const existing = await prisma.TAIKHOAN.findFirst({
-      where: {
-        OR: [
-          { TenDangNhap: username },
-          { Email: { equals: email, mode: 'insensitive' } }
-        ]
-      },
-      select: { MaTaiKhoan: true }
-    });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
-    }
-
-    const hashed = await hashPassword(password);
-    const account = await prisma.TAIKHOAN.create({
-      data: {
-        TenDangNhap: username,
-        MatKhau: hashed,
-        Role: 'student',
-        MaNhom: getMaNhomByRole('student'),
-        HoTen,
-        Email: email,
-        Sdt: Sdt || null,
-        TrangThai: true,
-        TrangThaiDuyet: 'pending'
-      },
-      select: {
-        MaTaiKhoan: true,
-        TenDangNhap: true,
-        Role: true,
-        MaNhom: true,
-        TrangThaiDuyet: true
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Đăng ký sinh viên thành công. Vui lòng chờ admin hệ thống duyệt tài khoản.',
-      data: {
-        id: account.MaTaiKhoan,
-        username: account.TenDangNhap,
-        Role: account.Role,
-        MaNhom: account.MaNhom,
-        TrangThaiDuyet: account.TrangThaiDuyet
-      }
-    });
-  } catch (error) {
-    console.error('Student register error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-};
-
-const registerAdmin = async (req, res) => {
-  try {
-    const username = normalize(req.body.username || req.body.TenDangNhap);
-    const HoTen = normalize(req.body.HoTen || req.body.fullName);
-    const Email = normalizeEmail(req.body.Email || req.body.email);
-    const Sdt = normalize(req.body.Sdt || req.body.phone);
-    const ChucVu = normalize(req.body.ChucVu) || 'Quản trị viên';
-    const PhongBan = normalize(req.body.PhongBan);
-    const { password } = req.body;
-
-    if (!username || !password || !HoTen || !Email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng nhập tên đăng nhập, họ tên, email và mật khẩu'
-      });
-    }
-
-    const existing = await prisma.TAIKHOAN.findFirst({
-      where: {
-        OR: [
-          { TenDangNhap: username },
-          { Email: { equals: Email, mode: 'insensitive' } }
-        ]
-      },
-      select: { MaTaiKhoan: true, TenDangNhap: true, Email: true }
-    });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
-    }
-
-    const hashed = await hashPassword(password);
-    const account = await prisma.$transaction(async (tx) => {
-      const created = await tx.TAIKHOAN.create({
-        data: {
-          TenDangNhap: username,
-          MatKhau: hashed,
-          Role: 'admin',
-          MaNhom: getMaNhomByRole('admin'),
-          HoTen,
-          Email,
-          Sdt: Sdt || null,
-          TrangThai: true,
-          TrangThaiDuyet: 'pending'
-        },
-        select: {
-          MaTaiKhoan: true,
-          TenDangNhap: true,
-          Role: true,
-          MaNhom: true,
-          TrangThaiDuyet: true
-        }
-      });
-
-      await tx.QUANTRIVIEN.create({
-        data: {
-          MaTaiKhoan: created.MaTaiKhoan,
-          HoTen,
-          Email,
-          Sdt: Sdt || null,
-          ChucVu,
-          PhongBan: PhongBan || null,
-          TrangThai: true
-        }
-      });
-
-      return created;
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Đăng ký admin thành công. Vui lòng chờ admin hệ thống duyệt tài khoản.',
-      data: {
-        id: account.MaTaiKhoan,
-        username: account.TenDangNhap,
-        Role: account.Role,
-        MaNhom: account.MaNhom,
-        TrangThaiDuyet: account.TrangThaiDuyet
-      }
-    });
-  } catch (error) {
-    console.error('Admin register error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
-  }
-};
 
 const forgotPassword = async (req, res) => {
   try {
@@ -557,7 +389,6 @@ const getMe = async (req, res) => {
         Role: true,
         MaNhom: true,
         TrangThai: true,
-        TrangThaiDuyet: true,
         NgayTao: true
       }
     });
@@ -591,7 +422,6 @@ const getMe = async (req, res) => {
           Role: user.Role,
           MaNhom: user.MaNhom,
           TrangThai: user.TrangThai,
-          TrangThaiDuyet: user.TrangThaiDuyet,
           created_at: user.NgayTao
         },
         student: studentInfo,
@@ -651,9 +481,6 @@ module.exports = {
   login,
   loginStudent,
   loginAdmin,
-  register: registerStudent,
-  registerStudent,
-  registerAdmin,
   forgotPassword,
   resetPassword,
   getMe,

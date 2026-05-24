@@ -30,7 +30,6 @@ block content
             th Dân tộc
             th Đối tượng
             th Trạng thái
-            th Duyệt
             th Sửa bởi
             th Sửa lúc
             th Thao tác
@@ -39,8 +38,6 @@ block content
             each sv in students
               - const major = sv.NGANHHOC || {}
               - const faculty = major.KHOA || {}
-              - const account = sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN || {}
-              - const approval = account.TrangThaiDuyet || 'approved'
               - const beneficiaries = (sv.DOITUONGSINHVIEN || []).map(item => item.DOITUONG ? item.DOITUONG.TenDoiTuong : item.MaDoiTuong).filter(Boolean).join(', ')
               tr
                 td.mono= sv.MaSv
@@ -57,24 +54,14 @@ block content
                 td= beneficiaries || '-'
                 td
                   span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
-                td
-                  if approval === 'pending'
-                    span.badge.badge-warning Chờ duyệt
-                  else if approval === 'rejected'
-                    span.badge.badge-error Từ chối
-                  else
-                    span.badge.badge-success Đã duyệt
                 td= sv.NguoiCapNhatTen || sv.NguoiCapNhat || '-'
                 td= sv.NgayCapNhat ? new Date(sv.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(sv) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  if approval === 'pending' && account.MaTaiKhoan
-                    button.btn.btn-sm.btn-primary(type="button" onclick=`approveStudentAccount(${account.MaTaiKhoan}, this)`) Duyệt
-                    button.btn.btn-sm.btn-outline(type="button" onclick=`rejectStudentAccount(${account.MaTaiKhoan})`) Từ chối
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteStudent('${sv.MaSv}')`) Xóa
           else
             tr
-              td(colspan="12")
+              td(colspan="11")
                 .empty-state Không có sinh viên phù hợp
 
   include ../../partials/pagination
@@ -115,17 +102,23 @@ block modals
               label(for="sv-cmnd") CMND/CCCD
               input.form-control#sv-cmnd(type="text" required)
             .form-group
-              label(for="sv-dantoc") Mã dân tộc
-              input.form-control#sv-dantoc(type="text" value="DT01" required)
+              label(for="sv-dantoc") Dân tộc
+              select.form-control#sv-dantoc(required)
+                option(value="") Chọn dân tộc
           .form-row
             .form-group
-              label(for="sv-phuongxa") Mã phường/xã
-              input.form-control#sv-phuongxa(type="text" value="PX001" required)
+              label(for="sv-tinh") Tỉnh/Thành phố
+              select.form-control#sv-tinh(required onchange="onProvinceChange()")
+                option(value="") Chọn Tỉnh/Thành phố
+            .form-group
+              label(for="sv-phuongxa") Phường/Xã
+              select.form-control#sv-phuongxa(required)
+                option(value="") Chọn Phường/Xã
+          .form-row
             .form-group
               label(for="sv-nganh") Ngành
               select.form-control#sv-nganh(required)
                 option(value="") Chọn ngành
-          .form-row
             .form-group
               label(for="sv-trangthai") Trạng thái
               select.form-control#sv-trangthai
@@ -133,9 +126,6 @@ block modals
                 option(value="Bảo lưu") Bảo lưu
                 option(value="Đã tốt nghiệp") Đã tốt nghiệp
                 option(value="Đã thôi học") Đã thôi học
-            .form-group
-              label(for="sv-password") Mật khẩu tài khoản
-              input.form-control#sv-password(type="password" placeholder="Để trống khi cập nhật")
           .form-group
             label(for="sv-diachi") Địa chỉ liên hệ
             input.form-control#sv-diachi(type="text" required)

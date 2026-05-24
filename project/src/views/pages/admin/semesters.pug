@@ -22,6 +22,7 @@ block content
             th Năm học
             th Bắt đầu
             th Kết thúc
+            th Hạn đăng ký
             th Hạn học phí
             th Trạng thái
             th Sửa bởi
@@ -36,6 +37,7 @@ block content
                 td= s.NAMHOC ? s.NAMHOC.TenNamHoc : s.MaNamHoc
                 td= s.NgayBatDau ? new Date(s.NgayBatDau).toLocaleDateString('vi-VN') : '-'
                 td= s.NgayKetThuc ? new Date(s.NgayKetThuc).toLocaleDateString('vi-VN') : '-'
+                td= s.NgayKetThucDangKy ? new Date(s.NgayKetThucDangKy).toLocaleDateString('vi-VN') : '-'
                 td= s.HanDongHocPhi ? new Date(s.HanDongHocPhi).toLocaleDateString('vi-VN') : '-'
                 td
                   span.badge(class=s.TrangThai === 'Đang diễn ra' ? 'badge-success' : s.TrangThai === 'Sắp diễn ra' || s.TrangThai === 'Sắp tới' ? 'badge-warning' : 'badge-secondary')= s.TrangThai || '-'
@@ -46,7 +48,7 @@ block content
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteSemester('${s.MaHocKy}')`) Xóa
           else
             tr
-              td(colspan="10")
+              td(colspan="11")
                 .empty-state Chưa có học kỳ
 
   include ../../partials/pagination
@@ -87,11 +89,18 @@ block modals
                 option(value="Đã kết thúc") Đã kết thúc
           .form-row
             .form-group
-              label(for="hk-batdau") Ngày bắt đầu
+              label(for="hk-batdau") Ngày bắt đầu kỳ
               input.form-control#hk-batdau(type="date")
             .form-group
-              label(for="hk-ketthuc") Ngày kết thúc
+              label(for="hk-ketthuc") Ngày kết thúc kỳ
               input.form-control#hk-ketthuc(type="date")
+          .form-row
+            .form-group
+              label(for="hk-batdaudk") Bắt đầu đăng ký
+              input.form-control#hk-batdaudk(type="date")
+            .form-group
+              label(for="hk-ketthucdk") Hạn kết thúc đăng ký
+              input.form-control#hk-ketthucdk(type="date")
           .form-group
             label(for="hk-hanhocphi") Hạn đóng học phí
             input.form-control#hk-hanhocphi(type="date")

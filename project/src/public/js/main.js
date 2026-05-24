@@ -165,8 +165,6 @@ function animateCounter(element, target, duration) {
     '/',
     '/login',
     '/admin/login',
-    '/register',
-    '/admin/register',
     '/forgot-password',
     '/admin/forgot-password',
     '/reset-password'

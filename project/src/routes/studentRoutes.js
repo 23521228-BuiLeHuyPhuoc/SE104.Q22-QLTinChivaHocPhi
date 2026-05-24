@@ -21,6 +21,10 @@ router.get('/provinces', studentController.getProvinces);
 // Get districts by province
 router.get('/provinces/:provinceId/districts', studentController.getDistrictsByProvince);
 
+// Get ethnicities
+router.get('/ethnicities', studentController.getEthnicities);
+
+
 // Get student by ID
 router.get('/:id', adminMiddleware, studentController.getStudentById);
 

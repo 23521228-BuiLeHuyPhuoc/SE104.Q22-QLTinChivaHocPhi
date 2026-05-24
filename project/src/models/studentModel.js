@@ -17,9 +17,7 @@ const formatStudent = (sv) => ({
   NgayTao: sv.NgayTao,
   NguoiCapNhat: sv.NguoiCapNhat,
   NgayCapNhat: sv.NgayCapNhat,
-  TrangThaiDuyet: sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.TrangThaiDuyet || null,
-  NgayDuyet: sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.NgayDuyet || null,
-  LyDoTuChoi: sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.LyDoTuChoi || null,
+  MaTaiKhoan: sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN?.MaTaiKhoan || sv.MaTaiKhoan || null,
   // Từ relations
   TenNganh: sv.NGANHHOC?.TenNganh || null,
   TenKhoa: sv.NGANHHOC?.KHOA?.TenKhoa || null,

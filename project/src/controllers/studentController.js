@@ -1,4 +1,3 @@
-const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { formatStudent, formatStudentList } = require('../models/studentModel');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
@@ -10,7 +9,7 @@ const studentInclude = {
   DANTOC: true,
   DOITUONGSINHVIEN: { include: { DOITUONG: true } },
   TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN: {
-    select: { TrangThaiDuyet: true, NgayDuyet: true, NguoiDuyet: true, LyDoTuChoi: true }
+    select: { MaTaiKhoan: true }
   }
 };
 
@@ -68,7 +67,7 @@ const createStudent = async (req, res) => {
   try {
     const {
       MaSv, HoTen, NgaySinh, GioiTinh, MaPhuongXa, MaNganh,
-      Email, Sdt, DiaChiLienHe, MaDanToc, Cccd, password = '123456'
+      Email, Sdt, DiaChiLienHe, MaDanToc, Cccd
     } = req.body;
 
     if (!MaSv || !HoTen || !NgaySinh || !GioiTinh || !MaPhuongXa || !MaNganh || !Cccd || !MaDanToc || !DiaChiLienHe) {
@@ -78,39 +77,21 @@ const createStudent = async (req, res) => {
     const existing = await prisma.SINHVIEN.findUnique({ where: { MaSv } });
     if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã sinh viên đã tồn tại' });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(password, salt);
-
-    const result = await prisma.$transaction(async (tx) => {
-      const account = await tx.TAIKHOAN.create({
-        data: {
-          TenDangNhap: MaSv,
-          MatKhau: hashed,
-          Role: 'student',
-          MaNhom: 'SINHVIEN',
-          HoTen,
-          Email,
-          Sdt,
-          TrangThaiDuyet: 'approved'
-        }
-      });
-      return tx.SINHVIEN.create({
-        data: {
-          MaSv,
-          HoTen,
-          NgaySinh: new Date(NgaySinh),
-          GioiTinh,
-          Cccd,
-          MaPhuongXa,
-          MaNganh,
-          Email,
-          Sdt,
-          DiaChiLienHe,
-          MaDanToc,
-          MaTaiKhoan: account.MaTaiKhoan,
-          ...updateAudit(req)
-        }
-      });
+    const result = await prisma.SINHVIEN.create({
+      data: {
+        MaSv,
+        HoTen,
+        NgaySinh: new Date(NgaySinh),
+        GioiTinh,
+        Cccd,
+        MaPhuongXa,
+        MaNganh,
+        Email,
+        Sdt,
+        DiaChiLienHe,
+        MaDanToc,
+        ...updateAudit(req)
+      }
     });
 
     res.status(201).json({ success: true, message: 'Tạo sinh viên thành công', data: result });
@@ -182,14 +163,13 @@ const deleteStudent = async (req, res) => {
 
 const getStudentStats = async (req, res) => {
   try {
-    const [total, byStatus, pendingApproval] = await Promise.all([
+    const [total, byStatus] = await Promise.all([
       prisma.SINHVIEN.count({ where: notDeleted() }),
-      prisma.SINHVIEN.groupBy({ by: ['TrangThai'], where: notDeleted(), _count: true }),
-      prisma.TAIKHOAN.count({ where: { Role: 'student', TrangThaiDuyet: 'pending', TrangThai: true } })
+      prisma.SINHVIEN.groupBy({ by: ['TrangThai'], where: notDeleted(), _count: true })
     ]);
     res.json({
       success: true,
-      data: { total, pendingApproval, byStatus: byStatus.map((s) => ({ TrangThai: s.TrangThai, count: s._count })) }
+      data: { total, byStatus: byStatus.map((s) => ({ TrangThai: s.TrangThai, count: s._count })) }
     });
   } catch (error) {
     console.error('Get student stats error:', error);
@@ -227,6 +207,16 @@ const getDistrictsByProvince = async (req, res) => {
   }
 };
 
+const getEthnicities = async (req, res) => {
+  try {
+    const ethnicities = await prisma.DANTOC.findMany({ where: { TrangThai: true }, orderBy: { TenDanToc: 'asc' } });
+    res.json({ success: true, data: ethnicities });
+  } catch (error) {
+    console.error('Get ethnicities error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
 module.exports = {
   getAllStudents,
   getStudentById,
@@ -236,5 +226,7 @@ module.exports = {
   getStudentStats,
   getMajors,
   getProvinces,
-  getDistrictsByProvince
+  getDistrictsByProvince,
+  getEthnicities
 };
+

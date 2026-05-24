@@ -20,6 +20,62 @@ function asDateInput(value) {
   } catch (e) {}
 })();
 
+(async function loadEthnicities() {
+  try {
+    var res = await apiFetch('/api/students/ethnicities');
+    if (!res.success) return;
+
+    var select = document.getElementById('sv-dantoc');
+    res.data.forEach(function(e) {
+      var opt = document.createElement('option');
+      opt.value = e.MaDanToc;
+      opt.textContent = e.TenDanToc;
+      select.appendChild(opt);
+    });
+  } catch (e) {}
+})();
+
+(async function loadProvinces() {
+  try {
+    var res = await apiFetch('/api/students/provinces');
+    if (!res.success) return;
+
+    var select = document.getElementById('sv-tinh');
+    res.data.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p.MaTinh;
+      opt.textContent = p.TenTinh;
+      select.appendChild(opt);
+    });
+  } catch (e) {}
+})();
+
+async function loadWards(provinceId, selectedWardId) {
+  try {
+    var select = document.getElementById('sv-phuongxa');
+    select.innerHTML = '<option value="">Chọn Phường/Xã</option>';
+    if (!provinceId) return;
+
+    var res = await apiFetch('/api/students/provinces/' + provinceId + '/districts');
+    if (!res.success) return;
+
+    res.data.forEach(function(w) {
+      var opt = document.createElement('option');
+      opt.value = w.MaPhuongXa;
+      opt.textContent = w.TenPhuongXa + (w.KhuVuc ? ' (' + w.KhuVuc + ')' : '');
+      if (selectedWardId && w.MaPhuongXa === selectedWardId) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  } catch (e) {}
+}
+
+async function onProvinceChange() {
+  var provinceId = document.getElementById('sv-tinh').value;
+  await loadWards(provinceId);
+}
+
 function openModal(mode, sv) {
   editingId = null;
   document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa sinh viên' : 'Thêm sinh viên';
@@ -34,16 +90,23 @@ function openModal(mode, sv) {
     document.getElementById('sv-ngaysinh').value = asDateInput(sv.NgaySinh);
     document.getElementById('sv-gioitinh').value = sv.GioiTinh || 'Nam';
     document.getElementById('sv-cmnd').value = sv.Cccd || '';
-    document.getElementById('sv-dantoc').value = sv.MaDanToc || 'DT01';
-    document.getElementById('sv-phuongxa').value = sv.MaPhuongXa || 'PX001';
+    document.getElementById('sv-dantoc').value = sv.MaDanToc || '';
     document.getElementById('sv-diachi').value = sv.DiaChiLienHe || '';
     document.getElementById('sv-nganh').value = sv.MaNganh || '';
     document.getElementById('sv-trangthai').value = sv.TrangThai || 'Đang học';
-    document.getElementById('sv-password').value = '';
+
+    if (sv.PHUONGXA) {
+      document.getElementById('sv-tinh').value = sv.PHUONGXA.MaTinh || '';
+      loadWards(sv.PHUONGXA.MaTinh, sv.MaPhuongXa);
+    } else {
+      document.getElementById('sv-tinh').value = '';
+      document.getElementById('sv-phuongxa').innerHTML = '<option value="">Chọn Phường/Xã</option>';
+    }
   } else {
     document.getElementById('student-form').reset();
-    document.getElementById('sv-dantoc').value = 'DT01';
-    document.getElementById('sv-phuongxa').value = 'PX001';
+    document.getElementById('sv-dantoc').value = '';
+    document.getElementById('sv-tinh').value = '';
+    document.getElementById('sv-phuongxa').innerHTML = '<option value="">Chọn Phường/Xã</option>';
     document.getElementById('sv-trangthai').value = 'Đang học';
   }
 
@@ -63,20 +126,17 @@ async function saveStudent() {
     NgaySinh: document.getElementById('sv-ngaysinh').value,
     GioiTinh: document.getElementById('sv-gioitinh').value,
     Cccd: document.getElementById('sv-cmnd').value.trim() || null,
-    MaDanToc: document.getElementById('sv-dantoc').value.trim() || null,
-    MaPhuongXa: document.getElementById('sv-phuongxa').value.trim(),
+    MaDanToc: document.getElementById('sv-dantoc').value,
+    MaPhuongXa: document.getElementById('sv-phuongxa').value,
     DiaChiLienHe: document.getElementById('sv-diachi').value.trim() || null,
     MaNganh: document.getElementById('sv-nganh').value,
     TrangThai: document.getElementById('sv-trangthai').value
   };
 
-  if (!data.Cccd || !data.MaDanToc || !data.DiaChiLienHe) {
-    showToast('CCCD, dân tộc và địa chỉ liên hệ là bắt buộc', 'error');
+  if (!data.Cccd || !data.MaDanToc || !data.DiaChiLienHe || !data.MaPhuongXa) {
+    showToast('CCCD, dân tộc, địa chỉ liên hệ và phường/xã là bắt buộc', 'error');
     return;
   }
-
-  var password = document.getElementById('sv-password').value;
-  if (password) data.password = password;
 
   try {
     var res = editingId
@@ -107,35 +167,6 @@ async function deleteStudent(maSv) {
     }
   } catch (e) {
     showToast('Lỗi kết nối', 'error');
-  }
-}
-
-async function approveStudentAccount(accountId, button) {
-  var row = button ? button.closest('tr') : null;
-  var maSv = row ? row.querySelector('td.mono').textContent.trim() : '';
-  var res = await apiFetch('/api/roles/accounts/' + accountId + '/approval', {
-    method: 'PUT',
-    body: { TrangThaiDuyet: 'approved', MaSv: maSv }
-  });
-  if (res.success) {
-    showToast('Đã duyệt sinh viên', 'success');
-    setTimeout(function() { location.reload(); }, 500);
-  } else {
-    showToast(res.message || 'Không thể duyệt sinh viên', 'error');
-  }
-}
-
-async function rejectStudentAccount(accountId) {
-  var reason = prompt('Lý do từ chối?') || 'Không được duyệt';
-  var res = await apiFetch('/api/roles/accounts/' + accountId + '/approval', {
-    method: 'PUT',
-    body: { TrangThaiDuyet: 'rejected', LyDoTuChoi: reason }
-  });
-  if (res.success) {
-    showToast('Đã từ chối sinh viên', 'success');
-    setTimeout(function() { location.reload(); }, 500);
-  } else {
-    showToast(res.message || 'Không thể từ chối sinh viên', 'error');
   }
 }
 

@@ -1,4 +1,5 @@
 var currentTuitionStudent = null;
+var payableTuitionRows = [];
 
 function tuitionEscapeHtml(value) {
   return String(value || '')
@@ -27,6 +28,29 @@ function openPaymentModal(soPhieu, amount) {
   document.getElementById('payment-amount').value = Math.max(Number(amount || 0), 0);
   document.getElementById('payment-result').innerHTML = '';
   if (modal) modal.classList.add('active');
+}
+
+function updatePayTuitionButton() {
+  var button = document.getElementById('pay-tuition-now');
+  if (!button) return;
+  if (payableTuitionRows.length > 0) {
+    button.disabled = false;
+    button.textContent = 'Đóng học phí';
+    button.title = 'Mở khoản học phí còn nợ gần nhất';
+  } else {
+    button.disabled = true;
+    button.textContent = 'Đã đóng đủ';
+    button.title = 'Không còn khoản học phí cần đóng';
+  }
+}
+
+function openFirstPayableTuition() {
+  var item = payableTuitionRows[0];
+  if (!item) {
+    showToast('Bạn không còn khoản học phí cần đóng', 'success');
+    return;
+  }
+  openPaymentModal(item.SoPhieu, item.remaining);
 }
 
 async function checkoutPayment() {
@@ -82,11 +106,13 @@ async function loadMyTuition(page) {
     renderTuitionSummary(res.summary || {});
 
     if (res.success && res.data && res.data.length > 0) {
+      payableTuitionRows = [];
       tbody.innerHTML = res.data.map(function(t) {
         var fee = Number(t.TongTienPhaiDong || 0);
         var paid = Number(t.TongTienDaDong || 0);
         var remaining = Number(t.conNo || Math.max(fee - paid, 0));
         var badgeClass = remaining <= 0 ? 'badge-success' : t.TrangThai === 'Quá hạn' ? 'badge-error' : paid > 0 ? 'badge-warning' : 'badge-error';
+        if (remaining > 0) payableTuitionRows.push({ SoPhieu: t.SoPhieu, remaining: remaining });
         return '<tr>' +
           '<td>' + tuitionEscapeHtml(t.TenHocKy || '-') + (t.TenNamHoc ? '<small>' + tuitionEscapeHtml(t.TenNamHoc) + '</small>' : '') + '</td>' +
           '<td class="currency">' + formatCurrency(fee) + '</td>' +
@@ -94,19 +120,23 @@ async function loadMyTuition(page) {
           '<td class="currency ' + (remaining > 0 ? 'text-danger' : 'text-success') + '">' + formatCurrency(remaining) + '</td>' +
           '<td>' + (t.HanDongHocPhi ? formatDate(t.HanDongHocPhi) : '-') + '</td>' +
           '<td><span class="badge ' + badgeClass + '">' + tuitionEscapeHtml(t.TrangThai || '-') + '</span></td>' +
-          '<td>' + (remaining > 0 ? '<button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + t.SoPhieu + ', ' + remaining + ')">Đóng học phí</button>' : '-') + '</td>' +
+          '<td>' + (remaining > 0 ? '<button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + t.SoPhieu + ', ' + remaining + ')">Đóng học phí</button>' : '<button class="btn btn-sm btn-outline" type="button" disabled>Đã đóng đủ</button>') + '</td>' +
         '</tr>';
       }).join('');
     } else {
+      payableTuitionRows = [];
       tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Không có dữ liệu học phí</div></td></tr>';
     }
 
+    updatePayTuitionButton();
     renderClientPagination('tuition-pagination', res.pagination, 'loadMyTuition');
   } catch (e) {
     if (loading) loading.classList.add('hidden');
     if (table) table.classList.remove('hidden');
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
     renderTuitionSummary({});
+    payableTuitionRows = [];
+    updatePayTuitionButton();
     renderClientPagination('tuition-pagination', null, 'loadMyTuition');
   }
 }

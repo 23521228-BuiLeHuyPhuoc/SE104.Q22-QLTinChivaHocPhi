@@ -84,6 +84,24 @@ const attachUpdaterNames = async (rows = []) => {
   }));
 };
 
+const getCreatableAccountGroups = async (user) => {
+  const groups = await prisma.NHOMNGUOIDUNG.findMany({
+    where: { DaXoa: false },
+    orderBy: { MaNhom: 'asc' },
+    select: { MaNhom: true, TenNhom: true }
+  });
+
+  if (isSystemAdminUser(user)) return groups;
+
+  const allowed = new Set(['SINHVIEN']);
+  if (user?.MaNhom) allowed.add(String(user.MaNhom).toUpperCase());
+  return groups.filter((group) => allowed.has(String(group.MaNhom).toUpperCase()));
+};
+
+const roleFromGroupCode = (MaNhom) => (
+  String(MaNhom || '').toUpperCase() === 'SINHVIEN' ? 'student' : 'admin'
+);
+
 const renderAdmin = (res, view, page, title, req, locals = {}) => {
   res.render(`pages/admin/${view}`, {
     pageTitle: title,
@@ -148,7 +166,6 @@ const renderLoginPage = async (req, res, loginRole) => {
     loginRole,
     loginAction: isAdminLogin ? '/admin/login' : '/login',
     loginApiPath: isAdminLogin ? '/api/auth/admin/login' : '/api/auth/login',
-    registerPath: isAdminLogin ? '/admin/register' : '/register',
     forgotPasswordPath: isAdminLogin ? '/admin/forgot-password' : '/forgot-password',
     loginTitle: isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên',
     loginSubtitle: isAdminLogin
@@ -164,35 +181,6 @@ const loginPage = (req, res) => {
 
 const adminLoginPage = (req, res) => {
   return renderLoginPage(req, res, 'admin');
-};
-
-const renderRegisterPage = async (req, res, registerRole) => {
-  const user = await getUserFromToken(getTokenFromCookie(req));
-  if (user) {
-    if (user.Role === 'admin') return res.redirect('/admin/dashboard');
-    return res.redirect('/student/dashboard');
-  }
-
-  const isAdminRegister = registerRole === 'admin';
-  res.render('pages/register', {
-    pageTitle: isAdminRegister ? 'Đăng ký Admin' : 'Đăng ký Sinh viên',
-    registerRole,
-    registerApiPath: isAdminRegister ? '/api/auth/admin/register' : '/api/auth/student/register',
-    loginPath: isAdminRegister ? '/admin/login' : '/login',
-    registerTitle: isAdminRegister ? 'Đăng ký Admin' : 'Đăng ký Sinh viên',
-    registerSubtitle: isAdminRegister
-      ? 'Tài khoản admin cần được admin hệ thống duyệt trước khi đăng nhập'
-      : 'Tài khoản sinh viên cần được admin hệ thống duyệt và liên kết hồ sơ trước khi đăng nhập',
-    brandMark: isAdminRegister ? 'AD' : 'SV'
-  });
-};
-
-const registerPage = (req, res) => {
-  return renderRegisterPage(req, res, 'student');
-};
-
-const adminRegisterPage = (req, res) => {
-  return renderRegisterPage(req, res, 'admin');
 };
 
 const renderForgotPasswordPage = async (req, res, forgotRole) => {
@@ -267,7 +255,7 @@ const adminStudents = async (req, res) => {
           DANTOC: true,
           DOITUONGSINHVIEN: { include: { DOITUONG: true } },
           TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN: {
-            select: { MaTaiKhoan: true, TrangThaiDuyet: true, NgayDuyet: true, LyDoTuChoi: true }
+            select: { MaTaiKhoan: true }
           }
         }
       }),
@@ -664,24 +652,24 @@ const adminUsers = async (req, res) => {
   const search = req.query.search || '';
   const filterRole = req.query.Role || req.query.role || '';
   const filterGroup = req.query.MaNhom || req.query.group || '';
-  const filterApproval = req.query.approval || '';
   const where = {};
 
-  if (search) {
-    where.OR = [
-      { TenDangNhap: { contains: search, mode: 'insensitive' } },
-      { HoTen: { contains: search, mode: 'insensitive' } },
-      { Email: { contains: search, mode: 'insensitive' } }
-    ];
-  }
-  if (filterRole && ['admin', 'student'].includes(filterRole)) where.Role = filterRole;
-  if (filterGroup) where.MaNhom = filterGroup;
-  if (filterApproval && ['pending', 'approved', 'rejected'].includes(filterApproval)) {
-    where.TrangThaiDuyet = filterApproval;
-  }
-
   try {
-    const [accounts, total, groupOptions] = await Promise.all([
+    const groupOptions = await getCreatableAccountGroups(req.user);
+    const allowedGroupCodes = groupOptions.map((group) => group.MaNhom);
+    const filterGroupAllowed = !filterGroup || allowedGroupCodes.includes(filterGroup);
+
+    if (search) {
+      where.OR = [
+        { TenDangNhap: { contains: search, mode: 'insensitive' } },
+        { HoTen: { contains: search, mode: 'insensitive' } },
+        { Email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    if (filterRole && ['admin', 'student'].includes(filterRole)) where.Role = filterRole;
+    where.MaNhom = filterGroupAllowed && filterGroup ? filterGroup : { in: allowedGroupCodes };
+
+    const [accounts, total] = filterGroupAllowed ? await Promise.all([
       prisma.TAIKHOAN.findMany({
         where,
         skip: (page - 1) * limit,
@@ -697,44 +685,43 @@ const adminUsers = async (req, res) => {
           MaSv: true,
           Email: true,
           TrangThai: true,
-          TrangThaiDuyet: true,
-          LyDoTuChoi: true,
           QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } }
         }
       }),
-      prisma.TAIKHOAN.count({ where }),
-      prisma.NHOMNGUOIDUNG.findMany({ orderBy: { MaNhom: 'asc' }, select: { MaNhom: true, TenNhom: true } })
-    ]);
+      prisma.TAIKHOAN.count({ where })
+    ]) : [[], 0];
 
     renderAdmin(res, 'users', 'users', 'Quản lý người dùng', req, {
       accounts,
       groupOptions,
+      creatableGroups: groupOptions.map((group) => ({ ...group, Role: roleFromGroupCode(group.MaNhom) })),
       currentUserId: req.user.id || req.user.MaTaiKhoan,
       canManageAccounts: isSystemAdminUser(req.user),
+      canCreateAccounts: groupOptions.length > 0,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/users',
-      queryParams: { search, Role: filterRole, MaNhom: filterGroup, approval: filterApproval, limit },
+      queryParams: { search, Role: filterRole, MaNhom: filterGroup, limit },
       search,
       filterRole,
-      filterGroup,
-      filterApproval
+      filterGroup
     });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'users', 'users', 'Quản lý người dùng', req, {
       accounts: [],
       groupOptions: [],
+      creatableGroups: [],
       currentUserId: req.user.id || req.user.MaTaiKhoan,
       canManageAccounts: isSystemAdminUser(req.user),
+      canCreateAccounts: false,
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/users',
       queryParams: {},
       search: '',
       filterRole: '',
-      filterGroup: '',
-      filterApproval: ''
+      filterGroup: ''
     });
   }
 };
@@ -1074,8 +1061,6 @@ module.exports = {
   root,
   loginPage,
   adminLoginPage,
-  registerPage,
-  adminRegisterPage,
   forgotPasswordPage,
   adminForgotPasswordPage,
   resetPasswordPage,

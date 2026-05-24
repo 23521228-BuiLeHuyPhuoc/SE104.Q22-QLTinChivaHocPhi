@@ -39,26 +39,37 @@ const getAllSemesters = async (req, res) => {
 
 const getRegistrationOptions = async (req, res) => {
   try {
-    const years = await prisma.NAMHOC.findMany({
-      where: { TrangThai: true },
-      orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
+    // 1. Find the currently ongoing semester (only one should be active at a time)
+    const ongoingSemester = await prisma.HOCKY.findFirst({
+      where: {
+        DaXoa: false,
+        TrangThai: 'Đang diễn ra'
+      },
+      include: { NAMHOC: true }
     });
 
-    for (const year of years) {
-      const semesters = await prisma.HOCKY.findMany({
-        where: { MaNamHoc: year.MaNamHoc, DaXoa: false },
-        take: 3,
-        orderBy: [{ ThuTu: 'asc' }, { NgayBatDau: 'asc' }],
-        include: { NAMHOC: true }
-      });
-      if (semesters.length) {
-        return res.json({ success: true, data: semesters.map(semesterSelect) });
-      }
+    if (ongoingSemester) {
+      // If there is an ongoing semester, students can only register for this one!
+      return res.json({ success: true, data: [semesterSelect(ongoingSemester)] });
+    }
+
+    // 2. Fallback: if no ongoing semester, return semesters that are 'Sắp diễn ra'
+    const upcomingSemesters = await prisma.HOCKY.findMany({
+      where: {
+        DaXoa: false,
+        TrangThai: 'Sắp diễn ra'
+      },
+      orderBy: [{ NgayBatDau: 'asc' }, { MaHocKy: 'asc' }],
+      include: { NAMHOC: true }
+    });
+
+    if (upcomingSemesters.length) {
+      return res.json({ success: true, data: upcomingSemesters.map(semesterSelect) });
     }
 
     const fallbackSemesters = await prisma.HOCKY.findMany({
       where: { DaXoa: false },
-      take: 3,
+      take: 5,
       orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
       include: { NAMHOC: true }
     });
@@ -94,7 +105,7 @@ const getSemesterById = async (req, res) => {
 
 const createSemester = async (req, res) => {
   try {
-    const { MaHocKy, TenHocKy, MaNamHoc, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, HanDongHocPhi, TrangThai } = req.body;
+    const { MaHocKy, TenHocKy, MaNamHoc, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi, TrangThai } = req.body;
     if (!MaHocKy || !TenHocKy || !MaNamHoc) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     const existing = await prisma.HOCKY.findUnique({ where: { MaHocKy } });
     if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã học kỳ đã tồn tại' });
@@ -107,6 +118,8 @@ const createSemester = async (req, res) => {
         ThuTu: ThuTu ? parseInt(ThuTu, 10) : 1,
         NgayBatDau: NgayBatDau ? new Date(NgayBatDau) : null,
         NgayKetThuc: NgayKetThuc ? new Date(NgayKetThuc) : null,
+        NgayBatDauDangKy: NgayBatDauDangKy ? new Date(NgayBatDauDangKy) : null,
+        NgayKetThucDangKy: NgayKetThucDangKy ? new Date(NgayKetThucDangKy) : null,
         HanDongHocPhi: HanDongHocPhi ? new Date(HanDongHocPhi) : null,
         TrangThai: TrangThai || 'Sắp diễn ra',
         ...updateAudit(req)
@@ -123,7 +136,7 @@ const updateSemester = async (req, res) => {
   try {
     const existing = await prisma.HOCKY.findFirst({ where: { MaHocKy: req.params.id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
-    const { TenHocKy, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, HanDongHocPhi, TrangThai } = req.body;
+    const { TenHocKy, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi, TrangThai } = req.body;
     const data = {};
     if (TenHocKy) data.TenHocKy = TenHocKy;
     if (LoaiHocKy) data.LoaiHocKy = LoaiHocKy;
@@ -131,6 +144,8 @@ const updateSemester = async (req, res) => {
     if (TrangThai) data.TrangThai = TrangThai;
     if (NgayBatDau !== undefined) data.NgayBatDau = NgayBatDau ? new Date(NgayBatDau) : null;
     if (NgayKetThuc !== undefined) data.NgayKetThuc = NgayKetThuc ? new Date(NgayKetThuc) : null;
+    if (NgayBatDauDangKy !== undefined) data.NgayBatDauDangKy = NgayBatDauDangKy ? new Date(NgayBatDauDangKy) : null;
+    if (NgayKetThucDangKy !== undefined) data.NgayKetThucDangKy = NgayKetThucDangKy ? new Date(NgayKetThucDangKy) : null;
     if (HanDongHocPhi !== undefined) data.HanDongHocPhi = HanDongHocPhi ? new Date(HanDongHocPhi) : null;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data });

@@ -14,11 +14,11 @@ router.get('/', adminMiddleware, roleController.getAllRoles);
 
 // Lấy danh sách tài khoản (admin only)
 router.get('/accounts', adminMiddleware, roleController.getAllAccounts);
+router.post('/accounts', adminMiddleware, roleController.createAccount);
+router.delete('/accounts/:id', adminMiddleware, systemAdminMiddleware, roleController.deleteAccount);
 
 // Cập nhật role tài khoản (admin only)
 router.put('/accounts/:id/role', adminMiddleware, systemAdminMiddleware, roleController.updateUserRole);
 
-// Duyệt hoặc từ chối tài khoản admin đang chờ duyệt (system admin only)
-router.put('/accounts/:id/approval', adminMiddleware, systemAdminMiddleware, roleController.updateAccountApproval);
 
 module.exports = router;

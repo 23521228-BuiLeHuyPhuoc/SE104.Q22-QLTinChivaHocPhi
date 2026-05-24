@@ -6,8 +6,6 @@ const vc = require('../controllers/viewController');
 router.get('/', vc.root);
 router.get('/login', vc.loginPage);
 router.get('/admin/login', vc.adminLoginPage);
-router.get('/register', vc.registerPage);
-router.get('/admin/register', vc.adminRegisterPage);
 router.get('/forgot-password', vc.forgotPasswordPage);
 router.get('/admin/forgot-password', vc.adminForgotPasswordPage);
 router.get('/reset-password', vc.resetPasswordPage);

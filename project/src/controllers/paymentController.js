@@ -180,6 +180,17 @@ const createPayment = async (req, res) => {
     if (!MaSv || !MaHocKy || !SoTienThu) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ thông tin' });
     const registration = await getRegistrationForPayment({ MaSv, MaHocKy });
     const amount = assertPayableAmount(registration, SoTienThu);
+
+    // Block payment if course registration period is still ongoing
+    const now = new Date();
+    const deadline = registration.HOCKY?.NgayKetThucDangKy;
+    if (deadline && now <= new Date(deadline)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học kỳ này vẫn đang trong thời hạn đăng ký học phần. Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.'
+      });
+    }
+
     const payment = await prisma.PHIEUTHUHOCPHI.create({
       data: {
         SoPhieuDangKy: registration.SoPhieu,
@@ -209,6 +220,17 @@ const checkoutPayment = async (req, res) => {
     const registration = await getRegistrationForPayment({ SoPhieu, MaSv: currentStudentId || MaSv, MaHocKy });
     if (!(await ensureStudentAccess(req, res, registration?.MaSv))) return;
     const amount = assertPayableAmount(registration, SoTienThu);
+
+    // Block payment if course registration period is still ongoing
+    const now = new Date();
+    const deadline = registration.HOCKY?.NgayKetThucDangKy;
+    if (deadline && now <= new Date(deadline)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học kỳ này vẫn đang trong thời hạn đăng ký học phần. Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.'
+      });
+    }
+
     const provider = String(method).toLowerCase();
     const isCash = provider === 'cash';
     const isQr = provider === 'qr' || provider === 'bank_qr';

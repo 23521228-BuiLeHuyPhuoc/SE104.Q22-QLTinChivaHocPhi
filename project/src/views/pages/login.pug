@@ -30,13 +30,9 @@ block content
         if isAdminLogin
           a(href=forgotPasswordPath || "/admin/forgot-password") Quên mật khẩu
           |  · 
-          a(href=registerPath || "/admin/register") Đăng ký admin
-          |  · 
           a(href="/login") Đăng nhập sinh viên
         else
           a(href=forgotPasswordPath || "/forgot-password") Quên mật khẩu
-          |  · 
-          a(href=registerPath || "/register") Đăng ký sinh viên
 
 block scripts
   script(src="/js/login.js")

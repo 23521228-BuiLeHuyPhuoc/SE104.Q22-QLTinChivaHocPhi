@@ -6765,6 +6765,222 @@ BEGIN
     ADD CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy'));
 END $$;
 
+-- =====================================================
+-- DATA COMPLETENESS - Điền đủ dữ liệu các trường đang hiển thị trên UI
+-- =====================================================
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "NGUOIDUNG" nd
+SET
+  "TrangThaiDuyet" = 'approved',
+  "NgayDuyet" = COALESCE(nd."NgayDuyet", CURRENT_TIMESTAMP),
+  "NguoiDuyet" = COALESCE(nd."NguoiDuyet", (SELECT "MaTaiKhoan" FROM admin_account))
+WHERE nd."TenDangNhap" IN ('admin', '22520001', '22520002', '22520003', '22520004', '22520005');
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "SINHVIEN" sv
+SET
+  "DiaChiLienHe" = CASE sv."MaSv"
+    WHEN '22520001' THEN '12 Nguyễn Thái Học, Phường Vũng Tàu, TP. Hồ Chí Minh'
+    WHEN '22520002' THEN '45 Lê Lợi, Phường Tam Thắng, TP. Hồ Chí Minh'
+    WHEN '22520003' THEN '78 Trần Phú, Phường Rạch Dừa, TP. Hồ Chí Minh'
+    WHEN '22520004' THEN '23 Võ Thị Sáu, Phường Phước Thắng, TP. Hồ Chí Minh'
+    WHEN '22520005' THEN '91 Điện Biên Phủ, Phường Bà Rịa, TP. Hồ Chí Minh'
+    ELSE COALESCE(NULLIF(sv."DiaChiLienHe", ''), 'Chưa cập nhật')
+  END,
+  "HoTenCha" = CASE sv."MaSv"
+    WHEN '22520001' THEN 'Nguyễn Văn Hùng'
+    WHEN '22520002' THEN 'Trần Minh Sơn'
+    WHEN '22520003' THEN 'Lê Văn Thành'
+    WHEN '22520004' THEN 'Phạm Quốc Huy'
+    WHEN '22520005' THEN 'Hoàng Văn Lâm'
+    ELSE sv."HoTenCha"
+  END,
+  "SdtCha" = CASE sv."MaSv"
+    WHEN '22520001' THEN '0901112233'
+    WHEN '22520002' THEN '0902223344'
+    WHEN '22520003' THEN '0903334455'
+    WHEN '22520004' THEN '0904445566'
+    WHEN '22520005' THEN '0905556677'
+    ELSE sv."SdtCha"
+  END,
+  "HoTenMe" = CASE sv."MaSv"
+    WHEN '22520001' THEN 'Phạm Thị Hoa'
+    WHEN '22520002' THEN 'Nguyễn Thị Lan'
+    WHEN '22520003' THEN 'Trần Thị Mai'
+    WHEN '22520004' THEN 'Lê Thị Hạnh'
+    WHEN '22520005' THEN 'Vàng Thị Dung'
+    ELSE sv."HoTenMe"
+  END,
+  "SdtMe" = CASE sv."MaSv"
+    WHEN '22520001' THEN '0911112233'
+    WHEN '22520002' THEN '0912223344'
+    WHEN '22520003' THEN '0913334455'
+    WHEN '22520004' THEN '0914445566'
+    WHEN '22520005' THEN '0915556677'
+    ELSE sv."SdtMe"
+  END,
+  "NguoiCapNhat" = COALESCE(sv."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE(sv."NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE sv."MaSv" IN ('22520001', '22520002', '22520003', '22520004', '22520005');
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "KHOA" k
+SET
+  "DiaChi" = CASE k."MaKhoa"
+    WHEN 'CNTT' THEN 'Tòa E, Khu Công nghệ thông tin'
+    WHEN 'KHMT' THEN 'Tòa C, Khu Khoa học máy tính'
+    WHEN 'MMT' THEN 'Tòa N, Khu Mạng máy tính'
+    WHEN 'HTTT' THEN 'Tòa I, Khu Hệ thống thông tin'
+    ELSE COALESCE(k."DiaChi", 'Khu hành chính')
+  END,
+  "TruongKhoa" = CASE k."MaKhoa"
+    WHEN 'CNTT' THEN 'PGS.TS Nguyễn Minh Khoa'
+    WHEN 'KHMT' THEN 'PGS.TS Trần Quốc Việt'
+    WHEN 'MMT' THEN 'TS Lê Hoàng Nam'
+    WHEN 'HTTT' THEN 'TS Phạm Thu Hà'
+    ELSE COALESCE(k."TruongKhoa", 'Đang cập nhật')
+  END,
+  "NguoiCapNhat" = COALESCE(k."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE(k."NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE k."DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "NGANHHOC"
+SET
+  "NguoiCapNhat" = COALESCE("NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE("NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE "DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "MONHOC"
+SET
+  "NguoiCapNhat" = COALESCE("NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE("NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE "DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "LOP" l
+SET
+  "GiangVien" = CASE
+    WHEN l."MaMonHoc" LIKE 'IT%' THEN 'ThS. Nguyễn Hoàng Minh'
+    WHEN l."MaMonHoc" LIKE 'SE%' THEN 'ThS. Lê Gia Bảo'
+    WHEN l."MaMonHoc" LIKE 'CS%' THEN 'TS. Trần Hữu Phúc'
+    WHEN l."MaMonHoc" LIKE 'IS%' THEN 'ThS. Phạm Ngọc Anh'
+    WHEN l."MaMonHoc" LIKE 'NT%' THEN 'ThS. Võ Minh Quân'
+    WHEN l."MaMonHoc" LIKE 'MA%' THEN 'ThS. Đặng Thanh Trúc'
+    WHEN l."MaMonHoc" LIKE 'ENG%' THEN 'ThS. Nguyễn Thị Thu'
+    ELSE COALESCE(l."GiangVien", 'Giảng viên thỉnh giảng')
+  END,
+  "NguoiCapNhat" = COALESCE(l."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE(l."NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE l."DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "HOCKY" hk
+SET
+  "ThuTu" = CASE
+    WHEN hk."LoaiHocKy" = 'Hè' THEN 3
+    WHEN hk."TenHocKy" ILIKE '%II%' THEN 2
+    ELSE 1
+  END,
+  "NguoiCapNhat" = COALESCE(hk."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE(hk."NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE hk."DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "DOITUONG"
+SET
+  "NguoiCapNhat" = COALESCE("NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE("NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE "DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "DONGIATINCHI"
+SET
+  "NguoiCapNhat" = COALESCE("NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE("NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE "DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "THONGBAO" tb
+SET
+  "Loai" = CASE
+    WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'tai_chinh'
+    WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'hoc_vu'
+    WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'he_thong'
+    ELSE 'chung'
+  END,
+  "LoaiThongBao" = CASE
+    WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'Tài chính'
+    WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'Học vụ'
+    WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'Hệ thống'
+    ELSE 'Chung'
+  END,
+  "DOITUONG" = CASE
+    WHEN tb."MaTaiKhoanNhan" = (SELECT "MaTaiKhoan" FROM admin_account) THEN 'Admin'
+    ELSE 'Sinh viên'
+  END,
+  "NgayHetHan" = COALESCE(tb."NgayHetHan", tb."NgayTao" + INTERVAL '60 days'),
+  "NguoiTao" = COALESCE(tb."NguoiTao", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NguoiCapNhat" = COALESCE(tb."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE(tb."NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE tb."DaXoa" = FALSE;
+
+WITH admin_account AS (
+  SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
+)
+UPDATE "MONDAHOC" mdh
+SET
+  "GhiChu" = COALESCE(mdh."GhiChu", CASE WHEN mdh."KetQua" = 'qua_mon' THEN 'Đạt yêu cầu tích lũy' ELSE 'Cần học lại để tích lũy' END),
+  "NguoiCapNhat" = COALESCE(mdh."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
+  "NgayCapNhat" = COALESCE(mdh."NgayCapNhat", CURRENT_TIMESTAMP)
+WHERE mdh."DaXoa" = FALSE;
+
+UPDATE "PHIEUTHUHOCPHI" p
+SET
+  "PaymentProvider" = COALESCE(p."PaymentProvider", CASE p."HinhThucThu"
+    WHEN 'Tiền mặt' THEN 'cash'
+    WHEN 'Chuyển khoản' THEN 'bank_transfer'
+    WHEN 'Ví điện tử' THEN 'zalopay'
+    WHEN 'Thẻ' THEN 'card'
+    ELSE 'manual'
+  END),
+  "PaymentChannel" = COALESCE(p."PaymentChannel", 'admin'),
+  "NguoiThu" = COALESCE(p."NguoiThu", CASE WHEN p."HinhThucThu" = 'Tiền mặt' THEN 'Phòng tài chính' ELSE 'Cổng thanh toán' END),
+  "NgayXacNhan" = COALESCE(p."NgayXacNhan", CASE WHEN p."TrangThai" = 'Thành công' THEN p."NgayLap" ELSE NULL END),
+  "NgayCapNhat" = COALESCE(p."NgayCapNhat", p."NgayLap");
+
+INSERT INTO "PHIEUTHUHOCPHI" (
+  "SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", "SoTienThu", "HinhThucThu",
+  "MaGiaoDich", "NguoiThu", "GhiChu", "TrangThai", "PaymentProvider",
+  "PaymentChannel", "QrPayload", "NgayCapNhat"
+) VALUES
+(11, 7, '22520004', '2025-02-10 09:20:00', 50000, 'Chuyển khoản', 'QR20250210001', NULL, 'Sinh viên tạo yêu cầu QR chuyển khoản, chờ admin xác nhận', 'Chờ xác nhận', 'qr', 'student', 'https://img.vietqr.io/image/970436-0000000000-compact2.png?amount=50000&addInfo=HP%2022520004%20HK2-2425%20P11&accountName=TRUONG%20DAI%20HOC', '2025-02-10 09:20:00'),
+(12, 5, '22520003', '2025-02-11 14:05:00', 50000, 'Tiền mặt', 'CASH20250211001', NULL, 'Sinh viên đăng ký đóng tiền mặt tại quầy, chờ xác nhận', 'Chờ xác nhận', 'cash', 'student', NULL, '2025-02-11 14:05:00')
+ON CONFLICT ("SoPhieuThu") DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), GREATEST((SELECT MAX("SoPhieuThu") FROM "PHIEUTHUHOCPHI"), 12), true);
+
 CREATE OR REPLACE FUNCTION prevent_student_schedule_conflict()
 RETURNS trigger AS $$
 DECLARE

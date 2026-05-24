@@ -8,14 +8,12 @@ const getDashboardStats = async (req, res) => {
     const now = new Date();
     const [
       totalStudents,
-      pendingAccounts,
       totalCourses,
       openedClasses,
       registrations,
       tuitionRows
     ] = await Promise.all([
       prisma.SINHVIEN.count({ where: active }),
-      prisma.TAIKHOAN.count({ where: { Role: 'student', TrangThaiDuyet: 'pending', TrangThai: true } }),
       prisma.MONHOC.count({ where: active }),
       prisma.LOPMO.count({ where: { TrangThai: true, LOP: active, HOCKY: active } }),
       prisma.PHIEUDANGKY.count({ where: { TrangThai: 'Đã đăng ký', SINHVIEN: active, HOCKY: active } }),
@@ -50,7 +48,6 @@ const getDashboardStats = async (req, res) => {
       success: true,
       data: {
         totalStudents,
-        pendingStudentApprovals: pendingAccounts,
         totalCourses,
         openedClasses,
         registrations,

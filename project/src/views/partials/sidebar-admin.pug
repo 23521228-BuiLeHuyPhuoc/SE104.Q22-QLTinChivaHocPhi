@@ -63,11 +63,14 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/reports" class=(active === 'reports' ? 'active' : ''))
           span Thống kê
 
+    .sidebar-section
+      .sidebar-section-title Hệ thống
+      a.sidebar-link(href="/admin/users" class=(active === 'users' ? 'active' : ''))
+        span Người dùng
+
     if isSystem
       .sidebar-section
-        .sidebar-section-title Hệ thống
-        a.sidebar-link(href="/admin/users" class=(active === 'users' ? 'active' : ''))
-          span Người dùng
+        .sidebar-section-title Quản trị
         a.sidebar-link(href="/admin/permissions" class=(active === 'permissions' ? 'active' : ''))
           span Phân quyền
         a.sidebar-link(href="/admin/notifications" class=(active === 'notifications' ? 'active' : ''))

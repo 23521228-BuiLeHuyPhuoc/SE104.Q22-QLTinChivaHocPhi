@@ -71,53 +71,6 @@ async function handleLogin(e) {
   return false;
 }
 
-async function handleRegister(e) {
-  e.preventDefault();
-
-  var form = document.getElementById('register-form');
-  var btn = document.getElementById('btn-register');
-  var role = form.dataset.role || 'student';
-  var apiPath = form.dataset.api || (role === 'admin' ? '/api/auth/admin/register' : '/api/auth/student/register');
-  var password = document.getElementById('password').value;
-  var confirmPassword = document.getElementById('confirm-password').value;
-  clearAuthMessage('register-error');
-
-  if (password !== confirmPassword) {
-    setAuthMessage('register-error', 'Mật khẩu nhập lại không khớp');
-    return false;
-  }
-
-  var body = { password: password };
-  if (role === 'admin') {
-    body.username = document.getElementById('username').value.trim();
-    body.HoTen = document.getElementById('full-name').value.trim();
-    body.Email = document.getElementById('email').value.trim();
-    body.Sdt = document.getElementById('phone').value.trim();
-    body.ChucVu = document.getElementById('position').value.trim();
-    body.PhongBan = document.getElementById('department').value.trim();
-  } else {
-    body.username = document.getElementById('username').value.trim();
-    body.HoTen = document.getElementById('full-name').value.trim();
-    body.Email = document.getElementById('email').value.trim();
-    body.Sdt = document.getElementById('phone').value.trim();
-  }
-
-  var resetButton = setButtonLoading(btn, 'Đang đăng ký...');
-  try {
-    var data = await postJson(apiPath, body);
-    if (data.success) {
-      setAuthMessage('register-error', data.message || 'Đăng ký thành công', 'success');
-      form.reset();
-    } else {
-      setAuthMessage('register-error', data.message || 'Không thể đăng ký');
-    }
-  } catch (err) {
-    setAuthMessage('register-error', err.message || 'Lỗi kết nối server');
-  }
-  resetButton();
-  return false;
-}
-
 async function handleForgotPassword(e) {
   e.preventDefault();
 

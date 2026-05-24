@@ -2,6 +2,7 @@ extends ../../layouts/admin
 
 block content
   - const groups = groupOptions || []
+  - const accountGroups = creatableGroups || groups.map(group => ({ ...group, Role: group.MaNhom === 'SINHVIEN' ? 'student' : 'admin' }))
   .toolbar
     .search-box
       input#search-input(type="text" placeholder="Tìm tên đăng nhập, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
@@ -14,11 +15,8 @@ block content
         option(value="" selected=(!filterGroup)) Tất cả nhóm
         each group in groups
           option(value=group.MaNhom selected=(filterGroup === group.MaNhom))= group.TenNhom || group.MaNhom
-      select#filter-approval(onchange="applyFilters()")
-        option(value="" selected=(!filterApproval)) Tất cả duyệt
-        option(value="pending" selected=(filterApproval === 'pending')) Chờ duyệt
-        option(value="approved" selected=(filterApproval === 'approved')) Đã duyệt
-        option(value="rejected" selected=(filterApproval === 'rejected')) Từ chối
+      if canCreateAccounts
+        button.btn.btn-primary(type="button" onclick="openAccountModal()") Tạo tài khoản
 
   .card
     .card-header
@@ -35,14 +33,11 @@ block content
             th Email
             th Nhóm
             th Vai trò
-            th Duyệt
             th Ngày tạo
             th Thao tác
         tbody#accounts-table
           if accounts && accounts.length > 0
             each acc in accounts
-              - const approval = acc.TrangThaiDuyet || 'approved'
-              - const approvalClass = approval === 'approved' ? 'badge-success' : approval === 'pending' ? 'badge-warning' : 'badge-error'
               - const group = groups.find(g => g.MaNhom === acc.MaNhom)
               - const groupName = group ? group.TenNhom : acc.MaNhom
               - const roleLabel = acc.Role === 'admin' ? (groupName || 'Quản trị viên') : 'Sinh viên'
@@ -62,33 +57,69 @@ block content
                     span.badge.badge-info= roleLabel
                   else
                     span.badge.badge-success= roleLabel
-                td
-                  if approval === 'approved'
-                    span.badge(class=approvalClass) Đã duyệt
-                  else if approval === 'pending'
-                    span.badge(class=approvalClass) Chờ duyệt
-                  else
-                    span.badge(class=approvalClass title=(acc.LyDoTuChoi || '')) Từ chối
                 td= acc.NgayTao ? new Date(acc.NgayTao).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
                     span.text-muted Tài khoản hiện tại
                   else if canManageAccounts
-                    if approval === 'pending'
-                      button.btn.btn-sm.btn-primary(type="button" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-role=acc.Role data-approval="approved" onclick="handleApprovalClick(this)") Duyệt
-                      button.btn.btn-sm.btn-danger(type="button" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-role=acc.Role data-approval="rejected" onclick="handleApprovalClick(this)") Từ chối
                     select.account-group-select(id=`group-${acc.MaTaiKhoan}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
                       each optionGroup in groups
                         option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
                     button.btn.btn-sm.btn-secondary(type="button" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)") Đổi nhóm
+                    button.btn.btn-sm.btn-danger(type="button" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)") Xóa
                   else
                     span.text-muted Chỉ admin hệ thống
           else
             tr
-              td(colspan="10")
+              td(colspan="9")
                 .empty-state Không có tài khoản phù hợp
 
   include ../../partials/pagination
+
+block modals
+  #account-modal.modal-overlay(onclick="if(event.target===this)closeAccountModal()")
+    .modal
+      .modal-header
+        h2 Tạo tài khoản
+        button.modal-close(type="button" onclick="closeAccountModal()" aria-label="Đóng") ×
+      .modal-body
+        form#account-form
+          .form-row
+            .form-group
+              label(for="acc-group") Nhóm người dùng
+              select.form-control#acc-group(required onchange="syncAccountFormMode()")
+                each group in accountGroups
+                  option(value=group.MaNhom data-role=group.Role)= group.TenNhom || group.MaNhom
+            .form-group#acc-masv-group
+              label(for="acc-masv") MSSV
+              input.form-control#acc-masv(type="text" placeholder="Nhập MSSV đã có")
+          .form-row
+            .form-group
+              label(for="acc-username") Tên đăng nhập
+              input.form-control#acc-username(type="text" placeholder="Mặc định dùng MSSV cho sinh viên")
+            .form-group
+              label(for="acc-password") Mật khẩu
+              input.form-control#acc-password(type="password" required autocomplete="new-password")
+          .form-row
+            .form-group
+              label(for="acc-hoten") Họ tên
+              input.form-control#acc-hoten(type="text")
+            .form-group
+              label(for="acc-email") Email
+              input.form-control#acc-email(type="email")
+          .form-row
+            .form-group
+              label(for="acc-sdt") Số điện thoại
+              input.form-control#acc-sdt(type="text")
+            .form-group#acc-chucvu-group
+              label(for="acc-chucvu") Chức vụ
+              input.form-control#acc-chucvu(type="text")
+          .form-group#acc-phongban-group
+            label(for="acc-phongban") Phòng ban
+            input.form-control#acc-phongban(type="text")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeAccountModal()") Hủy
+        button.btn.btn-primary#btn-save-account(type="button" onclick="saveAccount()") Tạo
 
 block scripts
   script(src="/js/admin/users.js")

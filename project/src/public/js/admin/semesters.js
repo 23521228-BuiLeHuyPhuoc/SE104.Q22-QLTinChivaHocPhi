@@ -19,6 +19,8 @@ function openModal(mode, s) {
     document.getElementById('hk-thutu').value = s.ThuTu || 1;
     document.getElementById('hk-batdau').value = asDateInput(s.NgayBatDau);
     document.getElementById('hk-ketthuc').value = asDateInput(s.NgayKetThuc);
+    document.getElementById('hk-batdaudk').value = asDateInput(s.NgayBatDauDangKy);
+    document.getElementById('hk-ketthucdk').value = asDateInput(s.NgayKetThucDangKy);
     document.getElementById('hk-hanhocphi').value = asDateInput(s.HanDongHocPhi);
     document.getElementById('hk-trangthai').value = s.TrangThai || 'Sắp diễn ra';
   } else {
@@ -44,6 +46,8 @@ async function saveSemester() {
     ThuTu: parseInt(document.getElementById('hk-thutu').value, 10) || 1,
     NgayBatDau: document.getElementById('hk-batdau').value || null,
     NgayKetThuc: document.getElementById('hk-ketthuc').value || null,
+    NgayBatDauDangKy: document.getElementById('hk-batdaudk').value || null,
+    NgayKetThucDangKy: document.getElementById('hk-ketthucdk').value || null,
     HanDongHocPhi: document.getElementById('hk-hanhocphi').value || null,
     TrangThai: document.getElementById('hk-trangthai').value
   };
