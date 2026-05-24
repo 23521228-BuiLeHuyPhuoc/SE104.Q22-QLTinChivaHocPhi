@@ -33,11 +33,13 @@ router.get('/admin/beneficiaries', vc.requireViewAuth, vc.requireViewAdmin, vc.a
 router.get('/admin/permissions', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPermissions);
 router.get('/admin/notifications', vc.requireViewAuth, vc.requireViewAdmin, vc.adminNotifications);
 router.get('/admin/settings', vc.requireViewAuth, vc.requireViewAdmin, vc.adminSettings);
+router.get('/admin/trash', vc.requireViewAuth, vc.requireViewAdmin, vc.adminTrash);
 
 // STUDENT
 router.get('/student/dashboard', vc.requireViewAuth, vc.requireViewStudent, vc.studentDashboard);
 router.get('/student/course-registration', vc.requireViewAuth, vc.requireViewStudent, vc.studentCourseReg);
 router.get('/student/my-courses', vc.requireViewAuth, vc.requireViewStudent, vc.studentMyCourses);
+router.get('/student/completed-courses', vc.requireViewAuth, vc.requireViewStudent, vc.studentCompletedCourses);
 router.get('/student/my-tuition', vc.requireViewAuth, vc.requireViewStudent, vc.studentMyTuition);
 router.get('/student/my-payments', vc.requireViewAuth, vc.requireViewStudent, vc.studentMyPayments);
 router.get('/student/my-schedule', vc.requireViewAuth, vc.requireViewStudent, vc.studentMySchedule);

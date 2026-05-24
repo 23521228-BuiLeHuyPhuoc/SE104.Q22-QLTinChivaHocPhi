@@ -1,10 +1,12 @@
 const prisma = require('../config/database');
+const { updateAudit, softDeleteAudit } = require('../utils/audit');
 
 // ── CHUCNANG (Functions) ──
 
 const getAllFunctions = async (req, res) => {
   try {
     const functions = await prisma.CHUCNANG.findMany({
+      where: { DaXoa: false },
       orderBy: { MaChucNang: 'asc' },
       include: { _count: { select: { PHANQUYEN: true } } }
     });
@@ -26,7 +28,7 @@ const createFunction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã chức năng đã tồn tại' });
     }
     const func = await prisma.CHUCNANG.create({
-      data: { MaChucNang, TenChucNang, TenManHinhDuocLoad }
+      data: { MaChucNang, TenChucNang, TenManHinhDuocLoad, ...updateAudit(req) }
     });
     res.status(201).json({ success: true, message: 'Tạo chức năng thành công', data: func });
   } catch (error) {
@@ -41,7 +43,7 @@ const updateFunction = async (req, res) => {
     const { TenChucNang, TenManHinhDuocLoad } = req.body;
     const func = await prisma.CHUCNANG.update({
       where: { MaChucNang: id },
-      data: { TenChucNang, TenManHinhDuocLoad }
+      data: { TenChucNang, TenManHinhDuocLoad, ...updateAudit(req) }
     });
     res.json({ success: true, message: 'Cập nhật chức năng thành công', data: func });
   } catch (error) {
@@ -53,7 +55,7 @@ const updateFunction = async (req, res) => {
 const deleteFunction = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.CHUCNANG.delete({ where: { MaChucNang: id } });
+    await prisma.CHUCNANG.update({ where: { MaChucNang: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Xóa chức năng thành công' });
   } catch (error) {
     console.error('deleteFunction error:', error);
@@ -66,6 +68,7 @@ const deleteFunction = async (req, res) => {
 const getAllGroups = async (req, res) => {
   try {
     const groups = await prisma.NHOMNGUOIDUNG.findMany({
+      where: { DaXoa: false },
       orderBy: { MaNhom: 'asc' },
       include: {
         _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
@@ -88,7 +91,7 @@ const createGroup = async (req, res) => {
     if (existing) {
       return res.status(400).json({ success: false, message: 'Mã nhóm đã tồn tại' });
     }
-    const group = await prisma.NHOMNGUOIDUNG.create({ data: { MaNhom, TenNhom } });
+    const group = await prisma.NHOMNGUOIDUNG.create({ data: { MaNhom, TenNhom, ...updateAudit(req) } });
     res.status(201).json({ success: true, message: 'Tạo nhóm thành công', data: group });
   } catch (error) {
     console.error('createGroup error:', error);
@@ -102,7 +105,7 @@ const updateGroup = async (req, res) => {
     const { TenNhom } = req.body;
     const group = await prisma.NHOMNGUOIDUNG.update({
       where: { MaNhom: id },
-      data: { TenNhom }
+      data: { TenNhom, ...updateAudit(req) }
     });
     res.json({ success: true, message: 'Cập nhật nhóm thành công', data: group });
   } catch (error) {
@@ -121,7 +124,7 @@ const deleteGroup = async (req, res) => {
     if (count > 0) {
       return res.status(400).json({ success: false, message: `Nhóm đang có ${count} tài khoản, không thể xóa` });
     }
-    await prisma.NHOMNGUOIDUNG.delete({ where: { MaNhom: id } });
+    await prisma.NHOMNGUOIDUNG.update({ where: { MaNhom: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Xóa nhóm thành công' });
   } catch (error) {
     console.error('deleteGroup error:', error);

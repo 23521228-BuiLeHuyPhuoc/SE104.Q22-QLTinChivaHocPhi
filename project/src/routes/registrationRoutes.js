@@ -20,6 +20,7 @@ router.put('/:id/cancel', registrationController.cancelRegistration);
 
 // Admin reports and list views
 router.get('/stats', adminMiddleware, registrationController.getRegistrationStats);
+router.get('/:soPhieu', adminMiddleware, registrationController.getRegistrationById);
 router.get('/', adminMiddleware, registrationController.getAllRegistrations);
 
 module.exports = router;

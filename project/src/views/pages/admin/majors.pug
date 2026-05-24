@@ -26,6 +26,8 @@ block content
             th Số TC tối thiểu
             th Thời gian ĐT
             th Số SV
+            th Sửa bởi
+            th Sửa lúc
             th Thao tác
         tbody
           if majors && majors.length > 0
@@ -38,12 +40,14 @@ block content
                 td= m.SoTinChiToiThieu || 120
                 td= m.ThoiGianDaoTao ? `${m.ThoiGianDaoTao} năm` : '4 năm'
                 td= m._count ? m._count.SINHVIEN : 0
+                td= m.NguoiCapNhat || '-'
+                td= m.NgayCapNhat ? new Date(m.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(m) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteMajor('${m.MaNganh}')`) Xóa
           else
             tr
-              td(colspan="7")
+              td(colspan="9")
                 .empty-state Không có ngành phù hợp
 
   include ../../partials/pagination

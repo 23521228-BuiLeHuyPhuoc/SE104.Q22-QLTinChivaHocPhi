@@ -4,8 +4,10 @@ const completedCourseController = require('../controllers/completedCourseControl
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
-router.use(adminMiddleware);
 
+router.get('/me', completedCourseController.getMyCompletedCourses);
+
+router.use(adminMiddleware);
 router.get('/', completedCourseController.getAllCompletedCourses);
 router.post('/', completedCourseController.createCompletedCourse);
 router.put('/:id', completedCourseController.updateCompletedCourse);

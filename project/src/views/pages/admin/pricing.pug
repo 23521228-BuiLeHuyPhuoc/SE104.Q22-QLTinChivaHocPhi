@@ -31,11 +31,13 @@ block content
             th Đơn giá / TC
             th Học kỳ
             th Trạng thái
+            th Sửa bởi
+            th Sửa lúc
             th Thao tác
         tbody
           if pricing && pricing.length > 0
             each p in pricing
-              - const loaiHocLabel = p.LoaiHoc === 'hoc_moi' ? 'Học mới' : p.LoaiHoc === 'hoc_lai' ? 'Học lại' : p.LoaiHoc === 'hoc_cai_thien' ? 'Cải thiện' : p.LoaiHoc
+              - const loaiHocLabel = p.LoaiHoc === 'hoc_moi' ? 'Học mới' : p.LoaiHoc === 'hoc_lai' ? 'Học lại' : p.LoaiHoc === 'hoc_cai_thien' ? 'Cải thiện' : p.LoaiHoc === 'hoc_he' ? 'Học hè' : p.LoaiHoc
               tr
                 td.mono= p.id
                 td
@@ -49,13 +51,17 @@ block content
                     span.badge.badge-success Đang áp dụng
                   else
                     span.badge.badge-secondary Ngưng
+                td= p.NguoiCapNhat || '-'
+                td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deletePricing(${p.id})`) Xóa
           else
             tr
-              td(colspan="7")
+              td(colspan="9")
                 .empty-state Chưa có đơn giá nào
+
+  include ../../partials/pagination
 
 block modals
   #pricing-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
@@ -77,6 +83,7 @@ block modals
                 option(value="hoc_moi") Học mới
                 option(value="hoc_lai") Học lại
                 option(value="hoc_cai_thien") Cải thiện
+                option(value="hoc_he") Học hè
           .form-row
             .form-group
               label(for="pr-dongia") Đơn giá / tín chỉ (VNĐ)

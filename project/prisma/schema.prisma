@@ -11,14 +11,24 @@ model CHUCNANG {
   MaChucNang         String      @id(map: "chuc_nang_pkey") @db.VarChar(30)
   TenChucNang        String      @db.VarChar(100)
   TenManHinhDuocLoad String      @db.VarChar(100)
+  NguoiCapNhat       Int?
+  NgayCapNhat        DateTime?   @db.Timestamp(6)
+  DaXoa              Boolean     @default(false)
+  NguoiXoa           Int?
+  NgayXoa            DateTime?   @db.Timestamp(6)
   PHANQUYEN          PHANQUYEN[]
 }
 
 model NHOMNGUOIDUNG {
-  MaNhom    String      @id(map: "nhom_nguoi_dung_pkey") @db.VarChar(20)
-  TenNhom   String      @unique(map: "nhom_nguoi_dung_ten_nhom_key") @db.VarChar(100)
-  PHANQUYEN PHANQUYEN[]
-  TAIKHOAN  TAIKHOAN[]
+  MaNhom       String      @id(map: "nhom_nguoi_dung_pkey") @db.VarChar(20)
+  TenNhom      String      @unique(map: "nhom_nguoi_dung_ten_nhom_key") @db.VarChar(100)
+  NguoiCapNhat Int?
+  NgayCapNhat  DateTime?   @db.Timestamp(6)
+  DaXoa         Boolean     @default(false)
+  NguoiXoa      Int?
+  NgayXoa       DateTime?   @db.Timestamp(6)
+  PHANQUYEN     PHANQUYEN[]
+  TAIKHOAN      TAIKHOAN[]
 }
 
 model PHANQUYEN {
@@ -35,6 +45,9 @@ model THAMSO {
   SoTinChiDangKyToiThieu     Int       @default(14)
   SoTinChiDangKyToiDa        Int       @default(24)
   SoTinChiDangKyToiDaKhiVuot Int       @default(30)
+  DanhSachMonAnhVanBatBuoc   String?   @default("ENG01,ENG02,ENG03") @db.VarChar(200)
+  NamKiemTraAnhVan           Int?      @default(2)
+  GioiHanTinChiChuaDatAnhVan Int?      @default(14)
   NgayCapNhat                DateTime? @default(now()) @db.Timestamp(6)
 }
 
@@ -98,6 +111,9 @@ model MONDAHOC {
   NguoiCapNhat  Int?
   NgayTao       DateTime? @default(now()) @db.Timestamp(6)
   NgayCapNhat   DateTime? @db.Timestamp(6)
+  DaXoa         Boolean   @default(false)
+  NguoiXoa      Int?
+  NgayXoa       DateTime? @db.Timestamp(6)
   HOCKY         HOCKY     @relation(fields: [MaHocKy], references: [MaHocKy], map: "fk_mdh_hk")
   LOP           LOP?      @relation(fields: [MaLop], references: [MaLop], map: "fk_mdh_lop")
   MONHOC        MONHOC    @relation(fields: [MaMonHoc], references: [MaMonHoc], map: "fk_mdh_mh")
@@ -132,6 +148,11 @@ model DOITUONG {
   MoTa             String?            @db.VarChar(300)
   TrangThai        Boolean?           @default(true)
   NgayTao          DateTime?          @default(now()) @db.Timestamp(6)
+  NguoiCapNhat     Int?
+  NgayCapNhat      DateTime?          @db.Timestamp(6)
+  DaXoa            Boolean            @default(false)
+  NguoiXoa         Int?
+  NgayXoa          DateTime?          @db.Timestamp(6)
   DOITUONGSINHVIEN DOITUONGSINHVIEN[]
 }
 
@@ -158,6 +179,11 @@ model DONGIATINCHI {
   NgayApDung DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
   TrangThai  Boolean?  @default(true)
   GhiChu     String?   @db.VarChar(200)
+  NguoiCapNhat Int?
+  NgayCapNhat DateTime? @db.Timestamp(6)
+  DaXoa     Boolean   @default(false)
+  NguoiXoa  Int?
+  NgayXoa   DateTime? @db.Timestamp(6)
   HOCKY      HOCKY?    @relation(fields: [MaHocKy], references: [MaHocKy], map: "fk_dgtc_hk")
 
   @@unique([LoaiMon, LoaiHoc, MaHocKy], map: "uq_dgtc")
@@ -178,6 +204,11 @@ model HOCKY {
   TrangThai         String?        @default("Sắp diễn ra") @db.VarChar(20)
   GhiChu            String?        @db.VarChar(300)
   NgayTao           DateTime?      @default(now()) @db.Timestamp(6)
+  NguoiCapNhat      Int?
+  NgayCapNhat       DateTime?      @db.Timestamp(6)
+  DaXoa             Boolean        @default(false)
+  NguoiXoa          Int?
+  NgayXoa           DateTime?      @db.Timestamp(6)
   MONDAHOC          MONDAHOC[]
   DONGIATINCHI      DONGIATINCHI[]
   NAMHOC            NAMHOC         @relation(fields: [MaNamHoc], references: [MaNamHoc], map: "fk_hk_namhoc")
@@ -195,6 +226,11 @@ model KHOA {
   TruongKhoa String?    @db.VarChar(100)
   TrangThai  Boolean?   @default(true)
   NgayTao    DateTime?  @default(now()) @db.Timestamp(6)
+  NguoiCapNhat Int?
+  NgayCapNhat DateTime? @db.Timestamp(6)
+  DaXoa      Boolean    @default(false)
+  NguoiXoa   Int?
+  NgayXoa    DateTime?  @db.Timestamp(6)
   MONHOC     MONHOC[]
   NGANHHOC   NGANHHOC[]
 }
@@ -226,6 +262,11 @@ model LOP {
   MoTa          String?         @db.VarChar(300)
   TrangThai     Boolean?        @default(true)
   NgayTao       DateTime?       @default(now()) @db.Timestamp(6)
+  NguoiCapNhat  Int?
+  NgayCapNhat   DateTime?       @db.Timestamp(6)
+  DaXoa         Boolean         @default(false)
+  NguoiXoa      Int?
+  NgayXoa       DateTime?       @db.Timestamp(6)
   CHITIETDANGKY CHITIETDANGKY[]
   MONDAHOC      MONDAHOC[]
   MONHOC        MONHOC          @relation(fields: [MaMonHoc], references: [MaMonHoc], onDelete: Cascade, map: "fk_lop_monhoc")
@@ -258,6 +299,11 @@ model MONHOC {
   MoTa                                                String?          @db.VarChar(500)
   TrangThai                                           Boolean?         @default(true)
   NgayTao                                             DateTime?        @default(now()) @db.Timestamp(6)
+  NguoiCapNhat                                        Int?
+  NgayCapNhat                                         DateTime?        @db.Timestamp(6)
+  DaXoa                                               Boolean          @default(false)
+  NguoiXoa                                            Int?
+  NgayXoa                                             DateTime?        @db.Timestamp(6)
   CHUONGTRINHHOC                                      CHUONGTRINHHOC[]
   CHITIETDANGKY                                       CHITIETDANGKY[]
   MONDAHOC                                            MONDAHOC[]
@@ -286,6 +332,11 @@ model NGANHHOC {
   MoTa             String?          @db.VarChar(500)
   TrangThai        Boolean?         @default(true)
   NgayTao          DateTime?        @default(now()) @db.Timestamp(6)
+  NguoiCapNhat     Int?
+  NgayCapNhat      DateTime?        @db.Timestamp(6)
+  DaXoa            Boolean          @default(false)
+  NguoiXoa         Int?
+  NgayXoa          DateTime?        @db.Timestamp(6)
   CHUONGTRINHHOC   CHUONGTRINHHOC[]
   KHOA             KHOA             @relation(fields: [MaKhoa], references: [MaKhoa], map: "fk_nganh_khoa")
   SINHVIEN         SINHVIEN[]
@@ -334,6 +385,12 @@ model PHIEUTHUHOCPHI {
   NguoiThu      String?     @db.VarChar(100)
   GhiChu        String?     @db.VarChar(300)
   TrangThai     String?     @default("Thành công") @db.VarChar(20)
+  PaymentProvider String?   @db.VarChar(30)
+  PaymentChannel  String?   @db.VarChar(30)
+  CheckoutUrl     String?   @db.VarChar(1000)
+  QrPayload       String?
+  NgayXacNhan     DateTime? @db.Timestamp(6)
+  NgayCapNhat     DateTime? @db.Timestamp(6)
   PHIEUDANGKY   PHIEUDANGKY @relation(fields: [SoPhieuDangKy], references: [SoPhieu], map: "fk_pthp_pdk")
   SINHVIEN      SINHVIEN    @relation(fields: [MaSv], references: [MaSv], map: "fk_pthp_sv")
 }
@@ -378,11 +435,11 @@ model SINHVIEN {
   HoTen                                  String             @db.VarChar(100)
   NgaySinh                               DateTime           @db.Date
   GioiTinh                               String             @db.VarChar(5)
-  Cccd                                   String?            @unique(map: "sinh_vien_cccd_key") @db.VarChar(20)
+  Cccd                                   String             @unique(map: "sinh_vien_cccd_key") @db.VarChar(20)
   MaPhuongXa                             String             @db.VarChar(20)
-  MaDanToc                               String?            @db.VarChar(10)
+  MaDanToc                               String             @db.VarChar(10)
   MaNganh                                String             @db.VarChar(10)
-  DiaChiLienHe                           String?            @db.VarChar(200)
+  DiaChiLienHe                           String             @db.VarChar(200)
   Sdt                                    String?            @db.VarChar(15)
   Email                                  String?            @db.VarChar(100)
   AnhDaiDien                             String?            @db.VarChar(255)
@@ -395,11 +452,15 @@ model SINHVIEN {
   GhiChu                                 String?            @db.VarChar(300)
   NgayTao                                DateTime?          @default(now()) @db.Timestamp(6)
   NgayCapNhat                            DateTime?          @db.Timestamp(6)
+  NguoiCapNhat                           Int?
+  DaXoa                                  Boolean            @default(false)
+  NguoiXoa                               Int?
+  NgayXoa                                DateTime?          @db.Timestamp(6)
   MONDAHOC                               MONDAHOC[]
   DOITUONGSINHVIEN                       DOITUONGSINHVIEN[]
   PHIEUDANGKY                            PHIEUDANGKY[]
   PHIEUTHUHOCPHI                         PHIEUTHUHOCPHI[]
-  DANTOC                                 DANTOC?            @relation(fields: [MaDanToc], references: [MaDanToc], map: "fk_sv_dan_toc")
+  DANTOC                                 DANTOC             @relation(fields: [MaDanToc], references: [MaDanToc], map: "fk_sv_dan_toc")
   NGANHHOC                               NGANHHOC           @relation(fields: [MaNganh], references: [MaNganh], map: "fk_sv_nganh")
   PHUONGXA                               PHUONGXA           @relation(fields: [MaPhuongXa], references: [MaPhuongXa], map: "fk_sv_phuong_xa")
   TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN TAIKHOAN?          @relation("SINHVIEN_MaTaiKhoanToTAIKHOAN", fields: [MaTaiKhoan], references: [MaTaiKhoan], map: "fk_sv_tk")
@@ -470,6 +531,11 @@ model THONGBAO {
   NguoiTao                                   Int?
   NgayTao                                    DateTime? @default(now()) @db.Timestamp(6)
   TrangThai                                  Boolean?  @default(true)
+  NguoiCapNhat                               Int?
+  NgayCapNhat                                DateTime? @db.Timestamp(6)
+  DaXoa                                      Boolean   @default(false)
+  NguoiXoa                                   Int?
+  NgayXoa                                    DateTime? @db.Timestamp(6)
   TAIKHOAN_THONGBAO_MaTaiKhoanNhanToTAIKHOAN TAIKHOAN? @relation("THONGBAO_MaTaiKhoanNhanToTAIKHOAN", fields: [MaTaiKhoanNhan], references: [MaTaiKhoan], onDelete: Cascade, map: "fk_tb_nguoinhan")
   TAIKHOAN_THONGBAO_NguoiTaoToTAIKHOAN       TAIKHOAN? @relation("THONGBAO_NguoiTaoToTAIKHOAN", fields: [NguoiTao], references: [MaTaiKhoan], map: "fk_tb_nguoitao")
 }

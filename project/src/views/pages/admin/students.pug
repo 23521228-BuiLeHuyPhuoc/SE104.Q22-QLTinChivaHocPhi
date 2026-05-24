@@ -27,12 +27,17 @@ block content
             th Ngành
             th Khoa
             th Trạng thái
+            th Duyệt
+            th Sửa bởi
+            th Sửa lúc
             th Thao tác
         tbody#students-table
           if students && students.length > 0
             each sv in students
               - const major = sv.NGANHHOC || {}
               - const faculty = major.KHOA || {}
+              - const account = sv.TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN || {}
+              - const approval = account.TrangThaiDuyet || 'approved'
               tr
                 td.mono= sv.MaSv
                 td
@@ -45,12 +50,24 @@ block content
                 td= faculty.TenKhoa || '-'
                 td
                   span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
+                td
+                  if approval === 'pending'
+                    span.badge.badge-warning Chờ duyệt
+                  else if approval === 'rejected'
+                    span.badge.badge-error Từ chối
+                  else
+                    span.badge.badge-success Đã duyệt
+                td= sv.NguoiCapNhat || '-'
+                td= sv.NgayCapNhat ? new Date(sv.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(sv) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  if approval === 'pending' && account.MaTaiKhoan
+                    button.btn.btn-sm.btn-primary(type="button" onclick=`approveStudentAccount(${account.MaTaiKhoan}, this)`) Duyệt
+                    button.btn.btn-sm.btn-outline(type="button" onclick=`rejectStudentAccount(${account.MaTaiKhoan})`) Từ chối
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteStudent('${sv.MaSv}')`) Xóa
           else
             tr
-              td(colspan="7")
+              td(colspan="10")
                 .empty-state Không có sinh viên phù hợp
 
   include ../../partials/pagination
@@ -89,10 +106,10 @@ block modals
           .form-row
             .form-group
               label(for="sv-cmnd") CMND/CCCD
-              input.form-control#sv-cmnd(type="text")
+              input.form-control#sv-cmnd(type="text" required)
             .form-group
               label(for="sv-dantoc") Mã dân tộc
-              input.form-control#sv-dantoc(type="text" value="DT01")
+              input.form-control#sv-dantoc(type="text" value="DT01" required)
           .form-row
             .form-group
               label(for="sv-phuongxa") Mã phường/xã
@@ -114,7 +131,7 @@ block modals
               input.form-control#sv-password(type="password" placeholder="Để trống khi cập nhật")
           .form-group
             label(for="sv-diachi") Địa chỉ liên hệ
-            input.form-control#sv-diachi(type="text")
+            input.form-control#sv-diachi(type="text" required)
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu

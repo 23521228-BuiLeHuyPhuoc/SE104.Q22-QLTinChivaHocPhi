@@ -1,6 +1,17 @@
 const prisma = require('../config/database');
+const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { updateAudit, softDeleteAudit } = require('../utils/audit');
 
 const VALID_RESULTS = ['qua_mon', 'rot'];
+
+const getStudentIdFromRequest = async (req) => {
+  if (req.user?.MaSv) return req.user.MaSv;
+  const student = await prisma.SINHVIEN.findFirst({
+    where: { MaTaiKhoan: Number(req.user?.MaTaiKhoan || req.user?.id || 0), DaXoa: false },
+    select: { MaSv: true }
+  });
+  return student?.MaSv || null;
+};
 
 const normalizeResult = (value) => {
   if (value === 'qua_mon' || value === 'rot') return value;
@@ -9,11 +20,64 @@ const normalizeResult = (value) => {
   return value;
 };
 
+const getMyCompletedCourses = async (req, res) => {
+  try {
+    const maSv = await getStudentIdFromRequest(req);
+    if (!maSv) {
+      return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
+    }
+
+    const { MaHocKy, KetQua, search } = req.query;
+    const where = { MaSv: maSv, DaXoa: false };
+    if (MaHocKy) where.MaHocKy = MaHocKy;
+    if (KetQua) where.KetQua = KetQua;
+    if (search) {
+      where.MONHOC = {
+        OR: [
+          { MaMonHoc: { contains: search, mode: 'insensitive' } },
+          { TenMonHoc: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    const completedCourses = await prisma.MONDAHOC.findMany({
+      where,
+      orderBy: [{ MaHocKy: 'desc' }, { LanHoc: 'desc' }, { NgayTao: 'desc' }, { id: 'desc' }],
+      include: {
+        MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true } },
+        HOCKY: { select: { MaHocKy: true, TenHocKy: true, NAMHOC: { select: { TenNamHoc: true } } } },
+        LOP: { select: { MaLop: true, TenLop: true } }
+      }
+    });
+
+    const passedCreditsByCourse = new Map();
+    completedCourses.forEach((item) => {
+      if (item.KetQua === 'qua_mon' && item.MONHOC) {
+        passedCreditsByCourse.set(item.MaMonHoc, Number(item.MONHOC.SoTinChi || 0));
+      }
+    });
+
+    res.json({
+      success: true,
+      data: completedCourses,
+      summary: {
+        totalAttempts: completedCourses.length,
+        passedCount: completedCourses.filter((item) => item.KetQua === 'qua_mon').length,
+        failedCount: completedCourses.filter((item) => item.KetQua === 'rot').length,
+        passedCredits: Array.from(passedCreditsByCourse.values()).reduce((sum, credits) => sum + credits, 0)
+      }
+    });
+  } catch (error) {
+    console.error('getMyCompletedCourses error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
 const getAllCompletedCourses = async (req, res) => {
   try {
-    const { search, MaHocKy, MaMonHoc, KetQua, page = 1, limit = 20 } = req.query;
-    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    const where = {};
+    const { page, limit, skip } = getPagination(req.query);
+    const { search, MaHocKy, MaMonHoc, KetQua } = req.query;
+    const where = notDeleted();
 
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (MaMonHoc) where.MaMonHoc = MaMonHoc;
@@ -31,12 +95,12 @@ const getAllCompletedCourses = async (req, res) => {
       prisma.MONDAHOC.findMany({
         where,
         skip,
-        take: parseInt(limit, 10),
+        take: limit,
         orderBy: [{ NgayTao: 'desc' }, { id: 'desc' }],
         include: {
           SINHVIEN: { select: { MaSv: true, HoTen: true } },
           MONHOC: { select: { MaMonHoc: true, TenMonHoc: true } },
-          HOCKY: { select: { MaHocKy: true, TenHocKy: true } },
+          HOCKY: { select: { MaHocKy: true, TenHocKy: true, NAMHOC: { select: { TenNamHoc: true } } } },
           LOP: { select: { MaLop: true, TenLop: true } }
         }
       }),
@@ -46,12 +110,7 @@ const getAllCompletedCourses = async (req, res) => {
     res.json({
       success: true,
       data: completedCourses,
-      pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
-        total,
-        totalPages: Math.ceil(total / parseInt(limit, 10))
-      }
+      pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
     console.error('getAllCompletedCourses error:', error);
@@ -80,7 +139,7 @@ const createCompletedCourse = async (req, res) => {
         LanHoc: parseInt(LanHoc, 10) || 1,
         KetQua: result,
         GhiChu,
-        NguoiCapNhat: req.user.id || req.user.MaTaiKhoan || null
+        ...updateAudit(req)
       }
     });
 
@@ -98,7 +157,7 @@ const updateCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
     const { MaSv, MaMonHoc, MaHocKy, MaLop, LanHoc, KetQua, GhiChu } = req.body;
-    const data = { NgayCapNhat: new Date(), NguoiCapNhat: req.user.id || req.user.MaTaiKhoan || null };
+    const data = updateAudit(req);
 
     if (MaSv !== undefined) data.MaSv = MaSv;
     if (MaMonHoc !== undefined) data.MaMonHoc = MaMonHoc;
@@ -128,8 +187,8 @@ const updateCompletedCourse = async (req, res) => {
 const deleteCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.MONDAHOC.delete({ where: { id: parseInt(id, 10) } });
-    res.json({ success: true, message: 'Xóa môn đã học thành công' });
+    await prisma.MONDAHOC.update({ where: { id: parseInt(id, 10) }, data: softDeleteAudit(req) });
+    res.json({ success: true, message: 'Đã chuyển môn đã học vào thùng rác' });
   } catch (error) {
     console.error('deleteCompletedCourse error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
@@ -137,6 +196,7 @@ const deleteCompletedCourse = async (req, res) => {
 };
 
 module.exports = {
+  getMyCompletedCourses,
   getAllCompletedCourses,
   createCompletedCourse,
   updateCompletedCourse,

@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { getPagination, getPaginationMeta } = require('../utils/pagination');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
@@ -65,6 +66,80 @@ const getStudentDiscountRate = async (tx, maSv) => {
   return activeRows.length ? Number(activeRows[0].DOITUONG.TiLeGiamHocPhi || 0) : 0;
 };
 
+const getEnglishLimitInfo = async (tx, maSv, maHocKy) => {
+  const [settings, student, semester] = await Promise.all([
+    tx.THAMSO.findFirst(),
+    tx.SINHVIEN.findFirst({ where: { MaSv: maSv, DaXoa: false }, select: { NgayNhapHoc: true } }),
+    tx.HOCKY.findFirst({ where: { MaHocKy: maHocKy, DaXoa: false }, select: { NgayBatDau: true } })
+  ]);
+
+  const englishCourses = String(settings?.DanhSachMonAnhVanBatBuoc || 'ENG01,ENG02,ENG03')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const normalMax = Number(settings?.SoTinChiDangKyToiDa || 24);
+  const limitedMax = Number(settings?.GioiHanTinChiChuaDatAnhVan || 14);
+  const checkYears = Number(settings?.NamKiemTraAnhVan || 2);
+  if (!student?.NgayNhapHoc || !englishCourses.length) return { maxCredits: normalMax, limited: false, missingCourses: [] };
+
+  const cutoff = new Date(student.NgayNhapHoc);
+  cutoff.setFullYear(cutoff.getFullYear() + checkYears);
+  const semesterStart = semester?.NgayBatDau ? new Date(semester.NgayBatDau) : new Date();
+  if (semesterStart <= cutoff) return { maxCredits: normalMax, limited: false, missingCourses: [] };
+
+  const passed = await tx.MONDAHOC.findMany({
+    where: { MaSv: maSv, MaMonHoc: { in: englishCourses }, KetQua: 'qua_mon', DaXoa: false },
+    select: { MaMonHoc: true }
+  });
+  const passedSet = new Set(passed.map((item) => item.MaMonHoc));
+  const missingCourses = englishCourses.filter((course) => !passedSet.has(course));
+  if (!missingCourses.length) return { maxCredits: normalMax, limited: false, missingCourses: [] };
+  return { maxCredits: Math.min(normalMax, limitedMax), limited: true, missingCourses };
+};
+
+const ensureCreditLimit = async (tx, maSv, maHocKy, soPhieu, creditsToAdd) => {
+  const phieu = await tx.PHIEUDANGKY.findUnique({
+    where: { SoPhieu: soPhieu },
+    include: { CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, select: { SoTinChi: true } } }
+  });
+  const currentCredits = phieu?.CHITIETDANGKY.reduce((sum, item) => sum + Number(item.SoTinChi || 0), 0) || 0;
+  const limitInfo = await getEnglishLimitInfo(tx, maSv, maHocKy);
+  const nextCredits = currentCredits + Number(creditsToAdd || 0);
+  if (nextCredits > limitInfo.maxCredits) {
+    const reason = limitInfo.limited
+      ? `Sinh viên chưa hoàn tất ${limitInfo.missingCourses.join(', ')} sau cuối năm ${Number((await tx.THAMSO.findFirst())?.NamKiemTraAnhVan || 2)}, tối đa ${limitInfo.maxCredits} tín chỉ`
+      : `Vượt quá số tín chỉ tối đa ${limitInfo.maxCredits}`;
+    throw { status: 400, message: reason };
+  }
+};
+
+const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop) => {
+  const conflicts = await tx.$queryRaw`
+    SELECT c_old.id, c_old."MaLop", mh."TenMonHoc", lh_old."ThuTrongTuan"
+    FROM "LOPMO" lm_new
+    JOIN "LICHHOCLOP" lh_new ON lh_new."LopMoId" = lm_new.id AND COALESCE(lh_new."TrangThai", TRUE) = TRUE
+    JOIN "TIETHOC" tbn ON tbn."MaTiet" = lh_new."MaTietBatDau"
+    JOIN "TIETHOC" ten ON ten."MaTiet" = lh_new."MaTietKetThuc"
+    JOIN "PHIEUDANGKY" p_old ON p_old."MaSv" = ${maSv} AND p_old."MaHocKy" = ${maHocKy}
+    JOIN "CHITIETDANGKY" c_old ON c_old."SoPhieu" = p_old."SoPhieu" AND c_old."TrangThai" = ${ACTIVE_REGISTRATION_STATUS}
+    JOIN "LOPMO" lm_old ON lm_old."MaHocKy" = p_old."MaHocKy" AND lm_old."MaLop" = c_old."MaLop" AND COALESCE(lm_old."TrangThai", TRUE) = TRUE
+    JOIN "LICHHOCLOP" lh_old ON lh_old."LopMoId" = lm_old.id AND COALESCE(lh_old."TrangThai", TRUE) = TRUE
+    JOIN "TIETHOC" tbo ON tbo."MaTiet" = lh_old."MaTietBatDau"
+    JOIN "TIETHOC" teo ON teo."MaTiet" = lh_old."MaTietKetThuc"
+    LEFT JOIN "MONHOC" mh ON mh."MaMonHoc" = c_old."MaMonHoc"
+    WHERE lm_new."MaHocKy" = ${maHocKy}
+      AND lm_new."MaLop" = ${maLop}
+      AND COALESCE(lm_new."TrangThai", TRUE) = TRUE
+      AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
+      AND tbn."ThuTu" <= teo."ThuTu"
+      AND tbo."ThuTu" <= ten."ThuTu"
+    LIMIT 1
+  `;
+  if (conflicts.length) {
+    throw { status: 400, message: `Trùng lịch học với lớp ${conflicts[0].MaLop}${conflicts[0].TenMonHoc ? ` - ${conflicts[0].TenMonHoc}` : ''}` };
+  }
+};
+
 const recalculateRegistrationTotals = async (tx, soPhieu) => {
   const phieu = await tx.PHIEUDANGKY.findUnique({
     where: { SoPhieu: soPhieu },
@@ -125,8 +200,8 @@ const recalculateRegistrationTotals = async (tx, soPhieu) => {
 
 const getAllRegistrations = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', MaHocKy, TrangThai } = req.query;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = getPagination(req.query);
+    const { search = '', MaHocKy, TrangThai } = req.query;
     const where = {};
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (TrangThai) where.TrangThai = TrangThai;
@@ -143,7 +218,7 @@ const getAllRegistrations = async (req, res) => {
       prisma.PHIEUDANGKY.findMany({
         where,
         skip,
-        take: parseInt(limit, 10),
+        take: limit,
         orderBy: { NgayLap: 'desc' },
         include: { SINHVIEN: true, HOCKY: { include: { NAMHOC: true } }, CHITIETDANGKY: true }
       }),
@@ -164,9 +239,34 @@ const getAllRegistrations = async (req, res) => {
       TrangThai: r.TrangThai
     }));
 
-    res.json({ success: true, data, pagination: { page: parseInt(page, 10), limit: parseInt(limit, 10), total, totalPages: Math.ceil(total / limit) } });
+    res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
     console.error('Get all registrations error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi server' });
+  }
+};
+
+const getRegistrationById = async (req, res) => {
+  try {
+    const soPhieu = parseInt(req.params.soPhieu, 10);
+    if (!Number.isFinite(soPhieu)) return res.status(400).json({ success: false, message: 'Số phiếu không hợp lệ' });
+
+    const registration = await prisma.PHIEUDANGKY.findUnique({
+      where: { SoPhieu: soPhieu },
+      include: {
+        SINHVIEN: true,
+        HOCKY: { include: { NAMHOC: true } },
+        CHITIETDANGKY: {
+          orderBy: { NgayDangKy: 'desc' },
+          include: { LOP: { include: { MONHOC: { include: { KHOA: true } } } }, MONHOC: true }
+        },
+        PHIEUTHUHOCPHI: true
+      }
+    });
+    if (!registration) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu đăng ký' });
+    res.json({ success: true, data: registration });
+  } catch (error) {
+    console.error('Get registration by id error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
   }
 };
@@ -262,6 +362,7 @@ const getStudentCourses = async (req, res) => {
 
 const getAvailableCourses = async (req, res) => {
   try {
+    const { page, limit, skip } = getPagination(req.query);
     const { MaHocKy, search = '', MaKhoa } = req.query;
     if (!MaHocKy) return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ' });
 
@@ -280,8 +381,11 @@ const getAvailableCourses = async (req, res) => {
       if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
     }
 
-    const rows = await prisma.LOPMO.findMany({
+    const [rows, total] = await Promise.all([
+      prisma.LOPMO.findMany({
       where,
+      skip,
+      take: limit,
       include: {
         LOP: {
           include: {
@@ -291,7 +395,9 @@ const getAvailableCourses = async (req, res) => {
         },
         HOCKY: true
       }
-    });
+    }),
+      prisma.LOPMO.count({ where })
+    ]);
 
     const data = await Promise.all(rows.map(async (r) => {
       const course = r.LOP.MONHOC;
@@ -322,7 +428,7 @@ const getAvailableCourses = async (req, res) => {
       };
     }));
 
-    res.json({ success: true, data });
+    res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
     console.error('Get available courses error:', error);
     res.status(500).json({ success: false, message: 'Lỗi server' });
@@ -369,6 +475,9 @@ const registerCourse = async (req, res) => {
       const price = await getCreditPrice(tx, course.LoaiMon, registrationType, MaHocKy);
       const credits = Number(course.SoTinChi || 0);
       const amount = price * credits;
+
+      await ensureNoScheduleConflict(tx, MaSv, MaHocKy, MaLop);
+      await ensureCreditLimit(tx, MaSv, MaHocKy, phieu.SoPhieu, credits);
 
       const cancelledReg = await tx.CHITIETDANGKY.findFirst({
         where: { SoPhieu: phieu.SoPhieu, MaMonHoc: course.MaMonHoc, TrangThai: CANCELLED_REGISTRATION_STATUS }
@@ -446,6 +555,7 @@ const getRegistrationStats = async (req, res) => {
 
 module.exports = {
   getAllRegistrations,
+  getRegistrationById,
   getStudentCourses,
   getAvailableCourses,
   registerCourse,

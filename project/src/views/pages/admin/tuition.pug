@@ -10,6 +10,7 @@ block content
         option(value="" selected=(!status)) Tất cả trạng thái
         option(value="unpaid" selected=(status === 'unpaid')) Chưa đóng
         option(value="partial" selected=(status === 'partial')) Đóng một phần
+        option(value="overdue" selected=(status === 'overdue')) Quá hạn
         option(value="paid" selected=(status === 'paid')) Đã đóng đủ
 
   .card
@@ -28,6 +29,7 @@ block content
             th Tổng phải đóng
             th Đã đóng
             th Còn nợ
+            th Hạn đóng
             th Trạng thái
         tbody
           if tuitions && tuitions.length > 0
@@ -48,11 +50,12 @@ block content
                 td.currency= money(t.TongTienPhaiDong)
                 td.currency= money(t.TongTienDaDong)
                 td.currency(class=(Number(t.ConNo || 0) > 0 ? 'text-danger' : 'text-success'))= money(t.ConNo)
+                td= t.HanDongHocPhi ? new Date(t.HanDongHocPhi).toLocaleDateString('vi-VN') : '-'
                 td
                   span.badge(class=badge)= t.TrangThaiHocPhi
           else
             tr
-              td(colspan="9")
+              td(colspan="10")
                 .empty-state Không có dữ liệu học phí
 
   include ../../partials/pagination

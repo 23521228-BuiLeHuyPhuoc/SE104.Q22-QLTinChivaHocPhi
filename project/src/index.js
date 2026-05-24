@@ -23,6 +23,8 @@ const pricingRoutes = require('./routes/pricingRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const beneficiaryRoutes = require('./routes/beneficiaryRoutes');
 const completedCourseRoutes = require('./routes/completedCourseRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const trashRoutes = require('./routes/trashRoutes');
 const prisma = require('./config/database');
 
 // Import SSR view routes
@@ -75,6 +77,8 @@ app.use('/api/pricing', pricingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/beneficiaries', beneficiaryRoutes);
 app.use('/api/completed-courses', completedCourseRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/trash', trashRoutes);
 
 // ==========================================
 // SSR View Routes (Pug pages)

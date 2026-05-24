@@ -21,6 +21,19 @@ block content
           .form-group
             label(for="st-toidavuot") Số tín chỉ tối đa khi vượt
             input.form-control#st-toidavuot(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiDaKhiVuot : 30))
+      .card
+        .card-header
+          h3 Ràng buộc Anh văn
+        .card-body
+          .form-group
+            label(for="st-anhvan") Mã môn Anh văn bắt buộc
+            input.form-control#st-anhvan(type="text" value=(settings && settings.DanhSachMonAnhVanBatBuoc ? settings.DanhSachMonAnhVanBatBuoc : 'ENG01,ENG02,ENG03') placeholder="VD: ENG01,ENG02,ENG03")
+          .form-group
+            label(for="st-namkiemtra") Năm kiểm tra hoàn tất Anh văn
+            input.form-control#st-namkiemtra(type="number" min="1" value=(settings && settings.NamKiemTraAnhVan ? settings.NamKiemTraAnhVan : 2))
+          .form-group
+            label(for="st-gioihananhvan") Giới hạn tín chỉ khi chưa đạt
+            input.form-control#st-gioihananhvan(type="number" min="1" value=(settings && settings.GioiHanTinChiChuaDatAnhVan ? settings.GioiHanTinChiChuaDatAnhVan : 14))
 
     .card
       .card-body.d-flex.justify-between.align-center

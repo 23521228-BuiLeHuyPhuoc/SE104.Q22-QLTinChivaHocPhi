@@ -21,7 +21,10 @@ block content
             th Giảng viên
             th Lịch học
             th Phòng
+            th Đã đăng ký
             th Sĩ số tối đa
+            th Sửa bởi
+            th Sửa lúc
             th Thao tác
         tbody
           if classes && classes.length > 0
@@ -35,13 +38,16 @@ block content
                 td= cl.GiangVien || '-'
                 td= cl.LichHoc || '-'
                 td= cl.PhongHoc || '-'
+                td= cl.CHITIETDANGKY ? cl.CHITIETDANGKY.length : 0
                 td= cl.SoLuongToiDa || '-'
+                td= cl.NguoiCapNhat || '-'
+                td= cl.NgayCapNhat ? new Date(cl.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteClass('${cl.MaLop}')`) Xóa
           else
             tr
-              td(colspan="8")
+              td(colspan="11")
                 .empty-state Không có lớp học phù hợp
 
   include ../../partials/pagination

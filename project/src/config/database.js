@@ -9,6 +9,21 @@ const DEFAULT_USER_GROUPS = [
   { MaNhom: 'SINHVIEN', TenNhom: 'Sinh viên' }
 ];
 
+const AUDITED_SOFT_DELETE_TABLES = [
+  'SINHVIEN',
+  'MONHOC',
+  'LOP',
+  'HOCKY',
+  'KHOA',
+  'NGANHHOC',
+  'MONDAHOC',
+  'DONGIATINCHI',
+  'DOITUONG',
+  'THONGBAO',
+  'CHUCNANG',
+  'NHOMNGUOIDUNG'
+];
+
 const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "NGUOIDUNG"
@@ -391,6 +406,139 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "NgayHetHan" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "NguoiTao" INTEGER,
       ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE
+  `);
+
+  for (const tableName of AUDITED_SOFT_DELETE_TABLES) {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "${tableName}"
+        ADD COLUMN IF NOT EXISTS "NguoiCapNhat" INTEGER,
+        ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS "NguoiXoa" INTEGER,
+        ADD COLUMN IF NOT EXISTS "NgayXoa" TIMESTAMP
+    `);
+    await prisma.$executeRawUnsafe(`UPDATE "${tableName}" SET "DaXoa" = FALSE WHERE "DaXoa" IS NULL`);
+  }
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "SINHVIEN"
+    SET
+      "Cccd" = COALESCE(NULLIF("Cccd", ''), 'CCCD-' || "MaSv"),
+      "MaDanToc" = COALESCE("MaDanToc", (SELECT "MaDanToc" FROM "DANTOC" ORDER BY "MaDanToc" LIMIT 1)),
+      "DiaChiLienHe" = COALESCE(NULLIF("DiaChiLienHe", ''), 'Chua cap nhat')
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "Cccd" IS NULL OR "MaDanToc" IS NULL OR "DiaChiLienHe" IS NULL) THEN
+        ALTER TABLE "SINHVIEN"
+          ALTER COLUMN "Cccd" SET NOT NULL,
+          ALTER COLUMN "MaDanToc" SET NOT NULL,
+          ALTER COLUMN "DiaChiLienHe" SET NOT NULL;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "THAMSO"
+      ADD COLUMN IF NOT EXISTS "DanhSachMonAnhVanBatBuoc" VARCHAR(200) DEFAULT 'ENG01,ENG02,ENG03',
+      ADD COLUMN IF NOT EXISTS "NamKiemTraAnhVan" INTEGER DEFAULT 2,
+      ADD COLUMN IF NOT EXISTS "GioiHanTinChiChuaDatAnhVan" INTEGER DEFAULT 14
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "THAMSO"
+    SET
+      "DanhSachMonAnhVanBatBuoc" = COALESCE(NULLIF("DanhSachMonAnhVanBatBuoc", ''), 'ENG01,ENG02,ENG03'),
+      "NamKiemTraAnhVan" = COALESCE("NamKiemTraAnhVan", 2),
+      "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14)
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "PHIEUTHUHOCPHI"
+      ADD COLUMN IF NOT EXISTS "PaymentProvider" VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS "PaymentChannel" VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS "CheckoutUrl" VARCHAR(1000),
+      ADD COLUMN IF NOT EXISTS "QrPayload" TEXT,
+      ADD COLUMN IF NOT EXISTS "NgayXacNhan" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_hinh_thuc_thu') THEN
+        ALTER TABLE "PHIEUTHUHOCPHI" DROP CONSTRAINT chk_hinh_thuc_thu;
+      END IF;
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_trang_thai_pthp') THEN
+        ALTER TABLE "PHIEUTHUHOCPHI" DROP CONSTRAINT chk_trang_thai_pthp;
+      END IF;
+      ALTER TABLE "PHIEUTHUHOCPHI"
+        ADD CONSTRAINT chk_hinh_thuc_thu CHECK ("HinhThucThu" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
+        ADD CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy'));
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION prevent_student_schedule_conflict()
+    RETURNS trigger AS $$
+    DECLARE
+      conflict_count INTEGER;
+    BEGIN
+      IF COALESCE(NEW."TrangThai", '') <> 'Đã đăng ký' THEN
+        RETURN NEW;
+      END IF;
+
+      SELECT COUNT(*) INTO conflict_count
+      FROM "PHIEUDANGKY" p_new
+      JOIN "LOPMO" lm_new
+        ON lm_new."MaHocKy" = p_new."MaHocKy"
+       AND lm_new."MaLop" = NEW."MaLop"
+       AND COALESCE(lm_new."TrangThai", TRUE) = TRUE
+      JOIN "LICHHOCLOP" lh_new
+        ON lh_new."LopMoId" = lm_new.id
+       AND COALESCE(lh_new."TrangThai", TRUE) = TRUE
+      JOIN "TIETHOC" tbn ON tbn."MaTiet" = lh_new."MaTietBatDau"
+      JOIN "TIETHOC" ten ON ten."MaTiet" = lh_new."MaTietKetThuc"
+      JOIN "PHIEUDANGKY" p_old
+        ON p_old."MaSv" = p_new."MaSv"
+       AND p_old."MaHocKy" = p_new."MaHocKy"
+      JOIN "CHITIETDANGKY" c_old
+        ON c_old."SoPhieu" = p_old."SoPhieu"
+       AND c_old.id <> NEW.id
+       AND COALESCE(c_old."TrangThai", '') = 'Đã đăng ký'
+      JOIN "LOPMO" lm_old
+        ON lm_old."MaHocKy" = p_old."MaHocKy"
+       AND lm_old."MaLop" = c_old."MaLop"
+       AND COALESCE(lm_old."TrangThai", TRUE) = TRUE
+      JOIN "LICHHOCLOP" lh_old
+        ON lh_old."LopMoId" = lm_old.id
+       AND COALESCE(lh_old."TrangThai", TRUE) = TRUE
+      JOIN "TIETHOC" tbo ON tbo."MaTiet" = lh_old."MaTietBatDau"
+      JOIN "TIETHOC" teo ON teo."MaTiet" = lh_old."MaTietKetThuc"
+      WHERE p_new."SoPhieu" = NEW."SoPhieu"
+        AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
+        AND tbn."ThuTu" <= teo."ThuTu"
+        AND tbo."ThuTu" <= ten."ThuTu";
+
+      IF conflict_count > 0 THEN
+        RAISE EXCEPTION 'Sinh vien bi trung lich hoc trong hoc ky nay';
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_prevent_student_schedule_conflict ON "CHITIETDANGKY"');
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_prevent_student_schedule_conflict
+    BEFORE INSERT OR UPDATE OF "SoPhieu", "MaLop", "TrangThai"
+    ON "CHITIETDANGKY"
+    FOR EACH ROW
+    EXECUTE FUNCTION prevent_student_schedule_conflict();
   `);
 
   for (const group of DEFAULT_USER_GROUPS) {

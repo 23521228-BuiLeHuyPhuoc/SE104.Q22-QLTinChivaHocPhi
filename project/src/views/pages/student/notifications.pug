@@ -5,6 +5,12 @@ block content
     .page-heading.compact
       .page-kicker Cá nhân
       h2 Thông báo
+    .toolbar
+      .filter-group
+        select#read-filter(onchange="loadNotifications(1)")
+          option(value="") Tất cả
+          option(value="false") Chưa đọc
+          option(value="true") Đã đọc
 
     .card
       .card-header
@@ -13,6 +19,7 @@ block content
         .loading-overlay#loading
           .spinner
         #notification-list.hidden
+        nav.pagination#notification-pagination(style="display:none")
 
 block scripts
   script(src="/js/student/notifications.js")

@@ -86,6 +86,12 @@ function toggleTheme() {
 function toggleSidebar() {
   var sidebar = document.getElementById('sidebar');
   var backdrop = document.getElementById('sidebar-backdrop');
+  var isMobile = window.matchMedia('(max-width: 768px)').matches;
+  if (!isMobile) {
+    document.body.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+    return;
+  }
   if (sidebar) {
     sidebar.classList.toggle('open');
     if (backdrop) {
@@ -148,6 +154,10 @@ function animateCounter(element, target, duration) {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    document.body.classList.add('sidebar-collapsed');
+  }
+
   // Auto-animate counters
   document.querySelectorAll('[data-count]').forEach(function(el) {
     var target = parseInt(el.dataset.count, 10);

@@ -12,53 +12,56 @@ block content
 
   .card
     .card-header
-      h3 Danh sách đăng ký tín chỉ
+      h3 Danh sách phiếu đăng ký tín chỉ
       span.card-count= registrations ? `${registrations.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
+            th Số phiếu
             th MSSV
             th Họ tên
             th Học kỳ
-            th Môn học
-            th Lớp
+            th Môn đã đăng ký
             th Tín chỉ
-            th Loại đăng ký
-            th Ngày đăng ký
+            th Học phí
+            th Đã thu
             th Trạng thái
+            th Thao tác
         tbody
           if registrations && registrations.length > 0
             each r in registrations
-              - const student = r.PHIEUDANGKY ? r.PHIEUDANGKY.SINHVIEN : null
-              - const semester = r.PHIEUDANGKY ? r.PHIEUDANGKY.HOCKY : null
-              - const course = r.LOP ? r.LOP.MONHOC : null
-              - const isCancelled = (r.TrangThai || '').toLowerCase().includes('hủy')
+              - const paid = (r.PHIEUTHUHOCPHI || []).reduce((sum, item) => sum + Number(item.SoTienThu || 0), 0)
+              - const totalFee = Number(r.TongTienPhaiDong || r.TongTienDangKy || 0)
+              - const semesterName = r.HOCKY ? `${r.HOCKY.TenHocKy}${r.HOCKY.NAMHOC ? ' - ' + r.HOCKY.NAMHOC.TenNamHoc : ''}` : r.MaHocKy
               tr
-                td.mono= student ? student.MaSv : '-'
-                td= student ? student.HoTen : '-'
-                td= semester ? semester.TenHocKy : (r.PHIEUDANGKY ? r.PHIEUDANGKY.MaHocKy : '-')
+                td.mono= r.SoPhieu
+                td.mono= r.MaSv
+                td= r.SINHVIEN ? r.SINHVIEN.HoTen : '-'
+                td= semesterName
+                td= r.CHITIETDANGKY ? r.CHITIETDANGKY.length : 0
+                td= r.TongTinChi || 0
+                td= totalFee.toLocaleString('vi-VN') + ' đ'
+                td= paid.toLocaleString('vi-VN') + ' đ'
                 td
-                  strong= course ? course.TenMonHoc : '-'
-                  small= course ? course.MaMonHoc : ''
-                td.mono= r.MaLop || '-'
-                td= r.SoTinChi || '-'
-                td
-                  if r.LoaiDangKy === 'hoc_lai'
-                    span.badge.badge-warning Học lại
-                  else if r.LoaiDangKy === 'hoc_cai_thien'
-                    span.badge.badge-info Cải thiện
-                  else
-                    span.badge.badge-success Học mới
-                td= r.NgayDangKy ? new Date(r.NgayDangKy).toLocaleDateString('vi-VN') : '-'
-                td
-                  span.badge(class=isCancelled ? 'badge-error' : 'badge-success')= r.TrangThai || 'Đã đăng ký'
+                  span.badge(class=((r.TrangThai || '').includes('hủy') || (r.TrangThai || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThai || 'Đã đăng ký'
+                td.actions
+                  button.btn-icon(type="button" title="Xem chi tiết" data-so-phieu=r.SoPhieu onclick="openRegistrationDetail(this.dataset.soPhieu)") 👁
           else
             tr
-              td(colspan="9")
+              td(colspan="10")
                 .empty-state Không có dữ liệu đăng ký
 
   include ../../partials/pagination
+
+block modals
+  #registration-detail-modal.modal-overlay(onclick="if(event.target===this)closeRegistrationDetail()")
+    .modal
+      .modal-header
+        h3 Chi tiết đăng ký tín chỉ
+        button.modal-close(type="button" onclick="closeRegistrationDetail()") ×
+      .modal-body
+        #registration-detail-content Đang tải...
 
 block scripts
   script(src="/js/admin/registrations.js")

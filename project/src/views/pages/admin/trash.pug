@@ -1,0 +1,34 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .filter-group
+      select#trash-entity(onchange="loadTrash(1)")
+        if entities && entities.length
+          each entity in entities
+            option(value=entity.key)= entity.label
+      button.btn.btn-secondary(type="button" onclick="loadTrash(1)") Làm mới
+
+  .card
+    .card-header
+      h3 Thùng rác
+      span.card-count#trash-count 0 bản ghi
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Loại dữ liệu
+            th Khóa chính
+            th Tên hiển thị
+            th Người xóa
+            th Thời điểm xóa
+            th Thao tác
+        tbody#trash-body
+          tr
+            td(colspan="6")
+              .empty-state Đang tải dữ liệu...
+
+  nav.pagination#trash-pagination(style="display:none")
+
+block scripts
+  script(src="/js/admin/trash.js")

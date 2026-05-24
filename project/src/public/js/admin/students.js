@@ -70,6 +70,11 @@ async function saveStudent() {
     TrangThai: document.getElementById('sv-trangthai').value
   };
 
+  if (!data.Cccd || !data.MaDanToc || !data.DiaChiLienHe) {
+    showToast('CCCD, dân tộc và địa chỉ liên hệ là bắt buộc', 'error');
+    return;
+  }
+
   var password = document.getElementById('sv-password').value;
   if (password) data.password = password;
 
@@ -102,6 +107,35 @@ async function deleteStudent(maSv) {
     }
   } catch (e) {
     showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function approveStudentAccount(accountId, button) {
+  var row = button ? button.closest('tr') : null;
+  var maSv = row ? row.querySelector('td.mono').textContent.trim() : '';
+  var res = await apiFetch('/api/roles/accounts/' + accountId + '/approval', {
+    method: 'PUT',
+    body: { TrangThaiDuyet: 'approved', MaSv: maSv }
+  });
+  if (res.success) {
+    showToast('Đã duyệt sinh viên', 'success');
+    setTimeout(function() { location.reload(); }, 500);
+  } else {
+    showToast(res.message || 'Không thể duyệt sinh viên', 'error');
+  }
+}
+
+async function rejectStudentAccount(accountId) {
+  var reason = prompt('Lý do từ chối?') || 'Không được duyệt';
+  var res = await apiFetch('/api/roles/accounts/' + accountId + '/approval', {
+    method: 'PUT',
+    body: { TrangThaiDuyet: 'rejected', LyDoTuChoi: reason }
+  });
+  if (res.success) {
+    showToast('Đã từ chối sinh viên', 'success');
+    setTimeout(function() { location.reload(); }, 500);
+  } else {
+    showToast(res.message || 'Không thể từ chối sinh viên', 'error');
   }
 }
 

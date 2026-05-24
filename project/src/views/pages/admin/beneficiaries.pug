@@ -22,6 +22,8 @@ block content
             th Độ ưu tiên
             th Số SV
             th Mô tả
+            th Sửa bởi
+            th Sửa lúc
             th Thao tác
         tbody
           if beneficiaries && beneficiaries.length > 0
@@ -35,14 +37,18 @@ block content
                 td= b.DoUuTien
                 td= b._count ? b._count.DOITUONGSINHVIEN : 0
                 td= b.MoTa || '-'
+                td= b.NguoiCapNhat || '-'
+                td= b.NgayCapNhat ? new Date(b.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-primary(type="button" onclick=`openStudentsModal('${b.MaDoiTuong}', '${b.TenDoiTuong}')`) Xem SV
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(b) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteBeneficiary('${b.MaDoiTuong}')`) Xóa
           else
             tr
-              td(colspan="7")
+              td(colspan="9")
                 .empty-state Chưa có đối tượng nào
+
+  include ../../partials/pagination
 
 block modals
   //- Add/Edit Modal

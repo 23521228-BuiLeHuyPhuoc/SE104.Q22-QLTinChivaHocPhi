@@ -1,0 +1,59 @@
+extends ../../layouts/student
+
+block content
+  .page-shell
+    .page-heading.compact
+      .page-kicker Học tập
+      h2 Môn đã học
+
+    .stats-grid
+      .stat-card
+        .stat-icon.blue MH
+        .stat-info
+          h3#total-attempts 0
+          p Lượt học
+      .stat-card
+        .stat-icon.green QM
+        .stat-info
+          h3#passed-count 0
+          p Qua môn
+      .stat-card
+        .stat-icon.red RT
+        .stat-info
+          h3#failed-count 0
+          p Rớt
+      .stat-card
+        .stat-icon.purple TC
+        .stat-info
+          h3#passed-credits 0
+          p Tín chỉ đạt
+
+    .filter-group
+      input#completed-search(type="text" placeholder="Tìm môn học")
+      select#completed-result
+        option(value="") Tất cả kết quả
+        option(value="qua_mon") Qua môn
+        option(value="rot") Rớt
+
+    .card
+      .card-header
+        h3 Lịch sử môn đã học
+      .card-body
+        .loading-overlay#completed-loading
+          .spinner
+        .table-container
+          table.data-table#completed-table.hidden
+            thead
+              tr
+                th Mã môn
+                th Tên môn
+                th Tín chỉ
+                th Học kỳ
+                th Lớp
+                th Lần học
+                th Kết quả
+                th Ghi chú
+            tbody#completed-list
+
+block scripts
+  script(src="/js/student/completed-courses.js")

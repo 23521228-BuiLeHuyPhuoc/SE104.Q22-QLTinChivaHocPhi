@@ -11,6 +11,7 @@ router.get('/', semesterController.getAllSemesters);
 
 // Get active semester
 router.get('/active', semesterController.getActiveSemester);
+router.get('/registration-options', semesterController.getRegistrationOptions);
 
 // Get academic years
 router.get('/years', semesterController.getAcademicYears);

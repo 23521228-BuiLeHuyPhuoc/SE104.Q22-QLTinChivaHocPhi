@@ -37,8 +37,32 @@ block content
                 th Tổng học phí
                 th Đã đóng
                 th Còn lại
+                th Hạn đóng
                 th Trạng thái
+                th Thao tác
             tbody#tuition-list
+
+block modals
+  #payment-modal.modal-overlay(onclick="if(event.target===this)closePaymentModal()")
+    .modal
+      .modal-header
+        h3 Đóng học phí
+        button.modal-close(type="button" onclick="closePaymentModal()") ×
+      .modal-body
+        input#payment-so-phieu(type="hidden")
+        .form-group
+          label(for="payment-amount") Số tiền
+          input.form-control#payment-amount(type="number" min="1")
+        .form-group
+          label(for="payment-method") Phương thức
+          select.form-control#payment-method
+            option(value="qr") QR chuyển khoản
+            option(value="vnpay") VNPAY sandbox
+            option(value="zalopay") ZaloPay sandbox
+        #payment-result.mt-3
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closePaymentModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="checkoutPayment()") Tạo thanh toán
 
 block scripts
   script(src="/js/student/my-tuition.js")

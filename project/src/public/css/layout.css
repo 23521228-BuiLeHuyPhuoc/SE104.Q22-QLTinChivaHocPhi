@@ -210,6 +210,49 @@
   min-width: 0;
 }
 
+body.sidebar-collapsed .sidebar {
+  width: 74px;
+}
+
+body.sidebar-collapsed .main-content {
+  margin-left: 74px;
+}
+
+body.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+}
+
+body.sidebar-collapsed .sidebar-brand > div,
+body.sidebar-collapsed .sidebar-section-title,
+body.sidebar-collapsed .sidebar-user > div,
+body.sidebar-collapsed .sidebar-link .badge-count {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-link {
+  justify-content: center;
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+}
+
+body.sidebar-collapsed .sidebar-link span {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  font-size: 0;
+  font-weight: 900;
+  height: 30px;
+  justify-content: center;
+  width: 38px;
+}
+
+body.sidebar-collapsed .sidebar-link span::first-letter {
+  font-size: var(--font-size-sm);
+}
+
 /* ============================================================
    TOP HEADER
    ============================================================ */
@@ -261,7 +304,7 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  display: none;
+  display: flex;
   height: 38px;
   justify-content: center;
   width: 38px;
@@ -562,6 +605,36 @@
 }
 
 @media (max-width: 768px) {
+  body.sidebar-collapsed .sidebar {
+    width: var(--sidebar-width);
+  }
+
+  body.sidebar-collapsed .main-content {
+    margin-left: 0;
+  }
+
+  body.sidebar-collapsed .sidebar-brand > div,
+  body.sidebar-collapsed .sidebar-section-title,
+  body.sidebar-collapsed .sidebar-user > div,
+  body.sidebar-collapsed .sidebar-link .badge-count {
+    display: block;
+  }
+
+  body.sidebar-collapsed .sidebar-link {
+    justify-content: flex-start;
+    padding: 9px var(--spacing-lg);
+  }
+
+  body.sidebar-collapsed .sidebar-link span {
+    background: transparent;
+    border-radius: 0;
+    display: inline;
+    font-size: var(--font-size-sm);
+    font-weight: inherit;
+    height: auto;
+    width: auto;
+  }
+
   .sidebar {
     transform: translateX(-100%);
     box-shadow: var(--shadow-xl);

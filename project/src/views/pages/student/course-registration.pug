@@ -6,7 +6,8 @@ block content
       h2.page-title Đăng ký môn học
       p Chọn học kỳ rồi tải danh sách lớp đang mở đăng ký.
     .filter-group
-      input.form-control#semester-input(type="text" placeholder="Mã học kỳ, VD: HK1-2025")
+      select.form-control#semester-input
+        option(value="") Chọn học kỳ
       input.form-control#course-search(type="text" placeholder="Tìm môn học")
       button.btn.btn-primary(type="button" id="load-courses" onclick="loadAvailableCourses()") Tải lớp mở
 
@@ -32,6 +33,7 @@ block content
               th Thao tác
           tbody#available-courses
       #available-empty.empty-state Chọn học kỳ để xem danh sách lớp mở
+      nav.pagination#available-pagination(style="display:none")
 
 block scripts
   script(src="/js/student/course-registration.js")

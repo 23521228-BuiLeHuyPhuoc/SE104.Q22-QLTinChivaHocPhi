@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       return;
     }
 
+    var semesters = res.data.semesters || [];
     var courses = res.data.courses || [];
     var summary = res.data.summary || {};
     var totalCredits = Number(summary.totalCredits || 0);
@@ -32,26 +33,25 @@ document.addEventListener('DOMContentLoaded', async function() {
       creditsBar.style.width = Math.min(pct, 100) + '%';
     }
 
-    if (!courses.length) {
+    if (!courses.length && !semesters.length) {
       container.innerHTML = '<div class="empty-state">Chưa có dữ liệu chương trình đào tạo cho ngành của bạn</div>';
       return;
     }
 
-    var grouped = {};
-    courses.forEach(function(course) {
-      var semester = course.HocKyDuKien || 'Khác';
-      if (!grouped[semester]) grouped[semester] = [];
-      grouped[semester].push(course);
+    var html = '';
+    var groups = semesters.length ? semesters : Array.from({ length: 8 }, function(_, index) {
+      return {
+        HocKyDuKien: index + 1,
+        courses: courses.filter(function(course) { return Number(course.HocKyDuKien) === index + 1; })
+      };
     });
 
-    var html = '';
-    Object.keys(grouped).sort(function(a, b) {
-      return Number(a) - Number(b);
-    }).forEach(function(semester) {
-      var items = grouped[semester];
+    groups.forEach(function(group) {
+      var semester = group.HocKyDuKien;
+      var items = group.courses || [];
       html += '<div class="curriculum-semester">';
       html += '<div class="curriculum-semester-header">';
-      html += '<span class="badge badge-primary">' + (semester === 'Khác' ? 'Khác' : 'HK ' + escapeHtml(semester)) + '</span>';
+      html += '<span class="badge badge-primary">HK ' + escapeHtml(semester) + '</span>';
       html += escapeHtml(items.length + ' môn');
       html += '</div>';
       html += '<div class="curriculum-courses">';
@@ -62,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (course.status === 'passed') {
           statusText = 'Đã đạt';
           statusClass = 'badge-success';
+        } else if (course.status === 'registered') {
+          statusText = 'Đang đăng ký';
+          statusClass = 'badge-info';
         } else if (course.status === 'failed') {
           statusText = 'Rớt';
           statusClass = 'badge-error';
@@ -76,6 +79,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         html += '<span class="badge ' + statusClass + '">' + statusText + '</span>';
         html += '</div>';
       });
+
+      if (!items.length) {
+        html += '<div class="empty-state">Chưa có môn trong học kỳ này</div>';
+      }
 
       html += '</div></div>';
     });

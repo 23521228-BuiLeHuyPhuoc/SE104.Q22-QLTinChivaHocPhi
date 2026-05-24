@@ -22,6 +22,8 @@ block content
             th Liên hệ
             th Số ngành
             th Số môn
+            th Sửa bởi
+            th Sửa lúc
             th Thao tác
         tbody
           if faculties && faculties.length > 0
@@ -37,12 +39,14 @@ block content
                   small= f.Sdt || ''
                 td= f._count ? f._count.NGANHHOC : 0
                 td= f._count ? f._count.MONHOC : 0
+                td= f.NguoiCapNhat || '-'
+                td= f.NgayCapNhat ? new Date(f.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFaculty('${f.MaKhoa}')`) Xóa
           else
             tr
-              td(colspan="8")
+              td(colspan="10")
                 .empty-state Không có khoa phù hợp
 
   include ../../partials/pagination
