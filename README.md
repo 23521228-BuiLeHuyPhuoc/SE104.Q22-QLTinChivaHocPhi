@@ -16,7 +16,7 @@
 
 ### 3. Mở Terminal
 
-<img width="807" height="512" alt="Mở Terminal" src="https://github.com/user-attachments/assets/9a335aac-6564-abb9-5a4270b69651" />
+<img width="807" height="512" alt="image" src="https://github.com/user-attachments/assets/9a335aac-6564-4abb-b917-5a4270b69651" />
 
 ---
 
