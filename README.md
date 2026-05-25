@@ -88,6 +88,9 @@ Một số thông tin trong file `.env` cần được chỉnh lại cho đúng 
 
 <img width="1072" height="602" alt="Cấu hình tài khoản PostgreSQL trong file .env" src="https://github.com/user-attachments/assets/546369c9-9f40-417f-9310-a35bb1d73d87" />
 
+Link này cũng tương tự, phải đổi thành tài khoản và mật khẩu của bạn nha:
+<img width="1048" height="482" alt="image" src="https://github.com/user-attachments/assets/00e3656a-4368-452b-a2d5-c30e29107e5c" />
+
 ---
 
 ### 11. Chạy project
