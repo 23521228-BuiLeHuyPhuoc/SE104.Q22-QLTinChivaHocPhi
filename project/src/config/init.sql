@@ -84,6 +84,8 @@ CREATE TABLE "TINH" (
     "MaTinh" VARCHAR(10) NOT NULL,
     "TenTinh" VARCHAR(100) NOT NULL,
     "LoaiTinh" VARCHAR(30) DEFAULT 'Tỉnh',
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tinh_pkey PRIMARY KEY ("MaTinh"),
     CONSTRAINT chk_loai_tinh CHECK ("LoaiTinh" IN ('Tỉnh', 'Thành phố'))
 );
@@ -95,6 +97,8 @@ CREATE TABLE "DANTOC" (
     "MaDanToc" VARCHAR(10) NOT NULL,
     "TenDanToc" VARCHAR(100) NOT NULL,
     "LaDanTocThieuSo" BOOLEAN DEFAULT FALSE,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT dan_toc_pkey PRIMARY KEY ("MaDanToc")
 );
 
@@ -110,6 +114,8 @@ CREATE TABLE "PHUONGXA" (
     "MaTinh" VARCHAR(10) NOT NULL,
     "Loai" VARCHAR(30) DEFAULT 'Xã',
     "KhuVuc" VARCHAR(10) DEFAULT 'KV1',
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT phuong_xa_pkey PRIMARY KEY ("MaPhuongXa"),
     CONSTRAINT fk_phuong_xa_tinh FOREIGN KEY ("MaTinh") 
         REFERENCES "TINH"("MaTinh") ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -128,6 +134,11 @@ CREATE TABLE "DOITUONG" (
     "MoTa" VARCHAR(300),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT doi_tuong_pkey PRIMARY KEY ("MaDoiTuong"),
     CONSTRAINT chk_ti_le_giam CHECK ("TiLeGiamHocPhi" >= 0 AND "TiLeGiamHocPhi" <= 100)
 );
@@ -141,6 +152,15 @@ CREATE TABLE "KHOA" (
     "TenVietTat" VARCHAR(20),
     "Sdt" VARCHAR(15),
     "Email" VARCHAR(100),
+    "DiaChi" VARCHAR(200),
+    "TruongKhoa" VARCHAR(100),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT khoa_pkey PRIMARY KEY ("MaKhoa")
 );
 
@@ -154,6 +174,13 @@ CREATE TABLE "NGANHHOC" (
     "SoTinChiToiThieu" INTEGER DEFAULT 120,
     "ThoiGianDaoTao" DECIMAL(3,1) DEFAULT 4,
     "MoTa" VARCHAR(500),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT nganh_hoc_pkey PRIMARY KEY ("MaNganh"),
     CONSTRAINT fk_nganh_khoa FOREIGN KEY ("MaKhoa") 
         REFERENCES "KHOA"("MaKhoa") ON DELETE RESTRICT ON UPDATE CASCADE
@@ -166,6 +193,11 @@ CREATE TABLE "CHUCNANG" (
     "MaChucNang" VARCHAR(30) NOT NULL,
     "TenChucNang" VARCHAR(100) NOT NULL,
     "TenManHinhDuocLoad" VARCHAR(100) NOT NULL,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT chuc_nang_pkey PRIMARY KEY ("MaChucNang")
 );
 
@@ -175,6 +207,11 @@ CREATE TABLE "CHUCNANG" (
 CREATE TABLE "NHOMNGUOIDUNG" (
     "MaNhom" VARCHAR(20) NOT NULL,
     "TenNhom" VARCHAR(100) NOT NULL,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT nhom_nguoi_dung_pkey PRIMARY KEY ("MaNhom"),
     CONSTRAINT nhom_nguoi_dung_ten_nhom_key UNIQUE ("TenNhom")
 );
@@ -213,8 +250,11 @@ CREATE TABLE "NGUOIDUNG" (
     "LyDoTuChoi" VARCHAR(300),
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "NgayCapNhat" TIMESTAMP,
+    "LanDangNhapCuoi" TIMESTAMP,
+    "RefreshToken" VARCHAR(500),
     CONSTRAINT nguoi_dung_pkey PRIMARY KEY ("MaTaiKhoan"),
     CONSTRAINT nguoi_dung_ten_dang_nhap_key UNIQUE ("TenDangNhap"),
+    CONSTRAINT nguoi_dung_ma_sv_key UNIQUE ("MaSv"),
     CONSTRAINT chk_role CHECK ("Role" IN ('admin', 'student')),
     CONSTRAINT chk_trang_thai_duyet CHECK ("TrangThaiDuyet" IN ('pending', 'approved', 'rejected')),
     CONSTRAINT fk_nd_nhom FOREIGN KEY ("MaNhom")
@@ -230,19 +270,27 @@ CREATE TABLE "SINHVIEN" (
     "HoTen" VARCHAR(100) NOT NULL,
     "NgaySinh" DATE NOT NULL,
     "GioiTinh" VARCHAR(5) NOT NULL,
-    "Cccd" VARCHAR(20),
+    "Cccd" VARCHAR(20) NOT NULL,
     "MaPhuongXa" VARCHAR(20) NOT NULL,
-    "MaDanToc" VARCHAR(10),
+    "MaDanToc" VARCHAR(10) NOT NULL,
     "MaNganh" VARCHAR(10) NOT NULL,
-    "DiaChiLienHe" VARCHAR(200),
+    "DiaChiLienHe" VARCHAR(200) NOT NULL DEFAULT 'Chua cap nhat',
     "Sdt" VARCHAR(15),
     "Email" VARCHAR(100),
     "AnhDaiDien" VARCHAR(500),
+    "HoTenCha" VARCHAR(100),
+    "SdtCha" VARCHAR(15),
+    "HoTenMe" VARCHAR(100),
+    "SdtMe" VARCHAR(15),
     "NgayNhapHoc" DATE DEFAULT CURRENT_DATE,
     "TrangThai" VARCHAR(30) DEFAULT 'Đang học',
     "GhiChu" VARCHAR(300),
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "NgayCapNhat" TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT sinh_vien_pkey PRIMARY KEY ("MaSv"),
     CONSTRAINT sinh_vien_cccd_key UNIQUE ("Cccd"),
     CONSTRAINT sinh_vien_ma_tai_khoan_key UNIQUE ("MaTaiKhoan"),
@@ -258,14 +306,10 @@ CREATE TABLE "SINHVIEN" (
         REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- Add FK from "NGUOIDUNG" to "SINHVIEN" (bidirectional relationship)
+-- FK này phải thêm sau vì "NGUOIDUNG" và "SINHVIEN" tham chiếu vòng nhau.
 ALTER TABLE "NGUOIDUNG" 
     ADD CONSTRAINT fk_tk_sv FOREIGN KEY ("MaSv") 
     REFERENCES "SINHVIEN"("MaSv") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- Add unique constraint for "MaSv" in "NGUOIDUNG"
-ALTER TABLE "NGUOIDUNG" 
-    ADD CONSTRAINT nguoi_dung_ma_sv_key UNIQUE ("MaSv");
 
 -- =====================================================
 -- 8. BẢNG "DOITUONGSINHVIEN" - Đối tượng của Sinh viên (QĐ1)
@@ -329,6 +373,12 @@ CREATE TABLE "MONHOC" (
     ) STORED,
     "MoTa" VARCHAR(500),
     "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT mon_hoc_pkey PRIMARY KEY ("MaMonHoc"),
     CONSTRAINT chk_loai_mon CHECK ("LoaiMon" IN ('LT', 'TH')),
     CONSTRAINT chk_so_tiet CHECK ("SoTiet" > 0),
@@ -345,6 +395,13 @@ CREATE TABLE "DIEUKIENMONHOC" (
     "MaMonDieuKien" VARCHAR(15) NOT NULL,
     "LoaiDieuKien" VARCHAR(20) NOT NULL DEFAULT 'hoc_truoc',
     "MoTa" VARCHAR(200),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT dieu_kien_mon_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_dkmh UNIQUE ("MaMonHoc", "MaMonDieuKien", "LoaiDieuKien"),
     CONSTRAINT chk_loai_dieu_kien CHECK ("LoaiDieuKien" IN ('tien_quyet', 'hoc_truoc')),
@@ -365,6 +422,13 @@ CREATE TABLE "TIETHOC" (
     "GioKetThuc" TIME NOT NULL,
     "ThuTu" INTEGER NOT NULL,
     "MoTa" VARCHAR(200),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT tiet_hoc_pkey PRIMARY KEY ("MaTiet"),
     CONSTRAINT chk_thu_tu_tiet CHECK ("ThuTu" >= 1 AND "ThuTu" <= 11)
 );
@@ -377,6 +441,9 @@ CREATE TABLE "THAMSO" (
     "SoTinChiDangKyToiThieu" INTEGER NOT NULL DEFAULT 14,
     "SoTinChiDangKyToiDa" INTEGER NOT NULL DEFAULT 24,
     "SoTinChiDangKyToiDaKhiVuot" INTEGER NOT NULL DEFAULT 30,
+    "DanhSachMonAnhVanBatBuoc" VARCHAR(200) DEFAULT 'ENG01,ENG02,ENG03',
+    "NamKiemTraAnhVan" INTEGER DEFAULT 2,
+    "GioiHanTinChiChuaDatAnhVan" INTEGER DEFAULT 14,
     "NgayCapNhat" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tham_so_pkey PRIMARY KEY (id),
     CONSTRAINT chk_tham_so_singleton CHECK (id = 1),
@@ -401,6 +468,11 @@ CREATE TABLE "LOP" (
     "MoTa" VARCHAR(300),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT lop_pkey PRIMARY KEY ("MaLop"),
     CONSTRAINT fk_lop_monhoc FOREIGN KEY ("MaMonHoc") 
         REFERENCES "MONHOC"("MaMonHoc") ON DELETE CASCADE ON UPDATE CASCADE
@@ -414,7 +486,11 @@ CREATE TABLE "CHUONGTRINHHOC" (
     "MaNganh" VARCHAR(10) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
     "HocKy" INTEGER NOT NULL,
+    "HocKyDuKien" INTEGER DEFAULT 1,
+    "BatBuoc" BOOLEAN DEFAULT TRUE,
     "GhiChu" VARCHAR(200),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chuong_trinh_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_cth UNIQUE ("MaNganh", "MaMonHoc"),
     CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 10),
@@ -432,6 +508,8 @@ CREATE TABLE "NAMHOC" (
     "TenNamHoc" VARCHAR(50) NOT NULL,
     "NamBatDau" INTEGER NOT NULL,
     "NamKetThuc" INTEGER NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT nam_hoc_pkey PRIMARY KEY ("MaNamHoc")
 );
 
@@ -443,6 +521,7 @@ CREATE TABLE "HOCKY" (
     "TenHocKy" VARCHAR(50) NOT NULL,
     "MaNamHoc" VARCHAR(15) NOT NULL,
     "LoaiHocKy" VARCHAR(20) DEFAULT 'Chính',
+    "ThuTu" INTEGER DEFAULT 1,
     "NgayBatDau" DATE,
     "NgayKetThuc" DATE,
     "NgayBatDauDangKy" TIMESTAMP,
@@ -450,6 +529,12 @@ CREATE TABLE "HOCKY" (
     "HanDongHocPhi" DATE,
     "TrangThai" VARCHAR(20) DEFAULT 'Sắp diễn ra',
     "GhiChu" VARCHAR(300),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT hoc_ky_pkey PRIMARY KEY ("MaHocKy"),
     CONSTRAINT chk_loai_hoc_ky CHECK ("LoaiHocKy" IN ('Chính', 'Hè')),
     CONSTRAINT chk_trang_thai_hk CHECK ("TrangThai" IN ('Sắp diễn ra', 'Đang diễn ra', 'Đã kết thúc')),
@@ -467,6 +552,7 @@ CREATE TABLE "LOPMO" (
     "SoLuongDaDangKy" INTEGER DEFAULT 0,
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT lop_mo_pkey PRIMARY KEY (id),
     CONSTRAINT uq_lopmo UNIQUE ("MaHocKy", "MaLop"),
     CONSTRAINT fk_lopmo_hocky FOREIGN KEY ("MaHocKy") 
@@ -487,6 +573,8 @@ CREATE TABLE "LICHHOCLOP" (
     "MaTietKetThuc" VARCHAR(10) NOT NULL,
     "PhongHoc" VARCHAR(50),
     "GhiChu" VARCHAR(200),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT lich_hoc_lop_pkey PRIMARY KEY (id),
     CONSTRAINT chk_thu_trong_tuan CHECK ("ThuTrongTuan" >= 2 AND "ThuTrongTuan" <= 7),
     CONSTRAINT fk_lhl_lopmo FOREIGN KEY ("LopMoId") 
@@ -509,6 +597,11 @@ CREATE TABLE "DONGIATINCHI" (
     "NgayApDung" DATE DEFAULT CURRENT_DATE,
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "GhiChu" VARCHAR(200),
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT don_gia_tin_chi_pkey PRIMARY KEY (id),
     CONSTRAINT uq_dgtc UNIQUE ("LoaiMon", "LoaiHoc", "MaHocKy"),
     CONSTRAINT chk_loai_mon_dg CHECK ("LoaiMon" IN ('LT', 'TH')),
@@ -528,6 +621,17 @@ CREATE TABLE "PHIEUDANGKY" (
     "TongTinChi" INTEGER DEFAULT 0,
     "TongTienDangKy" DECIMAL(15,0) DEFAULT 0,
     "TienMienGiam" DECIMAL(15,0) DEFAULT 0,
+    "SoMonHocMoi" INTEGER DEFAULT 0,
+    "SoTinChiHocMoi" INTEGER DEFAULT 0,
+    "TienHocMoi" NUMERIC(15,0) DEFAULT 0,
+    "SoMonHocLai" INTEGER DEFAULT 0,
+    "SoTinChiHocLai" INTEGER DEFAULT 0,
+    "TienHocLai" NUMERIC(15,0) DEFAULT 0,
+    "SoMonHocCaiThien" INTEGER DEFAULT 0,
+    "SoTinChiHocCaiThien" INTEGER DEFAULT 0,
+    "TienHocCaiThien" NUMERIC(15,0) DEFAULT 0,
+    "TiLeGiam" NUMERIC(5,2) DEFAULT 0,
+    "TongTienPhaiDong" NUMERIC(15,0) DEFAULT 0,
     "TrangThai" VARCHAR(30) DEFAULT 'Đã đăng ký',
     "GhiChu" VARCHAR(300),
     "NgayCapNhat" TIMESTAMP,
@@ -549,6 +653,8 @@ CREATE TABLE "CHITIETDANGKY" (
     "MaLop" VARCHAR(20) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
     "LoaiDangKy" VARCHAR(20) DEFAULT 'hoc_moi',
+    "SoTinChi" INTEGER DEFAULT 0,
+    "LoaiMon" VARCHAR(5) DEFAULT 'LT',
     "DonGia" DECIMAL(12,0) NOT NULL,
     "ThanhTien" DECIMAL(15,0) NOT NULL,
     "TrangThai" VARCHAR(30) DEFAULT 'Đã đăng ký',
@@ -583,6 +689,9 @@ CREATE TABLE "MONDAHOC" (
     "NguoiCapNhat" INTEGER,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT mon_da_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_mdh_sv_mon_hk UNIQUE ("MaSv", "MaMonHoc", "MaHocKy", "LanHoc"),
     CONSTRAINT chk_mdh_ket_qua CHECK ("KetQua" IN ('qua_mon', 'rot')),
@@ -611,12 +720,19 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
     "SoTienThu" DECIMAL(15,0) NOT NULL,
     "HinhThucThu" VARCHAR(50) DEFAULT 'Tiền mặt',
     "MaGiaoDich" VARCHAR(100),
+    "NguoiThu" VARCHAR(100),
+    "PaymentProvider" VARCHAR(30),
+    "PaymentChannel" VARCHAR(30),
+    "CheckoutUrl" VARCHAR(1000),
+    "QrPayload" TEXT,
     "GhiChu" VARCHAR(300),
     "TrangThai" VARCHAR(20) DEFAULT 'Thành công',
+    "NgayXacNhan" TIMESTAMP,
+    "NgayCapNhat" TIMESTAMP,
     CONSTRAINT phieu_thu_hoc_phi_pkey PRIMARY KEY ("SoPhieuThu"),
     CONSTRAINT chk_so_tien_thu CHECK ("SoTienThu" > 0),
     CONSTRAINT chk_hinh_thuc_thu CHECK ("HinhThucThu" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
-    CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Thành công', 'Đã hủy')),
+    CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy')),
     CONSTRAINT fk_pthp_pdk FOREIGN KEY ("SoPhieuDangKy") 
         REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_pthp_sv FOREIGN KEY ("MaSv") 
@@ -635,6 +751,18 @@ CREATE TABLE "THONGBAO" (
     "DaDoc" BOOLEAN DEFAULT FALSE,
     "NgayDoc" TIMESTAMP,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "Loai" VARCHAR(20) DEFAULT 'chung',
+    "LoaiThongBao" VARCHAR(50),
+    "DOITUONG" VARCHAR(30) DEFAULT 'Tất cả',
+    "GhimTop" BOOLEAN DEFAULT FALSE,
+    "NgayHetHan" TIMESTAMP,
+    "NguoiTao" INTEGER,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT thong_bao_pkey PRIMARY KEY ("MaThongBao"),
     CONSTRAINT fk_tb_nguoinhan FOREIGN KEY ("MaTaiKhoanNhan") 
         REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
@@ -6514,64 +6642,10 @@ INSERT INTO "MONDAHOC" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "LanHoc", "KetQu
 ('22520005', 'ENG03', 'HK1-2425', 'ENG03.N01', 1, 'qua_mon');
 
 -- =====================================================
--- SCHEMA COMPATIBILITY - Bổ sung cột cho Prisma/current app
+-- DATA COMPATIBILITY - Cập nhật dữ liệu cho các cột đã khai báo trong CREATE TABLE
 -- =====================================================
-ALTER TABLE "NGUOIDUNG"
-  ADD COLUMN IF NOT EXISTS "LanDangNhapCuoi" TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS "RefreshToken" VARCHAR(500);
-
-ALTER TABLE "SINHVIEN"
-  ADD COLUMN IF NOT EXISTS "HoTenCha" VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS "SdtCha" VARCHAR(15),
-  ADD COLUMN IF NOT EXISTS "HoTenMe" VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS "SdtMe" VARCHAR(15);
-
-ALTER TABLE "KHOA"
-  ADD COLUMN IF NOT EXISTS "DiaChi" VARCHAR(200),
-  ADD COLUMN IF NOT EXISTS "TruongKhoa" VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "NGANHHOC"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "MONHOC"
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "NAMHOC"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "HOCKY"
-  ADD COLUMN IF NOT EXISTS "ThuTu" INTEGER DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "LOP"
-  ADD COLUMN IF NOT EXISTS "GiangVien" VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "LOPMO"
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "LICHHOCLOP"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "CHUONGTRINHHOC"
-  ADD COLUMN IF NOT EXISTS "HocKyDuKien" INTEGER DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS "BatBuoc" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
 UPDATE "CHUONGTRINHHOC"
 SET "HocKyDuKien" = COALESCE("HocKyDuKien", "HocKy", 1);
-
-ALTER TABLE "CHITIETDANGKY"
-  ADD COLUMN IF NOT EXISTS "MaMonHoc" VARCHAR(15),
-  ADD COLUMN IF NOT EXISTS "SoTinChi" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "LoaiMon" VARCHAR(5) DEFAULT 'LT';
 
 UPDATE "CHITIETDANGKY" ctdk
 SET
@@ -6581,19 +6655,6 @@ SET
 FROM "LOP" l
 JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
 WHERE l."MaLop" = ctdk."MaLop";
-
-ALTER TABLE "PHIEUDANGKY"
-  ADD COLUMN IF NOT EXISTS "SoMonHocMoi" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "SoTinChiHocMoi" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "TienHocMoi" NUMERIC(15,0) DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "SoMonHocLai" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "SoTinChiHocLai" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "TienHocLai" NUMERIC(15,0) DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "SoMonHocCaiThien" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "SoTinChiHocCaiThien" INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "TienHocCaiThien" NUMERIC(15,0) DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "TiLeGiam" NUMERIC(5,2) DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS "TongTienPhaiDong" NUMERIC(15,0) DEFAULT 0;
 
 WITH totals AS (
   SELECT
@@ -6647,112 +6708,17 @@ FROM totals
 LEFT JOIN best_discount ON best_discount."MaSv" = totals."MaSv"
 WHERE p."SoPhieu" = totals."SoPhieu";
 
-ALTER TABLE "PHIEUTHUHOCPHI"
-  ADD COLUMN IF NOT EXISTS "NguoiThu" VARCHAR(100);
-
-ALTER TABLE "DOITUONG"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "DIEUKIENMONHOC"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "DANTOC"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "TINH"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "PHUONGXA"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "TIETHOC"
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-ALTER TABLE "THONGBAO"
-  ADD COLUMN IF NOT EXISTS "Loai" VARCHAR(20) DEFAULT 'chung',
-  ADD COLUMN IF NOT EXISTS "LoaiThongBao" VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS "DOITUONG" VARCHAR(30) DEFAULT 'Tất cả',
-  ADD COLUMN IF NOT EXISTS "GhimTop" BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS "NgayHetHan" TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS "NguoiTao" INTEGER,
-  ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE;
-
-DO $$
-DECLARE
-  audited_table TEXT;
-BEGIN
-  FOREACH audited_table IN ARRAY ARRAY[
-    'SINHVIEN', 'MONHOC', 'LOP', 'HOCKY', 'KHOA', 'NGANHHOC',
-    'MONDAHOC', 'DIEUKIENMONHOC', 'DONGIATINCHI', 'DOITUONG', 'THONGBAO',
-    'CHUCNANG', 'NHOMNGUOIDUNG', 'TIETHOC'
-  ]
-  LOOP
-    EXECUTE format(
-      'ALTER TABLE %I
-        ADD COLUMN IF NOT EXISTS "NguoiCapNhat" INTEGER,
-        ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS "NguoiXoa" INTEGER,
-        ADD COLUMN IF NOT EXISTS "NgayXoa" TIMESTAMP',
-      audited_table
-    );
-    EXECUTE format('UPDATE %I SET "DaXoa" = FALSE WHERE "DaXoa" IS NULL', audited_table);
-  END LOOP;
-END $$;
-
 UPDATE "SINHVIEN"
 SET
   "Cccd" = COALESCE(NULLIF("Cccd", ''), 'CCCD-' || "MaSv"),
   "MaDanToc" = COALESCE("MaDanToc", (SELECT "MaDanToc" FROM "DANTOC" ORDER BY "MaDanToc" LIMIT 1)),
   "DiaChiLienHe" = COALESCE(NULLIF("DiaChiLienHe", ''), 'Chua cap nhat');
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "Cccd" IS NULL OR "MaDanToc" IS NULL OR "DiaChiLienHe" IS NULL) THEN
-    ALTER TABLE "SINHVIEN"
-      ALTER COLUMN "Cccd" SET NOT NULL,
-      ALTER COLUMN "MaDanToc" SET NOT NULL,
-      ALTER COLUMN "DiaChiLienHe" SET NOT NULL;
-  END IF;
-END $$;
-
-ALTER TABLE "THAMSO"
-  ADD COLUMN IF NOT EXISTS "DanhSachMonAnhVanBatBuoc" VARCHAR(200) DEFAULT 'ENG01,ENG02,ENG03',
-  ADD COLUMN IF NOT EXISTS "NamKiemTraAnhVan" INTEGER DEFAULT 2,
-  ADD COLUMN IF NOT EXISTS "GioiHanTinChiChuaDatAnhVan" INTEGER DEFAULT 14;
-
 UPDATE "THAMSO"
 SET
   "DanhSachMonAnhVanBatBuoc" = COALESCE(NULLIF("DanhSachMonAnhVanBatBuoc", ''), 'ENG01,ENG02,ENG03'),
   "NamKiemTraAnhVan" = COALESCE("NamKiemTraAnhVan", 2),
   "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14);
-
-ALTER TABLE "PHIEUTHUHOCPHI"
-  ADD COLUMN IF NOT EXISTS "PaymentProvider" VARCHAR(30),
-  ADD COLUMN IF NOT EXISTS "PaymentChannel" VARCHAR(30),
-  ADD COLUMN IF NOT EXISTS "CheckoutUrl" VARCHAR(1000),
-  ADD COLUMN IF NOT EXISTS "QrPayload" TEXT,
-  ADD COLUMN IF NOT EXISTS "NgayXacNhan" TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP;
-
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_hinh_thuc_thu') THEN
-    ALTER TABLE "PHIEUTHUHOCPHI" DROP CONSTRAINT chk_hinh_thuc_thu;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_trang_thai_pthp') THEN
-    ALTER TABLE "PHIEUTHUHOCPHI" DROP CONSTRAINT chk_trang_thai_pthp;
-  END IF;
-  ALTER TABLE "PHIEUTHUHOCPHI"
-    ADD CONSTRAINT chk_hinh_thuc_thu CHECK ("HinhThucThu" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
-    ADD CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy'));
-END $$;
 
 -- =====================================================
 -- DATA COMPLETENESS - Điền đủ dữ liệu các trường đang hiển thị trên UI
