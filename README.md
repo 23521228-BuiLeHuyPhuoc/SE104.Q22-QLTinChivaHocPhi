@@ -1,156 +1,123 @@
 # Hệ thống Quản lý Tín chỉ và Học phí
 
-Dự án Hệ thống Quản lý Đăng ký Tín chỉ và Đóng Học phí dành cho Sinh viên và Quản trị viên (Admin).
-Dự án được xây dựng dựa trên kiến trúc **MVC (Model - View - Controller)** kết hợp **Server-Side Rendering (SSR)**.
+## Các bước triển khai chi tiết
 
-## 🚀 Tính năng chính
+### 1. Mở Visual Studio Code
 
-### 🧑‍🎓 Dành cho Sinh viên (Student)
-- **Đăng nhập & Hồ sơ cá nhân**: Quản lý thông tin tài khoản, mật khẩu.
-- **Bảng điều khiển (Dashboard)**: Xem tổng quan dữ liệu cá nhân, thông báo mới nhất.
-- **Đăng ký học phần (Course Registration)**: Tra cứu và đăng ký học phần/lớp học mở trong học kỳ hiện hành. Tính toán và cảnh báo quá giới hạn tín chỉ theo quy định.
-- **Thời khóa biểu (My Schedule)**: Lịch học các môn đã đăng ký thành công chia theo ngày, tiết học.
-- **Quản lý Học phí (My Tuition)**: Xem tông tiền cần đóng, nợ học phí và lịch sử đã thanh toán.
-
-### 🛡️ Dành cho Quản trị viên (Admin)
-- **Bảng điều khiển (Dashboard)**: Thống kê số lượng sinh viên, doanh thu, tổng quan hệ thống.
-- **Quản lý Môn học & Lớp học**: Bổ sung, chỉnh sửa, xếp lịch và phân công giảng viên.
-- **Quản lý Sinh viên**: Quản lý hồ sơ, chuẩn hóa trạng thái sinh viên (đang học, bảo lưu, thôi học).
-- **Quản lý Học kỳ**: Mở/đóng học kỳ đăng ký, quy định thời gian.
-- **Quản lý Tài chính**: Tra cứu quá trình nộp học phí của sinh viên, lập phiếu thu.
-- **Báo cáo Thống kê (Reports)**: Biểu đồ báo cáo trực quan về tình trạng sinh viên, nguồn thu.
-- **Quản lý Hệ thống (Users/Roles)**: Phân quyền admin/sinh viên.
-
-## 🛠️ Công nghệ sử dụng (Tech Stack)
-
-Hệ thống được phát triển với các công nghệ mũi nhọn & ổn định:
-- **Backend framework**: `Node.js` + `Express.js`
-- **Database**: `PostgreSQL`
-- **ORM**: `Prisma` (Phiên bản v5 - Tự động Map Data Models)
-- **Template Engine**: `Pug` (Server-Side Rendering)
-- **Frontend Assets**: Vaniila Javascript, CSS 
-
-## 📂 Tổ chức mã nguồn (Project Structure)
-
-Dự án tuân thủ chặt chẽ mô hình kiến trúc MVC rõ ràng:
-
-```text
-├── project/
-│   ├── prisma/
-│   │   └── schema.prisma        # Cấu hình ORM Prisma & Lược đồ Database
-│   ├── src/
-│   │   ├── config/              # Cấu hình kết nối hệ thống
-│   │   ├── controllers/         # Các Module xử lý nghiệp vụ (Business Logic) giao tiếp DB
-│   │   ├── middleware/          # Xử lý xác thực Token (Auth), Phân quyền JWT
-│   │   ├── models/              # Định dạng dữ liệu đầu ra/vào cho Controller
-│   │   ├── routes/              # Bộ định tuyến API & View
-│   │   ├── public/              # Tài nguyên tĩnh (CSS, Images, Client-side JS)
-│   │   │   ├── css/
-│   │   │   └── js/              # Mã xử lý Client (đã bóc tách hoàn toàn khỏi Pug)
-│   │   └── views/
-│   │       ├── layouts/         # Khung giao diện dùng chung (Admin/Student Master Layout)
-│   │       ├── pages/           # Giao diện từng trang cụ thể
-│   │       └── partials/        # Thành phần dùng lại (Header, Sidebar, Pagination...)
-│   └── .env                     # Biến môi trường
-└── README.md
-```
-
-## ⚙️ Hướng dẫn cài đặt & Khởi chạy dự án
-
-### Yêu cầu tiên quyết (Prerequisites)
-* [Node.js](https://nodejs.org/en/) (phiên bản khuyến nghị >= 18.x)
-* [PostgreSQL](https://www.postgresql.org/download/) (phiên bản >= 14) đã được cài đặt và đang chạy.
+<img width="444" height="814" alt="Mở Visual Studio Code" src="https://github.com/user-attachments/assets/02545952-c547-4fb5-a1a2-5d584d16d32c" />
 
 ---
 
-### Các bước triển khai chi tiết
+### 2. Mở thư mục mới
 
-#### 1. Tải mã nguồn dự án
+<img width="962" height="603" alt="Mở thư mục mới" src="https://github.com/user-attachments/assets/4f81fa98-65d0-491c-abb7-ea41a5bc601c" />
+
+---
+
+### 3. Mở Terminal
+
+<img width="807" height="512" alt="image" src="https://github.com/user-attachments/assets/9a335aac-6564-4abb-b917-5a4270b69651" />
+
+---
+
+### 4. Clone source code từ GitHub
+
+Chạy lệnh sau trong Terminal:
+
 ```bash
 git clone https://github.com/23521228-BuiLeHuyPhuoc/SE104.Q22-QLTinChivaHocPhi.git
-cd SE104.Q22-QLTinChivaHocPhi
 ```
 
-#### 2. Khởi tạo Cơ sở dữ liệu (Database Setup)
-Hệ thống sử dụng PostgreSQL làm CSDL chính. Hãy thực hiện các bước sau để thiết lập:
-
-* **Bước A**: Đăng nhập vào PostgreSQL (pgAdmin hoặc Command Line) và tạo một cơ sở dữ liệu mới mang tên `ql_dangky_hocphi`:
-  ```sql
-  CREATE DATABASE ql_dangky_hocphi;
-  ```
-* **Bước B**: Nạp cấu hình bảng và dữ liệu mẫu ban đầu từ tệp `init.sql`:
-  ```bash
-  psql -U postgres -d ql_dangky_hocphi -f project/src/config/init.sql
-  ```
-* **Bước C**: Nạp dữ liệu danh sách Tỉnh/Thành phố/Phường/Xã từ tệp `ITExpressLocation.sql` ở thư mục gốc (bắt buộc để phục vụ tính năng chọn Địa chỉ và đối tượng miễn giảm học phí):
-  ```bash
-  psql -U postgres -d ql_dangky_hocphi -f ITExpressLocation.sql
-  ```
-  *(Thay thế `-U postgres` bằng username PostgreSQL của bạn nếu sử dụng tài khoản khác).*
+<img width="1356" height="1001" alt="Clone source code từ GitHub" src="https://github.com/user-attachments/assets/63f0fcfc-395c-4631-bc9f-f362898267b0" />
 
 ---
 
-#### 3. Cấu hình ứng dụng
-Di chuyển vào thư mục `project/` để thiết lập môi trường:
-```bash
-cd project
-```
-* Tạo tệp cấu hình môi trường `.env` bằng cách nhân bản từ tệp `.env.example`:
-  ```bash
-  cp .env.example .env
-  ```
-* Mở tệp `.env` vừa tạo và cập nhật chính xác thông tin đăng nhập PostgreSQL của bạn tại dòng `DATABASE_URL`:
-  ```dotenv
-  PORT=5000
-  DATABASE_URL="postgresql://postgres:MAT_KHAU_POSTGRES_CUA_BAN@localhost:5432/ql_dangky_hocphi?schema=public"
-  JWT_SECRET="builehuyphuoc"
-  JWT_EXPIRES_IN="24h"
-  ```
+### 5. Copy file `init.sql`
+
+<img width="1341" height="1001" alt="Copy file init.sql" src="https://github.com/user-attachments/assets/dd63b023-37dc-4d3d-a6db-7a3fc46a1f6f" />
 
 ---
 
-#### 4. Cài đặt thư viện & Khởi tạo Prisma Client
-Tại thư mục `project/`, chạy các lệnh sau:
+### 6. Cài đặt và chạy pgAdmin 4 / PostgreSQL
+
+Xem hướng dẫn chạy pgAdmin 4 tại đây:
+
+[Hướng dẫn chạy pgAdmin 4 / PostgreSQL](https://docs.google.com/document/d/1RLNevMQh6RfSKUcBv-jGTPgr_KV-jmhjgybFUHP6EQg/edit?tab=t.h47f3rcg9etq)
+
+---
+
+### 7. Cài đặt thư viện bằng `yarn install`
+
+Nhấn vào Terminal như hình dưới:
+
+<img width="641" height="747" alt="Mở Terminal để chạy yarn install" src="https://github.com/user-attachments/assets/31b3156e-fe2a-43b0-a2c6-92ecc3b00e82" />
+
+Sau đó gõ lệnh:
+
 ```bash
-# Cài đặt toàn bộ dependencies của dự án
 yarn install
-# (Hoặc sử dụng npm: npm install)
-
-# Sinh mã Prisma Client tương ứng với Schema hiện tại
-npx prisma generate
 ```
+
+<img width="1065" height="325" alt="Chạy yarn install" src="https://github.com/user-attachments/assets/9b74118d-9e4a-4343-bcc2-baafd21137ec" />
 
 ---
 
-#### 5. Khởi chạy Ứng dụng
+### 8. Tạo file `.env`
+
+Tạo file mới tên là `.env`.
+
+> Lưu ý: file `.env` cần nằm cùng cấp với thư mục `/project`.
+
+<img width="597" height="828" alt="Tạo file .env" src="https://github.com/user-attachments/assets/0ae40948-947e-472f-8c13-558e1884ce81" />
+
+---
+
+### 9. Copy nội dung từ `.env.example` sang `.env`
+
+Mở file `.env.example`, copy toàn bộ nội dung và dán sang file `.env`.
+
+<img width="1317" height="973" alt="Copy file .env.example sang .env" src="https://github.com/user-attachments/assets/907597c9-17be-403f-9816-f597bf125248" />
+
+---
+
+### 10. Cấu hình tài khoản PostgreSQL trong file `.env`
+
+Một số thông tin trong file `.env` cần được chỉnh lại cho đúng với máy của bạn.
+
+Đây phải là **tài khoản** và **mật khẩu PostgreSQL** mà bạn đã đặt khi cài PostgreSQL / pgAdmin 4.
+
+<img width="1072" height="602" alt="Cấu hình tài khoản PostgreSQL trong file .env" src="https://github.com/user-attachments/assets/546369c9-9f40-417f-9310-a35bb1d73d87" />
+
+Link này cũng tương tự, phải đổi thành tài khoản và mật khẩu của bạn nha:
+<img width="1048" height="482" alt="image" src="https://github.com/user-attachments/assets/00e3656a-4368-452b-a2d5-c30e29107e5c" />
+
+---
+
+### 11. Chạy project
+
+Sau khi cài đặt xong, chạy lệnh:
+
 ```bash
-# Khởi chạy chế độ phát triển (Development Mode - Hỗ trợ Hot Reload tự động cập nhật code)
-yarn dev
-# (Hoặc sử dụng npm: npm run dev)
-
-# Khởi chạy chế độ Production tiêu chuẩn
 yarn start
-# (Hoặc sử dụng npm: npm start)
 ```
 
-Sau khi khởi chạy thành công, mở trình duyệt của bạn và truy cập địa chỉ: **[http://localhost:5000](http://localhost:5000)**
+<img width="1036" height="352" alt="Chạy yarn start" src="https://github.com/user-attachments/assets/4122825b-196e-48d2-8bc7-9f9cbc3a9c9a" />
+
+Nếu chạy thành công, website sẽ hoạt động tại:
+
+```text
+http://localhost:5000
+```
 
 ---
 
-### 🔐 Thông tin Đăng nhập Mẫu (Mặc định)
+### 12. Đăng nhập để xem giao diện
 
-Hệ thống đã chèn sẵn các tài khoản mẫu phục vụ quá trình dùng thử và chấm điểm đồ án:
-
-| Vai trò (Role) | Cổng đăng nhập | Tài khoản (Username) | Mật khẩu (Password) | Ghi chú |
-| :--- | :--- | :--- | :--- | :--- |
-| **Quản trị viên** | `/admin/login` | `admin` | `admin123` | Toàn quyền quản trị hệ thống |
-| **Sinh viên Mẫu** | `/student/login` | `student` | `student123` | Tài khoản sinh viên liên kết hồ sơ mẫu |
-| **Sinh viên 1** | `/student/login` | `22520001` | `student123` | Sinh viên Nguyễn Văn An (Lớp KTPM) |
-| **Sinh viên 2** | `/student/login` | `22520002` | `student123` | Sinh viên Trần Thị Bình (Lớp KHMT) |
+<img width="1918" height="1078" alt="Giao diện đăng nhập hệ thống" src="https://github.com/user-attachments/assets/12b48ea1-85ec-4944-8dfb-d4190336e878" />
 
 ---
 
-## 📝 Bản quyền & Đóng góp
-* Đồ án phát triển Hệ thống Môn học (SE104.Q22).
-* Người đóng góp chính: **Bui Le Huy Phuoc** và các thành viên nhóm.
+## Bản quyền & Đóng góp
 
+- Đồ án phát triển Hệ thống Môn học `SE104.Q22`.
+- Người đóng góp chính: **Bui Le Huy Phuoc** và các thành viên nhóm.
