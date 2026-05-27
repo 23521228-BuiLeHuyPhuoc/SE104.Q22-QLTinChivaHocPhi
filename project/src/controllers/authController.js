@@ -200,7 +200,7 @@ const sendResetEmail = async (account, otp) => {
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com',
     to: account.Email,
-    subject: 'Mã OTP đặt lại mật khẩu hệ thống tín chỉ',
+    subject: 'Mã OTP đặt lại mật khẩu hệ thống đăng ký môn học',
     text: [
       `Xin chào ${account.HoTen || account.TenDangNhap},`,
       '',

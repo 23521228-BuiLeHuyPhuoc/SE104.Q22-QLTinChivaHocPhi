@@ -58,15 +58,22 @@ block content
                   else
                     span.badge.badge-success= roleLabel
                 td= acc.NgayTao ? new Date(acc.NgayTao).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
+                td.table-actions.user-action-cell
                   if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
-                    span.text-muted Tài khoản hiện tại
+                    span.text-muted.current-account-note Tài khoản hiện tại
                   else if canManageAccounts
-                    select.account-group-select(id=`group-${acc.MaTaiKhoan}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
-                      each optionGroup in groups
-                        option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
-                    button.btn.btn-sm.btn-secondary(type="button" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)") Đổi nhóm
-                    button.btn.btn-sm.btn-danger(type="button" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)") Xóa
+                    .account-actions
+                      .account-group-control
+                        span.material-symbols-rounded.account-group-icon(aria-hidden="true") groups
+                        select.account-group-select(id=`group-${acc.MaTaiKhoan}` aria-label=`Chọn nhóm cho ${acc.TenDangNhap}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
+                          each optionGroup in groups
+                            option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
+                      button.btn.btn-sm.btn-secondary.account-action-button(type="button" title="Đổi nhóm" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)")
+                        span.material-symbols-rounded(aria-hidden="true") sync_alt
+                        span Đổi
+                      button.btn.btn-sm.btn-danger.account-action-button(type="button" title="Xóa tài khoản" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)")
+                        span.material-symbols-rounded(aria-hidden="true") delete
+                        span Xóa
                   else
                     span.text-muted Chỉ admin hệ thống
           else

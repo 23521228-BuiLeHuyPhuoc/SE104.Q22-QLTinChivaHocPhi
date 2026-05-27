@@ -1,6 +1,6 @@
-# Hệ thống Quản lý Tín chỉ và Học phí
+# Hệ thống Quản lý Việc Đăng ký Môn học và Thu Học phí
 
-Dự án Hệ thống Quản lý Đăng ký Tín chỉ và Đóng Học phí dành cho Sinh viên và Quản trị viên (Admin).
+Dự án Hệ thống Quản lý Việc Đăng ký Môn học và Thu Học phí dành cho Sinh viên và Quản trị viên (Admin).
 Dự án được xây dựng dựa trên kiến trúc **MVC (Model - View - Controller)** kết hợp **Server-Side Rendering (SSR)**.
 
 ## 🚀 Tính năng chính
@@ -18,7 +18,7 @@ Dự án được xây dựng dựa trên kiến trúc **MVC (Model - View - Con
 - **Quản lý Sinh viên**: Quản lý hồ sơ, chuẩn hóa trạng thái sinh viên.
 - **Quản lý Học kỳ**: Mở/đóng học kỳ đăng ký.
 - **Quản lý Tài chính**: Tra cứu quá trình nộp học phí, quản lý phiếu thu.
-- **Báo cáo Thống kê (Reports)**: Khai xuất doanh thu, đăng ký tín chỉ,...
+- **Báo cáo Thống kê (Reports)**: Khai xuất doanh thu, đăng ký môn học,...
 - **Quản lý Hệ thống (Users/Roles)**: Phân quyền admin/sinh viên.
 
 ## 🛠️ Công nghệ sử dụng (Tech Stack)

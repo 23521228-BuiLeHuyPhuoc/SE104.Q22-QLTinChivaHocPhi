@@ -184,8 +184,8 @@ const renderLoginPage = async (req, res, loginRole) => {
     forgotPasswordPath: isAdminLogin ? '/admin/forgot-password' : '/forgot-password',
     loginTitle: isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên',
     loginSubtitle: isAdminLogin
-      ? 'Khu vực quản trị hệ thống tín chỉ và học phí'
-      : 'Cổng sinh viên quản lý tín chỉ và học phí',
+      ? 'Khu vực quản trị việc đăng ký môn học và thu học phí'
+      : 'Cổng sinh viên quản lý việc đăng ký môn học và theo dõi học phí',
     brandMark: isAdminLogin ? 'AD' : 'SV'
   });
 };
@@ -239,7 +239,7 @@ const logout = async (req, res) => {
 
 const adminDashboard = (req, res) => {
   renderAdmin(res, 'dashboard', 'dashboard', 'Bảng điều khiển', req, {
-    headerSubtitle: 'Tổng quan tình hình đăng ký tín chỉ và học phí'
+    headerSubtitle: 'Tổng quan việc đăng ký môn học và thu học phí'
   });
 };
 
@@ -632,7 +632,7 @@ const adminRegistrations = async (req, res) => {
     const total = grouped.length;
     const registrationStudents = grouped.slice((page - 1) * limit, page * limit);
 
-    renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký tín chỉ', req, {
+    renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký môn học', req, {
       registrations: registrationStudents,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
@@ -643,7 +643,7 @@ const adminRegistrations = async (req, res) => {
     });
   } catch (err) {
     console.error('Error:', err);
-    renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký tín chỉ', req, {
+    renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký môn học', req, {
       registrations: [],
       currentPage: 1,
       totalPages: 0,

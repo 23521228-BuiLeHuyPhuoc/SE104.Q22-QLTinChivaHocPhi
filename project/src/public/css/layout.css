@@ -531,6 +531,60 @@ body.sidebar-collapsed .sidebar-logout {
   animation: fadeInUp 0.6s var(--transition-smooth);
 }
 
+.login-role-tabs {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: var(--spacing-xl);
+  padding: 4px;
+}
+
+.login-role-tab {
+  align-items: center;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  display: inline-flex;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 12px;
+  transition: all var(--transition-speed) var(--transition-smooth);
+}
+
+.login-role-tab:hover,
+.login-role-tab:focus-visible {
+  background: var(--bg-tertiary);
+  color: var(--color-primary);
+  outline: none;
+  text-decoration: none;
+}
+
+.login-role-tab.active {
+  background: var(--gradient-primary);
+  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.24);
+  color: #fff;
+}
+
+.login-page-student .login-role-tab.active {
+  background: var(--gradient-accent);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.24);
+}
+
+.login-role-tab.active:hover,
+.login-role-tab.active:focus-visible {
+  color: #fff;
+}
+
+.login-role-tab .material-symbols-rounded {
+  flex: 0 0 auto;
+  font-size: 20px;
+}
+
 .login-brand {
   align-items: center;
   display: flex;
@@ -662,34 +716,48 @@ body.sidebar-collapsed .sidebar-logout {
 }
 
 .login-switch {
-  display: grid;
+  display: flex;
   font-size: var(--font-size-sm);
-  gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   font-weight: 600;
+  justify-content: center;
   margin-top: var(--spacing-lg);
+}
+
+.login-forgot-row {
+  justify-content: flex-end;
+  margin: -2px 0 var(--spacing-md);
 }
 
 .login-switch-link {
   align-items: center;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: transparent;
+  border: 0;
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  color: var(--color-primary);
   display: inline-flex;
   gap: 8px;
   font-weight: 700;
   justify-content: center;
-  min-height: 44px;
-  padding: 9px 12px;
+  min-height: 36px;
+  padding: 6px 10px;
   text-align: center;
   transition: all var(--transition-speed) var(--transition-smooth);
+}
+
+.login-forgot-link {
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  min-height: auto;
+  padding: 2px 4px;
+}
+
+.login-page-student .login-forgot-link {
+  color: var(--color-accent);
 }
 
 .login-switch-link:hover,
 .login-switch-link:focus-visible {
   background: var(--bg-tertiary);
-  border-color: var(--color-primary);
   color: var(--color-primary);
   outline: none;
   text-decoration: none;
@@ -801,7 +869,7 @@ body.sidebar-collapsed .sidebar-logout {
 }
 
 @media (max-width: 460px) {
-  .login-switch {
+  .login-role-tabs {
     grid-template-columns: 1fr;
   }
 }

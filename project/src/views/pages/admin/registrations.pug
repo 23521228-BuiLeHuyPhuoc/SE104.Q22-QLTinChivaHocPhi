@@ -12,7 +12,7 @@ block content
 
   .card
     .card-header
-      h3 Sinh viên đã đăng ký tín chỉ
+      h3 Sinh viên đã đăng ký môn học
       span.card-count= registrations ? `${registrations.length} sinh viên` : '0 sinh viên'
     .table-container
       table.data-table
@@ -60,7 +60,7 @@ block modals
   #registration-detail-modal.modal-overlay(onclick="if(event.target===this)closeRegistrationDetail()")
     .modal
       .modal-header
-        h3 Chi tiết đăng ký tín chỉ
+        h3 Chi tiết đăng ký môn học
         button.modal-close(type="button" onclick="closeRegistrationDetail()") ×
       .modal-body
         #registration-detail-content Đang tải...

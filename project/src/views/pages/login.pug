@@ -8,12 +8,20 @@ block content
   - const systemLogoUrl = typeof authLogoUrl !== 'undefined' ? authLogoUrl : '/uploads/logos/logo_tin_chi_hoc_phi_light.svg?v=20260524200000'
   .login-page(class=isAdminLogin ? 'login-page-admin' : 'login-page-student')
     .login-card
+      nav.login-role-tabs(aria-label="Chọn cổng đăng nhập")
+        a.login-role-tab(class=!isAdminLogin ? 'active' : '' href="/login" aria-current=!isAdminLogin ? 'page' : false)
+          span.material-symbols-rounded(aria-hidden="true") school
+          span Sinh viên
+        a.login-role-tab(class=isAdminLogin ? 'active' : '' href="/admin/login" aria-current=isAdminLogin ? 'page' : false)
+          span.material-symbols-rounded(aria-hidden="true") admin_panel_settings
+          span Admin
+
       .login-brand
         .login-logo-wrap
           img.login-logo(src=systemLogoUrl alt="Logo hệ thống")
         div
           h1= loginTitle || (isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên')
-          .subtitle= loginSubtitle || 'Hệ thống quản lý tín chỉ và học phí'
+          .subtitle= loginSubtitle || 'Hệ thống quản lý việc đăng ký môn học và thu học phí'
 
       #login-error.login-error
 
@@ -29,23 +37,15 @@ block content
             button.password-toggle(type="button" data-password-toggle="password" aria-label="Hiện mật khẩu" aria-pressed="false")
               span.material-symbols-rounded(aria-hidden="true") visibility
 
-        button.btn.btn-login(type="submit" id="btn-login") Đăng nhập
+        .login-switch.login-forgot-row
+          if isAdminLogin
+            a.login-switch-link.login-forgot-link(href=forgotPasswordPath || "/admin/forgot-password")
+              span Quên mật khẩu
+          else
+            a.login-switch-link.login-forgot-link(href=forgotPasswordPath || "/forgot-password")
+              span Quên mật khẩu
 
-      .login-switch
-        if isAdminLogin
-          a.login-switch-link(href=forgotPasswordPath || "/admin/forgot-password")
-            span.material-symbols-rounded(aria-hidden="true") lock_reset
-            span Quên mật khẩu
-          a.login-switch-link(href="/login")
-            span.material-symbols-rounded(aria-hidden="true") school
-            span Đăng nhập sinh viên
-        else
-          a.login-switch-link(href=forgotPasswordPath || "/forgot-password")
-            span.material-symbols-rounded(aria-hidden="true") lock_reset
-            span Quên mật khẩu
-          a.login-switch-link(href="/admin/login")
-            span.material-symbols-rounded(aria-hidden="true") admin_panel_settings
-            span Đăng nhập admin
+        button.btn.btn-login(type="submit" id="btn-login") Đăng nhập
 
 block scripts
   script(src="/js/login.js")

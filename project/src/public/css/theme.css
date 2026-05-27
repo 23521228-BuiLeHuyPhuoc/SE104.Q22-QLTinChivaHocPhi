@@ -1,6 +1,6 @@
 /* ============================================================
    THEME.CSS — Fresh Campus Design System
-   Quản lý Tín chỉ & Học phí
+   Quản lý Việc Đăng ký Môn học & Thu Học phí
    Palette: Sky Blue + Emerald + Cyan (NO PURPLE)
    ============================================================ */
 
@@ -308,6 +308,18 @@ table {
   background: var(--color-accent-hover);
 }
 
+.btn-secondary {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  background: var(--color-primary-light);
+  border-color: rgba(14, 165, 233, 0.32);
+  color: var(--color-primary-dark);
+}
+
 .btn-warning {
   background: var(--color-warning);
   color: #1a1a1a;
@@ -342,6 +354,12 @@ table {
   min-height: 34px;
   min-width: 34px;
   padding: 0;
+}
+
+.btn .material-symbols-rounded {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .icon-eye {
@@ -566,9 +584,103 @@ table {
 }
 
 .table-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.user-action-cell {
+  min-width: 420px;
+}
+
+.account-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.account-group-control {
+  align-items: center;
+  display: inline-flex;
+  flex: 1 1 240px;
+  max-width: 290px;
+  min-width: 230px;
+  position: relative;
+}
+
+.account-group-icon {
+  color: var(--text-tertiary);
+  font-size: 19px;
+  left: 11px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.account-group-control::after {
+  border-bottom: 2px solid var(--text-tertiary);
+  border-right: 2px solid var(--text-tertiary);
+  content: '';
+  height: 7px;
+  pointer-events: none;
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-65%) rotate(45deg);
+  width: 7px;
+}
+
+.account-group-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  height: 36px;
+  line-height: 1.2;
+  overflow: hidden;
+  padding: 0 34px 0 38px;
+  text-overflow: ellipsis;
+  transition: border-color var(--transition-speed) var(--transition-smooth), box-shadow var(--transition-speed) var(--transition-smooth), background var(--transition-speed) var(--transition-smooth);
+  white-space: nowrap;
+  width: 100%;
+}
+
+.account-group-select:hover {
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
+.account-group-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+  outline: none;
+}
+
+.account-group-select:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: wait;
+}
+
+.account-action-button {
+  gap: 5px;
+  min-width: 68px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.current-account-note {
+  display: inline-flex;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  min-height: 32px;
+  align-items: center;
 }
 
 /* ============================================================
