@@ -33,13 +33,19 @@ block content
 
       .login-switch
         if isAdminLogin
-          a(href=forgotPasswordPath || "/admin/forgot-password") Quên mật khẩu
-          |  · 
-          a(href="/login") Đăng nhập sinh viên
+          a.login-switch-link(href=forgotPasswordPath || "/admin/forgot-password")
+            span.material-symbols-rounded(aria-hidden="true") lock_reset
+            span Quên mật khẩu
+          a.login-switch-link(href="/login")
+            span.material-symbols-rounded(aria-hidden="true") school
+            span Đăng nhập sinh viên
         else
-          a(href=forgotPasswordPath || "/forgot-password") Quên mật khẩu
-          |  · 
-          a(href="/admin/login") Đăng nhập admin
+          a.login-switch-link(href=forgotPasswordPath || "/forgot-password")
+            span.material-symbols-rounded(aria-hidden="true") lock_reset
+            span Quên mật khẩu
+          a.login-switch-link(href="/admin/login")
+            span.material-symbols-rounded(aria-hidden="true") admin_panel_settings
+            span Đăng nhập admin
 
 block scripts
   script(src="/js/login.js")

@@ -662,19 +662,48 @@ body.sidebar-collapsed .sidebar-logout {
 }
 
 .login-switch {
+  display: grid;
   font-size: var(--font-size-sm);
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   font-weight: 600;
   margin-top: var(--spacing-lg);
-  text-align: center;
 }
 
-.login-switch a {
-  color: var(--color-primary);
+.login-switch-link {
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  display: inline-flex;
+  gap: 8px;
   font-weight: 700;
+  justify-content: center;
+  min-height: 44px;
+  padding: 9px 12px;
+  text-align: center;
+  transition: all var(--transition-speed) var(--transition-smooth);
 }
 
-.login-switch a:hover {
-  text-decoration: underline;
+.login-switch-link:hover,
+.login-switch-link:focus-visible {
+  background: var(--bg-tertiary);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  outline: none;
+  text-decoration: none;
+}
+
+.login-page-student .login-switch-link:hover,
+.login-page-student .login-switch-link:focus-visible {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.login-switch-link .material-symbols-rounded {
+  flex: 0 0 auto;
+  font-size: 20px;
 }
 
 /* ============================================================
@@ -768,6 +797,12 @@ body.sidebar-collapsed .sidebar-logout {
   .login-card {
     padding: var(--spacing-xl);
     border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 460px) {
+  .login-switch {
+    grid-template-columns: 1fr;
   }
 }
 
