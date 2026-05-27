@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const getAllBeneficiaries = async (req, res) => {
   try {
@@ -12,8 +13,7 @@ const getAllBeneficiaries = async (req, res) => {
     ]);
     res.json({ success: true, data: beneficiaries, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('getAllBeneficiaries error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllBeneficiaries error:');
   }
 };
 
@@ -30,8 +30,7 @@ const createBeneficiary = async (req, res) => {
     });
     res.status(201).json({ success: true, message: 'Tạo đối tượng thành công', data: obj });
   } catch (error) {
-    console.error('createBeneficiary error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createBeneficiary error:');
   }
 };
 
@@ -48,8 +47,7 @@ const updateBeneficiary = async (req, res) => {
     const obj = await prisma.DOITUONG.update({ where: { MaDoiTuong: id }, data });
     res.json({ success: true, message: 'Cập nhật đối tượng thành công', data: obj });
   } catch (error) {
-    console.error('updateBeneficiary error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateBeneficiary error:');
   }
 };
 
@@ -61,8 +59,7 @@ const deleteBeneficiary = async (req, res) => {
     await prisma.DOITUONG.update({ where: { MaDoiTuong: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển đối tượng vào thùng rác' });
   } catch (error) {
-    console.error('deleteBeneficiary error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteBeneficiary error:');
   }
 };
 
@@ -76,8 +73,7 @@ const getBeneficiaryStudents = async (req, res) => {
     });
     res.json({ success: true, data: students });
   } catch (error) {
-    console.error('getBeneficiaryStudents error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getBeneficiaryStudents error:');
   }
 };
 
@@ -92,8 +88,7 @@ const addStudentToBeneficiary = async (req, res) => {
     res.status(201).json({ success: true, message: 'Thêm sinh viên vào đối tượng thành công', data: record });
   } catch (error) {
     if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Sinh viên đã thuộc đối tượng này' });
-    console.error('addStudentToBeneficiary error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'addStudentToBeneficiary error:');
   }
 };
 
@@ -103,8 +98,7 @@ const removeStudentFromBeneficiary = async (req, res) => {
     await prisma.DOITUONGSINHVIEN.deleteMany({ where: { MaDoiTuong: id, MaSv: studentId } });
     res.json({ success: true, message: 'Xóa sinh viên khỏi đối tượng thành công' });
   } catch (error) {
-    console.error('removeStudentFromBeneficiary error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'removeStudentFromBeneficiary error:');
   }
 };
 

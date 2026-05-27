@@ -5,6 +5,7 @@ const nodemailer = require('nodemailer');
 const prisma = require('../config/database');
 const { uploadAvatarBuffer } = require('../utils/cloudinary');
 const redisClient = require('../utils/redisClient');
+const { sendErrorResponse } = require('../utils/errorHandler');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
@@ -371,8 +372,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
       data: await buildLoginResponse(user)
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ success: false, message: getLoginErrorMessage(error) });
+        return sendErrorResponse(res, error, getLoginErrorMessage(error), 'Login error:');
   }
 };
 
@@ -426,7 +426,7 @@ const forgotPassword = async (req, res) => {
     if (isRedisConnectionError(error)) {
       return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
     }
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    return sendErrorResponse(res, error, 'Lỗi server');
   }
 };
 
@@ -468,7 +468,7 @@ const resetPassword = async (req, res) => {
     if (isRedisConnectionError(error)) {
       return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
     }
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+    return sendErrorResponse(res, error, 'Lỗi server');
   }
 };
 
@@ -525,8 +525,7 @@ const getMe = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('GetMe error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'GetMe error:');
   }
 };
 
@@ -651,8 +650,7 @@ const updateStudentProfile = async (req, res) => {
       data: { student: updated }
     });
   } catch (error) {
-    console.error('Update student profile error:', error);
-    res.status(500).json({ success: false, message: 'Không thể cập nhật hồ sơ cá nhân' });
+        return sendErrorResponse(res, error, 'Không thể cập nhật hồ sơ cá nhân', 'Update student profile error:');
   }
 };
 
@@ -729,7 +727,7 @@ const uploadAvatar = async (req, res) => {
         message: `Chưa cấu hình đủ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET.${missing}`
       });
     }
-    res.status(500).json({ success: false, message: getCloudinaryUploadErrorMessage(error) });
+    return sendErrorResponse(res, error, getCloudinaryUploadErrorMessage(error));
   }
 };
 
@@ -771,8 +769,7 @@ const changePassword = async (req, res) => {
 
     res.json({ success: true, message: 'Đổi mật khẩu thành công' });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Change password error:');
   }
 };
 

@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const CONDITION_TYPES = new Set(['tien_quyet', 'hoc_truoc']);
 
@@ -54,8 +55,7 @@ const getPrerequisites = async (req, res) => {
 
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get prerequisites error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get prerequisites error:');
   }
 };
 
@@ -67,8 +67,7 @@ const getPrerequisiteById = async (req, res) => {
     if (!row) return res.status(404).json({ success: false, message: 'Không tìm thấy ràng buộc môn học' });
     res.json({ success: true, data: row });
   } catch (error) {
-    console.error('Get prerequisite error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get prerequisite error:');
   }
 };
 
@@ -138,7 +137,7 @@ const createPrerequisite = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Ràng buộc môn học này đã tồn tại' });
     }
-    res.status(500).json({ success: false, message: 'Không thể tạo ràng buộc môn học' });
+    return sendErrorResponse(res, error, 'Không thể tạo ràng buộc môn học');
   }
 };
 
@@ -172,7 +171,7 @@ const updatePrerequisite = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Ràng buộc môn học này đã tồn tại' });
     }
-    res.status(500).json({ success: false, message: 'Không thể cập nhật ràng buộc môn học' });
+    return sendErrorResponse(res, error, 'Không thể cập nhật ràng buộc môn học');
   }
 };
 
@@ -185,8 +184,7 @@ const deletePrerequisite = async (req, res) => {
     await prisma.DIEUKIENMONHOC.update({ where: { id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển ràng buộc môn học vào thùng rác' });
   } catch (error) {
-    console.error('Delete prerequisite error:', error);
-    res.status(500).json({ success: false, message: 'Không thể xóa ràng buộc môn học' });
+        return sendErrorResponse(res, error, 'Không thể xóa ràng buộc môn học', 'Delete prerequisite error:');
   }
 };
 

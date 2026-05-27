@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { TRASH_ENTITIES, getTrashEntity, parseTrashId, getTrashTitle } = require('../utils/trashConfig');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { updateAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const decorateRows = async (config, rows) => {
   const userIds = Array.from(new Set(rows.map((row) => row.NguoiXoa).filter(Boolean)));
@@ -57,8 +58,7 @@ const listTrash = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-    console.error('listTrash error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'listTrash error:');
   }
 };
 
@@ -83,8 +83,7 @@ const restoreTrashItem = async (req, res) => {
 
     res.json({ success: true, message: 'Khôi phục thành công', data: row });
   } catch (error) {
-    console.error('restoreTrashItem error:', error);
-    res.status(500).json({ success: false, message: 'Không thể khôi phục dữ liệu' });
+        return sendErrorResponse(res, error, 'Không thể khôi phục dữ liệu', 'restoreTrashItem error:');
   }
 };
 
@@ -100,8 +99,7 @@ const purgeTrashItem = async (req, res) => {
     await prisma[config.model].delete({ where: { [config.pk]: id } });
     res.json({ success: true, message: 'Đã xóa vĩnh viễn' });
   } catch (error) {
-    console.error('purgeTrashItem error:', error);
-    res.status(500).json({ success: false, message: 'Không thể xóa vĩnh viễn do dữ liệu đang được tham chiếu' });
+        return sendErrorResponse(res, error, 'Không thể xóa vĩnh viễn do dữ liệu đang được tham chiếu', 'purgeTrashItem error:');
   }
 };
 

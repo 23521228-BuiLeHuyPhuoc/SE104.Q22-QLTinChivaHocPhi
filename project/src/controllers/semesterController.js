@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const semesterSelect = (hk) => ({
   MaHocKy: hk.MaHocKy,
@@ -34,8 +35,7 @@ const getAllSemesters = async (req, res) => {
     ]);
     res.json({ success: true, data: semesters.map(semesterSelect), pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get all semesters error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all semesters error:');
   }
 };
 
@@ -77,8 +77,7 @@ const getRegistrationOptions = async (req, res) => {
     });
     res.json({ success: true, data: fallbackSemesters.map(semesterSelect).reverse() });
   } catch (error) {
-    console.error('Get registration options error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get registration options error:');
   }
 };
 
@@ -89,8 +88,7 @@ const getActiveSemester = async (req, res) => {
     if (!hk) return res.status(404).json({ success: false, message: 'Không có học kỳ nào đang hoạt động' });
     res.json({ success: true, data: semesterSelect(hk) });
   } catch (error) {
-    console.error('Get active semester error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get active semester error:');
   }
 };
 
@@ -100,8 +98,7 @@ const getSemesterById = async (req, res) => {
     if (!hk) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
     res.json({ success: true, data: { ...semesterSelect(hk), stats: { openedClasses: hk.LOPMO.length, registrations: hk.PHIEUDANGKY.length } } });
   } catch (error) {
-    console.error('Get semester by ID error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get semester by ID error:');
   }
 };
 
@@ -129,8 +126,7 @@ const createSemester = async (req, res) => {
     });
     res.status(201).json({ success: true, message: 'Tạo học kỳ thành công', data: semester });
   } catch (error) {
-    console.error('Create semester error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Create semester error:');
   }
 };
 
@@ -153,8 +149,7 @@ const updateSemester = async (req, res) => {
     const updated = await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data });
     res.json({ success: true, message: 'Cập nhật học kỳ thành công', data: updated });
   } catch (error) {
-    console.error('Update semester error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Update semester error:');
   }
 };
 
@@ -165,8 +160,7 @@ const deleteSemester = async (req, res) => {
     await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển học kỳ vào thùng rác' });
   } catch (error) {
-    console.error('Delete semester error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Delete semester error:');
   }
 };
 
@@ -175,8 +169,7 @@ const getAcademicYears = async (req, res) => {
     const years = await prisma.NAMHOC.findMany({ where: { TrangThai: true }, orderBy: { TenNamHoc: 'desc' } });
     res.json({ success: true, data: years });
   } catch (error) {
-    console.error('Get academic years error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get academic years error:');
   }
 };
 

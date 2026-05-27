@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { formatCourse, formatCourseList } = require('../models/courseModel');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 
@@ -37,8 +38,7 @@ const getAllCourses = async (req, res) => {
     ]);
     res.json({ success: true, data: formatCourseList(rows), pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get all courses error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all courses error:');
   }
 };
 
@@ -62,8 +62,7 @@ const getCourseById = async (req, res) => {
     }));
     res.json({ success: true, data: { ...formatCourse(mh), prerequisites } });
   } catch (error) {
-    console.error('Get course by ID error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get course by ID error:');
   }
 };
 
@@ -78,8 +77,7 @@ const createCourse = async (req, res) => {
     const course = await prisma.MONHOC.create({ data: { MaMonHoc, TenMonHoc, SoTiet: parseInt(SoTiet, 10), LoaiMon, MaKhoa, MoTa, ...updateAudit(req) } });
     res.status(201).json({ success: true, message: 'Tạo môn học thành công', data: course });
   } catch (error) {
-    console.error('Create course error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Create course error:');
   }
 };
 
@@ -99,8 +97,7 @@ const updateCourse = async (req, res) => {
     const updated = await prisma.MONHOC.update({ where: { MaMonHoc: req.params.id }, data });
     res.json({ success: true, message: 'Cập nhật môn học thành công', data: updated });
   } catch (error) {
-    console.error('Update course error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Update course error:');
   }
 };
 
@@ -111,8 +108,7 @@ const deleteCourse = async (req, res) => {
     await prisma.MONHOC.update({ where: { MaMonHoc: req.params.id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển môn học vào thùng rác' });
   } catch (error) {
-    console.error('Delete course error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Delete course error:');
   }
 };
 
@@ -124,8 +120,7 @@ const getCourseStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { total, byType: byType.map((t) => ({ LoaiMon: t.LoaiMon, count: t._count })) } });
   } catch (error) {
-    console.error('Get course stats error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get course stats error:');
   }
 };
 
@@ -154,8 +149,7 @@ const getOpenedClasses = async (req, res) => {
     ]);
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get opened classes error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get opened classes error:');
   }
 };
 
@@ -250,8 +244,7 @@ const getMyCurriculum = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get curriculum error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get curriculum error:');
   }
 };
 

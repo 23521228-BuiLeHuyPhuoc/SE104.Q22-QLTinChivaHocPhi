@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const parseBoolean = (value) => {
   if (value === undefined || value === null || value === '') return undefined;
@@ -91,8 +92,7 @@ const getPeriods = async (req, res) => {
 
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get periods error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get periods error:');
   }
 };
 
@@ -102,8 +102,7 @@ const getPeriodById = async (req, res) => {
     if (!period) return res.status(404).json({ success: false, message: 'Không tìm thấy tiết học' });
     res.json({ success: true, data: period });
   } catch (error) {
-    console.error('Get period error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get period error:');
   }
 };
 
@@ -127,8 +126,7 @@ const createPeriod = async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Lưu tiết học thành công', data: period });
   } catch (error) {
-    console.error('Create period error:', error);
-    res.status(500).json({ success: false, message: 'Không thể tạo tiết học' });
+        return sendErrorResponse(res, error, 'Không thể tạo tiết học', 'Create period error:');
   }
 };
 
@@ -153,8 +151,7 @@ const updatePeriod = async (req, res) => {
     });
     res.json({ success: true, message: 'Cập nhật tiết học thành công', data: updated });
   } catch (error) {
-    console.error('Update period error:', error);
-    res.status(500).json({ success: false, message: 'Không thể cập nhật tiết học' });
+        return sendErrorResponse(res, error, 'Không thể cập nhật tiết học', 'Update period error:');
   }
 };
 
@@ -165,8 +162,7 @@ const deletePeriod = async (req, res) => {
     await prisma.TIETHOC.update({ where: { MaTiet: req.params.id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển tiết học vào thùng rác' });
   } catch (error) {
-    console.error('Delete period error:', error);
-    res.status(500).json({ success: false, message: 'Không thể xóa tiết học' });
+        return sendErrorResponse(res, error, 'Không thể xóa tiết học', 'Delete period error:');
   }
 };
 

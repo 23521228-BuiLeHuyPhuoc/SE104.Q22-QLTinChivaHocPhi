@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const VALID_RESULTS = ['qua_mon', 'rot'];
 
@@ -83,8 +84,7 @@ const getMyCompletedCourses = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-    console.error('getMyCompletedCourses error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getMyCompletedCourses error:');
   }
 };
 
@@ -130,8 +130,7 @@ const getAllCompletedCourses = async (req, res) => {
       pagination: all === 'true' ? getPaginationMeta(total, 1, total || limit) : getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-    console.error('getAllCompletedCourses error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllCompletedCourses error:');
   }
 };
 
@@ -165,8 +164,7 @@ const createCompletedCourse = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Môn đã học cho sinh viên, học kỳ và lần học này đã tồn tại' });
     }
-    console.error('createCompletedCourse error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createCompletedCourse error:');
   }
 };
 
@@ -196,8 +194,7 @@ const updateCompletedCourse = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Môn đã học cho sinh viên, học kỳ và lần học này đã tồn tại' });
     }
-    console.error('updateCompletedCourse error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateCompletedCourse error:');
   }
 };
 
@@ -207,8 +204,7 @@ const deleteCompletedCourse = async (req, res) => {
     await prisma.MONDAHOC.update({ where: { id: parseInt(id, 10) }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển môn đã học vào thùng rác' });
   } catch (error) {
-    console.error('deleteCompletedCourse error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteCompletedCourse error:');
   }
 };
 

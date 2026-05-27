@@ -32,6 +32,27 @@ async function postJson(url, body) {
   return res.json();
 }
 
+function syncPasswordToggle(button, input) {
+  var isVisible = input.type === 'text';
+  var icon = button.querySelector('.material-symbols-rounded');
+  button.setAttribute('aria-label', isVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  button.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
+  if (icon) icon.textContent = isVisible ? 'visibility_off' : 'visibility';
+}
+
+function setupPasswordToggles() {
+  document.querySelectorAll('[data-password-toggle]').forEach(function(button) {
+    var input = document.getElementById(button.dataset.passwordToggle);
+    if (!input) return;
+    syncPasswordToggle(button, input);
+    button.addEventListener('click', function() {
+      input.type = input.type === 'password' ? 'text' : 'password';
+      syncPasswordToggle(button, input);
+      input.focus();
+    });
+  });
+}
+
 async function handleLogin(e) {
   e.preventDefault();
 
@@ -70,6 +91,8 @@ async function handleLogin(e) {
   resetButton();
   return false;
 }
+
+document.addEventListener('DOMContentLoaded', setupPasswordToggles);
 
 async function handleForgotPassword(e) {
   e.preventDefault();

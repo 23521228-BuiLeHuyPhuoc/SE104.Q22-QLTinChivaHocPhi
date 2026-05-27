@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { buildErrorResponse } = require('../utils/errorHandler');
 
 const prisma = new PrismaClient({});
 
@@ -564,7 +565,8 @@ prisma.ready = prisma.$connect()
     console.log('Auth schema is ready');
   })
   .catch(err => {
-    console.error('Database connection error:', err.message);
+    const response = buildErrorResponse(err, 'Database connection error');
+    console.error('Database connection error:', response.message);
   });
 
 module.exports = prisma;

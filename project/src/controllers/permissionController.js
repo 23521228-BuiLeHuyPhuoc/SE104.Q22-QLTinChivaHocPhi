@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 // ── CHUCNANG (Functions) ──
 
@@ -29,8 +30,7 @@ const getAllFunctions = async (req, res) => {
     ]);
     res.json({ success: true, data: functions, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('getAllFunctions error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllFunctions error:');
   }
 };
 
@@ -49,8 +49,7 @@ const createFunction = async (req, res) => {
     });
     res.status(201).json({ success: true, message: 'Tạo chức năng thành công', data: func });
   } catch (error) {
-    console.error('createFunction error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createFunction error:');
   }
 };
 
@@ -64,8 +63,7 @@ const updateFunction = async (req, res) => {
     });
     res.json({ success: true, message: 'Cập nhật chức năng thành công', data: func });
   } catch (error) {
-    console.error('updateFunction error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateFunction error:');
   }
 };
 
@@ -75,8 +73,7 @@ const deleteFunction = async (req, res) => {
     await prisma.CHUCNANG.update({ where: { MaChucNang: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Xóa chức năng thành công' });
   } catch (error) {
-    console.error('deleteFunction error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteFunction error:');
   }
 };
 
@@ -111,8 +108,7 @@ const getAllGroups = async (req, res) => {
     ]);
     res.json({ success: true, data: groups, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('getAllGroups error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllGroups error:');
   }
 };
 
@@ -129,8 +125,7 @@ const createGroup = async (req, res) => {
     const group = await prisma.NHOMNGUOIDUNG.create({ data: { MaNhom, TenNhom, ...updateAudit(req) } });
     res.status(201).json({ success: true, message: 'Tạo nhóm thành công', data: group });
   } catch (error) {
-    console.error('createGroup error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createGroup error:');
   }
 };
 
@@ -144,8 +139,7 @@ const updateGroup = async (req, res) => {
     });
     res.json({ success: true, message: 'Cập nhật nhóm thành công', data: group });
   } catch (error) {
-    console.error('updateGroup error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateGroup error:');
   }
 };
 
@@ -162,8 +156,7 @@ const deleteGroup = async (req, res) => {
     await prisma.NHOMNGUOIDUNG.update({ where: { MaNhom: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Xóa nhóm thành công' });
   } catch (error) {
-    console.error('deleteGroup error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteGroup error:');
   }
 };
 
@@ -178,8 +171,7 @@ const getGroupPermissions = async (req, res) => {
     });
     res.json({ success: true, data: permissions });
   } catch (error) {
-    console.error('getGroupPermissions error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getGroupPermissions error:');
   }
 };
 
@@ -198,8 +190,7 @@ const assignPermission = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Quyền này đã được gán' });
     }
-    console.error('assignPermission error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'assignPermission error:');
   }
 };
 
@@ -211,8 +202,7 @@ const removePermission = async (req, res) => {
     });
     res.json({ success: true, message: 'Xóa quyền thành công' });
   } catch (error) {
-    console.error('removePermission error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'removePermission error:');
   }
 };
 
@@ -233,8 +223,7 @@ const bulkUpdatePermissions = async (req, res) => {
     }
     res.json({ success: true, message: `Đã cập nhật ${permissions.length} quyền cho nhóm` });
   } catch (error) {
-    console.error('bulkUpdatePermissions error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'bulkUpdatePermissions error:');
   }
 };
 

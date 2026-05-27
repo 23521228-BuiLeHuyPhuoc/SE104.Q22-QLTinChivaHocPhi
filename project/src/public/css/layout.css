@@ -599,6 +599,43 @@ body.sidebar-collapsed .sidebar-logout {
   color: var(--color-success);
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-field .form-control {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: color var(--transition-speed) var(--transition-smooth), background var(--transition-speed) var(--transition-smooth);
+  width: 34px;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  background: var(--bg-tertiary);
+  color: var(--color-primary);
+  outline: none;
+}
+
+.password-toggle .material-symbols-rounded {
+  font-size: 21px;
+}
+
 .btn-login {
   background: var(--gradient-primary);
   border: none;

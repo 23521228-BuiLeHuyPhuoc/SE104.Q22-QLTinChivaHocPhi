@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 
@@ -40,8 +41,7 @@ const getClasses = async (req, res) => {
     const data = rows.map((row) => ({ ...row, SoLuongDaDangKy: row.CHITIETDANGKY.length }));
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Error getting classes:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting classes:');
   }
 };
 
@@ -54,8 +54,7 @@ const getClassById = async (req, res) => {
     if (!cls) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
     res.json({ success: true, data: cls });
   } catch (error) {
-    console.error('Error getting class:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting class:');
   }
 };
 
@@ -72,8 +71,7 @@ const createClass = async (req, res) => {
     });
     res.status(201).json({ success: true, message: 'Tạo lớp học thành công', data: cls });
   } catch (error) {
-    console.error('Error creating class:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error creating class:');
   }
 };
 
@@ -95,8 +93,7 @@ const updateClass = async (req, res) => {
     const updated = await prisma.LOP.update({ where: { MaLop: req.params.id }, data });
     res.json({ success: true, message: 'Cập nhật lớp học thành công', data: updated });
   } catch (error) {
-    console.error('Error updating class:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error updating class:');
   }
 };
 
@@ -107,8 +104,7 @@ const deleteClass = async (req, res) => {
     await prisma.LOP.update({ where: { MaLop: req.params.id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển lớp học vào thùng rác' });
   } catch (error) {
-    console.error('Error deleting class:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error deleting class:');
   }
 };
 
@@ -123,8 +119,7 @@ const getOpenedClasses = async (req, res) => {
     });
     res.json({ success: true, data: rows.map((row) => ({ ...row, SoLuongDaDangKy: row.LOP.CHITIETDANGKY.length })) });
   } catch (error) {
-    console.error('Error getting opened classes:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting opened classes:');
   }
 };
 
@@ -136,8 +131,7 @@ const openClass = async (req, res) => {
     const result = await prisma.LOPMO.create({ data: { MaHocKy, MaLop, GhiChu } });
     res.status(201).json({ success: true, message: 'Mở lớp thành công', data: result });
   } catch (error) {
-    console.error('Error opening class:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error opening class:');
   }
 };
 
@@ -146,8 +140,7 @@ const closeClass = async (req, res) => {
     await prisma.LOPMO.update({ where: { id: parseInt(req.params.id, 10) }, data: { TrangThai: false } });
     res.json({ success: true, message: 'Đóng lớp thành công' });
   } catch (error) {
-    console.error('Error closing class:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error closing class:');
   }
 };
 
@@ -171,8 +164,7 @@ const getClassSchedules = async (req, res) => {
     });
     res.json({ success: true, data: opened });
   } catch (error) {
-    console.error('getClassSchedules error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getClassSchedules error:');
   }
 };
 
@@ -200,8 +192,7 @@ const upsertClassSchedule = async (req, res) => {
       : await prisma.LICHHOCLOP.create({ data });
     res.json({ success: true, message: 'Cập nhật lịch học thành công', data: schedule });
   } catch (error) {
-    console.error('upsertClassSchedule error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'upsertClassSchedule error:');
   }
 };
 
@@ -214,8 +205,7 @@ const getClassStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { total_classes: totalClasses, active_classes: activeClasses, total_opened_classes: totalOpened } });
   } catch (error) {
-    console.error('Error getting class stats:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting class stats:');
   }
 };
 

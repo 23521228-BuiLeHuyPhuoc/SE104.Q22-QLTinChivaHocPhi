@@ -24,7 +24,10 @@ block content
 
         .form-group
           label(for="password") Mật khẩu
-          input.form-control#password(type="password" name="password" placeholder="Nhập mật khẩu" required autocomplete="current-password")
+          .password-field
+            input.form-control#password(type="password" name="password" placeholder="Nhập mật khẩu" required autocomplete="current-password")
+            button.password-toggle(type="button" data-password-toggle="password" aria-label="Hiện mật khẩu" aria-pressed="false")
+              span.material-symbols-rounded(aria-hidden="true") visibility
 
         button.btn.btn-login(type="submit" id="btn-login") Đăng nhập
 

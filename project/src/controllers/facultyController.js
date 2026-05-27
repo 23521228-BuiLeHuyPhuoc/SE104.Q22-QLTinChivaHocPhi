@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const getAllFaculties = async (req, res) => {
   try {
@@ -26,8 +27,7 @@ const getAllFaculties = async (req, res) => {
     ]);
     res.json({ success: true, data: faculties, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('getAllFaculties error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllFaculties error:');
   }
 };
 
@@ -40,8 +40,7 @@ const createFaculty = async (req, res) => {
     const faculty = await prisma.KHOA.create({ data: { MaKhoa, TenKhoa, TenVietTat, Sdt, Email, DiaChi, TruongKhoa, ...updateAudit(req) } });
     res.status(201).json({ success: true, message: 'Tạo khoa thành công', data: faculty });
   } catch (error) {
-    console.error('createFaculty error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createFaculty error:');
   }
 };
 
@@ -54,8 +53,7 @@ const updateFaculty = async (req, res) => {
     const faculty = await prisma.KHOA.update({ where: { MaKhoa: id }, data });
     res.json({ success: true, message: 'Cập nhật khoa thành công', data: faculty });
   } catch (error) {
-    console.error('updateFaculty error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateFaculty error:');
   }
 };
 
@@ -67,8 +65,7 @@ const deleteFaculty = async (req, res) => {
     await prisma.KHOA.update({ where: { MaKhoa: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển khoa vào thùng rác' });
   } catch (error) {
-    console.error('deleteFaculty error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteFaculty error:');
   }
 };
 

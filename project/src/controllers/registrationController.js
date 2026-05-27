@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
@@ -241,8 +242,7 @@ const getAllRegistrations = async (req, res) => {
 
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get all registrations error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all registrations error:');
   }
 };
 
@@ -266,8 +266,7 @@ const getRegistrationById = async (req, res) => {
     if (!registration) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu đăng ký' });
     res.json({ success: true, data: registration });
   } catch (error) {
-    console.error('Get registration by id error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get registration by id error:');
   }
 };
 
@@ -376,8 +375,7 @@ const getStudentCourses = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-    console.error('Get student courses error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get student courses error:');
   }
 };
 
@@ -457,8 +455,7 @@ const getAvailableCourses = async (req, res) => {
 
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get available courses error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get available courses error:');
   }
 };
 
@@ -536,8 +533,7 @@ const registerCourse = async (req, res) => {
     res.status(201).json({ success: true, message: 'Đăng ký thành công', data: result });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    console.error('Register course error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Register course error:');
   }
 };
 
@@ -560,8 +556,7 @@ const cancelRegistration = async (req, res) => {
     res.json({ success: true, message: 'Hủy đăng ký thành công', data: result });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    console.error('Cancel registration error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Cancel registration error:');
   }
 };
 
@@ -575,8 +570,7 @@ const getRegistrationStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { totalRegistrations: totalReg, totalCourses: totalDetails } });
   } catch (error) {
-    console.error('Get registration stats error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get registration stats error:');
   }
 };
 

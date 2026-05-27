@@ -1,12 +1,12 @@
 const prisma = require('../config/database');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const getSettings = async (req, res) => {
   try {
     const settings = await prisma.THAMSO.findFirst();
     res.json({ success: true, data: settings });
   } catch (error) {
-    console.error('getSettings error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getSettings error:');
   }
 };
 
@@ -50,8 +50,7 @@ const updateSettings = async (req, res) => {
 
     res.json({ success: true, message: 'Cập nhật tham số thành công', data: settings });
   } catch (error) {
-    console.error('updateSettings error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateSettings error:');
   }
 };
 

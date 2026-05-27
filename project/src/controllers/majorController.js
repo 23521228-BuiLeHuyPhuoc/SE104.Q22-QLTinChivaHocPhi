@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const getAllMajors = async (req, res) => {
   try {
@@ -15,8 +16,7 @@ const getAllMajors = async (req, res) => {
     ]);
     res.json({ success: true, data: majors, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('getAllMajors error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllMajors error:');
   }
 };
 
@@ -31,8 +31,7 @@ const createMajor = async (req, res) => {
     });
     res.status(201).json({ success: true, message: 'Tạo ngành thành công', data: major });
   } catch (error) {
-    console.error('createMajor error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createMajor error:');
   }
 };
 
@@ -50,8 +49,7 @@ const updateMajor = async (req, res) => {
     const major = await prisma.NGANHHOC.update({ where: { MaNganh: id }, data });
     res.json({ success: true, message: 'Cập nhật ngành thành công', data: major });
   } catch (error) {
-    console.error('updateMajor error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateMajor error:');
   }
 };
 
@@ -63,8 +61,7 @@ const deleteMajor = async (req, res) => {
     await prisma.NGANHHOC.update({ where: { MaNganh: id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển ngành vào thùng rác' });
   } catch (error) {
-    console.error('deleteMajor error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteMajor error:');
   }
 };
 

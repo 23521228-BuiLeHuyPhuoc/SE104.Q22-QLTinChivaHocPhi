@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { getActorName } = require('../utils/audit');
 const { assertRegistrationPeriodClosedForPayment } = require('../utils/paymentRules');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const PAYMENT_SUCCESS = 'Thành công';
 const PAYMENT_PENDING = 'Chờ xác nhận';
@@ -133,8 +134,7 @@ const getAllPayments = async (req, res) => {
     }));
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get all payments error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all payments error:');
   }
 };
 
@@ -144,8 +144,7 @@ const getPaymentById = async (req, res) => {
     if (!p) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
     res.json({ success: true, data: { ...p, SoTienThu: Number(p.SoTienThu) } });
   } catch (error) {
-    console.error('Get payment by ID error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get payment by ID error:');
   }
 };
 
@@ -170,8 +169,7 @@ const getStudentPayments = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-    console.error('Get student payments error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get student payments error:');
   }
 };
 
@@ -200,8 +198,7 @@ const createPayment = async (req, res) => {
     res.status(201).json({ success: true, message: 'Tạo phiếu thu thành công', data: payment });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    console.error('Create payment error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Create payment error:');
   }
 };
 
@@ -265,8 +262,7 @@ const checkoutPayment = async (req, res) => {
     });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    console.error('Checkout payment error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Checkout payment error:');
   }
 };
 
@@ -298,8 +294,7 @@ const vnpayReturn = async (req, res) => {
     res.json({ success: true, data: payment, message: success ? 'Thanh toán VNPAY thành công' : 'Thanh toán VNPAY thất bại' });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    console.error('VNPAY return error:', error);
-    res.status(500).json({ success: false, message: 'Không thể cập nhật thanh toán VNPAY' });
+        return sendErrorResponse(res, error, 'Không thể cập nhật thanh toán VNPAY', 'VNPAY return error:');
   }
 };
 
@@ -365,8 +360,7 @@ const confirmPayment = async (req, res) => {
     res.json({ success: true, message: 'Đã xác nhận thanh toán', data: payment });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    console.error('Confirm payment error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Confirm payment error:');
   }
 };
 
@@ -377,8 +371,7 @@ const cancelPayment = async (req, res) => {
     await prisma.PHIEUTHUHOCPHI.update({ where: { SoPhieuThu: existing.SoPhieuThu }, data: { TrangThai: PAYMENT_CANCELLED, NgayCapNhat: new Date() } });
     res.json({ success: true, message: 'Hủy phiếu thu thành công' });
   } catch (error) {
-    console.error('Cancel payment error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Cancel payment error:');
   }
 };
 
@@ -397,8 +390,7 @@ const getPaymentStats = async (req, res) => {
     }, {});
     res.json({ success: true, data: { totalReceipts: rows.length, totalAmount, byMethod: Object.values(byMethodMap) } });
   } catch (error) {
-    console.error('Get payment stats error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get payment stats error:');
   }
 };
 

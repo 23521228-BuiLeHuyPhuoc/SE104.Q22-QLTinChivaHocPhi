@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/database');
 const { isSystemAdminUser } = require('../middleware/auth');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const normalize = (value) => String(value || '').trim();
 const normalizeEmail = (value) => normalize(value).toLowerCase();
@@ -67,8 +68,7 @@ const getAllRoles = async (req, res) => {
     const groups = await getCreatableGroups(req.user);
     res.json({ success: true, data: groups.map(toRoleOption) });
   } catch (error) {
-    console.error('Get all roles error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all roles error:');
   }
 };
 
@@ -83,8 +83,7 @@ const getMyRole = async (req, res) => {
     };
     res.json({ success: true, data: toRoleOption(group || fallback) });
   } catch (error) {
-    console.error('Get my role error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get my role error:');
   }
 };
 
@@ -139,8 +138,7 @@ const getAllAccounts = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-    console.error('Get all accounts error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all accounts error:');
   }
 };
 
@@ -335,8 +333,7 @@ const createAccount = async (req, res) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Tài khoản đã tồn tại hoặc dữ liệu bị trùng' });
     }
-    console.error('Create account error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Create account error:');
   }
 };
 
@@ -395,8 +392,7 @@ const deleteAccount = async (req, res) => {
         message: 'Không thể xóa tài khoản vì còn dữ liệu liên kết'
       });
     }
-    console.error('Delete account error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Delete account error:');
   }
 };
 
@@ -476,8 +472,7 @@ const updateUserRole = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Update user role error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Update user role error:');
   }
 };
 

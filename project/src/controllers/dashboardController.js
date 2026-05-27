@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const active = { DaXoa: false };
 const PAYMENT_SUCCESS = 'Thành công';
@@ -55,8 +56,7 @@ const getDashboardStats = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('getDashboardStats error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getDashboardStats error:');
   }
 };
 

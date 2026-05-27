@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const REQUIRED_PRICE_TYPES = ['hoc_moi', 'hoc_lai', 'hoc_cai_thien', 'hoc_he'];
 
@@ -45,8 +46,7 @@ const getAllPricing = async (req, res) => {
     ]);
     res.json({ success: true, data: pricing, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('getAllPricing error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllPricing error:');
   }
 };
 
@@ -69,8 +69,7 @@ const createPricing = async (req, res) => {
     res.status(201).json({ success: true, message: 'Tạo đơn giá thành công', data: pricing });
   } catch (error) {
     if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-    console.error('createPricing error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'createPricing error:');
   }
 };
 
@@ -106,8 +105,7 @@ const updatePricing = async (req, res) => {
     res.json({ success: true, message: 'Cập nhật đơn giá thành công', data: pricing });
   } catch (error) {
     if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-    console.error('updatePricing error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'updatePricing error:');
   }
 };
 
@@ -117,8 +115,7 @@ const deletePricing = async (req, res) => {
     await prisma.DONGIATINCHI.update({ where: { id }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển đơn giá vào thùng rác' });
   } catch (error) {
-    console.error('deletePricing error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'deletePricing error:');
   }
 };
 

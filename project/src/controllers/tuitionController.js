@@ -5,6 +5,7 @@ const {
   PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE,
   getPaymentRegistrationBlock
 } = require('../utils/paymentRules');
+const { sendErrorResponse } = require('../utils/errorHandler');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const PAYMENT_SUCCESS = 'Thành công';
@@ -85,8 +86,7 @@ const getAllTuition = async (req, res) => {
     });
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get all tuition error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all tuition error:');
   }
 };
 
@@ -126,8 +126,7 @@ const getTuitionById = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get tuition by ID error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition by ID error:');
   }
 };
 
@@ -185,8 +184,7 @@ const getStudentTuition = async (req, res) => {
 
     res.json({ success: true, data, summary, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    console.error('Get student tuition error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get student tuition error:');
   }
 };
 
@@ -199,8 +197,7 @@ const calculateTuition = async (req, res) => {
     const updated = await prisma.$transaction((tx) => recalculateRegistrationTotals(tx, phieu.SoPhieu));
     res.json({ success: true, data: { SoPhieu: updated.SoPhieu, TongTienPhaiDong: Number(updated.TongTienPhaiDong || 0) } });
   } catch (error) {
-    console.error('Calculate tuition error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Calculate tuition error:');
   }
 };
 
@@ -213,8 +210,7 @@ const getTuitionStats = async (req, res) => {
     const paidAmount = rows.reduce((s, r) => s + r.PHIEUTHUHOCPHI.reduce((ss, p) => ss + Number(p.SoTienThu), 0), 0);
     res.json({ success: true, data: { totalAmount, paidAmount, remainingAmount: totalAmount - paidAmount } });
   } catch (error) {
-    console.error('Get tuition stats error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition stats error:');
   }
 };
 
@@ -223,8 +219,7 @@ const getCreditPrices = async (req, res) => {
     const prices = await prisma.DONGIATINCHI.findMany({ where: { DaXoa: false }, orderBy: [{ LoaiMon: 'asc' }, { LoaiHoc: 'asc' }] });
     res.json({ success: true, data: prices });
   } catch (error) {
-    console.error('Get credit prices error:', error);
-    res.status(500).json({ success: false, message: 'Lỗi server' });
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get credit prices error:');
   }
 };
 

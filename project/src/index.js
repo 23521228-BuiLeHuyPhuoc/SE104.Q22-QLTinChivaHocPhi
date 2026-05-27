@@ -29,6 +29,7 @@ const trashRoutes = require('./routes/trashRoutes');
 const periodRoutes = require('./routes/periodRoutes');
 const prerequisiteRoutes = require('./routes/prerequisiteRoutes');
 const prisma = require('./config/database');
+const { buildErrorResponse, sendErrorResponse } = require('./utils/errorHandler');
 
 // Import SSR view routes
 const viewRoutes = require('./routes/viewRoutes');
@@ -39,6 +40,19 @@ const logoFileName = 'logo_tin_chi_hoc_phi_dark.svg';
 const logoDiskPath = path.join(__dirname, '..', 'uploads', 'logos', logoFileName);
 const authLogoFileName = 'logo_tin_chi_hoc_phi_light.svg';
 const authLogoDiskPath = path.join(__dirname, '..', 'uploads', 'logos', authLogoFileName);
+
+const logProcessError = (label, error) => {
+  const response = buildErrorResponse(error);
+  console.error(`${label}: ${response.message}`, error);
+};
+
+process.on('unhandledRejection', (reason) => {
+  logProcessError('Unhandled promise rejection', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  logProcessError('Uncaught exception', error);
+});
 
 function getVersionedUploadLogoUrl(fileName, diskPath) {
   try {
@@ -140,14 +154,12 @@ app.use((req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
   if (req.path.startsWith('/api/')) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    return sendErrorResponse(res, err, 'Internal server error', 'Unhandled API error');
   } else {
-    res.status(500).send('Internal Server Error');
+    const response = buildErrorResponse(err, 'Internal Server Error');
+    console.error('Unhandled view error:', err);
+    res.status(response.status).send(response.message);
   }
 });
 
