@@ -1,0 +1,821 @@
+--Tạo Trigger RBTV04
+-- 1. Tạo hàm thực hiện kiểm tra ràng buộc
+CREATE OR REPLACE FUNCTION func_check_rbtv04_SoTiet()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Kiểm tra điều kiện:
+    -- (LoaiMon = 'LT' AND SoTiet chia hết cho 15) 
+    -- OR (LoaiMon = 'TH' AND SoTiet chia hết cho 30)
+    IF NOT (
+        (NEW."LoaiMon" = 'LT' AND NEW."SoTiet" % 15 = 0) OR 
+        (NEW."LoaiMon" = 'TH' AND NEW."SoTiet" % 30 = 0)
+    ) THEN
+        RAISE EXCEPTION 'Vi phạm RBTV04: Số tiết không hợp lệ. Mon Ly thuyet phai chia het cho 15, mon Thuc hanh phai chia het cho 30.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Tạo trigger gắn hàm trên vào bảng MONHOC
+DROP TRIGGER IF EXISTS trigger_rbtv04 ON "MONHOC"; 
+
+CREATE TRIGGER trigger_rbtv04
+BEFORE INSERT OR UPDATE OF "LoaiMon", "SoTiet" ON "MONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION func_check_rbtv04_SoTiet();
+
+
+--Tạo Trigger RBTV05
+-- 1. Tạo hàm thực hiện kiểm tra ràng buộc
+CREATE OR REPLACE FUNCTION func_check_rbtv05_DieuKienMonHoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Kiểm tra điều kiện:
+    -- Mã môn học phải khác Mã môn điều kiện
+    IF NOT (
+        NEW."MaMonHoc" <> NEW."MaMonDieuKien"
+    ) THEN
+        RAISE EXCEPTION 'Vi phạm RBTV05: Một môn học không được là điều kiện của chính nó.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Tạo trigger gắn hàm trên vào bảng DIEUKIENMONHOC
+DROP TRIGGER IF EXISTS trigger_rbtv05 ON "DIEUKIENMONHOC"; 
+
+CREATE TRIGGER trigger_rbtv05
+BEFORE INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien" ON "DIEUKIENMONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION func_check_rbtv05_DieuKienMonHoc();
+
+
+--Tạo Trigger RBTV06
+ALTER TABLE "DIEUKIENMONHOC" 
+ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE;
+
+-- 1. Hàm kiểm tra đệ quy phát hiện chu trình đồ thị môn học
+CREATE OR REPLACE FUNCTION func_check_rbtv06_DieuKienMonHoc()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_has_cycle BOOLEAN := FALSE;
+    v_error_path TEXT;
+BEGIN
+    -- Nếu bản ghi bị tắt kích hoạt (TrangThai = FALSE) thì bỏ qua không xét
+    IF NEW."TrangThai" = FALSE THEN
+        RETURN NULL;
+    END IF;
+
+    -- Sử dụng Đệ quy kiểm tra bắt đầu từ môn học vừa được tác động
+    WITH RECURSIVE CycleCheck AS (
+        -- KHỞI TẠO: Lấy các môn điều kiện trực tiếp của MaMonHoc vừa thêm/sửa
+        SELECT 
+            "MaMonDieuKien", 
+            ARRAY[NEW."MaMonHoc"::TEXT, "MaMonDieuKien"::TEXT] AS path,
+            FALSE AS is_cycle
+        FROM "DIEUKIENMONHOC"
+        WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = TRUE
+        
+        UNION ALL
+        
+        -- ĐỆ QUY: Đi tiếp sang các môn điều kiện tầng tiếp theo
+        SELECT 
+            d."MaMonDieuKien",
+            c.path || d."MaMonDieuKien"::TEXT,
+            (d."MaMonDieuKien"::TEXT = ANY(c.path)) AS is_cycle
+        FROM "DIEUKIENMONHOC" d
+        INNER JOIN CycleCheck c ON d."MaMonHoc" = c."MaMonDieuKien"
+        WHERE d."TrangThai" = TRUE 
+          AND NOT c.is_cycle -- Ngắt nhánh ngay lập tức nếu bước trước đã phát hiện vòng lặp
+    )
+    -- Lọc ra dòng đầu tiên tìm thấy chu trình
+    SELECT TRUE, array_to_string(path, ' -> ')
+    INTO v_has_cycle, v_error_path
+    FROM CycleCheck
+    WHERE is_cycle = TRUE OR "MaMonDieuKien" = NEW."MaMonHoc"
+    LIMIT 1;
+
+    -- Nếu tồn tại vòng lặp chu trình -> Tiến hành chặn và trả về thông tin sơ đồ lỗi
+    IF v_has_cycle THEN
+        RAISE EXCEPTION 'Vi phạm RBTV06: Không được tạo vòng lặp điều kiện môn học! Sơ đồ lỗi chu trình: %', v_error_path;
+    END IF;
+
+    RETURN NULL; -- AFTER trigger luôn trả về NULL
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Thiết lập AFTER trigger để bắt chính xác trạng thái thực tế sau thay đổi
+DROP TRIGGER IF EXISTS trigger_rbtv06 ON "DIEUKIENMONHOC";
+
+CREATE TRIGGER trigger_rbtv06
+AFTER INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien", "TrangThai" ON "DIEUKIENMONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION func_check_rbtv06_DieuKienMonHoc();
+
+
+--Tạo Trigger RBTV07
+CREATE OR REPLACE FUNCTION func_check_rbtv07_ChuongTrinhHoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- THAO TÁC: INSERT hoặc UPDATE thông tin của chính môn học hiện tại (M)
+    IF (TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+        -- Kiểm tra xem môn M vừa tác động có thỏa mãn toàn bộ môn điều kiện D đang hoạt động hay không
+        IF EXISTS (
+            SELECT 1 
+            FROM "DIEUKIENMONHOC" dk
+            LEFT JOIN "CHUONGTRINHHOC" ctdk 
+                ON ctdk."MaNganh" = NEW."MaNganh" AND ctdk."MaMonHoc" = dk."MaMonDieuKien"
+            WHERE dk."MaMonHoc" = NEW."MaMonHoc" AND dk."TrangThai" = TRUE
+              AND (
+                  ctdk."MaMonHoc" IS NULL -- Chưa xếp môn điều kiện D vào chương trình học của ngành N
+                  OR (dk."LoaiDieuKien" = 'tien_quyet' AND ctdk."HocKy" >= NEW."HocKy") -- Vi phạm điều kiện Học kỳ môn tiên quyết phải nhỏ hơn (<)
+                  OR (dk."LoaiDieuKien" = 'hoc_truoc' AND ctdk."HocKy" > NEW."HocKy")   -- Vi phạm điều kiện Học kỳ môn học trước phải nhỏ hơn hoặc bằng (<=)
+              )
+        ) THEN
+            RAISE EXCEPTION 'Vi phạm RBTV07: Môn học "%" thuộc ngành "%" xếp ở học kỳ % không hợp lý với cấu hình các môn điều kiện hiện tại.', 
+                NEW."MaMonHoc", NEW."MaNganh", NEW."HocKy";
+        END IF;
+    END IF;
+
+    -- THAO TÁC: DELETE hoặc UPDATE thông tin môn học đóng vai trò làm môn điều kiện (D) cho môn khác
+    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+        -- Kiểm tra xem môn học cũ (OLD) có đang làm môn điều kiện hoạt động cho bất kỳ môn M nào khác cùng ngành không
+        IF EXISTS (
+            SELECT 1
+            FROM "CHUONGTRINHHOC" ctm
+            JOIN "DIEUKIENMONHOC" dk ON ctm."MaMonHoc" = dk."MaMonHoc"
+            WHERE ctm."MaNganh" = OLD."MaNganh" 
+              AND dk."MaMonDieuKien" = OLD."MaMonHoc"
+              AND dk."TrangThai" = TRUE
+              AND (
+                  TG_OP = 'DELETE' -- Xóa môn điều kiện ra khỏi ngành sẽ làm môn phụ thuộc thiếu điều kiện
+                  OR OLD."MaNganh" <> NEW."MaNganh" -- Chuyển ngành môn điều kiện
+                  OR OLD."MaMonHoc" <> NEW."MaMonHoc" -- Thay đổi mã môn
+                  OR (dk."LoaiDieuKien" = 'tien_quyet' AND NEW."HocKy" >= ctm."HocKy") -- Sửa học kỳ mới làm vi phạm quy tắc môn tiên quyết
+                  OR (dk."LoaiDieuKien" = 'hoc_truoc' AND NEW."HocKy" > ctm."HocKy")   -- Sửa học kỳ mới làm vi phạm quy tắc môn học trước
+              )
+        ) THEN
+            RAISE EXCEPTION 'Vi phạm RBTV07: Thao tác % môn "%" của ngành "%" gây ảnh hưởng hoặc làm sai lệch lộ trình học kỳ của môn phụ thuộc khác.', 
+                CASE WHEN TG_OP = 'DELETE' THEN 'XÓA' ELSE 'CẬP NHẬT' END, OLD."MaMonHoc", OLD."MaNganh";
+        END IF;
+    END IF;
+
+    IF (TG_OP = 'DELETE') THEN RETURN OLD; ELSE RETURN NEW; END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Thiết lập Trigger chạy BEFORE trên bảng CHUONGTRINHHOC
+DROP TRIGGER IF EXISTS trigger_rbtv07_cth ON "CHUONGTRINHHOC";
+CREATE TRIGGER trigger_rbtv07_cth
+BEFORE INSERT OR UPDATE OR DELETE ON "CHUONGTRINHHOC"
+FOR EACH ROW EXECUTE FUNCTION func_check_rbtv07_ChuongTrinhHoc();
+
+CREATE OR REPLACE FUNCTION func_check_rbtv07_ChuongTrinhHoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- THAO TÁC: INSERT hoặc UPDATE thông tin của chính môn học hiện tại (M)
+    IF (TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+        -- Kiểm tra xem môn M vừa tác động có thỏa mãn toàn bộ môn điều kiện D đang hoạt động hay không
+        IF EXISTS (
+            SELECT 1 
+            FROM "DIEUKIENMONHOC" dk
+            LEFT JOIN "CHUONGTRINHHOC" ctdk 
+                ON ctdk."MaNganh" = NEW."MaNganh" AND ctdk."MaMonHoc" = dk."MaMonDieuKien"
+            WHERE dk."MaMonHoc" = NEW."MaMonHoc" AND dk."TrangThai" = TRUE
+              AND (
+                  ctdk."MaMonHoc" IS NULL -- Chưa xếp môn điều kiện D vào chương trình học của ngành N
+                  OR (dk."LoaiDieuKien" = 'tien_quyet' AND ctdk."HocKy" >= NEW."HocKy") -- Vi phạm điều kiện Học kỳ môn tiên quyết phải nhỏ hơn (<)
+                  OR (dk."LoaiDieuKien" = 'hoc_truoc' AND ctdk."HocKy" > NEW."HocKy")   -- Vi phạm điều kiện Học kỳ môn học trước phải nhỏ hơn hoặc bằng (<=)
+              )
+        ) THEN
+            RAISE EXCEPTION 'Vi phạm RBTV07: Môn học "%" thuộc ngành "%" xếp ở học kỳ % không hợp lý với cấu hình các môn điều kiện hiện tại.', 
+                NEW."MaMonHoc", NEW."MaNganh", NEW."HocKy";
+        END IF;
+    END IF;
+
+    -- THAO TÁC: DELETE hoặc UPDATE thông tin môn học đóng vai trò làm môn điều kiện (D) cho môn khác
+    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+        -- Kiểm tra xem môn học cũ (OLD) có đang làm môn điều kiện hoạt động cho bất kỳ môn M nào khác cùng ngành không
+        IF EXISTS (
+            SELECT 1
+            FROM "CHUONGTRINHHOC" ctm
+            JOIN "DIEUKIENMONHOC" dk ON ctm."MaMonHoc" = dk."MaMonHoc"
+            WHERE ctm."MaNganh" = OLD."MaNganh" 
+              AND dk."MaMonDieuKien" = OLD."MaMonHoc"
+              AND dk."TrangThai" = TRUE
+              AND (
+                  TG_OP = 'DELETE' -- Xóa môn điều kiện ra khỏi ngành sẽ làm môn phụ thuộc thiếu điều kiện
+                  OR OLD."MaNganh" <> NEW."MaNganh" -- Chuyển ngành môn điều kiện
+                  OR OLD."MaMonHoc" <> NEW."MaMonHoc" -- Thay đổi mã môn
+                  OR (dk."LoaiDieuKien" = 'tien_quyet' AND NEW."HocKy" >= ctm."HocKy") -- Sửa học kỳ mới làm vi phạm quy tắc môn tiên quyết
+                  OR (dk."LoaiDieuKien" = 'hoc_truoc' AND NEW."HocKy" > ctm."HocKy")   -- Sửa học kỳ mới làm vi phạm quy tắc môn học trước
+              )
+        ) THEN
+            RAISE EXCEPTION 'Vi phạm RBTV07: Thao tác % môn "%" của ngành "%" gây ảnh hưởng hoặc làm sai lệch lộ trình học kỳ của môn phụ thuộc khác.', 
+                CASE WHEN TG_OP = 'DELETE' THEN 'XÓA' ELSE 'CẬP NHẬT' END, OLD."MaMonHoc", OLD."MaNganh";
+        END IF;
+    END IF;
+
+    IF (TG_OP = 'DELETE') THEN RETURN OLD; ELSE RETURN NEW; END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Thiết lập Trigger chạy BEFORE trên bảng CHUONGTRINHHOC
+DROP TRIGGER IF EXISTS trigger_rbtv07_cth ON "CHUONGTRINHHOC";
+CREATE TRIGGER trigger_rbtv07_cth
+BEFORE INSERT OR UPDATE OR DELETE ON "CHUONGTRINHHOC"
+FOR EACH ROW EXECUTE FUNCTION func_check_rbtv07_ChuongTrinhHoc();
+
+CREATE OR REPLACE FUNCTION func_check_rbtv07_DieuKienMonHoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Ràng buộc chỉ cần kiểm tra khi dữ liệu mối quan hệ này ở trạng thái hoạt động (TrangThai = TRUE)
+    IF NEW."TrangThai" = TRUE THEN
+        -- Kiểm tra trên toàn bộ các ngành xem có ngành nào đang chứa môn M (NEW.MaMonHoc) nhưng vi phạm điều kiện mới này không
+        IF EXISTS (
+            SELECT 1
+            FROM "CHUONGTRINHHOC" ctm
+            LEFT JOIN "CHUONGTRINHHOC" ctdk 
+                ON ctdk."MaNganh" = ctm."MaNganh" AND ctdk."MaMonHoc" = NEW."MaMonDieuKien"
+            WHERE ctm."MaMonHoc" = NEW."MaMonHoc"
+              AND (
+                  ctdk."MaMonHoc" IS NULL -- Ngành đó có môn M nhưng chưa xếp môn điều kiện D vào chương trình học
+                  OR (NEW."LoaiDieuKien" = 'tien_quyet' AND ctdk."HocKy" >= ctm."HocKy") -- Vi phạm học kỳ môn tiên quyết
+                  OR (NEW."LoaiDieuKien" = 'hoc_truoc' AND ctdk."HocKy" > ctm."HocKy")   -- Vi phạm học kỳ môn học trước
+              )
+        ) THEN
+            RAISE EXCEPTION 'Vi phạm RBTV07: Không thể thiết lập điều kiện (Môn "%" cần môn "%" là "%") vì phân bổ học kỳ hiện tại trong chương trình học của ngành không tương thích.', 
+                NEW."MaMonHoc", NEW."MaMonDieuKien", NEW."LoaiDieuKien";
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Thiết lập Trigger chạy BEFORE trên bảng DIEUKIENMONHOC
+DROP TRIGGER IF EXISTS trigger_rbtv07_dkmh ON "DIEUKIENMONHOC";
+CREATE TRIGGER trigger_rbtv07_dkmh
+BEFORE INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien", "LoaiDieuKien", "TrangThai" ON "DIEUKIENMONHOC"
+FOR EACH ROW EXECUTE FUNCTION func_check_rbtv07_DieuKienMonHoc();
+
+
+--Tạo Trigger RBV22
+-- =====================================================
+-- TRIGGER 1: Kiểm tra LoaiDangKy khi INSERT/UPDATE CHITIETDANGKY
+-- =====================================================
+-- Mục đích: Khi sinh viên đăng ký môn, kiểm tra LoaiDangKy có phù hợp 
+-- với lịch sử học hay không
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION fn_rbtv22_check_loai_dang_ky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_sv VARCHAR(15);
+    v_ma_mon_hoc VARCHAR(15);
+    v_loai_dang_ky VARCHAR(20);
+    v_count_rot INTEGER;
+    v_count_qua_mon INTEGER;
+    v_count_total INTEGER;
+BEGIN
+    -- Lấy thông tin sinh viên từ PHIEUDANGKY
+    SELECT pd."MaSv"
+    INTO v_ma_sv
+    FROM "PHIEUDANGKY" pd
+    WHERE pd."SoPhieu" = NEW."SoPhieu";
+
+    v_ma_mon_hoc := NEW."MaMonHoc";
+    v_loai_dang_ky := COALESCE(NEW."LoaiDangKy", 'hoc_moi');
+
+    -- ===== KIỂM TRA LOẠI ĐĂNG KÝ =====
+    IF v_loai_dang_ky = 'hoc_moi' THEN
+        -- hoc_moi: Chưa có lịch sử học môn M
+        SELECT COUNT(*)
+        INTO v_count_total
+        FROM "MONDAHOC" mdh
+        WHERE mdh."MaSv" = v_ma_sv AND mdh."MaMonHoc" = v_ma_mon_hoc;
+
+        IF v_count_total > 0 THEN
+            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_moi" không hợp lệ. Sinh viên % đã có lịch sử học môn %',
+                v_ma_sv, v_ma_mon_hoc;
+        END IF;
+
+    ELSIF v_loai_dang_ky = 'hoc_lai' THEN
+        -- hoc_lai: Tồn tại MONDAHOC(SV, M, KetQua = 'rot')
+        -- và chưa có lần qua_mon
+        SELECT COUNT(*)
+        INTO v_count_rot
+        FROM "MONDAHOC" mdh
+        WHERE mdh."MaSv" = v_ma_sv 
+          AND mdh."MaMonHoc" = v_ma_mon_hoc 
+          AND mdh."KetQua" = 'rot';
+
+        SELECT COUNT(*)
+        INTO v_count_qua_mon
+        FROM "MONDAHOC" mdh
+        WHERE mdh."MaSv" = v_ma_sv 
+          AND mdh."MaMonHoc" = v_ma_mon_hoc 
+          AND mdh."KetQua" = 'qua_mon';
+
+        -- Phải có ít nhất 1 lần rớt và chưa qua
+        IF v_count_rot = 0 THEN
+            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_lai" không hợp lệ. Sinh viên % chưa rớt môn %',
+                v_ma_sv, v_ma_mon_hoc;
+        END IF;
+
+        IF v_count_qua_mon > 0 THEN
+            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_lai" không hợp lệ. Sinh viên % đã qua môn % rồi',
+                v_ma_sv, v_ma_mon_hoc;
+        END IF;
+
+    ELSIF v_loai_dang_ky = 'hoc_cai_thien' THEN
+        -- hoc_cai_thien: Tồn tại MONDAHOC(SV, M, KetQua = 'qua_mon')
+        SELECT COUNT(*)
+        INTO v_count_qua_mon
+        FROM "MONDAHOC" mdh
+        WHERE mdh."MaSv" = v_ma_sv 
+          AND mdh."MaMonHoc" = v_ma_mon_hoc 
+          AND mdh."KetQua" = 'qua_mon';
+
+        IF v_count_qua_mon = 0 THEN
+            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_cai_thien" không hợp lệ. Sinh viên % chưa qua môn %',
+                v_ma_sv, v_ma_mon_hoc;
+        END IF;
+
+    ELSE
+        RAISE EXCEPTION 'RBTV22: Loại đăng ký không hợp lệ: %', v_loai_dang_ky;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop trigger nếu tồn tại
+DROP TRIGGER IF EXISTS trg_rbtv22_check_loai_dang_ky ON "CHITIETDANGKY";
+
+-- Tạo trigger cho INSERT và UPDATE
+CREATE TRIGGER trg_rbtv22_check_loai_dang_ky
+BEFORE INSERT OR UPDATE ON "CHITIETDANGKY"
+FOR EACH ROW
+WHEN (NEW."TrangThai" = 'Đã đăng ký')
+EXECUTE FUNCTION fn_rbtv22_check_loai_dang_ky();
+
+
+-- =====================================================
+-- TRIGGER 2: Kiểm tra lại CHITIETDANGKY khi INSERT/UPDATE/DELETE MONDAHOC
+-- =====================================================
+-- Mục đích: Khi thêm/sửa/xóa lịch sử học, kiểm tra các đăng ký hiện tại 
+-- có còn hợp lệ không
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION fn_rbtv22_validate_registrations_on_history_change()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_sv VARCHAR(15);
+    v_ma_mon_hoc VARCHAR(15);
+    v_ket_qua VARCHAR(20);
+    v_registration RECORD;
+    v_loai_dang_ky VARCHAR(20);
+    v_count_rot INTEGER;
+    v_count_qua_mon INTEGER;
+    v_count_total INTEGER;
+BEGIN
+    -- Lấy thông tin từ MONDAHOC
+    IF TG_OP = 'DELETE' THEN
+        v_ma_sv := OLD."MaSv";
+        v_ma_mon_hoc := OLD."MaMonHoc";
+        v_ket_qua := OLD."KetQua";
+    ELSE
+        v_ma_sv := NEW."MaSv";
+        v_ma_mon_hoc := NEW."MaMonHoc";
+        v_ket_qua := NEW."KetQua";
+    END IF;
+
+    -- Tìm tất cả các đăng ký của sinh viên này để môn này
+    FOR v_registration IN
+        SELECT ctdk."SoPhieu", ctdk."LoaiDangKy"
+        FROM "CHITIETDANGKY" ctdk
+        INNER JOIN "PHIEUDANGKY" pd ON ctdk."SoPhieu" = pd."SoPhieu"
+        WHERE pd."MaSv" = v_ma_sv 
+          AND ctdk."MaMonHoc" = v_ma_mon_hoc
+          AND ctdk."TrangThai" = 'Đã đăng ký'
+    LOOP
+        v_loai_dang_ky := v_registration."LoaiDangKy";
+
+        -- Kiểm tra tính hợp lệ của loại đăng ký
+        IF v_loai_dang_ky = 'hoc_moi' THEN
+            -- hoc_moi: Chưa có lịch sử học môn
+            SELECT COUNT(*)
+            INTO v_count_total
+            FROM "MONDAHOC" mdh
+            WHERE mdh."MaSv" = v_ma_sv 
+              AND mdh."MaMonHoc" = v_ma_mon_hoc
+              AND (TG_OP = 'DELETE' OR mdh."MaHocKy" != NEW."MaHocKy" OR mdh."MaSv" != NEW."MaSv");
+
+            IF v_count_total > 0 THEN
+                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_moi" của SV % môn % trở nên không hợp lệ',
+                    v_ma_sv, v_ma_mon_hoc;
+            END IF;
+
+        ELSIF v_loai_dang_ky = 'hoc_lai' THEN
+            -- hoc_lai: Phải có rớt và chưa qua
+            SELECT COUNT(*)
+            INTO v_count_rot
+            FROM "MONDAHOC" mdh
+            WHERE mdh."MaSv" = v_ma_sv 
+              AND mdh."MaMonHoc" = v_ma_mon_hoc 
+              AND mdh."KetQua" = 'rot';
+
+            SELECT COUNT(*)
+            INTO v_count_qua_mon
+            FROM "MONDAHOC" mdh
+            WHERE mdh."MaSv" = v_ma_sv 
+              AND mdh."MaMonHoc" = v_ma_mon_hoc 
+              AND mdh."KetQua" = 'qua_mon';
+
+            IF v_count_rot = 0 THEN
+                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_lai" của SV % môn % trở nên không hợp lệ (không có rớt)',
+                    v_ma_sv, v_ma_mon_hoc;
+            END IF;
+
+            IF v_count_qua_mon > 0 THEN
+                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_lai" của SV % môn % trở nên không hợp lệ (đã qua rồi)',
+                    v_ma_sv, v_ma_mon_hoc;
+            END IF;
+
+        ELSIF v_loai_dang_ky = 'hoc_cai_thien' THEN
+            -- hoc_cai_thien: Phải có qua_mon
+            SELECT COUNT(*)
+            INTO v_count_qua_mon
+            FROM "MONDAHOC" mdh
+            WHERE mdh."MaSv" = v_ma_sv 
+              AND mdh."MaMonHoc" = v_ma_mon_hoc 
+              AND mdh."KetQua" = 'qua_mon';
+
+            IF v_count_qua_mon = 0 THEN
+                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_cai_thien" của SV % môn % trở nên không hợp lệ (chưa qua)',
+                    v_ma_sv, v_ma_mon_hoc;
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop trigger nếu tồn tại
+DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_insert ON "MONDAHOC";
+DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_update ON "MONDAHOC";
+DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_delete ON "MONDAHOC";
+
+-- Tạo trigger
+CREATE TRIGGER trg_rbtv22_mondahoc_insert
+AFTER INSERT ON "MONDAHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv22_validate_registrations_on_history_change();
+
+CREATE TRIGGER trg_rbtv22_mondahoc_update
+AFTER UPDATE ON "MONDAHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv22_validate_registrations_on_history_change();
+
+CREATE TRIGGER trg_rbtv22_mondahoc_delete
+BEFORE DELETE ON "MONDAHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv22_validate_registrations_on_history_change();
+
+
+--Tạo Trigger RBTV23
+CREATE OR REPLACE FUNCTION fn_rbtv23_get_semester_order(p_ma_hoc_ky VARCHAR)
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN (SELECT CAST(SUBSTRING("MaNamHoc", 1, 4) AS INTEGER) * 10 + COALESCE("ThuTu", 1)
+            FROM "HOCKY" WHERE "MaHocKy" = p_ma_hoc_ky);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+
+-- =====================================================
+-- TRIGGER 1: Kiểm tra điều kiện khi INSERT/UPDATE CHITIETDANGKY
+-- =====================================================
+-- Mục đích: Khi sinh viên đăng ký một môn học, kiểm tra xem sinh viên có thỏa 
+-- các điều kiện tiên quyết/học trước hay không.
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION fn_rbtv23_check_prerequisite_on_registration()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_sv VARCHAR(15);
+    v_ma_mon_hoc VARCHAR(15);
+    v_ma_hoc_ky VARCHAR(15);
+    v_hoc_ky_dang_ky INTEGER;
+    v_loai_dieu_kien VARCHAR(20);
+    v_ma_mon_dieu_kien VARCHAR(15);
+    v_count_tien_quyet INTEGER;
+    v_count_hoc_truoc INTEGER;
+    v_count_cung_phieu INTEGER;
+    v_dieu_kien RECORD;
+BEGIN
+    -- Lấy thông tin từ PHIEUDANGKY
+    SELECT pd."MaSv", pd."MaHocKy"
+    INTO v_ma_sv, v_ma_hoc_ky
+    FROM "PHIEUDANGKY" pd
+    WHERE pd."SoPhieu" = NEW."SoPhieu";
+
+    -- Lấy mã môn học từ NEW record
+    v_ma_mon_hoc := NEW."MaMonHoc";
+
+    -- Lấy thứ tự học kỳ đăng ký
+    v_hoc_ky_dang_ky := fn_rbtv23_get_semester_order(v_ma_hoc_ky);
+
+    -- ===== KIỂM TRA ĐIỀU KIỆN TIÊN QUYẾT/HỌC TRƯỚC =====
+    -- Lặp qua tất cả các điều kiện của môn đăng ký
+    FOR v_dieu_kien IN
+        SELECT d."MaMonDieuKien", d."LoaiDieuKien"
+        FROM "DIEUKIENMONHOC" d
+        WHERE d."MaMonHoc" = v_ma_mon_hoc AND d."TrangThai" = TRUE
+    LOOP
+        v_ma_mon_dieu_kien := v_dieu_kien."MaMonDieuKien";
+        v_loai_dieu_kien := v_dieu_kien."LoaiDieuKien";
+
+        IF v_loai_dieu_kien = 'tien_quyet' THEN
+            -- ===== KIỂM TRA TIÊN QUYẾT (tien_quyet) =====
+            -- Sinh viên phải đã học xong môn D với kết quả "qua_mon" 
+            -- TRONG HỌC KỲ TRƯỚC học kỳ đăng ký
+            SELECT COUNT(*)
+            INTO v_count_tien_quyet
+            FROM "MONDAHOC" mdh
+            WHERE mdh."MaSv" = v_ma_sv
+              AND mdh."MaMonHoc" = v_ma_mon_dieu_kien
+              AND mdh."KetQua" = 'qua_mon'
+              AND fn_rbtv23_get_semester_order(mdh."MaHocKy") < v_hoc_ky_dang_ky;
+
+            -- Nếu không có môn tiên quyết → Lỗi
+            IF v_count_tien_quyet = 0 THEN
+                RAISE EXCEPTION 'Vi phạm RBTV23: Sinh viên % chưa đạt tiên quyết % để đăng ký %',
+                    v_ma_sv, v_ma_mon_dieu_kien, v_ma_mon_hoc;
+            END IF;
+
+        ELSIF v_loai_dieu_kien = 'hoc_truoc' THEN
+            -- ===== KIỂM TRA HỌC TRƯỚC (hoc_truoc) =====
+            -- Sinh viên phải từng học xong môn D TRƯỚC ĐÓ
+            -- HOẶC đăng ký đồng thời môn D trong CÙNG phiếu/học kỳ
+
+            -- Kiểm tra: Sinh viên đã học môn này trong học kỳ trước chưa?
+            SELECT COUNT(*)
+            INTO v_count_hoc_truoc
+            FROM "MONDAHOC" mdh
+            WHERE mdh."MaSv" = v_ma_sv
+              AND mdh."MaMonHoc" = v_ma_mon_dieu_kien
+              AND fn_rbtv23_get_semester_order(mdh."MaHocKy") < v_hoc_ky_dang_ky;
+
+            -- Nếu chưa học trước, kiểm tra có đăng ký cùng phiếu không
+            IF v_count_hoc_truoc = 0 THEN
+                SELECT COUNT(*)
+                INTO v_count_cung_phieu
+                FROM "CHITIETDANGKY" ctdk
+                WHERE ctdk."SoPhieu" = NEW."SoPhieu"
+                  AND ctdk."MaMonHoc" = v_ma_mon_dieu_kien
+                  AND ctdk."TrangThai" = 'Đã đăng ký';
+
+                -- Nếu không đăng ký cùng phiếu → Lỗi
+                IF v_count_cung_phieu = 0 THEN
+                    RAISE EXCEPTION 'Vi phạm RBTV23: Sinh viên % phải học trước hoặc đăng ký cùng lúc %',
+                        v_ma_sv, v_ma_mon_dieu_kien;
+                END IF;
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop trigger nếu tồn tại
+DROP TRIGGER IF EXISTS trg_rbtv23_check_prerequisite_on_registration ON "CHITIETDANGKY";
+
+-- Tạo trigger cho INSERT và UPDATE
+CREATE TRIGGER trg_rbtv23_check_prerequisite_on_registration
+BEFORE INSERT OR UPDATE ON "CHITIETDANGKY"
+FOR EACH ROW
+WHEN (NEW."TrangThai" = 'Đã đăng ký')
+EXECUTE FUNCTION fn_rbtv23_check_prerequisite_on_registration();
+
+
+-- =====================================================
+-- TRIGGER 2: Kiểm tra lại đăng ký hiện tại khi thay đổi DIEUKIENMONHOC
+-- =====================================================
+-- Mục đích: Khi thêm/sửa/xóa điều kiện, kiểm tra các đăng ký hiện tại có vi phạm không
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION fn_rbtv23_validate_registrations_on_condition_change()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_mon_hoc VARCHAR(15);
+    v_ma_mon_dieu_kien VARCHAR(15);
+    v_loai_dieu_kien VARCHAR(20);
+    v_registration RECORD;
+    v_ma_sv VARCHAR(15);
+    v_ma_hoc_ky VARCHAR(15);
+    v_hoc_ky_dang_ky INTEGER;
+    v_count_met INTEGER;
+BEGIN
+    -- Xác định môn học và điều kiện được thay đổi
+    IF TG_OP = 'DELETE' THEN
+        v_ma_mon_hoc := OLD."MaMonHoc";
+        v_ma_mon_dieu_kien := OLD."MaMonDieuKien";
+        v_loai_dieu_kien := OLD."LoaiDieuKien";
+    ELSE
+        v_ma_mon_hoc := NEW."MaMonHoc";
+        v_ma_mon_dieu_kien := NEW."MaMonDieuKien";
+        v_loai_dieu_kien := NEW."LoaiDieuKien";
+    END IF;
+
+    -- Chỉ kiểm tra nếu điều kiện đang hoạt động (hoặc được kích hoạt)
+    IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW."TrangThai" = TRUE) OR TG_OP = 'DELETE' THEN
+        -- Lặp qua tất cả các đăng ký của môn này
+        FOR v_registration IN
+            SELECT ctdk."SoPhieu", pd."MaSv", pd."MaHocKy"
+            FROM "CHITIETDANGKY" ctdk
+            INNER JOIN "PHIEUDANGKY" pd ON ctdk."SoPhieu" = pd."SoPhieu"
+            WHERE ctdk."MaMonHoc" = v_ma_mon_hoc
+              AND ctdk."TrangThai" = 'Đã đăng ký'
+        LOOP
+            v_ma_sv := v_registration."MaSv";
+            v_ma_hoc_ky := v_registration."MaHocKy";
+            v_hoc_ky_dang_ky := fn_rbtv23_get_semester_order(v_ma_hoc_ky);
+
+            -- Kiểm tra điều kiện
+            IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') AND NEW."TrangThai" = TRUE THEN
+                IF v_loai_dieu_kien = 'tien_quyet' THEN
+                    -- Kiểm tra tiên quyết
+                    SELECT COUNT(*) INTO v_count_met
+                    FROM "MONDAHOC" mdh
+                    WHERE mdh."MaSv" = v_ma_sv
+                      AND mdh."MaMonHoc" = v_ma_mon_dieu_kien
+                      AND mdh."KetQua" = 'qua_mon'
+                      AND fn_rbtv23_get_semester_order(mdh."MaHocKy") < v_hoc_ky_dang_ky;
+
+                    IF v_count_met = 0 THEN
+                        RAISE EXCEPTION 'Vi phạm RBTV23: Điều kiện tiên quyết vi phạm - SV: % môn: %',
+                            v_ma_sv, v_ma_mon_hoc;
+                    END IF;
+
+                ELSIF v_loai_dieu_kien = 'hoc_truoc' THEN
+                    -- Kiểm tra học trước
+                    SELECT COUNT(*) INTO v_count_met
+                    FROM "MONDAHOC" mdh
+                    WHERE mdh."MaSv" = v_ma_sv
+                      AND mdh."MaMonHoc" = v_ma_mon_dieu_kien
+                      AND fn_rbtv23_get_semester_order(mdh."MaHocKy") < v_hoc_ky_dang_ky;
+
+                    IF v_count_met = 0 THEN
+                        -- Kiểm tra có đăng ký cùng phiếu không
+                        SELECT COUNT(*) INTO v_count_met
+                        FROM "CHITIETDANGKY" ctdk
+                        WHERE ctdk."SoPhieu" = v_registration."SoPhieu"
+                          AND ctdk."MaMonHoc" = v_ma_mon_dieu_kien
+                          AND ctdk."TrangThai" = 'Đã đăng ký';
+
+                        IF v_count_met = 0 THEN
+                            RAISE EXCEPTION 'Vi phạm RBTV23: Điều kiện học trước vi phạm - SV: % môn: %',
+                                v_ma_sv, v_ma_mon_hoc;
+                        END IF;
+                    END IF;
+                END IF;
+            END IF;
+        END LOOP;
+    END IF;
+
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop trigger nếu tồn tại
+DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_insert ON "DIEUKIENMONHOC";
+DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_update ON "DIEUKIENMONHOC";
+DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_delete ON "DIEUKIENMONHOC";
+
+-- Tạo trigger
+CREATE TRIGGER trg_rbtv23_check_condition_insert
+BEFORE INSERT ON "DIEUKIENMONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv23_validate_registrations_on_condition_change();
+
+CREATE TRIGGER trg_rbtv23_check_condition_update
+BEFORE UPDATE ON "DIEUKIENMONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv23_validate_registrations_on_condition_change();
+
+CREATE TRIGGER trg_rbtv23_check_condition_delete
+BEFORE DELETE ON "DIEUKIENMONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv23_validate_registrations_on_condition_change();
+
+
+-- =====================================================
+-- TRIGGER 3: Kiểm tra đăng ký tương lai khi thay đổi MONDAHOC
+-- =====================================================
+-- Mục đích: Khi thêm/sửa/xóa kết quả học, kiểm tra các đăng ký tương lai có ảnh hưởng không
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION fn_rbtv23_validate_future_registrations()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_sv VARCHAR(15);
+    v_ma_mon_hoc VARCHAR(15);
+    v_hoc_ky_hoan_thanh INTEGER;
+    v_dependent_mon RECORD;
+    v_registration RECORD;
+    v_loai_dieu_kien VARCHAR(20);
+    v_ma_hoc_ky_dang_ky VARCHAR(15);
+    v_hoc_ky_dang_ky INTEGER;
+    v_count_met INTEGER;
+BEGIN
+    -- Lấy thông tin môn vừa hoàn thành/thay đổi
+    IF TG_OP = 'DELETE' THEN
+        v_ma_sv := OLD."MaSv";
+        v_ma_mon_hoc := OLD."MaMonHoc";
+    ELSE
+        v_ma_sv := NEW."MaSv";
+        v_ma_mon_hoc := NEW."MaMonHoc";
+    END IF;
+
+    -- Lấy thứ tự học kỳ hoàn thành
+    IF TG_OP = 'DELETE' THEN
+        v_hoc_ky_hoan_thanh := fn_rbtv23_get_semester_order(OLD."MaHocKy");
+    ELSE
+        v_hoc_ky_hoan_thanh := fn_rbtv23_get_semester_order(NEW."MaHocKy");
+    END IF;
+
+    -- Tìm tất cả các môn học có điều kiện phụ thuộc vào môn này
+    FOR v_dependent_mon IN
+        SELECT "MaMonHoc", "LoaiDieuKien"
+        FROM "DIEUKIENMONHOC"
+        WHERE "MaMonDieuKien" = v_ma_mon_hoc AND "TrangThai" = TRUE
+    LOOP
+        -- Tìm các đăng ký của môn phụ thuộc
+        FOR v_registration IN
+            SELECT ctdk."SoPhieu", pd."MaHocKy"
+            FROM "CHITIETDANGKY" ctdk
+            INNER JOIN "PHIEUDANGKY" pd ON ctdk."SoPhieu" = pd."SoPhieu"
+            WHERE pd."MaSv" = v_ma_sv
+              AND ctdk."MaMonHoc" = v_dependent_mon."MaMonHoc"
+              AND ctdk."TrangThai" = 'Đã đăng ký'
+        LOOP
+            v_ma_hoc_ky_dang_ky := v_registration."MaHocKy";
+            v_hoc_ky_dang_ky := fn_rbtv23_get_semester_order(v_ma_hoc_ky_dang_ky);
+            v_loai_dieu_kien := v_dependent_mon."LoaiDieuKien";
+
+            -- Chỉ kiểm tra nếu đăng ký này >= học kỳ hoàn thành
+            IF v_hoc_ky_dang_ky >= v_hoc_ky_hoan_thanh THEN
+                IF v_loai_dieu_kien = 'tien_quyet' THEN
+                    -- Nếu xóa hoặc kết quả không phải qua_mon → kiểm tra lại
+                    IF TG_OP = 'DELETE' OR NEW."KetQua" != 'qua_mon' THEN
+                        SELECT COUNT(*) INTO v_count_met
+                        FROM "MONDAHOC" mdh
+                        WHERE mdh."MaSv" = v_ma_sv
+                          AND mdh."MaMonHoc" = v_ma_mon_hoc
+                          AND mdh."KetQua" = 'qua_mon'
+                          AND fn_rbtv23_get_semester_order(mdh."MaHocKy") < v_hoc_ky_dang_ky
+                          AND (TG_OP = 'DELETE' OR mdh.id != NEW.id);
+
+                        IF v_count_met = 0 THEN
+                            RAISE EXCEPTION 'RBTV23: Thay đổi kết quả vi phạm tiên quyết - SV: % môn: %',
+                                v_ma_sv, v_dependent_mon."MaMonHoc";
+                        END IF;
+                    END IF;
+
+                ELSIF v_loai_dieu_kien = 'hoc_truoc' THEN
+                    -- Nếu xóa record → kiểm tra có đăng ký cùng phiếu không
+                    IF TG_OP = 'DELETE' THEN
+                        SELECT COUNT(*) INTO v_count_met
+                        FROM "CHITIETDANGKY" ctdk
+                        WHERE ctdk."SoPhieu" = v_registration."SoPhieu"
+                          AND ctdk."MaMonHoc" = v_ma_mon_hoc
+                          AND ctdk."TrangThai" = 'Đã đăng ký';
+
+                        IF v_count_met = 0 THEN
+                            RAISE EXCEPTION 'Vi phạm RBTV23: Xóa kết quả học vi phạm học trước - SV: % môn: %',
+                                v_ma_sv, v_dependent_mon."MaMonHoc";
+                        END IF;
+                    END IF;
+                END IF;
+            END IF;
+        END LOOP;
+    END LOOP;
+
+    RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop trigger nếu tồn tại
+DROP TRIGGER IF EXISTS trg_rbtv23_check_mondahoc_change ON "MONDAHOC";
+
+-- Tạo trigger
+CREATE TRIGGER trg_rbtv23_check_mondahoc_change
+BEFORE INSERT OR UPDATE OR DELETE ON "MONDAHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv23_validate_future_registrations();

@@ -1,0 +1,925 @@
+-- =====================================================
+-- RBTV28: Không được hủy/xóa đăng ký đã có phiếu thu thành công
+-- Bảng liên quan: PHIEUDANGKY, CHITIETDANGKY, PHIEUTHUHOCPHI
+-- =====================================================
+
+-- Hàm kiểm tra dùng chung: có tồn tại phiếu thu thành công cho phiếu đăng ký không?
+CREATE OR REPLACE FUNCTION fn_rbtv28_co_phieu_thu_thanh_cong(p_so_phieu INTEGER)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM "PHIEUTHUHOCPHI"
+        WHERE "SoPhieuDangKy" = p_so_phieu AND "TrangThai" = 'Thành công'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- [RBTV28 - PHIEUDANGKY] Chặn DELETE phiếu đăng ký
+CREATE OR REPLACE FUNCTION trg_fn_rbtv28_phieudangky_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
+        RAISE EXCEPTION '[RBTV28] Không thể xóa phiếu đăng ký SoPhieu=% vì đã có phiếu thu học phí thành công. Vui lòng hủy phiếu thu trước.', OLD."SoPhieu";
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv28_phieudangky_delete ON "PHIEUDANGKY";
+CREATE TRIGGER trg_rbtv28_phieudangky_delete BEFORE DELETE ON "PHIEUDANGKY"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv28_phieudangky_delete();
+
+-- [RBTV28 - PHIEUDANGKY] Chặn UPDATE TrangThai thành Đã hủy
+CREATE OR REPLACE FUNCTION trg_fn_rbtv28_phieudangky_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = 'Đã hủy' AND OLD."TrangThai" <> 'Đã hủy' AND fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
+        RAISE EXCEPTION '[RBTV28] Không thể hủy phiếu đăng ký SoPhieu=% vì đã có phiếu thu học phí thành công. Vui lòng hủy phiếu thu trước.', OLD."SoPhieu";
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv28_phieudangky_update ON "PHIEUDANGKY";
+CREATE TRIGGER trg_rbtv28_phieudangky_update BEFORE UPDATE OF "TrangThai" ON "PHIEUDANGKY"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv28_phieudangky_update();
+
+-- [RBTV28 - CHITIETDANGKY] Chặn DELETE chi tiết đăng ký
+CREATE OR REPLACE FUNCTION trg_fn_rbtv28_chitietdangky_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
+        RAISE EXCEPTION '[RBTV28] Không thể xóa chi tiết id=% (SoPhieu=%) vì phiếu đăng ký đã có phiếu thu thành công.', OLD.id, OLD."SoPhieu";
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv28_chitietdangky_delete ON "CHITIETDANGKY";
+CREATE TRIGGER trg_rbtv28_chitietdangky_delete BEFORE DELETE ON "CHITIETDANGKY"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv28_chitietdangky_delete();
+
+-- [RBTV28 - CHITIETDANGKY] Chặn UPDATE hủy hoặc giảm tiền/tín chỉ
+CREATE OR REPLACE FUNCTION trg_fn_rbtv28_chitietdangky_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."TrangThai" = 'Đã hủy' AND OLD."TrangThai" = 'Đã đăng ký')
+       OR (NEW."ThanhTien" < OLD."ThanhTien")
+       OR (NEW."SoTinChi" < OLD."SoTinChi")
+    THEN
+        IF fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
+            RAISE EXCEPTION '[RBTV28] Không thể hủy hoặc giảm học phí/tín chỉ cho id=% (SoPhieu=%) vì đã có phiếu thu thành công.', OLD.id, OLD."SoPhieu";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv28_chitietdangky_update ON "CHITIETDANGKY";
+CREATE TRIGGER trg_rbtv28_chitietdangky_update BEFORE UPDATE OF "TrangThai", "ThanhTien", "SoTinChi" ON "CHITIETDANGKY"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv28_chitietdangky_update();
+
+
+-- =====================================================
+-- RBTV29: Sinh viên trên phiếu thu phải đúng là sinh viên của phiếu đăng ký
+-- Bảng liên quan: PHIEUTHUHOCPHI, PHIEUDANGKY
+-- =====================================================
+
+-- [RBTV29 - PHIEUTHUHOCPHI] Kiểm tra MaSv khi INSERT/UPDATE
+CREATE OR REPLACE FUNCTION trg_fn_rbtv29_phieuthuhocphi()
+RETURNS TRIGGER AS $$
+DECLARE v_masv_pdk VARCHAR(15);
+BEGIN
+    SELECT "MaSv" INTO v_masv_pdk FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieuDangKy";
+    IF NOT FOUND THEN
+        RAISE EXCEPTION '[RBTV29] Phiếu đăng ký SoPhieu=% không tồn tại.', NEW."SoPhieuDangKy";
+    END IF;
+    IF NEW."MaSv" <> v_masv_pdk THEN
+        RAISE EXCEPTION '[RBTV29] MaSv trên phiếu thu (%) không khớp với MaSv trên phiếu đăng ký SoPhieu=% (%).', NEW."MaSv", NEW."SoPhieuDangKy", v_masv_pdk;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv29_phieuthuhocphi ON "PHIEUTHUHOCPHI";
+CREATE TRIGGER trg_rbtv29_phieuthuhocphi BEFORE INSERT OR UPDATE OF "MaSv", "SoPhieuDangKy" ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv29_phieuthuhocphi();
+
+-- [RBTV29 - PHIEUDANGKY] Chặn sửa MaSv nếu đã có phiếu thu
+CREATE OR REPLACE FUNCTION trg_fn_rbtv29_phieudangky_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."MaSv" <> OLD."MaSv" THEN
+        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "SoPhieuDangKy" = OLD."SoPhieu") THEN
+            RAISE EXCEPTION '[RBTV29] Không thể đổi MaSv phiếu đăng ký SoPhieu=% vì đã có phiếu thu liên kết.', OLD."SoPhieu";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv29_phieudangky_update ON "PHIEUDANGKY";
+CREATE TRIGGER trg_rbtv29_phieudangky_update BEFORE UPDATE OF "MaSv" ON "PHIEUDANGKY"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv29_phieudangky_update();
+
+
+-- =====================================================
+-- RBTV30: Tổng tiền thu thành công <= TongTienPhaiDong
+-- Bảng liên quan: PHIEUTHUHOCPHI, PHIEUDANGKY
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION fn_rbtv30_kiem_tra_tong_thu(p_so_phieu INTEGER)
+RETURNS VOID AS $$
+DECLARE
+    v_tong_phai_dong NUMERIC(15,0);
+    v_tong_da_thu NUMERIC(15,0);
+BEGIN
+    SELECT "TongTienPhaiDong" INTO v_tong_phai_dong FROM "PHIEUDANGKY" WHERE "SoPhieu" = p_so_phieu;
+    IF NOT FOUND THEN RETURN; END IF;
+
+    -- Tính tổng TẤT CẢ phiếu thu thành công 
+    -- (đã bao gồm dòng vừa Insert/Update vì đây là AFTER trigger)
+    SELECT COALESCE(SUM("SoTienThu"), 0) INTO v_tong_da_thu 
+    FROM "PHIEUTHUHOCPHI"
+    WHERE "SoPhieuDangKy" = p_so_phieu AND "TrangThai" = 'Thành công';
+
+    IF v_tong_da_thu > v_tong_phai_dong THEN
+        RAISE EXCEPTION '[RBTV30] Tổng tiền đã thu thành công (%) vượt quá TongTienPhaiDong (%) của phiếu đăng ký SoPhieu=%.', v_tong_da_thu, v_tong_phai_dong, p_so_phieu;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- [RBTV30 - PHIEUTHUHOCPHI] AFTER INSERT
+CREATE OR REPLACE FUNCTION trg_fn_rbtv30_phieuthuhocphi_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = 'Thành công' THEN
+        PERFORM fn_rbtv30_kiem_tra_tong_thu(NEW."SoPhieuDangKy");
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv30_phieuthuhocphi_insert ON "PHIEUTHUHOCPHI";
+CREATE TRIGGER trg_rbtv30_phieuthuhocphi_insert AFTER INSERT ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv30_phieuthuhocphi_insert();
+
+-- [RBTV30 - PHIEUTHUHOCPHI] AFTER UPDATE
+CREATE OR REPLACE FUNCTION trg_fn_rbtv30_phieuthuhocphi_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = 'Thành công' THEN
+        PERFORM fn_rbtv30_kiem_tra_tong_thu(NEW."SoPhieuDangKy");
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv30_phieuthuhocphi_update ON "PHIEUTHUHOCPHI";
+CREATE TRIGGER trg_rbtv30_phieuthuhocphi_update AFTER UPDATE OF "SoTienThu", "TrangThai", "SoPhieuDangKy" ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv30_phieuthuhocphi_update();
+
+-- [RBTV30 - PHIEUDANGKY] BEFORE UPDATE TongTienPhaiDong
+CREATE OR REPLACE FUNCTION trg_fn_rbtv30_phieudangky_update()
+RETURNS TRIGGER AS $$
+DECLARE v_tong_da_thu NUMERIC(15,0);
+BEGIN
+    IF NEW."TongTienPhaiDong" < OLD."TongTienPhaiDong" THEN
+        SELECT COALESCE(SUM("SoTienThu"), 0) INTO v_tong_da_thu 
+        FROM "PHIEUTHUHOCPHI" 
+        WHERE "SoPhieuDangKy" = OLD."SoPhieu" AND "TrangThai" = 'Thành công';
+        
+        IF v_tong_da_thu > NEW."TongTienPhaiDong" THEN
+            RAISE EXCEPTION '[RBTV30] Không thể giảm TongTienPhaiDong xuống % vì tổng đã thu thành công là % (SoPhieu=%).', NEW."TongTienPhaiDong", v_tong_da_thu, OLD."SoPhieu";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv30_phieudangky_update ON "PHIEUDANGKY";
+CREATE TRIGGER trg_rbtv30_phieudangky_update BEFORE UPDATE OF "TongTienPhaiDong" ON "PHIEUDANGKY"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv30_phieudangky_update();
+
+
+-- =====================================================
+-- RBTV31: Giao dịch không tiền mặt phải có MaGiaoDich; không trùng lặp
+-- Bảng liên quan: PHIEUTHUHOCPHI
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION trg_fn_rbtv31_phieuthuhocphi()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."HinhThucThu" <> 'Tiền mặt' AND NEW."TrangThai" = 'Thành công' AND NEW."MaGiaoDich" IS NULL THEN
+        RAISE EXCEPTION '[RBTV31] Giao dịch không phải tiền mặt với trạng thái Thành công phải có MaGiaoDich (SoPhieuThu=%).', NEW."SoPhieuThu";
+    END IF;
+
+    IF NEW."TrangThai" = 'Thành công' AND NEW."MaGiaoDich" IS NOT NULL THEN
+        IF EXISTS (
+            SELECT 1 FROM "PHIEUTHUHOCPHI"
+            WHERE "TrangThai" = 'Thành công'
+              AND "MaGiaoDich" = NEW."MaGiaoDich"
+              AND ((NEW."PaymentProvider" IS NOT NULL AND "PaymentProvider" = NEW."PaymentProvider") OR (NEW."PaymentProvider" IS NULL AND "PaymentProvider" IS NULL))
+              AND "SoPhieuThu" <> COALESCE(NEW."SoPhieuThu", -1)
+        ) THEN
+            RAISE EXCEPTION '[RBTV31] MaGiaoDich=% đã tồn tại trong một phiếu thu thành công khác (PaymentProvider=%).', NEW."MaGiaoDich", NEW."PaymentProvider";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv31_phieuthuhocphi ON "PHIEUTHUHOCPHI";
+CREATE TRIGGER trg_rbtv31_phieuthuhocphi BEFORE INSERT OR UPDATE OF "HinhThucThu", "MaGiaoDich", "PaymentProvider", "TrangThai" ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv31_phieuthuhocphi();
+
+-- =====================================================
+-- RBTV32: Ngày xác nhận phải nhất quán với trạng thái thanh toán
+-- Bảng liên quan: PHIEUTHUHOCPHI
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION trg_fn_rbtv32_phieuthuhocphi()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = 'Thành công' AND NEW."NgayXacNhan" IS NULL THEN
+        RAISE EXCEPTION '[RBTV32] Phiếu thu SoPhieuThu=% có TrangThai Thành công nhưng NgayXacNhan đang NULL.', NEW."SoPhieuThu";
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv32_phieuthuhocphi ON "PHIEUTHUHOCPHI";
+CREATE TRIGGER trg_rbtv32_phieuthuhocphi BEFORE INSERT OR UPDATE OF "TrangThai", "NgayXacNhan" ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv32_phieuthuhocphi();
+
+
+-- =====================================================
+-- RBTV33: Phiếu thu đã thành công không được sửa thông tin định danh chính
+-- Bảng liên quan: PHIEUTHUHOCPHI
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION trg_fn_rbtv33_phieuthuhocphi()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD."TrangThai" <> 'Thành công' THEN RETURN NEW; END IF;
+
+    IF NEW."TrangThai" = 'Đã hủy' THEN
+        IF NEW."GhiChu" IS NULL OR TRIM(NEW."GhiChu") = '' THEN
+            RAISE EXCEPTION '[RBTV33] Khi hủy phiếu thu đã thành công (SoPhieuThu=%), bắt buộc phải ghi lý do vào GhiChu.', OLD."SoPhieuThu";
+        END IF;
+        IF NEW."SoPhieuDangKy" <> OLD."SoPhieuDangKy" OR NEW."MaSv" <> OLD."MaSv" OR NEW."SoTienThu" <> OLD."SoTienThu" OR NEW."HinhThucThu" <> OLD."HinhThucThu" OR (NEW."MaGiaoDich" IS DISTINCT FROM OLD."MaGiaoDich") THEN
+            RAISE EXCEPTION '[RBTV33] Khi hủy phiếu thu (SoPhieuThu=%), không được thay đổi các trường định danh.', OLD."SoPhieuThu";
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF NEW."SoPhieuDangKy" <> OLD."SoPhieuDangKy" OR NEW."MaSv" <> OLD."MaSv" OR NEW."SoTienThu" <> OLD."SoTienThu" OR NEW."HinhThucThu" <> OLD."HinhThucThu" OR (NEW."MaGiaoDich" IS DISTINCT FROM OLD."MaGiaoDich") THEN
+        RAISE EXCEPTION '[RBTV33] Không thể sửa thông tin định danh của phiếu thu đã thành công (SoPhieuThu=%).', OLD."SoPhieuThu";
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_rbtv33_phieuthuhocphi ON "PHIEUTHUHOCPHI";
+CREATE TRIGGER trg_rbtv33_phieuthuhocphi BEFORE UPDATE ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv33_phieuthuhocphi();
+
+
+
+
+-- KỊCH BẢN TỔNG HỢP TRIGGER RBTV34
+-- CHÚ Ý: ĐÃ LOẠI BỎ TOÀN BỘ KÝ HIỆU // THEO YÊU CẦU
+
+-- ==============================================================================
+-- PHẦN 1: BẢO VỆ TỪ PHÍA BẢNG CON (KHI INSERT HOẶC UPDATE LÊN TRẠNG THÁI HOẠT ĐỘNG)
+-- ==============================================================================
+
+-- 1. CHITIETDANGKY
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Lop_DaXoa BOOLEAN; v_Lop_TrangThai BOOLEAN;
+    v_Mon_DaXoa BOOLEAN; v_Mon_TrangThai BOOLEAN;
+    v_Phieu_TrangThai VARCHAR;
+BEGIN
+    IF NEW."TrangThai" = 'Đã đăng ký' THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Lop_DaXoa, v_Lop_TrangThai FROM "LOP" WHERE "MaLop" = NEW."MaLop";
+        IF COALESCE(v_Lop_DaXoa, FALSE) = TRUE OR COALESCE(v_Lop_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: LOP % khong hop le.', NEW."MaLop";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
+        IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+        END IF;
+
+        SELECT "TrangThai" INTO v_Phieu_TrangThai FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        IF COALESCE(v_Phieu_TrangThai, '') != 'Đã đăng ký' THEN
+            RAISE EXCEPTION 'RBTV34: PHIEUDANGKY % khong hop le.', NEW."SoPhieu";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_chitietdangky
+BEFORE INSERT OR UPDATE OF "MaLop", "MaMonHoc", "SoPhieu", "TrangThai" ON "CHITIETDANGKY"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_chitietdangky();
+
+-- 2. PHIEUDANGKY
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_phieudangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Sv_DaXoa BOOLEAN; v_Sv_TrangThai VARCHAR;
+    v_Hk_DaXoa BOOLEAN; v_Hk_TrangThai VARCHAR;
+BEGIN
+    IF NEW."TrangThai" = 'Đã đăng ký' THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Sv_DaXoa, v_Sv_TrangThai FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
+        IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE OR v_Sv_TrangThai != 'Đang học' THEN
+            RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Hk_DaXoa, v_Hk_TrangThai FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
+        IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE OR v_Hk_TrangThai = 'Đã kết thúc' THEN
+            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_phieudangky
+BEFORE INSERT OR UPDATE OF "MaSv", "MaHocKy", "TrangThai" ON "PHIEUDANGKY"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phieudangky();
+
+-- 3. PHIEUTHUHOCPHI
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_phieuthuhocphi()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Phieu_TrangThai VARCHAR;
+    v_Sv_DaXoa BOOLEAN;
+BEGIN
+    IF NEW."TrangThai" = 'Thành công' THEN
+        SELECT "TrangThai" INTO v_Phieu_TrangThai FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieuDangKy";
+        IF COALESCE(v_Phieu_TrangThai, '') != 'Đã đăng ký' THEN
+            RAISE EXCEPTION 'RBTV34: PHIEUDANGKY % khong hop le.', NEW."SoPhieuDangKy";
+        END IF;
+
+        SELECT "DaXoa" INTO v_Sv_DaXoa FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
+        IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE THEN
+            RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_phieuthuhocphi
+BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "MaSv", "TrangThai" ON "PHIEUTHUHOCPHI"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phieuthuhocphi();
+
+-- 4. LOPMO
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lopmo()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Hk_DaXoa BOOLEAN; v_Lop_DaXoa BOOLEAN; v_Lop_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."TrangThai" = TRUE THEN
+        SELECT "DaXoa" INTO v_Hk_DaXoa FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
+        IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE THEN
+            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Lop_DaXoa, v_Lop_TrangThai FROM "LOP" WHERE "MaLop" = NEW."MaLop";
+        IF COALESCE(v_Lop_DaXoa, FALSE) = TRUE OR COALESCE(v_Lop_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: LOP % khong hop le.', NEW."MaLop";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_lopmo
+BEFORE INSERT OR UPDATE OF "MaHocKy", "MaLop", "TrangThai" ON "LOPMO"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lopmo();
+
+-- 5. MONDAHOC
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_mondahoc()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Sv_DaXoa BOOLEAN; v_Mon_DaXoa BOOLEAN; v_Mon_TrangThai BOOLEAN;
+    v_Hk_DaXoa BOOLEAN; v_Lop_DaXoa BOOLEAN;
+BEGIN
+    IF NEW."DaXoa" = FALSE THEN
+        SELECT "DaXoa" INTO v_Sv_DaXoa FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
+        IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE THEN
+            RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
+        IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+        END IF;
+
+        SELECT "DaXoa" INTO v_Hk_DaXoa FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
+        IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE THEN
+            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+        END IF;
+
+        IF NEW."MaLop" IS NOT NULL THEN
+            SELECT "DaXoa" INTO v_Lop_DaXoa FROM "LOP" WHERE "MaLop" = NEW."MaLop";
+            IF COALESCE(v_Lop_DaXoa, FALSE) = TRUE THEN
+                RAISE EXCEPTION 'RBTV34: LOP % khong hop le.', NEW."MaLop";
+            END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_mondahoc
+BEFORE INSERT OR UPDATE OF "MaSv", "MaMonHoc", "MaHocKy", "MaLop", "DaXoa" ON "MONDAHOC"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_mondahoc();
+
+-- 6. PHUONGXA
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_phuongxa()
+RETURNS TRIGGER AS $$
+DECLARE v_Tinh_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."TrangThai" = TRUE THEN
+        SELECT "TrangThai" INTO v_Tinh_TrangThai FROM "TINH" WHERE "MaTinh" = NEW."MaTinh";
+        IF COALESCE(v_Tinh_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: TINH % khong hop le.', NEW."MaTinh";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_phuongxa
+BEFORE INSERT OR UPDATE OF "MaTinh", "TrangThai" ON "PHUONGXA"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phuongxa();
+
+-- 7. NGANHHOC & MONHOC
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_khoa_ref()
+RETURNS TRIGGER AS $$
+DECLARE v_Khoa_DaXoa BOOLEAN; v_Khoa_TrangThai BOOLEAN;
+BEGIN
+    IF (NEW."DaXoa" IS NULL OR NEW."DaXoa" = FALSE) AND NEW."TrangThai" = TRUE THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Khoa_DaXoa, v_Khoa_TrangThai FROM "KHOA" WHERE "MaKhoa" = NEW."MaKhoa";
+        IF COALESCE(v_Khoa_DaXoa, FALSE) = TRUE OR COALESCE(v_Khoa_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: KHOA % khong hop le.', NEW."MaKhoa";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_nganhhoc
+BEFORE INSERT OR UPDATE OF "MaKhoa", "TrangThai", "DaXoa" ON "NGANHHOC"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_khoa_ref();
+
+CREATE TRIGGER trg_rbtv34_monhoc
+BEFORE INSERT OR UPDATE OF "MaKhoa", "TrangThai", "DaXoa" ON "MONHOC"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_khoa_ref();
+
+-- 8. DIEUKIENMONHOC
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_dieukienmonhoc()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Mon1_DaXoa BOOLEAN; v_Mon1_TrangThai BOOLEAN;
+    v_Mon2_DaXoa BOOLEAN; v_Mon2_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Mon1_DaXoa, v_Mon1_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
+        IF COALESCE(v_Mon1_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon1_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Mon2_DaXoa, v_Mon2_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonDieuKien";
+        IF COALESCE(v_Mon2_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon2_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: MONHOC dieu kien % khong hop le.', NEW."MaMonDieuKien";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_dieukienmonhoc
+BEFORE INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien", "TrangThai", "DaXoa" ON "DIEUKIENMONHOC"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_dieukienmonhoc();
+
+-- 9. LOP
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lop()
+RETURNS TRIGGER AS $$
+DECLARE v_Mon_DaXoa BOOLEAN; v_Mon_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
+        IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_lop
+BEFORE INSERT OR UPDATE OF "MaMonHoc", "TrangThai", "DaXoa" ON "LOP"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lop();
+
+-- 10. CHUONGTRINHHOC
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_chuongtrinhhoc()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Nganh_DaXoa BOOLEAN; v_Nganh_TrangThai BOOLEAN;
+    v_Mon_DaXoa BOOLEAN; v_Mon_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."TrangThai" = TRUE THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Nganh_DaXoa, v_Nganh_TrangThai FROM "NGANHHOC" WHERE "MaNganh" = NEW."MaNganh";
+        IF COALESCE(v_Nganh_DaXoa, FALSE) = TRUE OR COALESCE(v_Nganh_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: NGANHHOC % khong hop le.', NEW."MaNganh";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
+        IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_chuongtrinhhoc
+BEFORE INSERT OR UPDATE OF "MaNganh", "MaMonHoc", "TrangThai" ON "CHUONGTRINHHOC"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_chuongtrinhhoc();
+
+-- 11. HOCKY
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_hocky()
+RETURNS TRIGGER AS $$
+DECLARE v_Nam_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" != 'Đã kết thúc' THEN
+        SELECT "TrangThai" INTO v_Nam_TrangThai FROM "NAMHOC" WHERE "MaNamHoc" = NEW."MaNamHoc";
+        IF COALESCE(v_Nam_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: NAMHOC % khong hop le.', NEW."MaNamHoc";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_hocky
+BEFORE INSERT OR UPDATE OF "MaNamHoc", "TrangThai", "DaXoa" ON "HOCKY"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_hocky();
+
+-- 12. LICHHOCLOP
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lichhoclop()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_LopMo_TrangThai BOOLEAN;
+    v_Tiet1_DaXoa BOOLEAN; v_Tiet1_TrangThai BOOLEAN;
+    v_Tiet2_DaXoa BOOLEAN; v_Tiet2_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."TrangThai" = TRUE THEN
+        SELECT "TrangThai" INTO v_LopMo_TrangThai FROM "LOPMO" WHERE id = NEW."LopMoId";
+        IF COALESCE(v_LopMo_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: LOPMO % khong hop le.', NEW."LopMoId";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Tiet1_DaXoa, v_Tiet1_TrangThai FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
+        IF COALESCE(v_Tiet1_DaXoa, FALSE) = TRUE OR COALESCE(v_Tiet1_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: TIETHOC bat dau % khong hop le.', NEW."MaTietBatDau";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Tiet2_DaXoa, v_Tiet2_TrangThai FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
+        IF COALESCE(v_Tiet2_DaXoa, FALSE) = TRUE OR COALESCE(v_Tiet2_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: TIETHOC ket thuc % khong hop le.', NEW."MaTietKetThuc";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_lichhoclop
+BEFORE INSERT OR UPDATE OF "LopMoId", "MaTietBatDau", "MaTietKetThuc", "TrangThai" ON "LICHHOCLOP"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lichhoclop();
+
+-- 13. DONGIATINCHI
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_dongiatinchi()
+RETURNS TRIGGER AS $$
+DECLARE v_Hk_DaXoa BOOLEAN; v_Hk_TrangThai VARCHAR;
+BEGIN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE AND NEW."MaHocKy" IS NOT NULL THEN
+        SELECT "DaXoa", "TrangThai" INTO v_Hk_DaXoa, v_Hk_TrangThai FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
+        IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE OR v_Hk_TrangThai = 'Đã kết thúc' THEN
+            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_dongiatinchi
+BEFORE INSERT OR UPDATE OF "MaHocKy", "TrangThai", "DaXoa" ON "DONGIATINCHI"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_dongiatinchi();
+
+-- 14. SINHVIEN
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_sinhvien()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Px_TrangThai BOOLEAN; v_Dt_TrangThai BOOLEAN;
+    v_Ng_DaXoa BOOLEAN; v_Ng_TrangThai BOOLEAN;
+    v_Nd_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = 'Đang học' THEN
+        SELECT "TrangThai" INTO v_Px_TrangThai FROM "PHUONGXA" WHERE "MaPhuongXa" = NEW."MaPhuongXa";
+        IF COALESCE(v_Px_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: PHUONGXA % khong hop le.', NEW."MaPhuongXa";
+        END IF;
+
+        SELECT "TrangThai" INTO v_Dt_TrangThai FROM "DANTOC" WHERE "MaDanToc" = NEW."MaDanToc";
+        IF COALESCE(v_Dt_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: DANTOC % khong hop le.', NEW."MaDanToc";
+        END IF;
+
+        SELECT "DaXoa", "TrangThai" INTO v_Ng_DaXoa, v_Ng_TrangThai FROM "NGANHHOC" WHERE "MaNganh" = NEW."MaNganh";
+        IF COALESCE(v_Ng_DaXoa, FALSE) = TRUE OR COALESCE(v_Ng_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: NGANHHOC % khong hop le.', NEW."MaNganh";
+        END IF;
+
+        IF NEW."MaTaiKhoan" IS NOT NULL THEN
+            SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan";
+            IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
+                RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoan";
+            END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_sinhvien
+BEFORE INSERT OR UPDATE OF "MaPhuongXa", "MaDanToc", "MaNganh", "MaTaiKhoan", "TrangThai", "DaXoa" ON "SINHVIEN"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_sinhvien();
+
+-- 15. NGUOIDUNG
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nguoidung()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_Nhom_DaXoa BOOLEAN; v_Sv_DaXoa BOOLEAN; v_Sv_TrangThai VARCHAR;
+BEGIN
+    IF NEW."TrangThai" = TRUE THEN
+        SELECT "DaXoa" INTO v_Nhom_DaXoa FROM "NHOMNGUOIDUNG" WHERE "MaNhom" = NEW."MaNhom";
+        IF COALESCE(v_Nhom_DaXoa, FALSE) = TRUE THEN
+            RAISE EXCEPTION 'RBTV34: NHOMNGUOIDUNG % khong hop le.', NEW."MaNhom";
+        END IF;
+
+        IF NEW."MaSv" IS NOT NULL THEN
+            SELECT "DaXoa", "TrangThai" INTO v_Sv_DaXoa, v_Sv_TrangThai FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
+            IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE OR v_Sv_TrangThai != 'Đang học' THEN
+                RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+            END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_nguoidung
+BEFORE INSERT OR UPDATE OF "MaNhom", "MaSv", "TrangThai" ON "NGUOIDUNG"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nguoidung();
+
+-- 16. QUANTRIVIEN
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_quantrivien()
+RETURNS TRIGGER AS $$
+DECLARE v_Nd_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."TrangThai" = TRUE THEN
+        SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan";
+        IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoan";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_quantrivien
+BEFORE INSERT OR UPDATE OF "MaTaiKhoan", "TrangThai" ON "QUANTRIVIEN"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_quantrivien();
+
+-- 17. THONGBAO
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_thongbao()
+RETURNS TRIGGER AS $$
+DECLARE v_Nd_TrangThai BOOLEAN;
+BEGIN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+        SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoanNhan";
+        IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
+            RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoanNhan";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv34_thongbao
+BEFORE INSERT OR UPDATE OF "MaTaiKhoanNhan", "TrangThai", "DaXoa" ON "THONGBAO"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_thongbao();
+
+
+-- ==============================================================================
+-- PHẦN 2: BẢO VỆ TỪ PHÍA BẢNG CHA (KHI UPDATE XÓA MỀM HOẶC TẮT TRẠNG THÁI)
+-- ==============================================================================
+
+-- 1. LOP (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lop_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaLop" = NEW."MaLop" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHITIETDANGKY con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaLop" = NEW."MaLop" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOPMO con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaLop" = NEW."MaLop" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" ll JOIN "LOPMO" lm ON ll."LopMoId" = lm.id WHERE lm."MaLop" = NEW."MaLop" AND ll."TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LICHHOCLOP con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_lop_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "LOP" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lop_parent();
+
+-- 2. MONHOC (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_monhoc_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHITIETDANGKY con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "DIEUKIENMONHOC" WHERE ("MaMonHoc" = NEW."MaMonHoc" OR "MaMonDieuKien" = NEW."MaMonHoc") AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: DIEUKIENMONHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LOP" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOP con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHUONGTRINHHOC" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHUONGTRINHHOC con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_monhoc_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "MONHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_monhoc_parent();
+
+-- 3. HOCKY (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_hocky_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = 'Đã kết thúc' AND OLD."TrangThai" != 'Đã kết thúc') THEN
+        IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUDANGKY con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOPMO con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "DONGIATINCHI" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: DONGIATINCHI con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_hocky_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "HOCKY" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_hocky_parent();
+
+-- 4. SINHVIEN (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_sinhvien_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" != 'Đang học' AND OLD."TrangThai" = 'Đang học') THEN
+        IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUDANGKY con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Thành công') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUTHUHOCPHI con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaSv" = NEW."MaSv" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "NGUOIDUNG" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: NGUOIDUNG con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_sinhvien_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "SINHVIEN" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_sinhvien_parent();
+
+-- 5. PHIEUDANGKY (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_phieudangky_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = 'Đã hủy' AND OLD."TrangThai" != 'Đã hủy' THEN
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "SoPhieu" = NEW."SoPhieu" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHITIETDANGKY con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "SoPhieuDangKy" = NEW."SoPhieu" AND "TrangThai" = 'Thành công') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUTHUHOCPHI con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_phieudangky_parent BEFORE UPDATE OF "TrangThai" ON "PHIEUDANGKY" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phieudangky_parent();
+
+-- 6. TINH (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_tinh_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
+        IF EXISTS (SELECT 1 FROM "PHUONGXA" WHERE "MaTinh" = NEW."MaTinh" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHUONGXA con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_tinh_parent BEFORE UPDATE OF "TrangThai" ON "TINH" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_tinh_parent();
+
+-- 7. KHOA (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_khoa_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
+        IF EXISTS (SELECT 1 FROM "NGANHHOC" WHERE "MaKhoa" = NEW."MaKhoa" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: NGANHHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONHOC" WHERE "MaKhoa" = NEW."MaKhoa" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONHOC con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_khoa_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "KHOA" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_khoa_parent();
+
+-- 8. NAMHOC (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_namhoc_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
+        IF EXISTS (SELECT 1 FROM "HOCKY" WHERE "MaNamHoc" = NEW."MaNamHoc" AND "DaXoa" = FALSE AND "TrangThai" != 'Đã kết thúc') THEN RAISE EXCEPTION 'RBTV34 Lỗi: HOCKY con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_namhoc_parent BEFORE UPDATE OF "TrangThai" ON "NAMHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_namhoc_parent();
+
+-- 9. LOPMO (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lopmo_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE "LopMoId" = NEW.id AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LICHHOCLOP con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_lopmo_parent BEFORE UPDATE OF "TrangThai" ON "LOPMO" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lopmo_parent();
+
+-- 10. TIETHOC (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_tiethoc_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE ("MaTietBatDau" = NEW."MaTiet" OR "MaTietKetThuc" = NEW."MaTiet") AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LICHHOCLOP con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_tiethoc_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "TIETHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_tiethoc_parent();
+
+-- 11. PHUONGXA & DANTOC (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_px_dt_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
+        IF TG_TABLE_NAME = 'PHUONGXA' THEN
+            IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaPhuongXa" = NEW."MaPhuongXa" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
+        ELSIF TG_TABLE_NAME = 'DANTOC' THEN
+            IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaDanToc" = NEW."MaDanToc" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_phuongxa_parent BEFORE UPDATE OF "TrangThai" ON "PHUONGXA" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_px_dt_parent();
+CREATE TRIGGER trg_rbtv34_dantoc_parent BEFORE UPDATE OF "TrangThai" ON "DANTOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_px_dt_parent();
+
+-- 12. NGANHHOC (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nganhhoc_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
+        IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaNganh" = NEW."MaNganh" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHUONGTRINHHOC" WHERE "MaNganh" = NEW."MaNganh" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHUONGTRINHHOC con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_nganhhoc_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "NGANHHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nganhhoc_parent();
+
+-- 13. NHOMNGUOIDUNG (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nhomnguoidung_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE THEN
+        IF EXISTS (SELECT 1 FROM "NGUOIDUNG" WHERE "MaNhom" = NEW."MaNhom" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: NGUOIDUNG con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_nhomnguoidung_parent BEFORE UPDATE OF "DaXoa" ON "NHOMNGUOIDUNG" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nhomnguoidung_parent();
+
+-- 14. NGUOIDUNG (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nguoidung_parent()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
+        IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "QUANTRIVIEN" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: QUANTRIVIEN con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "THONGBAO" WHERE "MaTaiKhoanNhan" = NEW."MaTaiKhoan" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: THONGBAO con hoat dong.'; END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_nguoidung_parent BEFORE UPDATE OF "TrangThai" ON "NGUOIDUNG" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nguoidung_parent();

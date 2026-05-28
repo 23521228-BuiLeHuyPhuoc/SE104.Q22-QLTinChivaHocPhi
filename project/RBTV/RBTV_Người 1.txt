@@ -1,0 +1,425 @@
+--RBTV1:
+CREATE OR REPLACE FUNCTION trg_func_sinhvien_rbtv01()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 
+        FROM "PHUONGXA" px
+        JOIN "DANTOC" dt ON dt."MaDanToc" = NEW."MaDanToc"
+        WHERE px."MaPhuongXa" = NEW."MaPhuongXa" 
+          AND px."KhuVuc" = 'KV3' 
+          AND dt."LaDanTocThieuSo" = TRUE
+    ) THEN
+        IF NOT EXISTS (
+            SELECT 1 
+            FROM "DOITUONGSINHVIEN" 
+            WHERE "MaSv" = NEW."MaSv" AND "MaDoiTuong" = 'DT06'
+        ) THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Sinh viên % thuộc vùng sâu vùng xa nhưng chưa được gán đối tượng DT06.', NEW."MaSv";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_sinhvien_rbtv01
+AFTER INSERT OR UPDATE OF "MaPhuongXa", "MaDanToc" ON "SINHVIEN"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW 
+EXECUTE FUNCTION trg_func_sinhvien_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_phuongxa_rbtv01()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."KhuVuc" = 'KV3' AND OLD."KhuVuc" IS DISTINCT FROM NEW."KhuVuc" THEN
+        IF EXISTS (
+            SELECT 1 
+            FROM "SINHVIEN" sv
+            JOIN "DANTOC" dt ON sv."MaDanToc" = dt."MaDanToc"
+            WHERE sv."MaPhuongXa" = NEW."MaPhuongXa"
+              AND dt."LaDanTocThieuSo" = TRUE
+              AND NOT EXISTS (
+                  SELECT 1 FROM "DOITUONGSINHVIEN" dtsv 
+                  WHERE dtsv."MaSv" = sv."MaSv" AND dtsv."MaDoiTuong" = 'DT06'
+              )
+        ) THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Không thể cập nhật KhuVuc thành KV3 vì có sinh viên dân tộc thiểu số tại đây chưa có mã DT06.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_phuongxa_rbtv01
+AFTER UPDATE OF "KhuVuc" ON "PHUONGXA"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW 
+EXECUTE FUNCTION trg_func_phuongxa_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_dantoc_rbtv01()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."LaDanTocThieuSo" = TRUE AND OLD."LaDanTocThieuSo" IS DISTINCT FROM NEW."LaDanTocThieuSo" THEN
+        IF EXISTS (
+            SELECT 1 
+            FROM "SINHVIEN" sv
+            JOIN "PHUONGXA" px ON sv."MaPhuongXa" = px."MaPhuongXa"
+            WHERE sv."MaDanToc" = NEW."MaDanToc"
+              AND px."KhuVuc" = 'KV3'
+              AND NOT EXISTS (
+                  SELECT 1 FROM "DOITUONGSINHVIEN" dtsv 
+                  WHERE dtsv."MaSv" = sv."MaSv" AND dtsv."MaDoiTuong" = 'DT06'
+              )
+        ) THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Không thể cập nhật LaDanTocThieuSo thành TRUE vì có sinh viên ở KV3 thuộc dân tộc này chưa có mã DT06.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_dantoc_rbtv01
+AFTER UPDATE OF "LaDanTocThieuSo" ON "DANTOC"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW 
+EXECUTE FUNCTION trg_func_dantoc_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_doituongsinhvien_rbtv01()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND OLD."MaDoiTuong" = 'DT06' AND NEW."MaDoiTuong" <> 'DT06') THEN
+        IF OLD."MaDoiTuong" = 'DT06' THEN
+            IF EXISTS (
+                SELECT 1 
+                FROM "SINHVIEN" sv
+                JOIN "PHUONGXA" px ON sv."MaPhuongXa" = px."MaPhuongXa"
+                JOIN "DANTOC" dt ON sv."MaDanToc" = dt."MaDanToc"
+                WHERE sv."MaSv" = OLD."MaSv"
+                  AND px."KhuVuc" = 'KV3'
+                  AND dt."LaDanTocThieuSo" = TRUE
+            ) THEN
+                RAISE EXCEPTION 'Lỗi RBTV01: Không thể xóa/sửa đối tượng DT06 của sinh viên % vì sinh viên này thuộc vùng sâu vùng xa.', OLD."MaSv";
+            END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_doituongsinhvien_rbtv01
+AFTER INSERT OR UPDATE OR DELETE ON "DOITUONGSINHVIEN"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW 
+EXECUTE FUNCTION trg_func_doituongsinhvien_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_doituong_rbtv01()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD."MaDoiTuong" = 'DT06' THEN
+        RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_doituong_rbtv01
+BEFORE UPDATE OR DELETE ON "DOITUONG"
+FOR EACH ROW 
+EXECUTE FUNCTION trg_func_doituong_rbtv01();
+--RBTV2:
+CREATE OR REPLACE FUNCTION function_calculate_max_discount(p_ma_sv VARCHAR)
+RETURNS DECIMAL(5,2) AS $$
+DECLARE
+    v_ti_le_giam DECIMAL(5,2);
+BEGIN
+    WITH student_objects AS (
+        -- 1. Các đối tượng được gán trực tiếp (phải đang kích hoạt và chưa bị xóa)
+        SELECT dt."TiLeGiamHocPhi", dt."DoUuTien"
+        FROM "DOITUONGSINHVIEN" dtsv
+        JOIN "DOITUONG" dt ON dtsv."MaDoiTuong" = dt."MaDoiTuong"
+        WHERE dtsv."MaSv" = p_ma_sv
+          AND dt."TrangThai" = TRUE 
+          AND dt."DaXoa" = FALSE
+        
+        UNION ALL
+        
+        -- 2. Đối tượng DT06 tự động (nếu sinh viên ở Khu vực 3 và là Dân tộc thiểu số)
+        SELECT dt."TiLeGiamHocPhi", dt."DoUuTien"
+        FROM "SINHVIEN" sv
+        JOIN "PHUONGXA" px ON sv."MaPhuongXa" = px."MaPhuongXa"
+        JOIN "DANTOC" dc ON sv."MaDanToc" = dc."MaDanToc"
+        JOIN "DOITUONG" dt ON dt."MaDoiTuong" = 'DT06'
+        WHERE sv."MaSv" = p_ma_sv
+          AND px."KhuVuc" = 'KV3'
+          AND dc."LaDanTocThieuSo" = TRUE
+          AND dt."TrangThai" = TRUE 
+          AND dt."DaXoa" = FALSE
+    )
+    SELECT "TiLeGiamHocPhi"
+    INTO v_ti_le_giam
+    FROM student_objects
+    ORDER BY "DoUuTien" ASC, "TiLeGiamHocPhi" DESC -- Ưu tiên DoUuTien nhỏ nhất, nếu bằng nhau lấy phần trăm cao nhất
+    LIMIT 1;
+    
+    -- Nếu không thuộc đối tượng nào, tỷ lệ giảm mặc định là 0
+    RETURN COALESCE(v_ti_le_giam, 0.00);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION trg_fn_phieudangky_tilegiam()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."TrangThai" = 'Đã đăng ký' THEN
+        NEW."TiLeGiam" := function_calculate_max_discount(NEW."MaSv");
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_phieudangky_tilegiam
+BEFORE INSERT OR UPDATE OF "MaSv", "TrangThai", "TiLeGiam"
+ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_phieudangky_tilegiam();
+
+CREATE OR REPLACE FUNCTION trg_fn_doituongsinhvien_sync()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+        UPDATE "PHIEUDANGKY"
+        SET "TiLeGiam" = function_calculate_max_discount(NEW."MaSv")
+        WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Đã đăng ký';
+    END IF;
+    
+    IF TG_OP = 'DELETE' OR TG_OP = 'UPDATE' THEN
+        UPDATE "PHIEUDANGKY"
+        SET "TiLeGiam" = function_calculate_max_discount(OLD."MaSv")
+        WHERE "MaSv" = OLD."MaSv" AND "TrangThai" = 'Đã đăng ký';
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_doituongsinhvien_sync
+AFTER INSERT OR UPDATE OR DELETE
+ON "DOITUONGSINHVIEN"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_doituongsinhvien_sync();
+
+CREATE OR REPLACE FUNCTION trg_fn_doituong_sync()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (OLD."TiLeGiamHocPhi" IS DISTINCT FROM NEW."TiLeGiamHocPhi") OR
+       (OLD."DoUuTien" IS DISTINCT FROM NEW."DoUuTien") OR
+       (OLD."TrangThai" IS DISTINCT FROM NEW."TrangThai") OR
+       (OLD."DaXoa" IS DISTINCT FROM NEW."DaXoa") THEN
+       
+        -- Nếu chỉnh sửa cấu hình của DT06, quét toàn bộ sinh viên diện vùng sâu vùng xa
+        IF NEW."MaDoiTuong" = 'DT06' THEN
+            UPDATE "PHIEUDANGKY" p
+            SET "TiLeGiam" = function_calculate_max_discount(p."MaSv")
+            FROM "SINHVIEN" sv
+            JOIN "PHUONGXA" px ON sv."MaPhuongXa" = px."MaPhuongXa"
+            JOIN "DANTOC" dc ON sv."MaDanToc" = dc."MaDanToc"
+            WHERE p."MaSv" = sv."MaSv"
+              AND p."TrangThai" = 'Đã đăng ký'
+              AND px."KhuVuc" = 'KV3'
+              AND dc."LaDanTocThieuSo" = TRUE;
+        END IF;
+
+        -- Cập nhật cho những sinh viên được gán trực tiếp mã đối tượng này
+        UPDATE "PHIEUDANGKY" p
+        SET "TiLeGiam" = function_calculate_max_discount(p."MaSv")
+        FROM "DOITUONGSINHVIEN" dtsv
+        WHERE p."MaSv" = dtsv."MaSv"
+          AND p."TrangThai" = 'Đã đăng ký'
+          AND dtsv."MaDoiTuong" = NEW."MaDoiTuong";
+          
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_doituong_sync
+AFTER UPDATE ON "DOITUONG"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_doituong_sync();
+
+CREATE OR REPLACE FUNCTION trg_fn_sinhvien_sync()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (OLD."MaPhuongXa" IS DISTINCT FROM NEW."MaPhuongXa") OR 
+       (OLD."MaDanToc" IS DISTINCT FROM NEW."MaDanToc") THEN
+        UPDATE "PHIEUDANGKY"
+        SET "TiLeGiam" = function_calculate_max_discount(NEW."MaSv")
+        WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Đã đăng ký';
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_sinhvien_sync
+AFTER UPDATE OF "MaPhuongXa", "MaDanToc" ON "SINHVIEN"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_sinhvien_sync();
+
+-- Trigger cho bảng PHUONGXA
+CREATE OR REPLACE FUNCTION trg_fn_phuongxa_sync()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD."KhuVuc" IS DISTINCT FROM NEW."KhuVuc" THEN
+        UPDATE "PHIEUDANGKY" p
+        SET "TiLeGiam" = function_calculate_max_discount(p."MaSv")
+        FROM "SINHVIEN" sv
+        WHERE p."MaSv" = sv."MaSv"
+          AND p."TrangThai" = 'Đã đăng ký'
+          AND sv."MaPhuongXa" = NEW."MaPhuongXa";
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_phuongxa_sync
+AFTER UPDATE OF "KhuVuc" ON "PHUONGXA"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_phuongxa_sync();
+
+-- Trigger cho bảng DANTOC
+CREATE OR REPLACE FUNCTION trg_fn_dantoc_sync()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD."LaDanTocThieuSo" IS DISTINCT FROM NEW."LaDanTocThieuSo" THEN
+        UPDATE "PHIEUDANGKY" p
+        SET "TiLeGiam" = function_calculate_max_discount(p."MaSv")
+        FROM "SINHVIEN" sv
+        WHERE p."MaSv" = sv."MaSv"
+          AND p."TrangThai" = 'Đã đăng ký'
+          AND sv."MaDanToc" = NEW."MaDanToc";
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_dantoc_sync
+AFTER UPDATE OF "LaDanTocThieuSo" ON "DANTOC"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_dantoc_sync();
+--RBTV3:
+CREATE OR REPLACE FUNCTION trg_fn_phieudangky_tinhtien()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- 1. Đảm bảo dữ liệu số không bị NULL để tránh lỗi tính toán
+    NEW."TongTienDangKy" := COALESCE(NEW."TongTienDangKy", 0);
+    NEW."TiLeGiam"       := COALESCE(NEW."TiLeGiam", 0.00);
+
+    -- 2. Công thức 1: TienMienGiam = ROUND(TongTienDangKy * TiLeGiam / 100)
+    NEW."TienMienGiam"   := ROUND(NEW."TongTienDangKy" * NEW."TiLeGiam" / 100);
+
+    -- 3. Công thức 2: TongTienPhaiDong = GREATEST(TongTienDangKy - TienMienGiam, 0)
+    NEW."TongTienPhaiDong" := GREATEST(NEW."TongTienDangKy" - NEW."TienMienGiam", 0);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Tạo trigger áp dụng cho cả hành động INSERT và UPDATE trên bảng PHIEUDANGKY
+CREATE TRIGGER trg_phieudangky_tinhtien
+BEFORE INSERT OR UPDATE OF "TongTienDangKy", "TiLeGiam", "TienMienGiam", "TongTienPhaiDong"
+ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_phieudangky_tinhtien();
+
+--RBTV16:
+CREATE OR REPLACE FUNCTION trg_fn_phieudangky_rbtv16()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_sv_trang_thai VARCHAR;
+    v_nd_trang_thai BOOLEAN;
+    v_ma_tk INTEGER;
+BEGIN
+    -- Lấy thông tin sinh viên
+    SELECT "TrangThai", "MaTaiKhoan" INTO v_sv_trang_thai, v_ma_tk
+    FROM "SINHVIEN" 
+    WHERE "MaSv" = NEW."MaSv";
+
+    -- Kiểm tra 1: Sinh viên phải ở trạng thái 'Đang học'
+    IF v_sv_trang_thai IS DISTINCT FROM 'Đang học' THEN
+        RAISE EXCEPTION 'Lỗi RBTV16: Sinh viên % đang ở trạng thái "%", không được phép lập phiếu đăng ký.', NEW."MaSv", v_sv_trang_thai;
+    END IF;
+
+    -- Kiểm tra 2: Nếu sinh viên có tài khoản, tài khoản đó phải đang Active (TRUE)
+    IF v_ma_tk IS NOT NULL THEN
+        SELECT "TrangThai" INTO v_nd_trang_thai
+        FROM "NGUOIDUNG" 
+        WHERE "MaTaiKhoan" = v_ma_tk;
+
+        IF v_nd_trang_thai = FALSE THEN
+            RAISE EXCEPTION 'Lỗi RBTV16: Tài khoản hệ thống của sinh viên % đã bị khóa, không thể lập phiếu đăng ký.', NEW."MaSv";
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_phieudangky_rbtv16
+BEFORE INSERT OR UPDATE OF "MaSv" ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_phieudangky_rbtv16();
+
+CREATE OR REPLACE FUNCTION trg_fn_sinhvien_rbtv16()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_nd_trang_thai BOOLEAN;
+BEGIN
+    -- Chỉ kiểm tra nếu sinh viên này đã từng lập Phiếu đăng ký
+    IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaSv" = NEW."MaSv") THEN
+        
+        -- Nếu định đổi trạng thái khác 'Đang học'
+        IF NEW."TrangThai" IS DISTINCT FROM 'Đang học' THEN
+            RAISE EXCEPTION 'Lỗi RBTV16: Sinh viên % đã có phiếu đăng ký, không thể chuyển trạng thái thành "%".', NEW."MaSv", NEW."TrangThai";
+        END IF;
+
+        -- Nếu cập nhật lại Mã tài khoản
+        IF NEW."MaTaiKhoan" IS NOT NULL THEN
+            SELECT "TrangThai" INTO v_nd_trang_thai
+            FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan";
+
+            IF v_nd_trang_thai = FALSE THEN
+                RAISE EXCEPTION 'Lỗi RBTV16: Sinh viên % đã có phiếu đăng ký, không thể gán một tài khoản đang bị khóa.', NEW."MaSv";
+            END IF;
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_sinhvien_rbtv16
+AFTER UPDATE OF "TrangThai", "MaTaiKhoan" ON "SINHVIEN"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_sinhvien_rbtv16();
+
+CREATE OR REPLACE FUNCTION trg_fn_nguoidung_rbtv16()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Nếu thao tác là khóa tài khoản (TRUE -> FALSE)
+    IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
+        IF EXISTS (
+            SELECT 1 FROM "SINHVIEN" sv
+            JOIN "PHIEUDANGKY" pdk ON sv."MaSv" = pdk."MaSv"
+            WHERE sv."MaTaiKhoan" = NEW."MaTaiKhoan"
+        ) THEN
+            RAISE EXCEPTION 'Lỗi RBTV16: Không thể khóa tài khoản % vì sinh viên sở hữu đang có phiếu đăng ký.', NEW."TenDangNhap";
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_nguoidung_rbtv16
+AFTER UPDATE OF "TrangThai" ON "NGUOIDUNG"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_nguoidung_rbtv16();
+

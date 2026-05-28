@@ -1,0 +1,1729 @@
+--RBTV 08
+-- Tạo function xử lý logic kiểm tra RBTV08 (Điều kiện nới lỏng)
+CREATE OR REPLACE FUNCTION fn_check_rbtv08_namhoc_relaxed()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Kiểm tra điều kiện NamKetThuc phải lớn hơn NamBatDau
+    IF NEW."NamKetThuc" <= NEW."NamBatDau" THEN
+        RAISE EXCEPTION 'Vi phạm RBTV08: Năm kết thúc (%) phải lớn hơn năm bắt đầu (%).', NEW."NamKetThuc", NEW."NamBatDau";
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Tạo trigger gắn vào bảng NAMHOC
+DROP TRIGGER IF EXISTS trg_rbtv08_namhoc_relaxed ON "NAMHOC";
+
+CREATE TRIGGER trg_rbtv08_namhoc_relaxed
+BEFORE INSERT OR UPDATE OF "NamBatDau", "NamKetThuc"
+ON "NAMHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv08_namhoc_relaxed();
+--RBTV 09
+-- Tạo function xử lý cho bảng HOCKY
+CREATE OR REPLACE FUNCTION fn_check_rbtv09_hocky()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* 1. Kiểm tra thứ tự theo loại học kỳ */
+    IF NEW."LoaiHocKy" = 'Chính' AND NEW."ThuTu" NOT IN (1, 2) THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ Chính phải có ThuTu là 1 hoặc 2.';
+    END IF;
+
+    IF NEW."LoaiHocKy" = 'Hè' AND NEW."ThuTu" != 3 THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ Hè phải có ThuTu là 3.';
+    END IF;
+
+    /* 2. Kiểm tra tính duy nhất UNIQUE(MaNamHoc, ThuTu) */
+    IF EXISTS (
+        SELECT 1 FROM "HOCKY"
+        WHERE "MaNamHoc" = NEW."MaNamHoc"
+          AND "ThuTu" = NEW."ThuTu"
+          AND "MaHocKy" IS DISTINCT FROM NEW."MaHocKy"
+    ) THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ có thứ tự % đã tồn tại trong năm học %.', NEW."ThuTu", NEW."MaNamHoc";
+    END IF;
+
+    /* 3. Kiểm tra logic các mốc thời gian (bỏ qua nếu dữ liệu NULL) */
+    IF NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
+        IF NEW."NgayBatDau" >= NEW."NgayKetThuc" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDau phải nhỏ hơn NgayKetThuc.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
+        IF NEW."NgayBatDauDangKy" > NEW."NgayKetThucDangKy" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn hoặc bằng NgayKetThucDangKy.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
+        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayKetThuc (kiểu DATE) */
+        IF NEW."NgayKetThucDangKy"::DATE > NEW."NgayKetThuc" THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy không được lớn hơn NgayKetThuc.';
+        END IF;
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải lớn hơn hoặc bằng NgayBatDau.';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng HOCKY
+CREATE TRIGGER trg_rbtv09_hocky_ins_upd
+BEFORE INSERT OR UPDATE ON "HOCKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv09_hocky();
+-- Tạo function xử lý cho bảng NAMHOC
+CREATE OR REPLACE FUNCTION fn_check_rbtv09_namhoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Kiểm tra nếu người dùng đổi MaNamHoc sang một mã khác có sẵn, 
+     đảm bảo không bị gộp/trùng (UNIQUE MaNamHoc, ThuTu) ở bảng HOCKY.
+    */
+    IF NEW."MaNamHoc" IS DISTINCT FROM OLD."MaNamHoc" THEN
+        IF EXISTS (
+            SELECT "ThuTu"
+            FROM "HOCKY"
+            WHERE "MaNamHoc" = NEW."MaNamHoc"
+            GROUP BY "ThuTu"
+            HAVING COUNT(*) > 1
+        ) THEN
+            RAISE EXCEPTION 'RBTV09: Thay đổi MaNamHoc dẫn đến trùng lặp thứ tự học kỳ bên bảng HOCKY.';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng NAMHOC
+CREATE TRIGGER trg_rbtv09_namhoc_upd
+AFTER UPDATE OF "MaNamHoc" ON "NAMHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv09_namhoc();
+--RBTV10
+-- Tạo function xử lý cho bảng LOP
+CREATE OR REPLACE FUNCTION fn_check_rbtv10_lop()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Kiểm tra SoLuongToiDa phải dương (> 0) */
+    IF NEW."SoLuongToiDa" IS NOT NULL AND NEW."SoLuongToiDa" <= 0 THEN
+        RAISE EXCEPTION 'RBTV10: Sĩ số tối đa của lớp (%) phải lớn hơn 0.', NEW."SoLuongToiDa";
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LOP
+CREATE TRIGGER trg_rbtv10_lop_ins_upd
+BEFORE INSERT OR UPDATE OF "SoLuongToiDa" ON "LOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv10_lop();
+--RBTV11
+CREATE OR REPLACE FUNCTION fn_check_rbtv11_lichhoclop()
+RETURNS TRIGGER AS $$
+DECLARE
+    thu_tu_bat_dau INTEGER;
+    thu_tu_ket_thuc INTEGER;
+BEGIN
+    /* Lấy giá trị ThuTu của tiết bắt đầu từ bảng TIETHOC */
+    SELECT "ThuTu" INTO thu_tu_bat_dau
+    FROM "TIETHOC"
+    WHERE "MaTiet" = NEW."MaTietBatDau";
+
+    /* Lấy giá trị ThuTu của tiết kết thúc từ bảng TIETHOC */
+    SELECT "ThuTu" INTO thu_tu_ket_thuc
+    FROM "TIETHOC"
+    WHERE "MaTiet" = NEW."MaTietKetThuc";
+
+    /* Kiểm tra ràng buộc: Thứ tự tiết bắt đầu <= Thứ tự tiết kết thúc */
+    IF thu_tu_bat_dau > thu_tu_ket_thuc THEN
+        RAISE EXCEPTION 'RBTV11: Tiết bắt đầu (thứ tự %) không được sau tiết kết thúc (thứ tự %).', thu_tu_bat_dau, thu_tu_ket_thuc;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv11_lichhoclop_ins_upd
+BEFORE INSERT OR UPDATE OF "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv11_lichhoclop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv11_tiethoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra nếu giá trị ThuTu thực sự bị thay đổi */
+    IF NEW."ThuTu" IS DISTINCT FROM OLD."ThuTu" THEN
+        
+        /* Trường hợp 1: Tiết đang sửa đóng vai trò là MaTietBatDau trong LICHHOCLOP.
+           Thứ tự mới của nó không được lớn hơn thứ tự của tiết kết thúc tương ứng. 
+        */
+        IF EXISTS (
+            SELECT 1
+            FROM "LICHHOCLOP" l
+            JOIN "TIETHOC" t_kt ON l."MaTietKetThuc" = t_kt."MaTiet"
+            WHERE l."MaTietBatDau" = NEW."MaTiet"
+              AND NEW."ThuTu" > t_kt."ThuTu"
+        ) THEN
+            RAISE EXCEPTION 'RBTV11: Việc cập nhật ThuTu làm vi phạm lịch học hiện tại (tiết bắt đầu sau tiết kết thúc).';
+        END IF;
+
+        /* Trường hợp 2: Tiết đang sửa đóng vai trò là MaTietKetThuc trong LICHHOCLOP.
+           Thứ tự mới của nó không được nhỏ hơn thứ tự của tiết bắt đầu tương ứng.
+        */
+        IF EXISTS (
+            SELECT 1
+            FROM "LICHHOCLOP" l
+            JOIN "TIETHOC" t_bd ON l."MaTietBatDau" = t_bd."MaTiet"
+            WHERE l."MaTietKetThuc" = NEW."MaTiet"
+              AND t_bd."ThuTu" > NEW."ThuTu"
+        ) THEN
+            RAISE EXCEPTION 'RBTV11: Việc cập nhật ThuTu làm vi phạm lịch học hiện tại (tiết kết thúc trước tiết bắt đầu).';
+        END IF;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv11_tiethoc_upd
+BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv11_tiethoc();
+--RBTV12
+CREATE OR REPLACE FUNCTION fn_check_rbtv12_lichhoclop()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_bd_thutu INT;
+    new_kt_thutu INT;
+BEGIN
+    /* 1. Lấy thứ tự (ThuTu) của tiết bắt đầu và tiết kết thúc của dòng đang thao tác */
+    SELECT "ThuTu" INTO new_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
+    SELECT "ThuTu" INTO new_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
+
+    /* 2. Kiểm tra xem có dòng nào khác cùng LopMoId, cùng ThuTrongTuan mà bị giao khoảng tiết hay không */
+    IF EXISTS (
+        SELECT 1 
+        FROM "LICHHOCLOP" lh
+        JOIN "TIETHOC" bd ON lh."MaTietBatDau" = bd."MaTiet"
+        JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
+        WHERE lh."LopMoId" = NEW."LopMoId"
+          AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          -- Loại trừ chính dòng hiện tại khi thực hiện thao tác UPDATE
+          AND lh.id IS DISTINCT FROM NEW.id
+          -- Công thức kiểm tra giao nhau: bd1.ThuTu <= kt2.ThuTu AND bd2.ThuTu <= kt1.ThuTu
+          AND new_bd_thutu <= kt."ThuTu"
+          AND bd."ThuTu" <= new_kt_thutu
+    ) THEN
+        RAISE EXCEPTION 'RBTV12: Lớp mở này đã có lịch học khác trùng/giao khoảng tiết vào Thứ %.', NEW."ThuTrongTuan";
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LICHHOCLOP
+CREATE TRIGGER trg_rbtv12_lichhoclop_ins_upd
+BEFORE INSERT OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv12_lichhoclop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv12_tiethoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ xử lý kiểm tra nếu thứ tự của tiết học thực sự bị thay đổi */
+    IF NEW."ThuTu" IS DISTINCT FROM OLD."ThuTu" THEN
+        
+        /* Kiểm tra xem việc đổi thứ tự tiết này có làm bất kỳ lớp mở nào bị tự trùng lịch hay không */
+        IF EXISTS (
+            SELECT 1
+            -- Tự bắt cặp nối lhl1 và lhl2 để tìm cặp lịch học bị xung đột trong cùng một lớp mở
+            FROM "LICHHOCLOP" lh1
+            JOIN "LICHHOCLOP" lh2 ON lh1."LopMoId" = lh2."LopMoId" 
+                                 AND lh1."ThuTrongTuan" = lh2."ThuTrongTuan" 
+                                 AND lh1.id < lh2.id
+            -- Tham chiếu thứ tự của ca học thứ nhất
+            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
+            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
+            -- Tham chiếu thứ tự của ca học thứ hai
+            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
+            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
+            WHERE 
+                -- Áp dụng giá trị ThuTu mới nếu mã tiết trùng với tiết vừa sửa, ngược lại giữ nguyên ThuTu cũ
+                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <= 
+                (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+                AND
+                (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <= 
+                (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+        ) THEN
+            RAISE EXCEPTION 'RBTV12: Không thể sửa ThuTu của tiết học này vì sẽ gián tiếp làm trùng lịch của một lớp mở đang vận hành.';
+        END IF;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng TIETHOC
+CREATE TRIGGER trg_rbtv12_tiethoc_upd
+BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv12_tiethoc();
+--RBTV13
+CREATE OR REPLACE FUNCTION fn_check_rbtv13_lichhoclop()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_mahocky VARCHAR(15);
+    v_trangthai BOOLEAN;
+    v_bd_thutu INT;
+    v_kt_thutu INT;
+BEGIN
+    /* Bỏ qua kiểm tra nếu lịch học chưa được xếp phòng */
+    IF NEW."PhongHoc" IS NULL OR TRIM(NEW."PhongHoc") = '' THEN
+        RETURN NEW;
+    END IF;
+
+    /* Lấy thông tin Học kỳ và Trạng thái của Lớp mở hiện tại */
+    SELECT "MaHocKy", "TrangThai" INTO v_mahocky, v_trangthai
+    FROM "LOPMO"
+    WHERE id = NEW."LopMoId";
+
+    /* Bỏ qua nếu lớp mở này đã ngừng hoạt động */
+    IF NOT v_trangthai THEN
+        RETURN NEW;
+    END IF;
+
+    /* Lấy thứ tự (ThuTu) của tiết bắt đầu và kết thúc */
+    SELECT "ThuTu" INTO v_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
+    SELECT "ThuTu" INTO v_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
+
+    /* Kiểm tra trùng phòng học (Giao nhau về thời gian, cùng phòng, cùng thứ, cùng học kỳ) */
+    IF EXISTS (
+        SELECT 1
+        FROM "LICHHOCLOP" lh
+        JOIN "LOPMO" lm ON lh."LopMoId" = lm.id
+        JOIN "TIETHOC" bd ON lh."MaTietBatDau" = bd."MaTiet"
+        JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
+        WHERE lh.id IS DISTINCT FROM NEW.id -- Loại trừ chính nó khi UPDATE
+          AND lh."PhongHoc" = NEW."PhongHoc"
+          AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          AND lm."MaHocKy" = v_mahocky
+          AND lm."TrangThai" = TRUE -- Chỉ xét các lớp đang hoạt động
+          -- Công thức kiểm tra giao khoảng tiết
+          AND v_bd_thutu <= kt."ThuTu"
+          AND bd."ThuTu" <= v_kt_thutu
+    ) THEN
+        RAISE EXCEPTION 'RBTV13: Phòng % đã có lớp khác học vào Thứ % (Học kỳ %).', NEW."PhongHoc", NEW."ThuTrongTuan", v_mahocky;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv13_lichhoclop_ins_upd
+BEFORE INSERT OR UPDATE OF "PhongHoc", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "LopMoId" ON "LICHHOCLOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv13_lichhoclop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv13_lopmo()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra nếu lớp chuyển sang trạng thái HOẠT ĐỘNG, 
+       và có sự thay đổi về Học kỳ hoặc Trạng thái. */
+    IF NEW."TrangThai" = TRUE AND (NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai" OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy") THEN
+        
+        IF EXISTS (
+            SELECT 1
+            FROM "LICHHOCLOP" lh1
+            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
+            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
+            -- Tìm lịch học của lớp khác cùng phòng, cùng thứ
+            JOIN "LICHHOCLOP" lh2 ON lh1."PhongHoc" = lh2."PhongHoc" 
+                                 AND lh1."ThuTrongTuan" = lh2."ThuTrongTuan"
+                                 AND lh1.id <> lh2.id
+            JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
+            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
+            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
+            WHERE lh1."LopMoId" = NEW.id
+              AND lh1."PhongHoc" IS NOT NULL AND TRIM(lh1."PhongHoc") <> ''
+              AND lm2."MaHocKy" = NEW."MaHocKy"
+              AND lm2."TrangThai" = TRUE
+              -- Công thức kiểm tra giao khoảng tiết
+              AND bd1."ThuTu" <= kt2."ThuTu"
+              AND bd2."ThuTu" <= kt1."ThuTu"
+        ) THEN
+            RAISE EXCEPTION 'RBTV13: Cập nhật thông tin lớp mở (%) gây trùng lịch phòng học trong học kỳ %.', NEW.id, NEW."MaHocKy";
+        END IF;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv13_lopmo_upd
+BEFORE UPDATE OF "MaHocKy", "TrangThai" ON "LOPMO"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv13_lopmo();
+CREATE OR REPLACE FUNCTION fn_check_rbtv13_tiethoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ quét lại hệ thống nếu ThuTu thực sự bị thay đổi */
+    IF NEW."ThuTu" IS DISTINCT FROM OLD."ThuTu" THEN
+        
+        IF EXISTS (
+            SELECT 1
+            FROM "LICHHOCLOP" lh1
+            JOIN "LOPMO" lm1 ON lh1."LopMoId" = lm1.id
+            -- Tìm cặp lịch học bất kỳ trùng phòng, trùng thứ
+            JOIN "LICHHOCLOP" lh2 ON lh1."PhongHoc" = lh2."PhongHoc"
+                                  AND lh1."ThuTrongTuan" = lh2."ThuTrongTuan"
+                                  AND lh1.id < lh2.id -- id < id để tránh bắt chéo 2 lần
+            JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
+            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
+            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
+            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
+            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
+            WHERE lh1."PhongHoc" IS NOT NULL AND TRIM(lh1."PhongHoc") <> ''
+              AND lm1."MaHocKy" = lm2."MaHocKy" -- Cùng học kỳ
+              AND lm1."TrangThai" = TRUE 
+              AND lm2."TrangThai" = TRUE -- Các lớp đều đang hoạt động
+              -- Gắn ThuTu mới vào phép so sánh nếu mã tiết khớp với tiết đang sửa
+              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <= 
+                  (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <= 
+                  (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+        ) THEN
+            RAISE EXCEPTION 'RBTV13: Sửa ThuTu của tiết học này gián tiếp làm trùng phòng học giữa các lớp đang hoạt động.';
+        END IF;
+
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv13_tiethoc_upd
+BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv13_tiethoc();
+--RBTV14
+CREATE OR REPLACE FUNCTION fn_check_rbtv14_lichhoclop()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_mahocky VARCHAR(15);
+    v_giangvien VARCHAR(100);
+    v_trangthai BOOLEAN;
+    v_bd_thutu INT;
+    v_kt_thutu INT;
+BEGIN
+    /* Lấy thông tin Học kỳ, Trạng thái lớp mở và Giảng viên */
+    SELECT lm."MaHocKy", lm."TrangThai", l."GiangVien" 
+    INTO v_mahocky, v_trangthai, v_giangvien
+    FROM "LOPMO" lm
+    JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+    WHERE lm.id = NEW."LopMoId";
+
+    /* Bỏ qua nếu không có giảng viên hoặc lớp mở đang bị vô hiệu hóa */
+    IF v_giangvien IS NULL OR TRIM(v_giangvien) = '' OR NOT v_trangthai THEN
+        RETURN NEW;
+    END IF;
+
+    /* Lấy thứ tự (ThuTu) của tiết bắt đầu và kết thúc */
+    SELECT "ThuTu" INTO v_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
+    SELECT "ThuTu" INTO v_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
+
+    /* Kiểm tra xem giảng viên có bị trùng lịch trong cùng học kỳ không */
+    IF EXISTS (
+        SELECT 1
+        FROM "LICHHOCLOP" lh
+        JOIN "LOPMO" lm ON lh."LopMoId" = lm.id
+        JOIN "LOP" l ON lm."MaLop" = l."MaLop"
+        JOIN "TIETHOC" bd ON lh."MaTietBatDau" = bd."MaTiet"
+        JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
+        WHERE lh.id IS DISTINCT FROM NEW.id 
+          AND l."GiangVien" = v_giangvien
+          AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          AND lm."MaHocKy" = v_mahocky
+          AND lm."TrangThai" = TRUE
+          -- Công thức kiểm tra giao khoảng tiết
+          AND v_bd_thutu <= kt."ThuTu"
+          AND bd."ThuTu" <= v_kt_thutu
+    ) THEN
+        RAISE EXCEPTION 'RBTV14: Giảng viên % đã có lịch dạy trùng thời gian vào Thứ % (Học kỳ %).', v_giangvien, NEW."ThuTrongTuan", v_mahocky;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv14_lichhoclop_ins_upd
+BEFORE INSERT OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv14_lichhoclop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv14_lop()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra nếu tên giảng viên có sự thay đổi và không rỗng */
+    IF NEW."GiangVien" IS NOT NULL AND TRIM(NEW."GiangVien") <> '' 
+       AND NEW."GiangVien" IS DISTINCT FROM OLD."GiangVien" THEN
+        
+        IF EXISTS (
+            SELECT 1
+            -- Các ca học thuộc về lớp đang được cập nhật giảng viên
+            FROM "LICHHOCLOP" lh1
+            JOIN "LOPMO" lm1 ON lh1."LopMoId" = lm1.id
+            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
+            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
+            -- Tham chiếu với các ca học của các lớp khác do chính GV này dạy
+            JOIN "LICHHOCLOP" lh2 ON lh1."ThuTrongTuan" = lh2."ThuTrongTuan" AND lh1.id <> lh2.id
+            JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
+            JOIN "LOP" l2 ON lm2."MaLop" = l2."MaLop"
+            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
+            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
+            WHERE lm1."MaLop" = NEW."MaLop" 
+              AND lm1."TrangThai" = TRUE
+              AND lm2."TrangThai" = TRUE
+              AND lm1."MaHocKy" = lm2."MaHocKy"
+              AND l2."GiangVien" = NEW."GiangVien"
+              -- Công thức kiểm tra giao khoảng tiết
+              AND bd1."ThuTu" <= kt2."ThuTu"
+              AND bd2."ThuTu" <= kt1."ThuTu"
+        ) THEN
+            RAISE EXCEPTION 'RBTV14: Việc phân công giảng viên % cho lớp % gây trùng lịch dạy hiện hữu của giảng viên này.', NEW."GiangVien", NEW."MaLop";
+        END IF;
+
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv14_lop_upd
+BEFORE UPDATE OF "GiangVien" ON "LOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv14_lop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv14_lopmo()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_giangvien VARCHAR(100);
+BEGIN
+    /* Lấy tên giảng viên của lớp này */
+    SELECT "GiangVien" INTO v_giangvien FROM "LOP" WHERE "MaLop" = NEW."MaLop";
+
+    /* Tiến hành kiểm tra nếu lớp có giảng viên và lớp đang được kích hoạt hoặc dời học kỳ */
+    IF v_giangvien IS NOT NULL AND TRIM(v_giangvien) <> '' 
+       AND NEW."TrangThai" = TRUE 
+       AND (NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai" OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy") THEN
+        
+        IF EXISTS (
+            SELECT 1
+            FROM "LICHHOCLOP" lh1
+            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
+            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
+            JOIN "LICHHOCLOP" lh2 ON lh1."ThuTrongTuan" = lh2."ThuTrongTuan" AND lh1.id <> lh2.id
+            JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
+            JOIN "LOP" l2 ON lm2."MaLop" = l2."MaLop"
+            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
+            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
+            WHERE lh1."LopMoId" = NEW.id
+              AND lm2."TrangThai" = TRUE
+              AND lm2."MaHocKy" = NEW."MaHocKy"
+              AND l2."GiangVien" = v_giangvien
+              -- Công thức kiểm tra giao khoảng tiết
+              AND bd1."ThuTu" <= kt2."ThuTu"
+              AND bd2."ThuTu" <= kt1."ThuTu"
+        ) THEN
+            RAISE EXCEPTION 'RBTV14: Cập nhật lớp mở % gây trùng lịch dạy của giảng viên % trong học kỳ %.', NEW.id, v_giangvien, NEW."MaHocKy";
+        END IF;
+
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv14_lopmo_upd
+BEFORE UPDATE OF "MaHocKy", "TrangThai" ON "LOPMO"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv14_lopmo();
+CREATE OR REPLACE FUNCTION fn_check_rbtv14_tiethoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ quét lại hệ thống nếu ThuTu thực sự bị cập nhật */
+    IF NEW."ThuTu" IS DISTINCT FROM OLD."ThuTu" THEN
+        IF EXISTS (
+            SELECT 1
+            FROM "LICHHOCLOP" lh1
+            JOIN "LOPMO" lm1 ON lh1."LopMoId" = lm1.id
+            JOIN "LOP" l1 ON lm1."MaLop" = l1."MaLop"
+            -- Bắt cặp với các lịch học khác để tìm xung đột
+            JOIN "LICHHOCLOP" lh2 ON lh1."ThuTrongTuan" = lh2."ThuTrongTuan" AND lh1.id < lh2.id
+            JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
+            JOIN "LOP" l2 ON lm2."MaLop" = l2."MaLop"
+            
+            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
+            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
+            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
+            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
+            
+            WHERE l1."GiangVien" IS NOT NULL AND TRIM(l1."GiangVien") <> ''
+              AND l1."GiangVien" = l2."GiangVien"
+              AND lm1."MaHocKy" = lm2."MaHocKy"
+              AND lm1."TrangThai" = TRUE 
+              AND lm2."TrangThai" = TRUE
+              -- Gắn ThuTu mới vào phép đối chiếu
+              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <= 
+                  (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <= 
+                  (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+        ) THEN
+            RAISE EXCEPTION 'RBTV14: Sửa ThuTu của tiết học này gián tiếp làm trùng lịch dạy của giảng viên.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv14_tiethoc_upd
+BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv14_tiethoc();
+--RBTV15
+CREATE OR REPLACE FUNCTION fn_check_rbtv15_lichhoclop()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_malop VARCHAR(20);
+    v_mahocky VARCHAR(15);
+BEGIN
+    /* Lấy MaLop và MaHocKy của lớp mở đang bị ảnh hưởng (dựa trên dữ liệu cũ OLD) */
+    SELECT "MaLop", "MaHocKy" INTO v_malop, v_mahocky
+    FROM "LOPMO"
+    WHERE id = OLD."LopMoId";
+
+    /* Kiểm tra xem lớp mở này đã có sinh viên nào đăng ký thành công chưa */
+    IF EXISTS (
+        SELECT 1
+        FROM "CHITIETDANGKY" ctdk
+        JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+        WHERE ctdk."MaLop" = v_malop
+          AND pdk."MaHocKy" = v_mahocky
+          AND ctdk."TrangThai" = 'Đã đăng ký'
+    ) THEN
+        RAISE EXCEPTION 'RBTV15: Không thể sửa hoặc xóa lịch học. Lớp % trong học kỳ % đã có sinh viên đăng ký.', v_malop, v_mahocky;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LICHHOCLOP
+CREATE TRIGGER trg_rbtv15_lichhoclop_del_upd
+BEFORE DELETE OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc" 
+ON "LICHHOCLOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv15_lichhoclop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv15_lopmo()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra nếu thực sự có sự thay đổi về mã lớp hoặc mã học kỳ */
+    IF NEW."MaLop" IS DISTINCT FROM OLD."MaLop" OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy" THEN
+        
+        /* Kiểm tra xem lớp mở này có đang chứa lịch học nào không */
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE "LopMoId" = OLD.id) THEN
+            
+            /* Nếu có lịch học, tiếp tục kiểm tra xem đã có sinh viên đăng ký chưa */
+            IF EXISTS (
+                SELECT 1
+                FROM "CHITIETDANGKY" ctdk
+                JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+                WHERE ctdk."MaLop" = OLD."MaLop"
+                  AND pdk."MaHocKy" = OLD."MaHocKy"
+                  AND ctdk."TrangThai" = 'Đã đăng ký'
+            ) THEN
+                RAISE EXCEPTION 'RBTV15: Không thể đổi MaLop hoặc MaHocKy vì lớp mở này đang chứa lịch học và đã có sinh viên chốt đăng ký.';
+            END IF;
+            
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LOPMO
+CREATE TRIGGER trg_rbtv15_lopmo_upd
+BEFORE UPDATE OF "MaLop", "MaHocKy" ON "LOPMO"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv15_lopmo();
+--RBTV17
+CREATE OR REPLACE FUNCTION fn_check_rbtv17_phieudangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ngaybatdau TIMESTAMP;
+    v_ngayketthuc TIMESTAMP;
+    v_trangthai VARCHAR(20);
+BEGIN
+    /* Lấy thông tin thời gian và trạng thái của học kỳ */
+    SELECT "NgayBatDauDangKy", "NgayKetThucDangKy", "TrangThai"
+    INTO v_ngaybatdau, v_ngayketthuc, v_trangthai
+    FROM "HOCKY"
+    WHERE "MaHocKy" = NEW."MaHocKy";
+
+    /* Kiểm tra điều kiện thời gian và trạng thái */
+    IF CURRENT_TIMESTAMP < v_ngaybatdau OR CURRENT_TIMESTAMP > v_ngayketthuc OR v_trangthai = 'Đã kết thúc' THEN
+        RAISE EXCEPTION 'RBTV17: Không thể tạo phiếu đăng ký. Hiện tại không nằm trong thời gian đăng ký hoặc học kỳ đã kết thúc.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng PHIEUDANGKY
+CREATE TRIGGER trg_rbtv17_phieudangky_ins
+BEFORE INSERT ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv17_phieudangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv17_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ngaybatdau TIMESTAMP;
+    v_ngayketthuc TIMESTAMP;
+    v_trangthai VARCHAR(20);
+BEGIN
+    /* Lấy thông tin thời gian của học kỳ thông qua PhieuDangKy */
+    SELECT hk."NgayBatDauDangKy", hk."NgayKetThucDangKy", hk."TrangThai"
+    INTO v_ngaybatdau, v_ngayketthuc, v_trangthai
+    FROM "PHIEUDANGKY" pdk
+    JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+    WHERE pdk."SoPhieu" = NEW."SoPhieu";
+
+    /* TH 1: Thêm mới hoặc chuyển sang 'Đã đăng ký' */
+    IF NEW."TrangThai" = 'Đã đăng ký' THEN
+        IF CURRENT_TIMESTAMP < v_ngaybatdau OR CURRENT_TIMESTAMP > v_ngayketthuc OR v_trangthai = 'Đã kết thúc' THEN
+            RAISE EXCEPTION 'RBTV17: Không thể đăng ký học phần ngoài khung thời gian quy định hoặc khi học kỳ đã kết thúc.';
+        END IF;
+        
+    /* TH 2: Hủy chi tiết học phần */
+    ELSIF NEW."TrangThai" = 'Đã hủy' THEN
+        IF CURRENT_TIMESTAMP > v_ngayketthuc THEN
+            RAISE EXCEPTION 'RBTV17: Không thể hủy học phần vì đã quá hạn kết thúc đăng ký của học kỳ.';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng CHITIETDANGKY
+CREATE TRIGGER trg_rbtv17_chitietdangky_ins_upd
+BEFORE INSERT OR UPDATE OF "TrangThai" ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv17_chitietdangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv17_hocky()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra khi có sự thay đổi thực sự về các cột thời gian hoặc trạng thái */
+    IF NEW."NgayBatDauDangKy" IS DISTINCT FROM OLD."NgayBatDauDangKy"
+       OR NEW."NgayKetThucDangKy" IS DISTINCT FROM OLD."NgayKetThucDangKy"
+       OR NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai" THEN
+
+        /* 1. Kiểm tra mâu thuẫn với ngày lập của các Phiếu đăng ký hiện tại */
+        IF EXISTS (
+            SELECT 1 FROM "PHIEUDANGKY"
+            WHERE "MaHocKy" = NEW."MaHocKy"
+              AND ("NgayLap" < NEW."NgayBatDauDangKy" OR "NgayLap" > NEW."NgayKetThucDangKy" OR NEW."TrangThai" = 'Đã kết thúc')
+        ) THEN
+            RAISE EXCEPTION 'RBTV17: Không thể cập nhật học kỳ. Thời gian/Trạng thái mới gây mâu thuẫn với Ngày lập của các phiếu đăng ký hiện có.';
+        END IF;
+
+        /* 2. Kiểm tra mâu thuẫn với các Chi tiết Đã đăng ký */
+        IF EXISTS (
+            SELECT 1
+            FROM "CHITIETDANGKY" ctdk
+            JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+            WHERE pdk."MaHocKy" = NEW."MaHocKy"
+              AND ctdk."TrangThai" = 'Đã đăng ký'
+              AND (ctdk."NgayDangKy" < NEW."NgayBatDauDangKy" OR ctdk."NgayDangKy" > NEW."NgayKetThucDangKy" OR NEW."TrangThai" = 'Đã kết thúc')
+        ) THEN
+            RAISE EXCEPTION 'RBTV17: Không thể cập nhật học kỳ. Thời gian mới gây mâu thuẫn với các chi tiết môn học đã đăng ký.';
+        END IF;
+        
+        /* 3. Kiểm tra mâu thuẫn với các Chi tiết Đã hủy */
+        IF EXISTS (
+            SELECT 1
+            FROM "CHITIETDANGKY" ctdk
+            JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+            WHERE pdk."MaHocKy" = NEW."MaHocKy"
+              AND ctdk."TrangThai" = 'Đã hủy'
+              AND ctdk."NgayHuy" > NEW."NgayKetThucDangKy"
+        ) THEN
+            RAISE EXCEPTION 'RBTV17: Không thể cập nhật học kỳ. Thời gian kết thúc mới gây mâu thuẫn với các chi tiết môn học đã bị hủy trước đó.';
+        END IF;
+        
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng HOCKY
+CREATE TRIGGER trg_rbtv17_hocky_upd
+BEFORE UPDATE OF "NgayBatDauDangKy", "NgayKetThucDangKy", "TrangThai" ON "HOCKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv17_hocky();
+--RBTV18
+CREATE OR REPLACE FUNCTION fn_check_rbtv18_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_mahocky VARCHAR(15);
+BEGIN
+    /* Chỉ kiểm tra nếu trạng thái của chi tiết là 'Đã đăng ký' */
+    IF NEW."TrangThai" = 'Đã đăng ký' THEN
+        
+        /* Lấy MaHocKy từ phiếu đăng ký tương ứng */
+        SELECT "MaHocKy" INTO v_mahocky
+        FROM "PHIEUDANGKY"
+        WHERE "SoPhieu" = NEW."SoPhieu";
+
+        /* Kiểm tra sự tồn tại của lớp mở tương ứng */
+        IF NOT EXISTS (
+            SELECT 1 
+            FROM "LOPMO"
+            WHERE "MaHocKy" = v_mahocky
+              AND "MaLop" = NEW."MaLop"
+              AND "TrangThai" = TRUE
+        ) THEN
+            RAISE EXCEPTION 'RBTV18: Lớp % không được mở hoặc đã bị đóng trong học kỳ %.', NEW."MaLop", v_mahocky;
+        END IF;
+
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng CHITIETDANGKY
+CREATE TRIGGER trg_rbtv18_chitietdangky_ins_upd
+BEFORE INSERT OR UPDATE OF "MaLop", "SoPhieu", "TrangThai" ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv18_chitietdangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv18_phieudangky()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra nếu thực sự có sự thay đổi về học kỳ */
+    IF NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy" THEN
+        
+        /* Kiểm tra xem có chi tiết đăng ký nào bị thiếu lớp mở tương ứng ở học kỳ mới không */
+        IF EXISTS (
+            SELECT 1
+            FROM "CHITIETDANGKY" ctdk
+            WHERE ctdk."SoPhieu" = NEW."SoPhieu"
+              AND ctdk."TrangThai" = 'Đã đăng ký'
+              AND NOT EXISTS (
+                  SELECT 1 
+                  FROM "LOPMO" lm
+                  WHERE lm."MaLop" = ctdk."MaLop"
+                    AND lm."MaHocKy" = NEW."MaHocKy"
+                    AND lm."TrangThai" = TRUE
+              )
+        ) THEN
+            RAISE EXCEPTION 'RBTV18: Không thể chuyển phiếu % sang học kỳ %. Có lớp đăng ký chưa được mở trong học kỳ này.', NEW."SoPhieu", NEW."MaHocKy";
+        END IF;
+
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng PHIEUDANGKY
+CREATE TRIGGER trg_rbtv18_phieudangky_upd
+BEFORE UPDATE OF "MaHocKy" ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv18_phieudangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv18_lopmo()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Xác định thao tác XÓA hoặc SỬA làm vô hiệu hóa lớp mở hiện tại */
+    IF TG_OP = 'DELETE' OR 
+       (TG_OP = 'UPDATE' AND (NEW."TrangThai" = FALSE OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy" OR NEW."MaLop" IS DISTINCT FROM OLD."MaLop")) THEN
+        
+        /* Quét xem có sinh viên nào đang giữ đăng ký môn học này ở học kỳ tương ứng không */
+        IF EXISTS (
+            SELECT 1
+            FROM "CHITIETDANGKY" ctdk
+            JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+            WHERE ctdk."MaLop" = OLD."MaLop"
+              AND pdk."MaHocKy" = OLD."MaHocKy"
+              AND ctdk."TrangThai" = 'Đã đăng ký'
+        ) THEN
+            RAISE EXCEPTION 'RBTV18: Không thể thao tác trên lớp mở % (HK: %) vì đã có sinh viên đăng ký môn này.', OLD."MaLop", OLD."MaHocKy";
+        END IF;
+        
+    END IF;
+    
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LOPMO
+CREATE TRIGGER trg_rbtv18_lopmo_del_upd
+BEFORE DELETE OR UPDATE OF "TrangThai", "MaHocKy", "MaLop" ON "LOPMO"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv18_lopmo();
+--RBTV 19
+CREATE OR REPLACE FUNCTION fn_check_rbtv19_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_mamonhoc_goc VARCHAR(15);
+BEGIN
+    /* Lấy Mã môn học gốc của lớp tương ứng từ bảng LOP */
+    SELECT "MaMonHoc" INTO v_mamonhoc_goc
+    FROM "LOP"
+    WHERE "MaLop" = NEW."MaLop";
+
+    /* Đối chiếu với Mã môn học trong chi tiết đăng ký */
+    IF NEW."MaMonHoc" IS DISTINCT FROM v_mamonhoc_goc THEN
+        RAISE EXCEPTION 'RBTV19: Mã môn học trong chi tiết đăng ký (%) không khớp với cấu hình môn học của lớp % (%).', NEW."MaMonHoc", NEW."MaLop", v_mamonhoc_goc;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng CHITIETDANGKY
+CREATE TRIGGER trg_rbtv19_chitietdangky_ins_upd
+BEFORE INSERT OR UPDATE OF "MaLop", "MaMonHoc" ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv19_chitietdangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv19_lop()
+RETURNS TRIGGER AS $$
+BEGIN
+    /* Chỉ kiểm tra nếu thực sự có sự thay đổi về Mã môn học */
+    IF NEW."MaMonHoc" IS DISTINCT FROM OLD."MaMonHoc" THEN
+        
+        /* Kiểm tra xem có chi tiết đăng ký nào đang trỏ vào lớp này nhưng mang mã môn học cũ hay không */
+        IF EXISTS (
+            SELECT 1
+            FROM "CHITIETDANGKY"
+            WHERE "MaLop" = NEW."MaLop"
+              AND "MaMonHoc" IS DISTINCT FROM NEW."MaMonHoc"
+        ) THEN
+            RAISE EXCEPTION 'RBTV19: Không thể đổi mã môn học của lớp % sang %. Lớp này đã có chi tiết đăng ký ghi nhận theo mã môn học cũ.', NEW."MaLop", NEW."MaMonHoc";
+        END IF;
+
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LOP
+CREATE TRIGGER trg_rbtv19_lop_upd
+BEFORE UPDATE OF "MaMonHoc" ON "LOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv19_lop();
+--RBTV 20
+CREATE OR REPLACE FUNCTION fn_check_rbtv20_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_sotinchi_goc INT;
+    v_loaimon_goc VARCHAR(5);
+BEGIN
+    /* Lấy thông tin SoTinChi và LoaiMon của môn học thông qua lớp đang đăng ký */
+    SELECT mh."SoTinChi", mh."LoaiMon" 
+    INTO v_sotinchi_goc, v_loaimon_goc
+    FROM "LOP" l
+    JOIN "MONHOC" mh ON l."MaMonHoc" = mh."MaMonHoc"
+    WHERE l."MaLop" = NEW."MaLop";
+
+    /* Đối chiếu dữ liệu được truyền vào với dữ liệu gốc */
+    IF NEW."SoTinChi" IS DISTINCT FROM v_sotinchi_goc OR NEW."LoaiMon" IS DISTINCT FROM v_loaimon_goc THEN
+        RAISE EXCEPTION 'RBTV20: Dữ liệu không khớp. Lớp % yêu cầu LoaiMon là % và SoTinChi là % (Dữ liệu nhập: %, %).', 
+                        NEW."MaLop", v_loaimon_goc, v_sotinchi_goc, NEW."LoaiMon", NEW."SoTinChi";
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng CHITIETDANGKY
+CREATE TRIGGER trg_rbtv20_chitietdangky_ins_upd
+BEFORE INSERT OR UPDATE OF "MaLop", "SoTinChi", "LoaiMon" ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv20_chitietdangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv20_lop()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_sotinchi_moi INT;
+    v_loaimon_moi VARCHAR(5);
+BEGIN
+    IF NEW."MaMonHoc" IS DISTINCT FROM OLD."MaMonHoc" THEN
+        
+        /* Lấy thông tin của môn học mới vừa được gán */
+        SELECT "SoTinChi", "LoaiMon" INTO v_sotinchi_moi, v_loaimon_moi
+        FROM "MONHOC" 
+        WHERE "MaMonHoc" = NEW."MaMonHoc";
+
+        /* Quét xem có chi tiết đăng ký nào của lớp này bị mâu thuẫn với môn mới không */
+        IF EXISTS (
+            SELECT 1 
+            FROM "CHITIETDANGKY"
+            WHERE "MaLop" = NEW."MaLop"
+              AND ("SoTinChi" IS DISTINCT FROM v_sotinchi_moi OR "LoaiMon" IS DISTINCT FROM v_loaimon_moi)
+        ) THEN
+            RAISE EXCEPTION 'RBTV20: Không thể đổi môn học của lớp %. Lớp này đã có sinh viên đăng ký với Số tín chỉ/Loại môn của môn học cũ.', NEW."MaLop";
+        END IF;
+
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng LOP
+CREATE TRIGGER trg_rbtv20_lop_upd
+BEFORE UPDATE OF "MaMonHoc" ON "LOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv20_lop();
+CREATE OR REPLACE FUNCTION fn_check_rbtv20_monhoc()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_sotinchi_moi INT;
+BEGIN
+    IF NEW."LoaiMon" IS DISTINCT FROM OLD."LoaiMon" OR NEW."SoTiet" IS DISTINCT FROM OLD."SoTiet" THEN
+        
+        /* Tính toán trước số tín chỉ mới để đối chiếu (vì Trigger BEFORE chưa cập nhật cột GENERATED) */
+        IF NEW."LoaiMon" = 'LT' THEN
+            v_sotinchi_moi := NEW."SoTiet" / 15;
+        ELSIF NEW."LoaiMon" = 'TH' THEN
+            v_sotinchi_moi := NEW."SoTiet" / 30;
+        ELSE
+            v_sotinchi_moi := 0;
+        END IF;
+
+        /* Quét các chi tiết đăng ký đang trỏ về các lớp thuộc môn học này */
+        IF EXISTS (
+            SELECT 1
+            FROM "CHITIETDANGKY" ctdk
+            JOIN "LOP" l ON ctdk."MaLop" = l."MaLop"
+            WHERE l."MaMonHoc" = NEW."MaMonHoc"
+              AND (ctdk."SoTinChi" IS DISTINCT FROM v_sotinchi_moi OR ctdk."LoaiMon" IS DISTINCT FROM NEW."LoaiMon")
+        ) THEN
+            RAISE EXCEPTION 'RBTV20: Không thể đổi Loại môn hoặc Số tiết. Hành động này làm sai lệch Số tín chỉ/Loại môn của sinh viên đã đăng ký môn này trước đó.';
+        END IF;
+
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gắn trigger vào bảng MONHOC
+CREATE TRIGGER trg_rbtv20_monhoc_upd
+BEFORE UPDATE OF "LoaiMon", "SoTiet" ON "MONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv20_monhoc();
+--RBTV 21
+CREATE OR REPLACE FUNCTION fn_lay_don_gia(
+    p_LoaiMon VARCHAR,
+    p_LoaiGia VARCHAR,
+    p_MaHocKy VARCHAR
+) RETURNS DECIMAL AS $$
+DECLARE
+    v_DonGia DECIMAL(12,0);
+BEGIN
+    SELECT "DonGia" INTO v_DonGia
+    FROM "DONGIATINCHI"
+    WHERE "LoaiMon" = p_LoaiMon
+      AND "LoaiHoc" = p_LoaiGia
+      AND "TrangThai" = TRUE
+      AND ("MaHocKy" = p_MaHocKy OR "MaHocKy" IS NULL)
+    ORDER BY "MaHocKy" DESC NULLS LAST
+    LIMIT 1;
+
+    IF v_DonGia IS NULL THEN
+        RAISE EXCEPTION 'RBTV21: Không tìm thấy bảng giá áp dụng cho Loại môn: %, Loại học: %, Học kỳ: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
+    END IF;
+
+    RETURN v_DonGia;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION fn_check_rbtv21_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_MaHocKy VARCHAR(15);
+    v_LoaiHocKy VARCHAR(20);
+    v_LoaiGia VARCHAR(20);
+    v_DonGia_Chuan DECIMAL(12,0);
+    v_ThanhTien_Chuan DECIMAL(15,0);
+BEGIN
+    /* Lấy Học kỳ và Loại học kỳ từ Phiếu đăng ký gốc */
+    SELECT pdk."MaHocKy", hk."LoaiHocKy" INTO v_MaHocKy, v_LoaiHocKy
+    FROM "PHIEUDANGKY" pdk
+    JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+    WHERE pdk."SoPhieu" = NEW."SoPhieu";
+
+    /* BƯỚC 1: Xác định Loại Giá theo công thức */
+    IF v_LoaiHocKy = 'Hè' AND NEW."LoaiDangKy" = 'hoc_moi' THEN
+        v_LoaiGia := 'hoc_he';
+    ELSE
+        v_LoaiGia := NEW."LoaiDangKy";
+    END IF;
+
+    /* BƯỚC 2: Gọi hàm lấy Đơn giá chuẩn */
+    v_DonGia_Chuan := fn_lay_don_gia(NEW."LoaiMon", v_LoaiGia, v_MaHocKy);
+
+    /* BƯỚC 3: Tính Thành tiền chuẩn */
+    v_ThanhTien_Chuan := NEW."SoTinChi" * v_DonGia_Chuan;
+
+    /* BƯỚC 4: Đối chiếu */
+    IF NEW."DonGia" != v_DonGia_Chuan OR NEW."ThanhTien" != v_ThanhTien_Chuan THEN
+        RAISE EXCEPTION 'RBTV21: Sai lệch tài chính. Đơn giá yêu cầu: %, Thành tiền yêu cầu: % (Dữ liệu nhập: %, %)', 
+                        v_DonGia_Chuan, v_ThanhTien_Chuan, NEW."DonGia", NEW."ThanhTien";
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv21_chitietdangky_ins_upd
+BEFORE INSERT OR UPDATE OF "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "SoPhieu" ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv21_chitietdangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv21_phieudangky()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy" THEN
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "SoPhieu" = NEW."SoPhieu") THEN
+            RAISE EXCEPTION 'RBTV21: Không thể đổi Mã học kỳ. Phiếu % đã có môn đăng ký, thao tác này sẽ làm sai lệch Đơn giá và Thành tiền.', NEW."SoPhieu";
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv21_phieudangky_upd
+BEFORE UPDATE OF "MaHocKy" ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv21_phieudangky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv21_hocky()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."LoaiHocKy" IS DISTINCT FROM OLD."LoaiHocKy" THEN
+        /* Chặn nếu đã có phiếu đăng ký chứa chi tiết học phần thuộc học kỳ này */
+        IF EXISTS (
+            SELECT 1 FROM "CHITIETDANGKY" ctdk
+            JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+            WHERE pdk."MaHocKy" = NEW."MaHocKy"
+        ) THEN
+            RAISE EXCEPTION 'RBTV21: Không thể đổi Loại học kỳ. Đã có sinh viên đăng ký, thao tác này sẽ phá vỡ công thức tính Giá trị tín chỉ.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv21_hocky_upd
+BEFORE UPDATE OF "LoaiHocKy" ON "HOCKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv21_hocky();
+CREATE OR REPLACE FUNCTION fn_check_rbtv21_dongiatinchi()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."DonGia" IS DISTINCT FROM OLD."DonGia" OR NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai" THEN
+        /* Quét xem có chi tiết đăng ký nào đang phụ thuộc vào cấu hình giá cũ này không */
+        IF EXISTS (
+            SELECT 1 FROM "CHITIETDANGKY" ctdk
+            JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
+            JOIN "HOCKY" hk ON pdk."MaHocKy" = hk."MaHocKy"
+            WHERE ctdk."LoaiMon" = OLD."LoaiMon"
+              AND (CASE WHEN hk."LoaiHocKy" = 'Hè' AND ctdk."LoaiDangKy" = 'hoc_moi' THEN 'hoc_he' ELSE ctdk."LoaiDangKy" END) = OLD."LoaiHoc"
+              AND (OLD."MaHocKy" IS NULL OR pdk."MaHocKy" = OLD."MaHocKy")
+              AND ctdk."DonGia" = OLD."DonGia"
+        ) THEN
+            RAISE EXCEPTION 'RBTV21: Không thể sửa Đơn giá hoặc Trạng thái. Mức giá này đang được sử dụng trong các Phiếu đăng ký đã lưu.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv21_dongiatinchi_upd
+BEFORE UPDATE OF "DonGia", "TrangThai" ON "DONGIATINCHI"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv21_dongiatinchi();
+CREATE OR REPLACE FUNCTION fn_check_rbtv21_monhoc()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW."LoaiMon" IS DISTINCT FROM OLD."LoaiMon" OR NEW."SoTiet" IS DISTINCT FROM OLD."SoTiet" THEN
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaMonHoc" = NEW."MaMonHoc") THEN
+            RAISE EXCEPTION 'RBTV21: Không thể sửa Loại môn hoặc Số tiết. Việc này làm sai lệch công thức Đơn giá/Thành tiền của sinh viên đã đăng ký.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_rbtv21_monhoc_upd
+BEFORE UPDATE OF "LoaiMon", "SoTiet" ON "MONHOC"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv21_monhoc();
+--RBTV 24
+CREATE OR REPLACE FUNCTION fn_check_rbtv24_gioihan_tinchi()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_MaSv VARCHAR(15);
+    v_MaHocKy VARCHAR(15);
+    v_TongTinChi INTEGER := 0;
+    
+    -- Bien luu tham so he thong
+    v_SoTinChiDangKyToiDa INTEGER;
+    v_SoTinChiDangKyToiDaKhiVuot INTEGER;
+    v_NamKiemTraAnhVan INTEGER;
+    v_GioiHanTinChiChuaDatAnhVan INTEGER;
+    v_DanhSachMonAnhVanBatBuoc VARCHAR(200);
+    
+    -- Bien phuc vu logic kiem tra
+    v_GioiHanHienTai INTEGER;
+    v_NgayNhapHoc DATE;
+    v_NamBatDauHocKy INTEGER;
+    v_ThuTuHocKy INTEGER;
+    v_MaxThuTuChinh INTEGER;
+    v_NamThuHoc INTEGER;
+    v_ToiHanKiemTra BOOLEAN := FALSE;
+    v_SoMonAnhVanYeuCau INTEGER;
+    v_SoMonAnhVanDaDat INTEGER;
+BEGIN
+    -- 1. Xac dinh MaSv va MaHocKy tuong ung voi bang dang thao tac
+    IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
+        SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
+        FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+    ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
+        v_MaSv := NEW."MaSv";
+        v_MaHocKy := NEW."MaHocKy";
+    END IF;
+
+    IF v_MaSv IS NULL OR v_MaHocKy IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    -- 2. Lay cac tham so he thong
+    SELECT "SoTinChiDangKyToiDa", "SoTinChiDangKyToiDaKhiVuot", "NamKiemTraAnhVan", "GioiHanTinChiChuaDatAnhVan", "DanhSachMonAnhVanBatBuoc"
+    INTO v_SoTinChiDangKyToiDa, v_SoTinChiDangKyToiDaKhiVuot, v_NamKiemTraAnhVan, v_GioiHanTinChiChuaDatAnhVan, v_DanhSachMonAnhVanBatBuoc
+    FROM "THAMSO" WHERE id = 1;
+
+    -- 3. Tinh TongTinChiDangKy hien tai
+    SELECT COALESCE(SUM(ct."SoTinChi"), 0) INTO v_TongTinChi
+    FROM "CHITIETDANGKY" ct
+    JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
+    WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
+      AND ct."TrangThai" = 'Đã đăng ký'
+      AND (TG_TABLE_NAME <> 'CHITIETDANGKY' OR ct.id <> NEW.id);
+
+    -- Cong them tin chi cua ban ghi dang them/sua neu no co trang thai 'Đã đăng ký'
+    IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN
+        v_TongTinChi := v_TongTinChi + NEW."SoTinChi";
+    END IF;
+
+    -- 4. Kiem tra lo trinh Anh van
+    SELECT "NgayNhapHoc" INTO v_NgayNhapHoc FROM "SINHVIEN" WHERE "MaSv" = v_MaSv;
+
+    SELECT n."NamBatDau", hk."ThuTu"
+    INTO v_NamBatDauHocKy, v_ThuTuHocKy
+    FROM "HOCKY" hk
+    JOIN "NAMHOC" n ON hk."MaNamHoc" = n."MaNamHoc"
+    WHERE hk."MaHocKy" = v_MaHocKy;
+
+    -- Tinh nam hoc hien tai cua sinh vien (tu ngay nhap hoc)
+    v_NamThuHoc := v_NamBatDauHocKy - EXTRACT(YEAR FROM v_NgayNhapHoc) + 1;
+
+    -- Lay thu tu hoc ky chinh cuoi cung trong nam hoc de xet "hoc ky cuoi"
+    SELECT COALESCE(MAX(hk2."ThuTu"), 2) INTO v_MaxThuTuChinh
+    FROM "HOCKY" hk2
+    JOIN "NAMHOC" n2 ON hk2."MaNamHoc" = n2."MaNamHoc"
+    WHERE n2."NamBatDau" = v_NamBatDauHocKy AND hk2."LoaiHocKy" = 'Chính';
+
+    -- Xac dinh xem sinh vien da cham moc "hoc ky cuoi cua nam thu X" chua
+    IF v_NamThuHoc > v_NamKiemTraAnhVan OR (v_NamThuHoc = v_NamKiemTraAnhVan AND v_ThuTuHocKy >= v_MaxThuTuChinh) THEN
+        v_ToiHanKiemTra := TRUE;
+    END IF;
+
+    v_GioiHanHienTai := v_SoTinChiDangKyToiDa;
+
+    -- 5. Kiem tra danh sach mon Anh van neu da toi han
+    IF v_ToiHanKiemTra THEN
+        -- Dem so luong mon bat buoc (xu ly mang an toan loai bo khoang trang)
+        v_SoMonAnhVanYeuCau := array_length(string_to_array(REPLACE(v_DanhSachMonAnhVanBatBuoc, ' ', ''), ','), 1);
+
+        -- Dem so luong mon Anh van da 'qua_mon'
+        SELECT COUNT(DISTINCT "MaMonHoc") INTO v_SoMonAnhVanDaDat
+        FROM "MONDAHOC"
+        WHERE "MaSv" = v_MaSv
+          AND "KetQua" = 'qua_mon'
+          AND "MaMonHoc" = ANY(string_to_array(REPLACE(v_DanhSachMonAnhVanBatBuoc, ' ', ''), ','));
+
+        -- Ap dung phat neu chua du
+        IF COALESCE(v_SoMonAnhVanDaDat, 0) < COALESCE(v_SoMonAnhVanYeuCau, 0) THEN
+            v_GioiHanHienTai := v_GioiHanTinChiChuaDatAnhVan;
+        END IF;
+    END IF;
+
+    -- 6. Danh gia vi pham
+    IF v_TongTinChi > v_SoTinChiDangKyToiDaKhiVuot THEN
+        RAISE EXCEPTION 'Tong tin chi (%) vuot qua gioi han he thong cho phep (%).', v_TongTinChi, v_SoTinChiDangKyToiDaKhiVuot;
+    END IF;
+
+    IF v_TongTinChi > v_GioiHanHienTai THEN
+        RAISE EXCEPTION 'Tong tin chi (%) vuot qua gioi han (%). SV co the chua dat dieu kien Anh van bat buoc.', v_TongTinChi, v_GioiHanHienTai;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv24_chitietdangky ON "CHITIETDANGKY";
+CREATE TRIGGER trg_rbtv24_chitietdangky
+BEFORE INSERT OR UPDATE OF "TrangThai", "SoTinChi", "SoPhieu"
+ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv24_gioihan_tinchi();
+DROP TRIGGER IF EXISTS trg_rbtv24_phieudangky ON "PHIEUDANGKY";
+CREATE TRIGGER trg_rbtv24_phieudangky
+BEFORE UPDATE OF "MaSv", "MaHocKy", "TrangThai"
+ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_rbtv24_gioihan_tinchi();
+--RBTV 25
+CREATE OR REPLACE FUNCTION fn_rbtv25_sync_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_SoPhieu INTEGER;
+BEGIN
+    -- 1. Xac dinh SoPhieu can dong bo
+    IF TG_OP = 'DELETE' THEN
+        v_SoPhieu := OLD."SoPhieu";
+    ELSE
+        v_SoPhieu := NEW."SoPhieu";
+    END IF;
+
+    -- 2. Thuc hien cap nhat lai toan bo cot tong hop tren PHIEUDANGKY
+    UPDATE "PHIEUDANGKY"
+    SET 
+        "TongTinChi" = agg.tong_tc,
+        "TongTienDangKy" = agg.tong_tien,
+        "SoMonHocMoi" = agg.sm_moi,
+        "SoTinChiHocMoi" = agg.stc_moi,
+        "TienHocMoi" = agg.tien_moi,
+        "SoMonHocLai" = agg.sm_lai,
+        "SoTinChiHocLai" = agg.stc_lai,
+        "TienHocLai" = agg.tien_lai,
+        "SoMonHocCaiThien" = agg.sm_ct,
+        "SoTinChiHocCaiThien" = agg.stc_ct,
+        "TienHocCaiThien" = agg.tien_ct
+    FROM (
+        SELECT 
+            COALESCE(SUM("SoTinChi"), 0)::INTEGER AS tong_tc,
+            COALESCE(SUM("ThanhTien"), 0)::DECIMAL AS tong_tien,
+            
+            COUNT(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN 1 END)::INTEGER AS sm_moi,
+            COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN "SoTinChi" ELSE 0 END), 0)::INTEGER AS stc_moi,
+            COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN "ThanhTien" ELSE 0 END), 0)::DECIMAL AS tien_moi,
+            
+            COUNT(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN 1 END)::INTEGER AS sm_lai,
+            COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN "SoTinChi" ELSE 0 END), 0)::INTEGER AS stc_lai,
+            COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN "ThanhTien" ELSE 0 END), 0)::DECIMAL AS tien_lai,
+            
+            COUNT(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN 1 END)::INTEGER AS sm_ct,
+            COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN "SoTinChi" ELSE 0 END), 0)::INTEGER AS stc_ct,
+            COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN "ThanhTien" ELSE 0 END), 0)::DECIMAL AS tien_ct
+        FROM "CHITIETDANGKY"
+        WHERE "SoPhieu" = v_SoPhieu AND "TrangThai" = 'Đã đăng ký'
+    ) agg
+    WHERE "PHIEUDANGKY"."SoPhieu" = v_SoPhieu;
+
+    -- 3. Xu ly rieng truong hop UPDATE thay doi SoPhieu (chuyen chi tiet tu phieu cu sang phieu moi)
+    IF TG_OP = 'UPDATE' AND OLD."SoPhieu" <> NEW."SoPhieu" THEN
+        UPDATE "PHIEUDANGKY"
+        SET 
+            "TongTinChi" = agg.tong_tc,
+            "TongTienDangKy" = agg.tong_tien,
+            "SoMonHocMoi" = agg.sm_moi,
+            "SoTinChiHocMoi" = agg.stc_moi,
+            "TienHocMoi" = agg.tien_moi,
+            "SoMonHocLai" = agg.sm_lai,
+            "SoTinChiHocLai" = agg.stc_lai,
+            "TienHocLai" = agg.tien_lai,
+            "SoMonHocCaiThien" = agg.sm_ct,
+            "SoTinChiHocCaiThien" = agg.stc_ct,
+            "TienHocCaiThien" = agg.tien_ct
+        FROM (
+            SELECT 
+                COALESCE(SUM("SoTinChi"), 0)::INTEGER AS tong_tc,
+                COALESCE(SUM("ThanhTien"), 0)::DECIMAL AS tong_tien,
+                COUNT(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN 1 END)::INTEGER AS sm_moi,
+                COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN "SoTinChi" ELSE 0 END), 0)::INTEGER AS stc_moi,
+                COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN "ThanhTien" ELSE 0 END), 0)::DECIMAL AS tien_moi,
+                COUNT(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN 1 END)::INTEGER AS sm_lai,
+                COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN "SoTinChi" ELSE 0 END), 0)::INTEGER AS stc_lai,
+                COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN "ThanhTien" ELSE 0 END), 0)::DECIMAL AS tien_lai,
+                COUNT(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN 1 END)::INTEGER AS sm_ct,
+                COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN "SoTinChi" ELSE 0 END), 0)::INTEGER AS stc_ct,
+                COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN "ThanhTien" ELSE 0 END), 0)::DECIMAL AS tien_ct
+            FROM "CHITIETDANGKY"
+            WHERE "SoPhieu" = OLD."SoPhieu" AND "TrangThai" = 'Đã đăng ký'
+        ) agg
+        WHERE "PHIEUDANGKY"."SoPhieu" = OLD."SoPhieu";
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gan Trigger vao cac thao tac thay doi du lieu chi tiet
+DROP TRIGGER IF EXISTS trg_rbtv25_sync_chitietdangky ON "CHITIETDANGKY";
+CREATE TRIGGER trg_rbtv25_sync_chitietdangky
+AFTER INSERT OR DELETE OR UPDATE OF "SoPhieu", "SoTinChi", "ThanhTien", "LoaiDangKy", "TrangThai"
+ON "CHITIETDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv25_sync_chitietdangky();
+CREATE OR REPLACE FUNCTION fn_rbtv25_check_phieudangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_TongTinChi INTEGER;
+    v_TongTienDangKy DECIMAL;
+    v_SoMonHocMoi INTEGER;
+    v_SoTinChiHocMoi INTEGER;
+    v_TienHocMoi DECIMAL;
+    v_SoMonHocLai INTEGER;
+    v_SoTinChiHocLai INTEGER;
+    v_TienHocLai DECIMAL;
+    v_SoMonHocCaiThien INTEGER;
+    v_SoTinChiHocCaiThien INTEGER;
+    v_TienHocCaiThien DECIMAL;
+BEGIN
+    -- Query lai cac con so thuc te dang ton tai o CHITIETDANGKY
+    SELECT 
+        COALESCE(SUM("SoTinChi"), 0),
+        COALESCE(SUM("ThanhTien"), 0),
+        COUNT(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN 1 END),
+        COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN "SoTinChi" ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_moi' THEN "ThanhTien" ELSE 0 END), 0),
+        COUNT(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN 1 END),
+        COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN "SoTinChi" ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_lai' THEN "ThanhTien" ELSE 0 END), 0),
+        COUNT(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN 1 END),
+        COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN "SoTinChi" ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN "LoaiDangKy" = 'hoc_cai_thien' THEN "ThanhTien" ELSE 0 END), 0)
+    INTO 
+        v_TongTinChi, v_TongTienDangKy,
+        v_SoMonHocMoi, v_SoTinChiHocMoi, v_TienHocMoi,
+        v_SoMonHocLai, v_SoTinChiHocLai, v_TienHocLai,
+        v_SoMonHocCaiThien, v_SoTinChiHocCaiThien, v_TienHocCaiThien
+    FROM "CHITIETDANGKY"
+    WHERE "SoPhieu" = NEW."SoPhieu" AND "TrangThai" = 'Đã đăng ký';
+
+    -- So sanh voi gia tri NEW ma cau lennh UPDATE dinh cap nhat vao PHIEUDANGKY
+    IF NEW."TongTinChi" <> v_TongTinChi OR 
+       NEW."TongTienDangKy" <> v_TongTienDangKy OR
+       NEW."SoMonHocMoi" <> v_SoMonHocMoi OR 
+       NEW."SoTinChiHocMoi" <> v_SoTinChiHocMoi OR 
+       NEW."TienHocMoi" <> v_TienHocMoi OR
+       NEW."SoMonHocLai" <> v_SoMonHocLai OR 
+       NEW."SoTinChiHocLai" <> v_SoTinChiHocLai OR 
+       NEW."TienHocLai" <> v_TienHocLai OR
+       NEW."SoMonHocCaiThien" <> v_SoMonHocCaiThien OR 
+       NEW."SoTinChiHocCaiThien" <> v_SoTinChiHocCaiThien OR 
+       NEW."TienHocCaiThien" <> v_TienHocCaiThien
+    THEN
+        RAISE EXCEPTION 'Loi RBTV25: Cac cot tong hop tren PHIEUDANGKY (SoPhieu: %) khong khop voi tong chi tiet thuc te.', NEW."SoPhieu";
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Gan Trigger check vao thao tac UPDATE cot tong hop
+DROP TRIGGER IF EXISTS trg_rbtv25_check_phieudangky ON "PHIEUDANGKY";
+CREATE TRIGGER trg_rbtv25_check_phieudangky
+BEFORE UPDATE OF "TrangThai", "TongTinChi", "TongTienDangKy", "SoMonHocMoi", "SoTinChiHocMoi", "TienHocMoi", "SoMonHocLai", "SoTinChiHocLai", "TienHocLai", "SoMonHocCaiThien", "SoTinChiHocCaiThien", "TienHocCaiThien"
+ON "PHIEUDANGKY"
+FOR EACH ROW
+EXECUTE FUNCTION fn_rbtv25_check_phieudangky();
+--RBTV 26
+CREATE OR REPLACE FUNCTION check_rbtv26_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_hoc_ky VARCHAR(15);
+    v_sl_thuc_te INT;
+    v_sl_dang_ky INT;
+    v_sl_toi_da INT;
+    v_ma_lop_check VARCHAR(20);
+    v_so_phieu_check INT;
+BEGIN
+    -- Lấy thông tin dựa trên thao tác (OLD cho DELETE, NEW cho INSERT/UPDATE)
+    IF TG_OP = 'DELETE' THEN
+        v_ma_lop_check := OLD."MaLop";
+        v_so_phieu_check := OLD."SoPhieu";
+    ELSE
+        v_ma_lop_check := NEW."MaLop";
+        v_so_phieu_check := NEW."SoPhieu";
+    END IF;
+
+    -- Lấy MaHocKy từ phiếu đăng ký tương ứng
+    SELECT "MaHocKy" INTO v_ma_hoc_ky
+    FROM "PHIEUDANGKY"
+    WHERE "SoPhieu" = v_so_phieu_check;
+
+    -- Đếm số lượng thực tế
+    SELECT COALESCE(COUNT(ct.id), 0) INTO v_sl_thuc_te
+    FROM "CHITIETDANGKY" ct
+    JOIN "PHIEUDANGKY" pdk ON ct."SoPhieu" = pdk."SoPhieu"
+    WHERE ct."MaLop" = v_ma_lop_check
+      AND pdk."MaHocKy" = v_ma_hoc_ky
+      AND ct."TrangThai" = 'Đã đăng ký';
+
+    -- Lấy thông tin từ LOPMO và LOP
+    SELECT "SoLuongDaDangKy" INTO v_sl_dang_ky
+    FROM "LOPMO"
+    WHERE "MaHocKy" = v_ma_hoc_ky AND "MaLop" = v_ma_lop_check;
+
+    SELECT "SoLuongToiDa" INTO v_sl_toi_da
+    FROM "LOP"
+    WHERE "MaLop" = v_ma_lop_check;
+
+    -- Kiểm tra điều kiện RBTV
+    IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
+        RAISE EXCEPTION 'RBTV26: Sĩ số đã đăng ký (%) không khớp số đăng ký thực tế (%) của lớp %.', v_sl_dang_ky, v_sl_thuc_te, v_ma_lop_check;
+    END IF;
+
+    IF v_sl_dang_ky < 0 OR v_sl_dang_ky > v_sl_toi_da THEN
+        RAISE EXCEPTION 'RBTV26: Sĩ số (%) vượt quá sức chứa tối đa (%) của lớp %.', v_sl_dang_ky, v_sl_toi_da, v_ma_lop_check;
+    END IF;
+
+    -- Nếu là UPDATE và đổi lớp, cần kiểm tra thêm lớp cũ
+    IF TG_OP = 'UPDATE' AND OLD."MaLop" <> NEW."MaLop" THEN
+        -- Đếm thực tế lớp cũ
+        SELECT COALESCE(COUNT(ct.id), 0) INTO v_sl_thuc_te
+        FROM "CHITIETDANGKY" ct
+        JOIN "PHIEUDANGKY" pdk ON ct."SoPhieu" = pdk."SoPhieu"
+        WHERE ct."MaLop" = OLD."MaLop"
+          AND pdk."MaHocKy" = v_ma_hoc_ky
+          AND ct."TrangThai" = 'Đã đăng ký';
+
+        SELECT "SoLuongDaDangKy" INTO v_sl_dang_ky
+        FROM "LOPMO"
+        WHERE "MaHocKy" = v_ma_hoc_ky AND "MaLop" = OLD."MaLop";
+
+        IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
+            RAISE EXCEPTION 'RBTV26: Sĩ số đã đăng ký lớp cũ không khớp thực tế do đổi mã lớp.';
+        END IF;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_ctdk
+AFTER INSERT OR DELETE OR UPDATE OF "MaLop", "TrangThai"
+ON "CHITIETDANGKY"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_rbtv26_chitietdangky();
+CREATE OR REPLACE FUNCTION check_rbtv26_lopmo()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_sl_thuc_te INT;
+    v_sl_toi_da INT;
+BEGIN
+    SELECT COALESCE(COUNT(ct.id), 0) INTO v_sl_thuc_te
+    FROM "CHITIETDANGKY" ct
+    JOIN "PHIEUDANGKY" pdk ON ct."SoPhieu" = pdk."SoPhieu"
+    WHERE ct."MaLop" = NEW."MaLop"
+      AND pdk."MaHocKy" = NEW."MaHocKy"
+      AND ct."TrangThai" = 'Đã đăng ký';
+
+    SELECT "SoLuongToiDa" INTO v_sl_toi_da
+    FROM "LOP"
+    WHERE "MaLop" = NEW."MaLop";
+
+    IF NEW."SoLuongDaDangKy" != v_sl_thuc_te THEN
+        RAISE EXCEPTION 'RBTV26: Sĩ số trong LOPMO (%) không khớp với số đăng ký thực tế (%).', NEW."SoLuongDaDangKy", v_sl_thuc_te;
+    END IF;
+
+    IF NEW."SoLuongDaDangKy" < 0 OR NEW."SoLuongDaDangKy" > v_sl_toi_da THEN
+        RAISE EXCEPTION 'RBTV26: Sĩ số cập nhật (%) vi phạm giới hạn của lớp (Tối đa: %).', NEW."SoLuongDaDangKy", v_sl_toi_da;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_lopmo
+AFTER UPDATE OF "SoLuongDaDangKy", "TrangThai"
+ON "LOPMO"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_rbtv26_lopmo();
+CREATE OR REPLACE FUNCTION check_rbtv26_lop()
+RETURNS TRIGGER AS $$
+DECLARE
+    rec RECORD;
+BEGIN
+    FOR rec IN (
+        SELECT "MaHocKy", "SoLuongDaDangKy"
+        FROM "LOPMO"
+        WHERE "MaLop" = NEW."MaLop"
+    ) LOOP
+        IF rec."SoLuongDaDangKy" > NEW."SoLuongToiDa" THEN
+            RAISE EXCEPTION 'RBTV26: Sức chứa mới (%) nhỏ hơn số sinh viên đã đăng ký (%) ở học kỳ %.', NEW."SoLuongToiDa", rec."SoLuongDaDangKy", rec."MaHocKy";
+        END IF;
+    END LOOP;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_lop
+AFTER UPDATE OF "SoLuongToiDa"
+ON "LOP"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_rbtv26_lop();
+CREATE OR REPLACE FUNCTION check_rbtv26_phieudangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    rec RECORD;
+    v_sl_thuc_te INT;
+    v_sl_dang_ky INT;
+BEGIN
+    -- Kiểm tra tất cả các lớp liên quan đến phiếu đăng ký bị cập nhật
+    FOR rec IN (
+        SELECT "MaLop" 
+        FROM "CHITIETDANGKY" 
+        WHERE "SoPhieu" = NEW."SoPhieu" AND "TrangThai" = 'Đã đăng ký'
+    ) LOOP
+        -- Kiểm tra thực tế ở học kỳ mới (hoặc cùng kỳ nếu chỉ đổi TrangThai)
+        SELECT COALESCE(COUNT(ct.id), 0) INTO v_sl_thuc_te
+        FROM "CHITIETDANGKY" ct
+        JOIN "PHIEUDANGKY" pdk ON ct."SoPhieu" = pdk."SoPhieu"
+        WHERE ct."MaLop" = rec."MaLop"
+          AND pdk."MaHocKy" = NEW."MaHocKy"
+          AND ct."TrangThai" = 'Đã đăng ký';
+
+        SELECT "SoLuongDaDangKy" INTO v_sl_dang_ky
+        FROM "LOPMO"
+        WHERE "MaHocKy" = NEW."MaHocKy" AND "MaLop" = rec."MaLop";
+
+        IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
+            RAISE EXCEPTION 'RBTV26: Cập nhật PHIEUDANGKY làm sai lệch tổng đăng ký.';
+        END IF;
+    END LOOP;
+    
+    -- Nếu thay đổi MaHocKy, phải kiểm tra lại cả các lớp ở Học kỳ cũ
+    IF OLD."MaHocKy" <> NEW."MaHocKy" THEN
+        FOR rec IN (
+            SELECT "MaLop" 
+            FROM "CHITIETDANGKY" 
+            WHERE "SoPhieu" = OLD."SoPhieu" AND "TrangThai" = 'Đã đăng ký'
+        ) LOOP
+            SELECT COALESCE(COUNT(ct.id), 0) INTO v_sl_thuc_te
+            FROM "CHITIETDANGKY" ct
+            JOIN "PHIEUDANGKY" pdk ON ct."SoPhieu" = pdk."SoPhieu"
+            WHERE ct."MaLop" = rec."MaLop"
+              AND pdk."MaHocKy" = OLD."MaHocKy"
+              AND ct."TrangThai" = 'Đã đăng ký';
+
+            SELECT "SoLuongDaDangKy" INTO v_sl_dang_ky
+            FROM "LOPMO"
+            WHERE "MaHocKy" = OLD."MaHocKy" AND "MaLop" = rec."MaLop";
+
+            IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
+                RAISE EXCEPTION 'RBTV26: Đổi học kỳ làm sai lệch tổng đăng ký của học kỳ cũ.';
+            END IF;
+        END LOOP;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_pdk
+AFTER UPDATE OF "MaHocKy", "TrangThai"
+ON "PHIEUDANGKY"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_rbtv26_phieudangky();
+--RBTV 27
+CREATE OR REPLACE FUNCTION check_rbtv27_phieudangky()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Chỉ cần kiểm tra khi phiếu có trạng thái 'Đã hủy'
+    IF NEW."TrangThai" = 'Đã hủy' THEN
+        -- Tìm xem có chi tiết nào còn 'Đã đăng ký' thuộc phiếu này không
+        IF EXISTS (
+            SELECT 1 
+            FROM "CHITIETDANGKY" 
+            WHERE "SoPhieu" = NEW."SoPhieu" 
+              AND "TrangThai" = 'Đã đăng ký'
+        ) THEN
+            RAISE EXCEPTION 'RBTV27: Lỗi! Không thể lưu trạng thái "Đã hủy" cho phiếu % vì vẫn còn môn học ở trạng thái "Đã đăng ký".', NEW."SoPhieu";
+        END IF;
+    END IF;
+    
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Tạo Constraint Trigger (Hoãn kiểm tra đến cuối transaction)
+CREATE CONSTRAINT TRIGGER trg_chk_rbtv27_pdk
+AFTER UPDATE OF "TrangThai"
+ON "PHIEUDANGKY"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_rbtv27_phieudangky();
+CREATE OR REPLACE FUNCTION check_rbtv27_chitietdangky()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_trang_thai_phieu VARCHAR(30);
+BEGIN
+    -- Chỉ cần kiểm tra khi chi tiết đang ở trạng thái 'Đã đăng ký'
+    IF NEW."TrangThai" = 'Đã đăng ký' THEN
+        -- Lấy trạng thái của phiếu đăng ký chứa môn học này
+        SELECT "TrangThai" INTO v_trang_thai_phieu
+        FROM "PHIEUDANGKY"
+        WHERE "SoPhieu" = NEW."SoPhieu";
+
+        -- Nếu phiếu mẹ đã hủy thì không cho phép chi tiết đăng ký
+        IF v_trang_thai_phieu = 'Đã hủy' THEN
+            RAISE EXCEPTION 'RBTV27: Lỗi! Không thể thêm hoặc giữ trạng thái "Đã đăng ký" cho chi tiết vì phiếu % đã bị "Đã hủy".', NEW."SoPhieu";
+        END IF;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Tạo Constraint Trigger (Hoãn kiểm tra đến cuối transaction)
+CREATE CONSTRAINT TRIGGER trg_chk_rbtv27_ctdk
+AFTER INSERT OR UPDATE OF "SoPhieu", "TrangThai"
+ON "CHITIETDANGKY"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION check_rbtv27_chitietdangky();
