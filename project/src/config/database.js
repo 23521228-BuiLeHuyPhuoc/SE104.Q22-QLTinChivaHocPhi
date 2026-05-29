@@ -548,6 +548,78 @@ const ensureAuthSchema = async () => {
     EXECUTE FUNCTION prevent_student_schedule_conflict();
   `);
 
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_chk_rbtv34_hocky_parent()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF NEW."DaXoa" = TRUE AND COALESCE(OLD."DaXoa", FALSE) = FALSE THEN
+        IF EXISTS (
+          SELECT 1 FROM "PHIEUDANGKY"
+          WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = 'Đã đăng ký'
+        ) THEN
+          RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUDANGKY con hoat dong.';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM "LOPMO"
+          WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = TRUE
+        ) THEN
+          RAISE EXCEPTION 'RBTV34 Lỗi: LOPMO con hoat dong.';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM "MONDAHOC"
+          WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE
+        ) THEN
+          RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM "DONGIATINCHI"
+          WHERE "MaHocKy" = NEW."MaHocKy"
+            AND "DaXoa" = FALSE
+            AND "TrangThai" = TRUE
+        ) THEN
+          RAISE EXCEPTION 'RBTV34 Lỗi: DONGIATINCHI con hoat dong.';
+        END IF;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_chk_one_ongoing_hocky()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF COALESCE(NEW."DaXoa", FALSE) = FALSE AND NEW."TrangThai" = 'Đang diễn ra' THEN
+        IF EXISTS (
+          SELECT 1
+          FROM "HOCKY"
+          WHERE "MaHocKy" IS DISTINCT FROM NEW."MaHocKy"
+            AND COALESCE("DaXoa", FALSE) = FALSE
+            AND "TrangThai" = 'Đang diễn ra'
+        ) THEN
+          RAISE EXCEPTION 'RBTV_HOCKY_01: Chỉ được có một học kỳ đang diễn ra.';
+        END IF;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_chk_one_ongoing_hocky ON "HOCKY"');
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_chk_one_ongoing_hocky
+    BEFORE INSERT OR UPDATE OF "TrangThai", "DaXoa"
+    ON "HOCKY"
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_chk_one_ongoing_hocky();
+  `);
+
   for (const group of DEFAULT_USER_GROUPS) {
     await prisma.NHOMNGUOIDUNG.upsert({
       where: { MaNhom: group.MaNhom },

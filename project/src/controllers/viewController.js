@@ -410,12 +410,25 @@ const adminSemesters = async (req, res) => {
         where: { DaXoa: false },
         skip: (page - 1) * limit,
         take: limit,
-        include: { NAMHOC: true },
+        include: {
+          NAMHOC: true,
+          _count: {
+            select: {
+              LOPMO: true,
+              PHIEUDANGKY: true
+            }
+          }
+        },
         orderBy: { NgayBatDau: 'desc' }
       }),
       prisma.HOCKY.count({ where: { DaXoa: false } })
     ]);
-    const displaySemesters = await attachUpdaterNames(semesters);
+    const semestersWithStats = semesters.map((semester) => ({
+      ...semester,
+      SoLopMo: semester._count?.LOPMO || 0,
+      SoSinhVienDangKy: semester._count?.PHIEUDANGKY || 0
+    }));
+    const displaySemesters = await attachUpdaterNames(semestersWithStats);
     renderAdmin(res, 'semesters', 'semesters', 'Quản lý học kỳ', req, {
       semesters: displaySemesters,
       currentPage: page,
@@ -431,6 +444,66 @@ const adminSemesters = async (req, res) => {
       totalPages: 0,
       baseUrl: '/admin/semesters',
       queryParams: {}
+    });
+  }
+};
+
+const adminAcademicYears = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const status = req.query.status || '';
+  const where = {};
+
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaNamHoc: { contains: search, mode: 'insensitive' } },
+      { TenNamHoc: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  try {
+    const [academicYears, total] = await Promise.all([
+      prisma.NAMHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              HOCKY: { where: { DaXoa: false } }
+            }
+          }
+        },
+        orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
+      }),
+      prisma.NAMHOC.count({ where })
+    ]);
+
+    renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
+      academicYears: academicYears.map((year) => ({
+        ...year,
+        SoHocKy: year._count?.HOCKY || 0
+      })),
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/academic-years',
+      queryParams: { search, status, limit },
+      search,
+      status
+    });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
+      academicYears: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/academic-years',
+      queryParams: {},
+      search: '',
+      status: ''
     });
   }
 };
@@ -1215,6 +1288,7 @@ module.exports = {
   adminCourses,
   adminClasses,
   adminSemesters,
+  adminAcademicYears,
   adminPeriods,
   adminPrerequisites,
   adminRegistrations,
