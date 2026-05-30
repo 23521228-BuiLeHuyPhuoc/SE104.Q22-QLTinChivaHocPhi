@@ -61,6 +61,30 @@ const formatTimeValue = (value) => {
   return date.toISOString().slice(11, 16);
 };
 
+const weekdayLabel = (value) => {
+  const day = Number(value);
+  if (day === 1) return 'Chủ nhật';
+  if (day >= 2 && day <= 7) return `Thứ ${day}`;
+  return value ? `Thứ ${value}` : '';
+};
+
+const periodRangeLabel = (schedule) => {
+  if (!schedule) return '';
+  const start = schedule.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet || schedule.MaTietBatDau;
+  const end = schedule.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet || schedule.MaTietKetThuc;
+  if (!start && !end) return '';
+  return start === end ? start : `${start}-${end}`;
+};
+
+const classScheduleLabel = (openedClass) => {
+  const schedules = (openedClass.LICHHOCLOP || []).filter((schedule) => schedule.TrangThai !== false);
+  if (!schedules.length) return openedClass.LOP?.LichHoc || '-';
+  return schedules.map((schedule) => {
+    const parts = [weekdayLabel(schedule.ThuTrongTuan), periodRangeLabel(schedule)].filter(Boolean);
+    return parts.join(' ') + (schedule.PhongHoc ? ` (${schedule.PhongHoc})` : '');
+  }).join('; ');
+};
+
 const conditionTypeLabel = (value) => {
   if (value === 'tien_quyet') return 'Tiên quyết';
   if (value === 'hoc_truoc') return 'Học trước';
@@ -1343,12 +1367,191 @@ const studentCurriculum = (req, res) => {
   renderStudent(res, 'curriculum', 'curriculum', 'Chương trình đào tạo', req);
 };
 
-const adminCurriculumPrograms = (req, res) => {
-  renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req);
+const adminCurriculumPrograms = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const major = req.query.major || '';
+  const status = req.query.status || '';
+  const where = {
+    NGANHHOC: { DaXoa: false },
+    MONHOC: { DaXoa: false }
+  };
+
+  if (major) where.MaNganh = major;
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaNganh: { contains: search, mode: 'insensitive' } },
+      { MaMonHoc: { contains: search, mode: 'insensitive' } },
+      { NGANHHOC: { TenNganh: { contains: search, mode: 'insensitive' } } },
+      { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } }
+    ];
+  }
+
+  try {
+    const [rows, total, majors] = await Promise.all([
+      prisma.CHUONGTRINHHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
+        include: {
+          NGANHHOC: { include: { KHOA: true } },
+          MONHOC: { include: { KHOA: true } }
+        }
+      }),
+      prisma.CHUONGTRINHHOC.count({ where }),
+      prisma.NGANHHOC.findMany({
+        where: { DaXoa: false },
+        orderBy: { TenNganh: 'asc' },
+        select: { MaNganh: true, TenNganh: true }
+      })
+    ]);
+
+    renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req, {
+      curriculumPrograms: rows.map((row) => ({
+        ...row,
+        TenNganh: row.NGANHHOC?.TenNganh || row.MaNganh,
+        TenKhoa: row.NGANHHOC?.KHOA?.TenKhoa || '-',
+        TenMonHoc: row.MONHOC?.TenMonHoc || row.MaMonHoc,
+        SoTinChi: row.MONHOC?.SoTinChi || 0,
+        LoaiMon: row.MONHOC?.LoaiMon || '-',
+        BatBuocLabel: row.BatBuoc === false ? 'Tự chọn' : 'Bắt buộc',
+        TrangThaiLabel: row.TrangThai === false ? 'Tạm ngưng' : 'Đang áp dụng',
+        TrangThaiClass: row.TrangThai === false ? 'badge-secondary' : 'badge-success'
+      })),
+      majors,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      baseUrl: '/admin/curriculum-programs',
+      queryParams: { search, major, status, limit },
+      search,
+      major,
+      status
+    });
+  } catch (err) {
+    console.error('adminCurriculumPrograms error:', err);
+    renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req, {
+      curriculumPrograms: [],
+      majors: [],
+      currentPage: 1,
+      totalPages: 0,
+      totalRecords: 0,
+      baseUrl: '/admin/curriculum-programs',
+      queryParams: {},
+      search: '',
+      major: '',
+      status: ''
+    });
+  }
 };
 
-const adminOpenedCourses = (req, res) => {
-  renderAdmin(res, 'opened-courses', 'opened-courses', 'Danh sách môn học mở', req);
+const adminOpenedCourses = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const semester = req.query.semester || '';
+  const status = req.query.status || '';
+  const where = {
+    LOP: { DaXoa: false, MONHOC: { DaXoa: false } },
+    HOCKY: { DaXoa: false }
+  };
+
+  if (semester) where.MaHocKy = semester;
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaLop: { contains: search, mode: 'insensitive' } },
+      { MaHocKy: { contains: search, mode: 'insensitive' } },
+      { LOP: { TenLop: { contains: search, mode: 'insensitive' } } },
+      { LOP: { MaMonHoc: { contains: search, mode: 'insensitive' } } },
+      { LOP: { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } } },
+      { HOCKY: { TenHocKy: { contains: search, mode: 'insensitive' } } }
+    ];
+  }
+
+  try {
+    const [rows, total, semesters] = await Promise.all([
+      prisma.LOPMO.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ MaHocKy: 'desc' }, { MaLop: 'asc' }],
+        include: {
+          HOCKY: { include: { NAMHOC: true } },
+          LOP: {
+            include: {
+              MONHOC: { include: { KHOA: true } },
+              CHITIETDANGKY: { where: { TrangThai: 'Đã đăng ký' }, select: { id: true } }
+            }
+          },
+          LICHHOCLOP: {
+            include: {
+              TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
+              TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+            },
+            orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
+          }
+        }
+      }),
+      prisma.LOPMO.count({ where }),
+      prisma.HOCKY.findMany({
+        where: { DaXoa: false },
+        orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
+        include: { NAMHOC: true }
+      })
+    ]);
+
+    renderAdmin(res, 'opened-courses', 'opened-courses', 'Danh sách môn học mở', req, {
+      openedCourses: rows.map((row) => ({
+        ...row,
+        TenHocKy: row.HOCKY?.TenHocKy || row.MaHocKy,
+        TenNamHoc: row.HOCKY?.NAMHOC?.TenNamHoc || '',
+        MaMonHoc: row.LOP?.MaMonHoc || '-',
+        TenMonHoc: row.LOP?.MONHOC?.TenMonHoc || '-',
+        TenLop: row.LOP?.TenLop || row.MaLop,
+        GiangVien: row.LOP?.GiangVien || '-',
+        SoTinChi: row.LOP?.MONHOC?.SoTinChi || 0,
+        TenKhoa: row.LOP?.MONHOC?.KHOA?.TenKhoa || '-',
+        SoLuongDaDangKy: row.LOP?.CHITIETDANGKY?.length || row.SoLuongDaDangKy || 0,
+        SoLuongToiDa: row.LOP?.SoLuongToiDa || '-',
+        LichHocText: classScheduleLabel(row),
+        TrangThaiLabel: row.TrangThai === false ? 'Đã đóng' : 'Đang mở',
+        TrangThaiClass: row.TrangThai === false ? 'badge-secondary' : 'badge-success'
+      })),
+      semesters: semesters.map((item) => ({
+        MaHocKy: item.MaHocKy,
+        TenHocKy: item.TenHocKy,
+        TenNamHoc: item.NAMHOC?.TenNamHoc || ''
+      })),
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      baseUrl: '/admin/opened-courses',
+      queryParams: { search, semester, status, limit },
+      search,
+      semester,
+      status
+    });
+  } catch (err) {
+    console.error('adminOpenedCourses error:', err);
+    renderAdmin(res, 'opened-courses', 'opened-courses', 'Danh sách môn học mở', req, {
+      openedCourses: [],
+      semesters: [],
+      currentPage: 1,
+      totalPages: 0,
+      totalRecords: 0,
+      baseUrl: '/admin/opened-courses',
+      queryParams: {},
+      search: '',
+      semester: '',
+      status: ''
+    });
+  }
 };
 
 module.exports = {
