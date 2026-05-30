@@ -28,6 +28,8 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const trashRoutes = require('./routes/trashRoutes');
 const periodRoutes = require('./routes/periodRoutes');
 const prerequisiteRoutes = require('./routes/prerequisiteRoutes');
+const roomRoutes = require('./routes/roomRoutes');
+const lecturerRoutes = require('./routes/lecturerRoutes');
 const prisma = require('./config/database');
 const { buildErrorResponse, sendErrorResponse } = require('./utils/errorHandler');
 
@@ -132,6 +134,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/trash', trashRoutes);
 app.use('/api/periods', periodRoutes);
 app.use('/api/prerequisites', prerequisiteRoutes);
+app.use('/api/rooms', roomRoutes);
+app.use('/api/lecturers', lecturerRoutes);
 
 // ==========================================
 // SSR View Routes (Pug pages)

@@ -1,0 +1,110 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm mã, họ tên, email giảng viên..." value=(search || '') onkeyup="debounceLecturerSearch()")
+    .filter-group
+      select.form-control#filter-faculty(onchange="applyLecturerFilters()")
+        option(value="" selected=(!selectedFaculty)) Tất cả khoa
+        each faculty in facultyOptions || []
+          option(value=faculty.MaKhoa selected=(selectedFaculty === faculty.MaKhoa)) #{faculty.MaKhoa} - #{faculty.TenKhoa}
+      select.form-control#filter-status(onchange="applyLecturerFilters()")
+        option(value="" selected=(!status)) Tất cả trạng thái
+        option(value="active" selected=(status === 'active')) Đang dạy
+        option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+      button.btn.btn-primary(type="button" onclick="openLecturerModal('add')") Thêm giảng viên
+      a.btn.btn-outline(href="/admin/trash?entity=lecturers") Thùng rác
+
+  .card
+    .card-header
+      h3 Danh sách giảng viên
+      span.card-count= lecturers ? `${lecturers.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã GV
+            th Họ tên
+            th Khoa
+            th Liên hệ
+            th Số lớp
+            th Trạng thái
+            th Sửa bởi
+            th Sửa lúc
+            th Thao tác
+        tbody
+          if lecturers && lecturers.length > 0
+            each lecturer in lecturers
+              tr
+                td.mono= lecturer.MaGiangVien
+                td
+                  strong #{lecturer.HocHamHocVi ? lecturer.HocHamHocVi + ' ' : ''}#{lecturer.HoTen}
+                  if lecturer.MoTa
+                    small= lecturer.MoTa
+                td= lecturer.KHOA ? lecturer.KHOA.TenKhoa : (lecturer.MaKhoa || '-')
+                td
+                  div= lecturer.Email || '-'
+                  small= lecturer.Sdt || ''
+                td= lecturer._count ? lecturer._count.LOPMO : 0
+                td
+                  span.badge(class=lecturer.TrangThai === false ? 'badge-secondary' : 'badge-success')= lecturer.TrangThai === false ? 'Tạm khóa' : 'Đang dạy'
+                td= lecturer.NguoiCapNhatTen || lecturer.NguoiCapNhat || '-'
+                td= lecturer.NgayCapNhat ? new Date(lecturer.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(lecturer) onclick="openLecturerModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" data-magv=lecturer.MaGiangVien onclick="deleteLecturer(this.dataset.magv)") Xóa
+          else
+            tr
+              td(colspan="9")
+                .empty-state Chưa có giảng viên phù hợp
+
+  include ../../partials/pagination
+
+block modals
+  #lecturer-modal.modal-overlay(onclick="if(event.target===this)closeLecturerModal()")
+    .modal
+      .modal-header
+        h2#lecturer-modal-title Thêm giảng viên
+        button.modal-close(type="button" onclick="closeLecturerModal()" aria-label="Đóng") ×
+      .modal-body
+        form#lecturer-form
+          .form-row
+            .form-group
+              label(for="lecturer-ma") Mã giảng viên
+              input.form-control#lecturer-ma(type="text" required placeholder="VD: GV001")
+            .form-group
+              label(for="lecturer-hoten") Họ tên
+              input.form-control#lecturer-hoten(type="text" required placeholder="VD: Nguyễn Văn A")
+          .form-row
+            .form-group
+              label(for="lecturer-hocham") Học hàm/học vị
+              input.form-control#lecturer-hocham(type="text" placeholder="VD: TS., ThS., PGS.TS")
+            .form-group
+              label(for="lecturer-khoa") Khoa
+              select.form-control#lecturer-khoa
+                option(value="") Chọn khoa
+                each faculty in facultyOptions || []
+                  option(value=faculty.MaKhoa) #{faculty.MaKhoa} - #{faculty.TenKhoa}
+          .form-row
+            .form-group
+              label(for="lecturer-email") Email
+              input.form-control#lecturer-email(type="email")
+            .form-group
+              label(for="lecturer-sdt") Số điện thoại
+              input.form-control#lecturer-sdt(type="text")
+          .form-row
+            .form-group
+              label(for="lecturer-trangthai") Trạng thái
+              select.form-control#lecturer-trangthai
+                option(value="true") Đang dạy
+                option(value="false") Tạm khóa
+            .form-group
+              label(for="lecturer-mota") Mô tả
+              input.form-control#lecturer-mota(type="text")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeLecturerModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveLecturer()") Lưu
+
+block scripts
+  script(src="/js/admin/lecturers.js")
