@@ -126,3 +126,66 @@ nav.sidebar.sidebar-admin(id="sidebar")
     a.sidebar-logout(href="/logout" title="Đăng xuất")
       span.sidebar-icon.material-symbols-rounded logout
       span.link-label Đăng xuất
+
+script.
+  (function() {
+    var storageKey = 'adminSidebarScrollState';
+
+    function getSidebar() {
+      return document.getElementById('sidebar');
+    }
+
+    function getSidebarNav() {
+      var sidebar = getSidebar();
+      return sidebar ? sidebar.querySelector('.sidebar-nav') : null;
+    }
+
+    function saveSidebarScroll() {
+      var sidebar = getSidebar();
+      var nav = getSidebarNav();
+      if (!sidebar && !nav) return;
+      localStorage.setItem(storageKey, JSON.stringify({
+        sidebarTop: sidebar ? sidebar.scrollTop || 0 : 0,
+        navTop: nav ? nav.scrollTop || 0 : 0
+      }));
+    }
+
+    function restoreSidebarScroll() {
+      var sidebar = getSidebar();
+      var nav = getSidebarNav();
+      var saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      } catch (e) {
+        saved = { sidebarTop: parseInt(localStorage.getItem(storageKey) || '0', 10), navTop: 0 };
+      }
+      var sidebarTop = parseInt(saved.sidebarTop || 0, 10);
+      var navTop = parseInt(saved.navTop || 0, 10);
+
+      function applyScroll() {
+        if (sidebar && Number.isFinite(sidebarTop)) sidebar.scrollTop = sidebarTop;
+        if (nav && Number.isFinite(navTop)) nav.scrollTop = navTop;
+      }
+
+      applyScroll();
+      requestAnimationFrame(applyScroll);
+      setTimeout(applyScroll, 80);
+      setTimeout(applyScroll, 250);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var sidebar = getSidebar();
+      var nav = getSidebarNav();
+      if (!sidebar) return;
+
+      restoreSidebarScroll();
+      sidebar.addEventListener('scroll', saveSidebarScroll, { passive: true });
+      if (nav) nav.addEventListener('scroll', saveSidebarScroll, { passive: true });
+      sidebar.querySelectorAll('a.sidebar-link, a.sidebar-logout').forEach(function(link) {
+        link.addEventListener('pointerdown', saveSidebarScroll);
+        link.addEventListener('click', saveSidebarScroll);
+      });
+    });
+
+    window.addEventListener('beforeunload', saveSidebarScroll);
+  })();
