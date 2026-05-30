@@ -404,24 +404,104 @@ const adminClasses = async (req, res) => {
 const adminSemesters = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
+  const search = String(req.query.search || '').trim();
+  const dateSearchFields = new Set(['NgayBatDau', 'NgayKetThuc', 'NgayBatDauDangKy', 'NgayKetThucDangKy', 'HanDongHocPhi']);
+  const validSearchFields = new Set(['all', 'MaHocKy', 'TenHocKy', 'MaNamHoc', 'HocKy', 'LoaiHocKy', 'TrangThai', ...dateSearchFields]);
+  const searchField = validSearchFields.has(req.query.searchField) ? req.query.searchField : 'all';
+  const containsSearch = (field) => ({ [field]: { contains: search, mode: 'insensitive' } });
+  const normalizedSearch = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const getSemesterKindSearchClauses = () => {
+    const clauses = [containsSearch('LoaiHocKy')];
+    if (/\b(i|1)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 1 });
+    if (/\b(ii|2)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 2 });
+    if (/\b(he|3)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 3 });
+    return clauses;
+  };
+  const parseSearchDate = (value) => {
+    const raw = String(value || '').trim();
+    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    const vi = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!iso && !vi) return null;
+
+    const year = Number(iso ? iso[1] : vi[3]);
+    const month = Number(iso ? iso[2] : vi[2]);
+    const day = Number(iso ? iso[3] : vi[1]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return date;
+  };
+  const searchDate = parseSearchDate(search);
+  const containsDate = (field) => {
+    const nextDay = new Date(searchDate.getTime());
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    return { [field]: { gte: searchDate, lt: nextDay } };
+  };
+  const semesterSearchWhere = {};
+
+  if (search) {
+    if (searchField === 'all') {
+      semesterSearchWhere.OR = [
+        containsSearch('MaHocKy'),
+        containsSearch('TenHocKy'),
+        containsSearch('MaNamHoc'),
+        containsSearch('LoaiHocKy'),
+        containsSearch('TrangThai'),
+        { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } }
+      ];
+      if (searchDate) {
+        dateSearchFields.forEach((field) => semesterSearchWhere.OR.push(containsDate(field)));
+      }
+    } else if (searchField === 'MaNamHoc') {
+      semesterSearchWhere.OR = [
+        containsSearch('MaNamHoc'),
+        { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } }
+      ];
+    } else if (searchField === 'HocKy' || searchField === 'LoaiHocKy') {
+      semesterSearchWhere.OR = getSemesterKindSearchClauses();
+    } else if (dateSearchFields.has(searchField)) {
+      Object.assign(semesterSearchWhere, searchDate ? containsDate(searchField) : { MaHocKy: '__NO_DATE_MATCH__' });
+    } else {
+      Object.assign(semesterSearchWhere, containsSearch(searchField));
+    }
+  }
+
+  const where = { DaXoa: false, ...semesterSearchWhere };
+
   try {
     const [semesters, total] = await Promise.all([
       prisma.HOCKY.findMany({
-        where: { DaXoa: false },
+        where,
         skip: (page - 1) * limit,
         take: limit,
-        include: { NAMHOC: true },
+        include: {
+          NAMHOC: true,
+          _count: {
+            select: {
+              LOPMO: true,
+              PHIEUDANGKY: true
+            }
+          }
+        },
         orderBy: { NgayBatDau: 'desc' }
       }),
-      prisma.HOCKY.count({ where: { DaXoa: false } })
+      prisma.HOCKY.count({ where })
     ]);
-    const displaySemesters = await attachUpdaterNames(semesters);
+    const semestersWithStats = semesters.map((semester) => ({
+      ...semester,
+      SoLopMo: semester._count?.LOPMO || 0,
+      SoSinhVienDangKy: semester._count?.PHIEUDANGKY || 0
+    }));
+    const displaySemesters = await attachUpdaterNames(semestersWithStats);
     renderAdmin(res, 'semesters', 'semesters', 'Quản lý học kỳ', req, {
       semesters: displaySemesters,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      pageSize: limit,
       baseUrl: '/admin/semesters',
-      queryParams: { limit }
+      queryParams: { search, searchField, limit },
+      search,
+      searchField
     });
   } catch (err) {
     console.error('Error:', err);
@@ -429,8 +509,72 @@ const adminSemesters = async (req, res) => {
       semesters: [],
       currentPage: 1,
       totalPages: 0,
+      totalRecords: 0,
+      pageSize: limit,
       baseUrl: '/admin/semesters',
-      queryParams: {}
+      queryParams: {},
+      search: '',
+      searchField: 'all'
+    });
+  }
+};
+
+const adminAcademicYears = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const status = req.query.status || '';
+  const where = {};
+
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaNamHoc: { contains: search, mode: 'insensitive' } },
+      { TenNamHoc: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  try {
+    const [academicYears, total] = await Promise.all([
+      prisma.NAMHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              HOCKY: { where: { DaXoa: false } }
+            }
+          }
+        },
+        orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
+      }),
+      prisma.NAMHOC.count({ where })
+    ]);
+
+    renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
+      academicYears: academicYears.map((year) => ({
+        ...year,
+        SoHocKy: year._count?.HOCKY || 0
+      })),
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/academic-years',
+      queryParams: { search, status, limit },
+      search,
+      status
+    });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
+      academicYears: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/academic-years',
+      queryParams: {},
+      search: '',
+      status: ''
     });
   }
 };
@@ -1215,6 +1359,7 @@ module.exports = {
   adminCourses,
   adminClasses,
   adminSemesters,
+  adminAcademicYears,
   adminPeriods,
   adminPrerequisites,
   adminRegistrations,

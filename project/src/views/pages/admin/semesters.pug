@@ -1,57 +1,76 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/semesters.css")
+
 block content
   .toolbar
     .toolbar-title
       h2.page-title Quản lý học kỳ
       p Cấu hình kỳ học, thời gian đăng ký và hạn đóng học phí.
-    .filter-group
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm học kỳ
-      a.btn.btn-outline(href="/admin/trash?entity=semesters") Thùng rác
+    .toolbar-actions
+      button.btn.btn-primary(type="button" onclick="openModal('add')")
+        span.material-symbols-rounded add
+        span Thêm học kỳ
+      a.btn.btn-outline(href="/admin/trash?entity=semesters")
+        span.material-symbols-rounded delete
+        span Thùng rác
+
+  .semester-filter-panel
+    .semester-filter-grid
+      .semester-filter-field.semester-filter-search
+        label(for="semester-keyword") Tìm theo mã học kỳ hoặc năm học
+        .search-box.semester-search-box
+          input#semester-keyword(type="text" placeholder="Nhập mã học kỳ hoặc năm học" autocomplete="off")
+      .semester-filter-field.semester-filter-kind
+        span.semester-filter-label Học kỳ cần lọc
+        .segmented-control#semester-kind-filter(role="group" aria-label="Lọc theo học kỳ")
+          button.segmented-option.active(type="button" data-value="") Tất cả
+          button.segmented-option(type="button" data-value="1") Học kỳ I
+          button.segmented-option(type="button" data-value="2") Học kỳ II
+          button.segmented-option(type="button" data-value="3") Học kỳ hè
+      .semester-filter-field.semester-filter-status
+        span.semester-filter-label Trạng thái cần lọc
+        .segmented-control#semester-status-filter(role="group" aria-label="Lọc theo trạng thái")
+          button.segmented-option.active(type="button" data-value="") Tất cả
+          button.segmented-option(type="button" data-value="Sắp diễn ra") Sắp diễn ra
+          button.segmented-option(type="button" data-value="Đang diễn ra") Đang diễn ra
+          button.segmented-option(type="button" data-value="Đã kết thúc") Đã kết thúc
+      .semester-filter-field.semester-filter-date-field
+        label(for="semester-date-field") Mốc thời gian cần tìm
+        select.form-control#semester-date-field
+          option(value="all") Tất cả mốc ngày
+          option(value="NgayBatDau") Bắt đầu học kỳ
+          option(value="NgayKetThuc") Kết thúc học kỳ
+          option(value="NgayBatDauDangKy") Bắt đầu đăng ký
+          option(value="NgayKetThucDangKy") Hạn đăng ký
+          option(value="HanDongHocPhi") Hạn đóng học phí
+      .semester-filter-field.semester-filter-date-exact
+        label(for="semester-date-exact") Ngày cần tìm
+        input.form-control#semester-date-exact(type="date")
+      .semester-filter-actions
+        button.btn.btn-outline#semester-filter-reset(type="button")
+          span.material-symbols-rounded restart_alt
+          span Xóa lọc
 
   .card
     .card-header
       h3 Danh sách học kỳ
-      span.card-count= semesters ? `${semesters.length} bản ghi` : '0 bản ghi'
-    .table-container
-      table.data-table
-        thead
-          tr
-            th Mã học kỳ
-            th Tên học kỳ
-            th Năm học
-            th Bắt đầu
-            th Kết thúc
-            th Hạn đăng ký
-            th Hạn học phí
-            th Trạng thái
-            th Sửa bởi
-            th Sửa lúc
-            th Thao tác
-        tbody
-          if semesters && semesters.length > 0
-            each s in semesters
-              tr
-                td.mono= s.MaHocKy
-                td= s.TenHocKy
-                td= s.NAMHOC ? s.NAMHOC.TenNamHoc : s.MaNamHoc
-                td= s.NgayBatDau ? new Date(s.NgayBatDau).toLocaleDateString('vi-VN') : '-'
-                td= s.NgayKetThuc ? new Date(s.NgayKetThuc).toLocaleDateString('vi-VN') : '-'
-                td= s.NgayKetThucDangKy ? new Date(s.NgayKetThucDangKy).toLocaleDateString('vi-VN') : '-'
-                td= s.HanDongHocPhi ? new Date(s.HanDongHocPhi).toLocaleDateString('vi-VN') : '-'
-                td
-                  span.badge(class=s.TrangThai === 'Đang diễn ra' ? 'badge-success' : s.TrangThai === 'Sắp diễn ra' || s.TrangThai === 'Sắp tới' ? 'badge-warning' : 'badge-secondary')= s.TrangThai || '-'
-                td= s.NguoiCapNhatTen || s.NguoiCapNhat || '-'
-                td= s.NgayCapNhat ? new Date(s.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(s) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteSemester('${s.MaHocKy}')`) Xóa
-          else
-            tr
-              td(colspan="11")
-                .empty-state Chưa có học kỳ
+      span.card-count#semester-card-count 0 bản ghi
+    .semester-list
+      .semester-list-header
+        span Học kỳ
+        span Mốc thời gian
+        span Trạng thái
+        span Cập nhật
+        span Thao tác
+      #semester-list-body.semester-list-body
+        .loading-overlay
+          .spinner
+          span Đang tải học kỳ...
 
-  include ../../partials/pagination
+  nav.pagination#semester-pagination(aria-label="Phân trang học kỳ")
+  .pagination-info#semester-pagination-info
 
 block modals
   #semester-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
@@ -70,40 +89,42 @@ block modals
               input.form-control#hk-ten(type="text" required placeholder="VD: Học kỳ 1")
           .form-row
             .form-group
-              label(for="hk-manamhoc") Mã năm học
-              input.form-control#hk-manamhoc(type="text" required placeholder="VD: 2025-2026")
+              label(for="hk-manamhoc") Năm học
+              select.form-control#hk-manamhoc(required)
+                option(value="") Đang tải năm học...
             .form-group
-              label(for="hk-loai") Loại học kỳ
+              label(for="hk-loai") Học kỳ
               select.form-control#hk-loai
-                option(value="Chính") Chính
-                option(value="Hè") Hè
-          .form-row
-            .form-group
-              label(for="hk-thutu") Thứ tự
-              input.form-control#hk-thutu(type="number" min="1" value="1")
-            .form-group
-              label(for="hk-trangthai") Trạng thái
-              select.form-control#hk-trangthai
-                option(value="Sắp diễn ra") Sắp diễn ra
-                option(value="Đang diễn ra") Đang diễn ra
-                option(value="Đã kết thúc") Đã kết thúc
+                option(value="1") Học kỳ I
+                option(value="2") Học kỳ II
+                option(value="3") Học kỳ hè
+          input#hk-thutu(type="hidden" value="1")
+          .form-group
+            label(for="hk-trangthai") Trạng thái
+            select.form-control#hk-trangthai
+              option(value="Sắp diễn ra") Sắp diễn ra
+              option(value="Đang diễn ra") Đang diễn ra
+              option(value="Đã kết thúc") Đã kết thúc
           .form-row
             .form-group
               label(for="hk-batdau") Ngày bắt đầu kỳ
-              input.form-control#hk-batdau(type="date")
+              input.form-control#hk-batdau(type="date" aria-describedby="hk-term-date-error")
             .form-group
               label(for="hk-ketthuc") Ngày kết thúc kỳ
-              input.form-control#hk-ketthuc(type="date")
+              input.form-control#hk-ketthuc(type="date" aria-describedby="hk-term-date-error")
+              small.field-error#hk-term-date-error(aria-live="polite")
           .form-row
             .form-group
               label(for="hk-batdaudk") Bắt đầu đăng ký
-              input.form-control#hk-batdaudk(type="date")
+              input.form-control#hk-batdaudk(type="date" aria-describedby="hk-registration-date-error")
             .form-group
               label(for="hk-ketthucdk") Hạn kết thúc đăng ký
-              input.form-control#hk-ketthucdk(type="date")
+              input.form-control#hk-ketthucdk(type="date" aria-describedby="hk-registration-date-error")
+              small.field-error#hk-registration-date-error(aria-live="polite")
           .form-group
             label(for="hk-hanhocphi") Hạn đóng học phí
-            input.form-control#hk-hanhocphi(type="date")
+            input.form-control#hk-hanhocphi(type="date" aria-describedby="hk-tuition-date-error")
+            small.field-error#hk-tuition-date-error(aria-live="polite")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveSemester()") Lưu

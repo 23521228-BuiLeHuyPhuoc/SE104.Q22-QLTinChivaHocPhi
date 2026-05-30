@@ -1,0 +1,407 @@
+.form-control:disabled,
+.form-control[readonly],
+.search-box input:disabled,
+.filter-group select:disabled,
+.filter-group input:disabled {
+  background: var(--bg-tertiary);
+  border-color: var(--border-light);
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.form-control.is-invalid {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12);
+}
+
+.field-error {
+  color: var(--color-error);
+  display: none;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.field-error.active {
+  display: block;
+}
+
+.toolbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.semester-filter-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  container-type: inline-size;
+  margin-bottom: var(--spacing-lg);
+  padding: 20px;
+}
+
+.semester-filter-grid {
+  align-items: end;
+  display: grid;
+  gap: 18px 16px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.semester-filter-search {
+  grid-column: 1 / span 4;
+  grid-row: 2;
+}
+
+.semester-filter-kind {
+  grid-column: 1 / span 5;
+  grid-row: 1;
+}
+
+.semester-filter-status {
+  grid-column: 6 / -1;
+  grid-row: 1;
+}
+
+.semester-filter-date-field {
+  grid-column: 5 / span 3;
+  grid-row: 2;
+}
+
+.semester-filter-date-exact {
+  grid-column: 8 / span 3;
+  grid-row: 2;
+}
+
+.semester-filter-field {
+  min-width: 0;
+}
+
+.semester-filter-field label,
+.semester-filter-label {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.semester-search-box {
+  max-width: none;
+  width: 100%;
+}
+
+.segmented-control {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: 44px;
+  min-width: 0;
+  padding: 4px;
+}
+
+.segmented-option {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  min-height: 34px;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: center;
+  transition: background var(--transition-speed) var(--transition-smooth), border-color var(--transition-speed) var(--transition-smooth), color var(--transition-speed) var(--transition-smooth);
+  white-space: nowrap;
+}
+
+.segmented-option:hover {
+  background: var(--bg-secondary);
+  border-color: rgba(14, 165, 233, 0.25);
+  color: var(--color-primary-dark);
+}
+
+.segmented-option.active {
+  background: var(--bg-secondary);
+  border-color: rgba(14, 165, 233, 0.45);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-primary-dark);
+}
+
+.semester-filter-actions {
+  align-items: end;
+  display: flex;
+  grid-column: 11 / -1;
+  grid-row: 2;
+  justify-content: flex-end;
+}
+
+.semester-filter-actions .btn {
+  justify-content: center;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+
+.semester-list {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  width: 100%;
+}
+
+.semester-list-body {
+  display: grid;
+  gap: 10px;
+}
+
+.semester-list-header,
+.semester-list-row {
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: 1.15fr 1.75fr 0.85fr 0.75fr 128px;
+}
+
+.semester-list-header {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 12px 16px;
+  text-transform: uppercase;
+}
+
+.semester-list-row {
+  align-items: start;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: background var(--transition-speed) var(--transition-smooth), border-color var(--transition-speed) var(--transition-smooth);
+}
+
+.semester-list-row > * {
+  min-width: 0;
+}
+
+.semester-list-row:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary);
+}
+
+.semester-identity strong {
+  display: block;
+  font-size: var(--font-size-sm);
+  margin-bottom: 10px;
+}
+
+.semester-meta,
+.semester-update {
+  display: grid;
+  gap: 8px;
+}
+
+.semester-date-grid {
+  display: grid;
+  gap: 10px 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.semester-field {
+  min-width: 0;
+}
+
+.semester-field-wide {
+  grid-column: 1 / -1;
+}
+
+.semester-field-label {
+  color: var(--text-tertiary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.semester-field-value {
+  color: var(--text-primary);
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.semester-state {
+  display: grid;
+  gap: 12px;
+}
+
+.semester-metrics {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.semester-metric {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+.semester-metric-value {
+  color: var(--text-primary);
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.semester-metric-label {
+  color: var(--text-tertiary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.semester-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.semester-actions .btn {
+  min-width: 54px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.pagination button:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+@container (max-width: 900px) {
+  .semester-filter-grid {
+    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .semester-filter-search,
+  .semester-filter-kind,
+  .semester-filter-status,
+  .semester-filter-date-field,
+  .semester-filter-date-exact,
+  .semester-filter-actions {
+    grid-column: span 1;
+    grid-row: auto;
+  }
+
+  .semester-filter-kind {
+    order: 1;
+  }
+
+  .semester-filter-status {
+    order: 2;
+  }
+
+  .semester-filter-search {
+    order: 3;
+  }
+
+  .semester-filter-date-field {
+    order: 4;
+  }
+
+  .semester-filter-date-exact {
+    order: 5;
+  }
+
+  .semester-filter-actions {
+    order: 6;
+  }
+
+  .segmented-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 560px) {
+  .semester-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .semester-filter-search,
+  .semester-filter-kind,
+  .semester-filter-status,
+  .semester-filter-date-field,
+  .semester-filter-date-exact,
+  .semester-filter-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .segmented-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .semester-filter-actions,
+  .semester-filter-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) {
+  .semester-list-header {
+    display: none;
+  }
+
+  .semester-list-row {
+    gap: var(--spacing-md);
+    grid-template-columns: 1fr;
+  }
+
+  .semester-date-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .semester-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .segmented-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .semester-filter-actions,
+  .semester-filter-actions .btn {
+    width: 100%;
+  }
+
+  .semester-date-grid,
+  .semester-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .semester-field-wide {
+    grid-column: auto;
+  }
+}

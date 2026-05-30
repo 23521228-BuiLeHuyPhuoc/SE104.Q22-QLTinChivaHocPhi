@@ -12,7 +12,7 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 | Người | Module | Trang admin | Trang sinh viên |
 | --- | --- | --- | --- |
-| Người 1 | Sinh viên, Đối tượng ưu tiên | `/admin/students`, `/admin/beneficiaries` | `/student/profile` |
+| Người 1 | Sinh viên, Đối tượng ưu tiên, Địa giới hành chính | `/admin/students`, `/admin/beneficiaries`, `/admin/provinces`, `/admin/wards` | `/student/profile` |
 | Người 2 | Môn học, Điều kiện, Chương trình, Lịch sử học | `/admin/courses`, `/admin/prerequisites`, `/admin/completed-courses` | `/student/curriculum`, `/student/completed-courses` |
 | Người 3 | Học kỳ, Lớp, Tiết học, Đơn giá, Đăng ký | `/admin/semesters`, `/admin/classes`, `/admin/periods`, `/admin/pricing`, `/admin/registrations` | `/student/course-registration`, `/student/my-courses`, `/student/my-schedule` |
 | Người 4 | Học phí, Thanh toán, Thùng rác, Tài khoản, Thông báo, Báo cáo, Dashboard | `/admin/tuition`, `/admin/payments`, `/admin/trash`, `/admin/users`, `/admin/notifications`, `/admin/reports`, `/admin/dashboard` | `/student/my-tuition`, `/student/my-payments`, `/student/notifications`, `/student/dashboard` |
@@ -30,6 +30,10 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 **Trang Đối tượng ưu tiên (admin/beneficiaries):**
 - ✅ Đã có: CRUD đối tượng (mã, tên, tỉ lệ giảm, độ ưu tiên, mô tả), modal gán/gỡ SV vào đối tượng, hiện danh sách SV trong đối tượng.
 - ❌ Chưa có: search/filter đối tượng, import danh sách SV từ Excel vào đối tượng, hiện tổng số SV thuộc từng đối tượng ngay trên bảng chính, xem SV nào đang được miễn giảm bao nhiêu.
+
+**Trang Tỉnh/Phường xã (admin/provinces, admin/wards):**
+- ✅ Đã có: bảng dữ liệu `TINH`, `PHUONGXA`; form sinh viên đã load dropdown tỉnh/phường xã từ API hiện có.
+- ❌ Chưa có: trang admin quản lý tỉnh/thành phố, trang admin quản lý phường/xã, CRUD địa giới hành chính, search/filter theo tỉnh/trạng thái/khu vực, kiểm tra ràng buộc khi khóa/xóa địa phương đang được sinh viên sử dụng.
 
 **Trang Hồ sơ SV (student/profile):**
 - ✅ Đã có file `student/profile.js` (7.5KB) — form xem/sửa thông tin cá nhân.
@@ -82,22 +86,36 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 16. **API profile phải trả kèm đối tượng**: API dùng cho `/student/profile` và `/admin/students` phải include `DOITUONGSINHVIEN` + `DOITUONG` để frontend không phải gọi rời rạc nhiều lần. Nếu API hiện có chưa trả, bổ sung ở controller/model formatter.
 
+### Giao diện Admin — Tỉnh/Phường xã
+
+17. **Bổ sung trang quản lý tỉnh/thành phố**: Tạo `/admin/provinces` để admin xem danh sách `TINH`, thêm/sửa/khóa/xóa mềm tỉnh/thành phố, search theo mã/tên, filter trạng thái. Không cho khóa/xóa nếu còn phường/xã hoặc sinh viên đang phụ thuộc mà chưa có phương án xử lý.
+
+18. **Bổ sung trang quản lý phường/xã**: Tạo `/admin/wards` để admin xem danh sách `PHUONGXA`, thêm/sửa/khóa/xóa mềm phường/xã. Form phải chọn tỉnh bằng dropdown, quản lý đủ mã, tên, loại, khu vực, trạng thái; có filter theo tỉnh, trạng thái, khu vực.
+
+19. **Đồng bộ dropdown địa chỉ trong form sinh viên**: `/admin/students` và `/student/profile` phải lấy tỉnh/phường xã active từ API quản lý địa giới. Khi sửa sinh viên cũ có địa phương đã khóa, vẫn hiển thị giá trị hiện tại nhưng không cho chọn mới địa phương inactive.
+
 ### Backend
 
-12. **API export Excel SV**: `GET /api/students/export?search=&MaNganh=` → trả file Excel. Dùng thư viện `exceljs` hoặc `xlsx`.
+20. **API export Excel SV**: `GET /api/students/export?search=&MaNganh=` → trả file Excel. Dùng thư viện `exceljs` hoặc `xlsx`.
 
-13. **API import Excel SV**: `POST /api/students/import` → nhận file Excel → validate từng dòng → batch create → trả kết quả.
+21. **API import Excel SV**: `POST /api/students/import` → nhận file Excel → validate từng dòng → batch create → trả kết quả.
 
-14. **API upload ảnh SV**: `POST /api/students/:id/avatar` → nhận file ảnh → lưu vào `public/uploads/` → update `AnhDaiDien` trong DB.
+22. **API upload ảnh SV**: `POST /api/students/:id/avatar` → nhận file ảnh → lưu vào `public/uploads/` → update `AnhDaiDien` trong DB.
 
-15. **API lấy đối tượng theo SV**: `GET /api/students/:id/beneficiaries` → trả danh sách đối tượng ưu tiên SV đang có.
+23. **API lấy đối tượng theo SV**: `GET /api/students/:id/beneficiaries` → trả danh sách đối tượng ưu tiên SV đang có.
 
-16. **Thêm filter MaKhoa vào getAllStudents**: Backend `getAllStudents()` hiện chỉ filter `MaNganh`, thêm filter `MaKhoa` (join qua NGANHHOC).
+24. **Thêm filter MaKhoa vào getAllStudents**: Backend `getAllStudents()` hiện chỉ filter `MaNganh`, thêm filter `MaKhoa` (join qua NGANHHOC).
+
+25. **API CRUD tỉnh/thành phố**: Bổ sung controller/routes cho `TINH`: list/search/filter, get detail, create, update, khóa/xóa mềm. Endpoint gợi ý: `/api/provinces`.
+
+26. **API CRUD phường/xã**: Bổ sung controller/routes cho `PHUONGXA`: list/search/filter theo `MaTinh`, create, update, khóa/xóa mềm. Endpoint gợi ý: `/api/wards`.
+
+27. **Validate ràng buộc địa giới khi cập nhật/xóa**: Không để xóa/khóa tỉnh còn phường/xã active hoặc phường/xã còn sinh viên đang tham chiếu nếu việc đó làm form sinh viên lỗi. Response phải trả lý do cụ thể để UI hiển thị.
 
 ## 1.3. Phạm vi file
 
-- **Backend**: `studentController.js`, `beneficiaryController.js`, `studentRoutes.js`, `beneficiaryRoutes.js`, `studentModel.js`
-- **Frontend**: `admin/students.pug` + `.js`, `admin/beneficiaries.pug` + `.js`, `student/profile.pug` + `.js`
+- **Backend**: `studentController.js`, `beneficiaryController.js`, `locationController.js` nếu tách riêng, `studentRoutes.js`, `beneficiaryRoutes.js`, `locationRoutes.js` nếu tách riêng, `studentModel.js`, `locationModel.js`
+- **Frontend**: `admin/students.pug` + `.js`, `admin/beneficiaries.pug` + `.js`, `admin/provinces.pug` + `.js`, `admin/wards.pug` + `.js`, `student/profile.pug` + `.js`
 
 ## 1.4. Test Cases
 
@@ -121,6 +139,11 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 | N1-16 | SV mở profile | Phần đối tượng ưu tiên hiển thị readonly, không có nút thêm/sửa/gỡ |
 | N1-17 | Admin mở modal sửa SV | Hiển thị danh sách đối tượng hiện tại của sinh viên |
 | N1-18 | SV không có đối tượng | Profile hiển thị trạng thái rỗng rõ ràng |
+| N1-19 | Admin mở trang tỉnh/thành phố | Bảng hiện mã, tên, loại tỉnh, trạng thái và có search/filter |
+| N1-20 | Admin thêm tỉnh/thành phố | Tạo thành công, dropdown tỉnh trong form sinh viên load được dữ liệu mới |
+| N1-21 | Admin mở trang phường/xã | Bảng filter được theo tỉnh, trạng thái, khu vực |
+| N1-22 | Admin thêm phường/xã | Chọn tỉnh từ dropdown, tạo thành công, form sinh viên load được phường/xã mới |
+| N1-23 | Khóa/xóa phường xã đang có SV sử dụng | API chặn hoặc cảnh báo rõ lý do, không làm dữ liệu sinh viên lỗi |
 
 ---
 
@@ -142,7 +165,7 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 **Trang Chương trình ĐT (student/curriculum):**
 - ✅ Đã có: hiện CTHT theo HK 1→8, trạng thái từng môn (passed/failed/registered/not_started), tổng TC/đã hoàn thành.
-- ❌ Chưa có: hiện tiến độ % dạng progress bar, hiện điều kiện tiên quyết từng môn, lọc theo trạng thái.
+- ❌ Chưa có: hiện tiến độ % dạng progress bar, hiện điều kiện tiên quyết từng môn, lọc theo trạng thái, tính số tín chỉ còn nợ theo chương trình đào tạo tới học kỳ hiện tại để xét điều kiện đăng ký khóa luận tốt nghiệp.
 
 **Trang Môn đã học SV (student/completed-courses):**
 - ✅ Đã có: hiện lịch sử học (4.4KB), tổng TC đã qua.
@@ -152,7 +175,7 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 - ✅ `courseController.js` — CRUD, stats, `getMyCurriculum()`, `getOpenedClasses()`.
 - ✅ `prerequisiteController.js` — CRUD, `validatePayload()` check tự trỏ + trùng.
 - ✅ `completedCourseController.js` — CRUD lịch sử học.
-- ❌ Chưa có: API lấy danh sách khoa cho dropdown, API lấy chi tiết môn (kèm điều kiện + lớp), API import kết quả, API batch nhập điểm.
+- ❌ Chưa có: API lấy danh sách khoa cho dropdown, API lấy chi tiết môn (kèm điều kiện + lớp), API import kết quả, API batch nhập điểm, API/helper tính số tín chỉ còn nợ theo CTĐT để xét điều kiện khóa luận tốt nghiệp.
 
 ## 2.2. Công việc cần làm
 
@@ -208,19 +231,29 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 20. **API môn đã học phải include thông tin môn học đủ dùng cho filter**: `completedCourseController` cần trả kèm `MONHOC` với mã môn, tên môn, loại môn, số tín chỉ, khoa; nếu lọc server-side thì thêm query params tương ứng.
 
+21. **Bổ sung rule điều kiện đăng ký khóa luận tốt nghiệp**: Sinh viên chỉ được đăng ký môn khóa luận tốt nghiệp nếu số tín chỉ còn nợ theo chương trình đào tạo tới thời điểm/học kỳ đăng ký không quá 8 tín chỉ. Cách tính tối thiểu: lấy `CHUONGTRINHHOC` của ngành sinh viên với `HocKyDuKien <= học kỳ hiện tại/học kỳ đăng ký`, cộng tín chỉ các môn bắt buộc chưa có kết quả `qua_mon` trong `MONDAHOC`. Nếu có môn tự chọn/nhóm tự chọn thì phải tính theo số tín chỉ yêu cầu của nhóm, không cộng cứng tất cả môn tự chọn.
+
+22. **Xác định môn khóa luận tốt nghiệp rõ ràng**: Trong quản lý môn học/chương trình học phải có cách nhận diện môn khóa luận tốt nghiệp để backend không hardcode theo tên môn. Nếu schema hiện tại chưa có cờ riêng, dùng cấu hình danh sách mã môn khóa luận trong config/tham số tạm thời và ghi chú rõ cần trưởng nhóm bổ sung field nếu muốn quản lý chính quy.
+
+23. **Hiển thị trạng thái đủ điều kiện khóa luận trên CTĐT**: Ở `/student/curriculum`, bổ sung thông tin "Tín chỉ còn nợ tới hiện tại: X" và trạng thái "Đủ/Chưa đủ điều kiện đăng ký khóa luận" để sinh viên biết trước khi đăng ký.
+
 ### Backend
 
-14. **API lấy khoa cho dropdown**: Sử dụng API `/api/faculties` đã có. Đảm bảo courses form gọi đúng.
+24. **API lấy khoa cho dropdown**: Sử dụng API `/api/faculties` đã có. Đảm bảo courses form gọi đúng.
 
-15. **API batch nhập điểm**: `POST /api/completed-courses/batch` — nhận array `[{MaSv, MaMonHoc, Diem, KetQua, MaHocKy}]` → validate + batch create.
+25. **API batch nhập điểm**: `POST /api/completed-courses/batch` — nhận array `[{MaSv, MaMonHoc, Diem, KetQua, MaHocKy}]` → validate + batch create.
 
-16. **API import kết quả**: `POST /api/completed-courses/import` — nhận file Excel → parse → batch create.
+26. **API import kết quả**: `POST /api/completed-courses/import` — nhận file Excel → parse → batch create.
 
-17. **API export môn**: `GET /api/courses/export` → trả file Excel.
+27. **API export môn**: `GET /api/courses/export` → trả file Excel.
+
+28. **API/helper tính tín chỉ còn nợ theo CTĐT**: Bổ sung hàm dùng chung, ví dụ `calculateCurriculumDebt(MaSv, MaHocKy)`, trả `requiredCreditsUntilNow`, `passedCredits`, `owedCredits`, `missingCourses[]`. Hàm này thuộc module chương trình học/môn đã học để Người 3 có thể gọi trong đăng ký môn.
+
+29. **API kiểm tra điều kiện khóa luận**: Endpoint gợi ý `GET /api/students/:id/thesis-eligibility?MaHocKy=` hoặc endpoint trong curriculum trả trạng thái đủ điều kiện. Response cần có `eligible`, `owedCredits`, `maxAllowedOwedCredits = 8`, `missingCourses[]`, không chỉ trả true/false.
 
 ## 2.3. Phạm vi file
 
-- **Backend**: `courseController.js`, `prerequisiteController.js`, `completedCourseController.js`, `majorController.js`, `viewController.js`, `courseRoutes.js`, `prerequisiteRoutes.js`, `completedCourseRoutes.js`, `majorRoutes.js`, `courseModel.js`
+- **Backend**: `courseController.js`, `prerequisiteController.js`, `completedCourseController.js`, `majorController.js`, `viewController.js`, `courseRoutes.js`, `prerequisiteRoutes.js`, `completedCourseRoutes.js`, `majorRoutes.js`, `courseModel.js`, helper/service tính điều kiện khóa luận nếu tách riêng
 - **Frontend**: `admin/courses.pug` + `.js`, `admin/prerequisites.pug` + `.js`, `admin/completed-courses.pug` + `.js`, `admin/majors.pug` + `.js`, `admin/curriculum.pug` + `.js` nếu cần tạo trang riêng, `student/curriculum.pug` + `.js`, `student/completed-courses.pug` + `.js`
 
 ## 2.4. Test Cases
@@ -247,6 +280,8 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 | N2-18 | Admin xếp môn sai tiên quyết | UI/API báo lỗi học kỳ không hợp lệ |
 | N2-19 | SV tìm môn đã học theo tên môn | Danh sách lọc đúng theo thuộc tính môn học |
 | N2-20 | SV lọc môn đã học theo loại môn/khoa | Danh sách lọc đúng, phân trang giữ filter |
+| N2-21 | SV còn nợ 9 TC theo CTĐT tới HK hiện tại | API điều kiện khóa luận trả `eligible=false`, `owedCredits=9` |
+| N2-22 | SV còn nợ 8 TC hoặc ít hơn | API điều kiện khóa luận trả `eligible=true` |
 
 ---
 
@@ -272,7 +307,7 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 **Trang Đăng ký (admin/registrations):**
 - ✅ Đã có: bảng phiếu ĐK (SoPhieu, MSSV, HoTen, HK, SoMon, TongTC, TongTien, Ngày, TrangThai), search, filter trạng thái, modal chi tiết (hiện danh sách môn ĐK theo HK).
-- ❌ Chưa có: admin hủy/xóa 1 CTDK, admin tạo ĐK cho SV, hiện tổng tien/mien giam trên chi tiết, export danh sách ĐK.
+- ❌ Chưa có: admin hủy/xóa 1 CTDK, admin đăng ký học phần hộ SV, hiện tổng tiền/miễn giảm trên chi tiết, export danh sách ĐK.
 
 **Trang ĐK SV (student/course-registration):**
 - ✅ Đã có: dropdown chọn HK, bảng lớp mở (MaLop, TenMon, TC, GV, Lịch, Phòng, LoaiDK, HocPhi, SĩSố), nút ĐK, phân trang, search, badge loại ĐK, hiện "X/Y" sĩ số, nút ĐK bị thay bằng "Hết chỗ" khi đầy.
@@ -290,7 +325,7 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 - ✅ `semesterController.js` — CRUD, getActiveSemester, getRegistrationOptions, getAcademicYears.
 - ✅ `classController.js` — CRUD, openClass, closeClass, getClassSchedules, upsertClassSchedule, getClassStats.
 - ✅ `registrationController.js` — CRUD, registerCourse, cancelRegistration, getAvailableCourses, getStudentCourses. Có ensureNoScheduleConflict, ensureCreditLimit.
-- ❌ Chưa có: API lấy DS SV trong 1 lớp, API export ĐK, API admin hủy CTDK.
+- ❌ Chưa có: API lấy DS SV trong 1 lớp, API export ĐK, API admin hủy CTDK, kiểm tra điều kiện khóa luận tốt nghiệp khi đăng ký môn khóa luận.
 
 ## 3.2. Công việc cần làm
 
@@ -332,69 +367,73 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 ### Giao diện Admin — Trang Đơn giá
 
-11. **Form thêm/sửa đơn giá**: Kiểm tra xem pug đã có modal form chưa. Nếu chưa: thêm modal (chọn LoaiMon, LoaiHoc, HK, DonGia, TrangThai) + nút Thêm/Sửa/Xóa.
+16. **Form thêm/sửa đơn giá**: Kiểm tra xem pug đã có modal form chưa. Nếu chưa: thêm modal (chọn LoaiMon, LoaiHoc, HK, DonGia, TrangThai) + nút Thêm/Sửa/Xóa.
 
-12. **Format tiền VNĐ**: Hiện đơn giá dạng "27.000 ₫" thay vì số thô.
+17. **Format tiền VNĐ**: Hiện đơn giá dạng "27.000 ₫" thay vì số thô.
 
 ### Giao diện Admin — Trang Đăng ký
 
-13. **Admin hủy CTDK**: Nút "Hủy" cạnh từng môn trong modal chi tiết → confirm → gọi API cancelRegistration. Hiện lý do nếu bị chặn.
+18. **Admin hủy CTDK**: Nút "Hủy" cạnh từng môn trong modal chi tiết → confirm → gọi API cancelRegistration. Hiện lý do nếu bị chặn.
 
-14. **Hiện miễn giảm trên chi tiết**: Trong modal chi tiết phiếu ĐK, thêm dòng: TiLeGiam, TienMienGiam, TongTienPhaiDong (data đã có từ PHIEUDANGKY).
+19. **Hiện miễn giảm trên chi tiết**: Trong modal chi tiết phiếu ĐK, thêm dòng: TiLeGiam, TienMienGiam, TongTienPhaiDong (data đã có từ PHIEUDANGKY).
 
-15. **Export ĐK ra Excel**: Nút "Xuất Excel" → download file gồm: MSSV, HoTen, HK, DsMon, TongTC, TongTien.
+20. **Export ĐK ra Excel**: Nút "Xuất Excel" → download file gồm: MSSV, HoTen, HK, DsMon, TongTC, TongTien.
 
 ### Giao diện Sinh viên — Đăng ký môn
 
-16. **Hiện tổng TC đã ĐK trong HK**: Trên đầu bảng lớp mở, hiện "Đã đăng ký: X tín chỉ / Max Y tín chỉ". Load từ API getStudentCourses filter theo HK.
+21. **Hiện tổng TC đã ĐK trong HK**: Trên đầu bảng lớp mở, hiện "Đã đăng ký: X tín chỉ / Max Y tín chỉ". Load từ API getStudentCourses filter theo HK.
 
-17. **Cảnh báo sĩ số gần đầy**: Nếu còn < 5 chỗ → badge đỏ "Sắp hết" thay vì text bình thường.
+22. **Cảnh báo sĩ số gần đầy**: Nếu còn < 5 chỗ → badge đỏ "Sắp hết" thay vì text bình thường.
 
-18. **Bổ sung tìm kiếm theo giảng viên**: Ở `/student/course-registration`, thêm filter/ô tìm kiếm giảng viên. Sinh viên nhập tên giảng viên hoặc chọn dropdown, danh sách lớp mở phải lọc đúng các lớp do giảng viên đó phụ trách.
+23. **Bổ sung tìm kiếm theo giảng viên**: Ở `/student/course-registration`, thêm filter/ô tìm kiếm giảng viên. Sinh viên nhập tên giảng viên hoặc chọn dropdown, danh sách lớp mở phải lọc đúng các lớp do giảng viên đó phụ trách.
 
-19. **Bổ sung tìm kiếm theo lớp**: Thêm tìm kiếm theo mã lớp và tên lớp. Kết quả phải lọc được khi sinh viên chỉ nhớ mã lớp, ví dụ `SE104.N11`, hoặc tên lớp/nhóm lớp.
+24. **Bổ sung tìm kiếm theo lớp**: Thêm tìm kiếm theo mã lớp và tên lớp. Kết quả phải lọc được khi sinh viên chỉ nhớ mã lớp, ví dụ `SE104.N11`, hoặc tên lớp/nhóm lớp.
 
-20. **Bổ sung tìm kiếm theo loại môn**: Thêm filter loại môn LT/TH/Tất cả. Nếu có thêm loại học khác trong dữ liệu thì dropdown phải lấy theo dữ liệu thực tế hoặc định nghĩa chung, không hardcode sai.
+25. **Bổ sung tìm kiếm theo loại môn**: Thêm filter loại môn LT/TH/Tất cả. Nếu có thêm loại học khác trong dữ liệu thì dropdown phải lấy theo dữ liệu thực tế hoặc định nghĩa chung, không hardcode sai.
 
-21. **Bổ sung filter theo lịch học**: Thêm các lựa chọn lọc theo thứ trong tuần, ngày học hoặc ca/tiết học nếu dữ liệu lịch có đủ. Tối thiểu phải có filter theo thứ và khoảng tiết để sinh viên tìm lớp không trùng lịch cá nhân.
+26. **Bổ sung filter theo lịch học**: Thêm các lựa chọn lọc theo thứ trong tuần, ngày học hoặc ca/tiết học nếu dữ liệu lịch có đủ. Tối thiểu phải có filter theo thứ và khoảng tiết để sinh viên tìm lớp không trùng lịch cá nhân.
 
-22. **Bỏ phần học phí dự kiến khỏi trang đăng ký môn**: Không hiển thị cột/card/text "Học phí dự kiến", `DonGiaDuKien`, `ThanhTienDuKien` ở `/student/course-registration`. Phần học phí chỉ xử lý ở trang học phí/thanh toán. Backend có thể vẫn giữ dữ liệu để tính toán, nhưng frontend đăng ký môn không được làm sinh viên hiểu đây là màn thanh toán.
+27. **Bỏ phần học phí dự kiến khỏi trang đăng ký môn**: Không hiển thị cột/card/text "Học phí dự kiến", `DonGiaDuKien`, `ThanhTienDuKien` ở `/student/course-registration`. Phần học phí chỉ xử lý ở trang học phí/thanh toán. Backend có thể vẫn giữ dữ liệu để tính toán, nhưng frontend đăng ký môn không được làm sinh viên hiểu đây là màn thanh toán.
 
-23. **Filter phải giữ trạng thái sau reload/phân trang**: Khi sinh viên lọc theo giảng viên/lớp/loại môn/thứ/tiết rồi chuyển trang hoặc đăng ký xong, filter hiện tại phải được giữ lại.
+28. **Filter phải giữ trạng thái sau reload/phân trang**: Khi sinh viên lọc theo giảng viên/lớp/loại môn/thứ/tiết rồi chuyển trang hoặc đăng ký xong, filter hiện tại phải được giữ lại.
+
+29. **Hiển thị lỗi điều kiện khóa luận rõ ràng**: Khi sinh viên đăng ký lớp/môn khóa luận tốt nghiệp nhưng chưa đủ điều kiện, UI phải hiển thị thông báo từ API, ví dụ "Chưa đủ điều kiện đăng ký khóa luận: còn nợ 9 tín chỉ, tối đa được nợ 8 tín chỉ". Không hiển thị lỗi chung chung như "Đăng ký thất bại".
 
 ### Giao diện Sinh viên — Môn đã ĐK
 
-18. **Nút hủy ĐK**: Mỗi môn trong danh sách có nút "Hủy ĐK" → confirm → gọi API cancelRegistration → reload.
+30. **Nút hủy ĐK**: Mỗi môn trong danh sách có nút "Hủy ĐK" → confirm → gọi API cancelRegistration → reload.
 
-19. **Hiện tổng TC + tổng tiền**: Cuối danh sách hiện tổng: "Tổng: X tín chỉ | Học phí: Y₫".
+31. **Hiện tổng TC + tổng tiền**: Cuối danh sách hiện tổng: "Tổng: X tín chỉ | Học phí: Y₫".
 
-20. **Hủy đăng ký xong thì xóa khỏi danh sách đang đăng ký**: Khi sinh viên bấm "Hủy ĐK" ở `/student/my-courses`, sau khi API thành công không hiển thị dòng đó với trạng thái "Đã hủy". Danh sách này chỉ là danh sách học phần đang đăng ký, nên môn đã hủy phải biến mất khỏi bảng active. Nếu cần lịch sử hủy thì để ở màn hình khác, không nằm trong danh sách đang đăng ký.
+32. **Hủy đăng ký xong thì xóa khỏi danh sách đang đăng ký**: Khi sinh viên bấm "Hủy ĐK" ở `/student/my-courses`, sau khi API thành công không hiển thị dòng đó với trạng thái "Đã hủy". Danh sách này chỉ là danh sách học phần đang đăng ký, nên môn đã hủy phải biến mất khỏi bảng active. Nếu cần lịch sử hủy thì để ở màn hình khác, không nằm trong danh sách đang đăng ký.
 
-21. **Tổng tín chỉ đã đăng ký chỉ tính môn active**: Thêm phần tổng tín chỉ đã đăng ký ở đầu hoặc cuối trang `/student/my-courses`, chỉ cộng các chi tiết có trạng thái active/đã đăng ký. Không cộng môn đã hủy. Hiển thị rõ dạng "Tổng tín chỉ đã đăng ký: X".
+33. **Tổng tín chỉ đã đăng ký chỉ tính môn active**: Thêm phần tổng tín chỉ đã đăng ký ở đầu hoặc cuối trang `/student/my-courses`, chỉ cộng các chi tiết có trạng thái active/đã đăng ký. Không cộng môn đã hủy. Hiển thị rõ dạng "Tổng tín chỉ đã đăng ký: X".
 
-22. **Không nhấn mạnh học phí ở danh sách môn đã đăng ký**: Vì đây là màn quản lý học phần đã đăng ký, không phải màn thanh toán, ưu tiên tổng tín chỉ và trạng thái học phần. Nếu vẫn cần giữ tổng tiền để admin/kiểm tra, không đặt thành thông tin chính; học phí chi tiết nằm ở `/student/my-tuition`.
+34. **Không nhấn mạnh học phí ở danh sách môn đã đăng ký**: Vì đây là màn quản lý học phần đã đăng ký, không phải màn thanh toán, ưu tiên tổng tín chỉ và trạng thái học phần. Nếu vẫn cần giữ tổng tiền để admin/kiểm tra, không đặt thành thông tin chính; học phí chi tiết nằm ở `/student/my-tuition`.
 
 ### Giao diện Sinh viên — Thời khóa biểu
 
-20. **Dropdown chọn HK**: Nếu chưa có → thêm dropdown chọn HK để xem lịch HK khác.
+35. **Dropdown chọn HK**: Nếu chưa có → thêm dropdown chọn HK để xem lịch HK khác.
 
-21. **In/export lịch**: Nút "In TKB" → window.print() hoặc export PDF.
+36. **In/export lịch**: Nút "In TKB" → window.print() hoặc export PDF.
 
 ### Backend
 
-22. **API danh sách SV trong lớp**: `GET /api/classes/:id/students?MaHocKy=` → query CHITIETDANGKY join PHIEUDANGKY join SINHVIEN.
+37. **API danh sách SV trong lớp**: `GET /api/classes/:id/students?MaHocKy=` → query CHITIETDANGKY join PHIEUDANGKY join SINHVIEN.
 
-23. **API export ĐK**: `GET /api/registrations/export?MaHocKy=` → trả file Excel.
+38. **API export ĐK**: `GET /api/registrations/export?MaHocKy=` → trả file Excel.
 
-24. **Sửa viewController truyền stats cho HK**: Trong `adminSemesters()` → query count LOPMO + PHIEUDANGKY cho mỗi HK.
+39. **Sửa viewController truyền stats cho HK**: Trong `adminSemesters()` → query count LOPMO + PHIEUDANGKY cho mỗi HK.
 
-25. **Bổ sung filter cho API lớp mở sinh viên đăng ký**: `getAvailableCourses()` cần nhận thêm query như `GiangVien`, `MaLop`, `LoaiMon`, `ThuTrongTuan`, `MaTietBatDau`, `MaTietKetThuc`, `ConCho`. API phải filter đúng trên `LOP`, `MONHOC`, `LOPMO`, `LICHHOCLOP` và vẫn trả phân trang đúng.
+40. **Bổ sung filter cho API lớp mở sinh viên đăng ký**: `getAvailableCourses()` cần nhận thêm query như `GiangVien`, `MaLop`, `LoaiMon`, `ThuTrongTuan`, `MaTietBatDau`, `MaTietKetThuc`, `ConCho`. API phải filter đúng trên `LOP`, `MONHOC`, `LOPMO`, `LICHHOCLOP` và vẫn trả phân trang đúng.
 
-26. **API môn đã đăng ký chỉ trả danh sách active theo mặc định**: `getStudentCourses()` hoặc endpoint tương ứng cho `/student/my-courses` phải mặc định chỉ lấy chi tiết đang đăng ký. Nếu cần lấy cả đã hủy thì phải có query riêng như `includeCancelled=true`, không dùng cho danh sách active mặc định.
+41. **API môn đã đăng ký chỉ trả danh sách active theo mặc định**: `getStudentCourses()` hoặc endpoint tương ứng cho `/student/my-courses` phải mặc định chỉ lấy chi tiết đang đăng ký. Nếu cần lấy cả đã hủy thì phải có query riêng như `includeCancelled=true`, không dùng cho danh sách active mặc định.
 
-27. **API tổng tín chỉ đã đăng ký**: Response của danh sách môn đã đăng ký cần có summary `totalCreditsRegistered` chỉ tính chi tiết active để frontend hiển thị "Tổng tín chỉ đã đăng ký".
+42. **API tổng tín chỉ đã đăng ký**: Response của danh sách môn đã đăng ký cần có summary `totalCreditsRegistered` chỉ tính chi tiết active để frontend hiển thị "Tổng tín chỉ đã đăng ký".
 
-28. **API danh sách môn học mở cho admin**: Bổ sung endpoint/filter cho trang "Danh sách môn học mở", gồm học kỳ, khoa, môn, giảng viên, lớp, loại môn, trạng thái, còn chỗ/hết chỗ.
+43. **API danh sách môn học mở cho admin**: Bổ sung endpoint/filter cho trang "Danh sách môn học mở", gồm học kỳ, khoa, môn, giảng viên, lớp, loại môn, trạng thái, còn chỗ/hết chỗ.
+
+44. **Chặn đăng ký khóa luận nếu nợ quá 8 tín chỉ**: Trong `registerCourse()` và mọi luồng admin đăng ký học phần hộ SV, nếu môn/lớp đang đăng ký là khóa luận tốt nghiệp thì gọi helper/API điều kiện khóa luận của Người 2. Nếu `owedCredits > 8`, không tạo `CHITIETDANGKY`, không cập nhật học phí, trả lỗi có `owedCredits`, `maxAllowedOwedCredits=8` và danh sách môn còn nợ nếu có.
 
 ## 3.3. Phạm vi file
 
@@ -429,6 +468,7 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 | N3-22 | SV hủy môn đã đăng ký | Môn biến mất khỏi danh sách active, không hiện dòng "Đã hủy" |
 | N3-23 | My-courses hiện tổng tín chỉ | Tổng tín chỉ chỉ cộng môn đang đăng ký |
 | N3-24 | Admin xem danh sách môn học mở | Bảng có học kỳ, môn, lớp, giảng viên, lịch, sĩ số, còn chỗ |
+| N3-25 | SV đăng ký khóa luận khi còn nợ 9 TC | API chặn, UI hiện lý do còn nợ quá 8 tín chỉ, không tạo CTDK |
 
 ---
 
@@ -544,65 +584,65 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 ### Giao diện Admin — Dashboard
 
-18. **Biểu đồ dashboard**: Thêm biểu đồ doanh thu 6 tháng gần nhất + biểu đồ ĐK theo HK.
+23. **Biểu đồ dashboard**: Thêm biểu đồ doanh thu 6 tháng gần nhất + biểu đồ ĐK theo HK.
 
-19. **Danh sách SV nợ HP mới nhất**: Card hiện top 5 SV nợ nhiều nhất.
+24. **Danh sách SV nợ HP mới nhất**: Card hiện top 5 SV nợ nhiều nhất.
 
-20. **Hoạt động gần đây**: Card hiện 5 hoạt động gần nhất (ĐK mới, thanh toán mới, SV mới).
+25. **Hoạt động gần đây**: Card hiện 5 hoạt động gần nhất (ĐK mới, thanh toán mới, SV mới).
 
 ### Giao diện Sinh viên — Học phí
 
-21. **Hiện chi tiết môn**: Mỗi dòng HP khi expand/click → hiện breakdown từng môn (tên, TC, loại ĐK, đơn giá, thành tiền).
+26. **Hiện chi tiết môn**: Mỗi dòng HP khi expand/click → hiện breakdown từng môn (tên, TC, loại ĐK, đơn giá, thành tiền).
 
-22. **Hiện đối tượng miễn giảm**: Dòng "Miễn giảm: DT06 (50%) → -1.250.000₫".
+27. **Hiện đối tượng miễn giảm**: Dòng "Miễn giảm: DT06 (50%) → -1.250.000₫".
 
-23. **Kéo đúng API thanh toán VNPay/ZaloPay/QR**: Nút đóng học phí trên `/student/my-tuition` không được hardcode link thanh toán. Khi sinh viên chọn VNPay, ZaloPay, QR hoặc phương thức khác, frontend phải gọi đúng API thanh toán của backend, truyền đúng `SoPhieu` hoặc `MaSv + MaHocKy`, `SoTienThu`, `method`.
+28. **Kéo đúng API thanh toán VNPay/ZaloPay/QR**: Nút đóng học phí trên `/student/my-tuition` không được hardcode link thanh toán. Khi sinh viên chọn VNPay, ZaloPay, QR hoặc phương thức khác, frontend phải gọi đúng API thanh toán của backend, truyền đúng `SoPhieu` hoặc `MaSv + MaHocKy`, `SoTienThu`, `method`.
 
-24. **Xử lý response thanh toán chính xác**: Nếu API trả `checkoutUrl` thì chuyển hướng hoặc mở đúng URL. Nếu trả `qrPayload` thì hiển thị QR đúng. Nếu API trả phiếu đang chờ xác nhận thì cập nhật UI sang trạng thái "Chờ xác nhận". Nếu API báo lỗi vượt số tiền/còn yêu cầu chờ thì hiển thị lỗi cụ thể.
+29. **Xử lý response thanh toán chính xác**: Nếu API trả `checkoutUrl` thì chuyển hướng hoặc mở đúng URL. Nếu trả `qrPayload` thì hiển thị QR đúng. Nếu API trả phiếu đang chờ xác nhận thì cập nhật UI sang trạng thái "Chờ xác nhận". Nếu API báo lỗi vượt số tiền/còn yêu cầu chờ thì hiển thị lỗi cụ thể.
 
-25. **Không tự tính sai số tiền thanh toán ở frontend**: Số còn nợ phải lấy từ API học phí/thanh toán; frontend chỉ format và gửi số tiền hợp lệ. Không tự cộng/trừ từ dữ liệu cũ nếu API đã trả `remainingAmount` hoặc `ConNo`.
+30. **Không tự tính sai số tiền thanh toán ở frontend**: Số còn nợ phải lấy từ API học phí/thanh toán; frontend chỉ format và gửi số tiền hợp lệ. Không tự cộng/trừ từ dữ liệu cũ nếu API đã trả `remainingAmount` hoặc `ConNo`.
 
 ### Giao diện Sinh viên — Lịch sử TT
 
-23. **Filter theo HK**: Dropdown chọn HK.
+31. **Filter theo HK**: Dropdown chọn HK.
 
-24. **In phiếu thu**: Nút "In" cho từng phiếu.
+32. **In phiếu thu**: Nút "In" cho từng phiếu.
 
 ### Giao diện Sinh viên — Thông báo
 
-25. **Đánh dấu đã đọc**: Click vào thông báo → đánh dấu đã đọc, đổi style.
+33. **Đánh dấu đã đọc**: Click vào thông báo → đánh dấu đã đọc, đổi style.
 
-26. **Filter đã đọc/chưa**: Toggle "Tất cả / Chưa đọc".
+34. **Filter đã đọc/chưa**: Toggle "Tất cả / Chưa đọc".
 
-27. **Bổ sung xem chi tiết thông báo**: Ở `/student/notifications`, mỗi thông báo phải click được để mở modal/panel/trang chi tiết hiển thị toàn bộ nội dung thông báo, không chỉ tiêu đề hoặc đoạn rút gọn. Chi tiết cần có: tiêu đề, nội dung đầy đủ, loại thông báo, ngày tạo, ngày hết hạn nếu có, trạng thái đã đọc/chưa đọc, đường dẫn liên quan nếu có.
+35. **Bổ sung xem chi tiết thông báo**: Ở `/student/notifications`, mỗi thông báo phải click được để mở modal/panel/trang chi tiết hiển thị toàn bộ nội dung thông báo, không chỉ tiêu đề hoặc đoạn rút gọn. Chi tiết cần có: tiêu đề, nội dung đầy đủ, loại thông báo, ngày tạo, ngày hết hạn nếu có, trạng thái đã đọc/chưa đọc, đường dẫn liên quan nếu có.
 
-28. **Đánh dấu đã đọc khi xem chi tiết**: Khi sinh viên mở chi tiết thông báo, gọi API đánh dấu đã đọc. Sau khi đóng modal/quay lại danh sách, badge "chưa đọc" và bộ đếm thông báo phải cập nhật.
+36. **Đánh dấu đã đọc khi xem chi tiết**: Khi sinh viên mở chi tiết thông báo, gọi API đánh dấu đã đọc. Sau khi đóng modal/quay lại danh sách, badge "chưa đọc" và bộ đếm thông báo phải cập nhật.
 
-29. **Nội dung dài phải đọc được đầy đủ**: Modal/panel chi tiết cần hỗ trợ nội dung nhiều dòng, link, xuống dòng; không cắt bằng ellipsis trong phần chi tiết. Nếu thông báo có `DuongDan`, hiển thị nút "Mở liên kết" rõ ràng.
+37. **Nội dung dài phải đọc được đầy đủ**: Modal/panel chi tiết cần hỗ trợ nội dung nhiều dòng, link, xuống dòng; không cắt bằng ellipsis trong phần chi tiết. Nếu thông báo có `DuongDan`, hiển thị nút "Mở liên kết" rõ ràng.
 
 ### Giao diện Sinh viên — Dashboard
 
-27. **Hiện tóm tắt**: Cards: "TC đã hoàn thành", "HP còn nợ", "Lịch học hôm nay", "Thông báo mới".
+38. **Hiện tóm tắt**: Cards: "TC đã hoàn thành", "HP còn nợ", "Lịch học hôm nay", "Thông báo mới".
 
 ### Backend
 
-28. **API reset mật khẩu**: `PUT /api/users/:id/reset-password` → set mật khẩu mặc định, trả thành công.
+39. **API reset mật khẩu**: `PUT /api/users/:id/reset-password` → set mật khẩu mặc định, trả thành công.
 
-29. **API batch tạo TK SV**: `POST /api/users/batch-create-student-accounts` → nhận danh sách MaSv → tạo TK.
+40. **API batch tạo TK SV**: `POST /api/users/batch-create-student-accounts` → nhận danh sách MaSv → tạo TK.
 
-30. **API báo cáo doanh thu theo tháng**: `GET /api/reports/revenue-monthly?year=2025` → trả array [{month, amount}].
+41. **API báo cáo doanh thu theo tháng**: `GET /api/reports/revenue-monthly?year=2025` → trả array [{month, amount}].
 
-31. **API danh sách SV nợ HP**: `GET /api/reports/students-owing?MaHocKy=` → trả danh sách SV còn nợ, sắp xếp theo ConNo DESC.
+42. **API danh sách SV nợ HP**: `GET /api/reports/students-owing?MaHocKy=` → trả danh sách SV còn nợ, sắp xếp theo ConNo DESC.
 
-32. **API export phiếu thu**: `GET /api/payments/export` → trả file Excel.
+43. **API export phiếu thu**: `GET /api/payments/export` → trả file Excel.
 
-33. **API đánh dấu thông báo đã đọc**: `PUT /api/notifications/:id/read` (cho SV).
+44. **API đánh dấu thông báo đã đọc**: `PUT /api/notifications/:id/read` (cho SV).
 
-34. **API chi tiết thông báo**: `GET /api/notifications/:id` hoặc dùng endpoint hiện có nhưng phải trả đầy đủ `TieuDe`, `NoiDung`, `Loai`, `DuongDan`, `NgayTao`, `NgayHetHan`, `DaDoc`. API phải kiểm tra quyền: sinh viên chỉ xem thông báo của mình hoặc thông báo chung đúng đối tượng.
+45. **API chi tiết thông báo**: `GET /api/notifications/:id` hoặc dùng endpoint hiện có nhưng phải trả đầy đủ `TieuDe`, `NoiDung`, `Loai`, `DuongDan`, `NgayTao`, `NgayHetHan`, `DaDoc`. API phải kiểm tra quyền: sinh viên chỉ xem thông báo của mình hoặc thông báo chung đúng đối tượng.
 
-35. **API checkout thanh toán thống nhất**: Đảm bảo `POST /api/payments/checkout` hoặc endpoint tương ứng nhận `method` (`vnpay`, `zalopay`, `qr`, `cash`) và trả response thống nhất: `receipt`, `checkoutUrl`, `qrPayload`, `remainingAmount`, `message`. Frontend học phí sinh viên phải dùng API này.
+46. **API checkout thanh toán thống nhất**: Đảm bảo `POST /api/payments/checkout` hoặc endpoint tương ứng nhận `method` (`vnpay`, `zalopay`, `qr`, `cash`) và trả response thống nhất: `receipt`, `checkoutUrl`, `qrPayload`, `remainingAmount`, `message`. Frontend học phí sinh viên phải dùng API này.
 
-36. **API báo cáo sinh viên chưa hoàn thành học phí**: Endpoint báo cáo cần trả cả dữ liệu tổng hợp và danh sách chi tiết: `summary.totalStudents`, `summary.totalDebt`, `summary.overdueStudents`, `rows[]` gồm MSSV, họ tên, học kỳ, phải đóng, đã đóng, còn nợ, hạn đóng, trạng thái.
+47. **API báo cáo sinh viên chưa hoàn thành học phí**: Endpoint báo cáo cần trả cả dữ liệu tổng hợp và danh sách chi tiết: `summary.totalStudents`, `summary.totalDebt`, `summary.overdueStudents`, `rows[]` gồm MSSV, họ tên, học kỳ, phải đóng, đã đóng, còn nợ, hạn đóng, trạng thái.
 
 ## 4.3. Phạm vi file
 
@@ -645,9 +685,11 @@ Phân công dựa theo module RBTV đã làm → ai phụ trách RBTV module nà
 
 # Tổng kết khối lượng
 
+> Cách tính: `Số việc` = số đầu mục công việc dạng `n. **...**` trong phần "Công việc cần làm" của từng người; `Test Cases` = số dòng test case `N1-*`, `N2-*`, `N3-*`, `N4-*`.
+
 | Người | Số việc | Test Cases | Việc nặng nhất |
 | --- | --- | --- | --- |
-| Người 1 | Tối thiểu 21 | 18 | Import/Export Excel SV, trang chi tiết SV, hiển thị đối tượng readonly ở profile/form sửa SV |
-| Người 2 | Tối thiểu 24 | 20 | Batch nhập điểm, dropdown chọn môn, đồ thị điều kiện, quản lý chương trình học |
-| Người 3 | Tối thiểu 42 | 24 | UI lịch học chi tiết, DS SV trong lớp, mở/đóng lớp UI, danh sách môn học mở, filter đăng ký môn |
-| Người 4 | Tối thiểu 47 | 27 | **Viết lại trang Học phí admin**, tích hợp checkout VNPay/ZaloPay/QR, chi tiết thông báo, báo cáo SV chưa hoàn thành học phí |
+| Người 1 | 27 | 23 | Import/Export Excel SV, trang chi tiết SV, hiển thị đối tượng readonly ở profile/form sửa SV, quản lý tỉnh/phường xã |
+| Người 2 | 29 | 22 | Batch nhập điểm, dropdown chọn môn, đồ thị điều kiện, quản lý chương trình học, tính điều kiện khóa luận tốt nghiệp |
+| Người 3 | 44 | 25 | UI lịch học chi tiết, DS SV trong lớp, mở/đóng lớp UI, danh sách môn học mở, filter đăng ký môn, chặn đăng ký khóa luận khi nợ quá 8 TC |
+| Người 4 | 47 | 27 | **Viết lại trang Học phí admin**, tích hợp checkout VNPay/ZaloPay/QR, chi tiết thông báo, báo cáo SV chưa hoàn thành học phí |
