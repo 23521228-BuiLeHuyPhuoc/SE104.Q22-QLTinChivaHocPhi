@@ -19,25 +19,25 @@ block content
   .semester-filter-panel
     .semester-filter-grid
       .semester-filter-field.semester-filter-search
-        label(for="semester-keyword") Tìm nhanh
+        label(for="semester-keyword") Tìm theo mã học kỳ hoặc năm học
         .search-box.semester-search-box
-          input#semester-keyword(type="text" placeholder="Mã học kỳ, năm học..." autocomplete="off")
+          input#semester-keyword(type="text" placeholder="Nhập mã học kỳ hoặc năm học" autocomplete="off")
       .semester-filter-field.semester-filter-kind
-        span.semester-filter-label Học kỳ
+        span.semester-filter-label Học kỳ cần lọc
         .segmented-control#semester-kind-filter(role="group" aria-label="Lọc theo học kỳ")
           button.segmented-option.active(type="button" data-value="") Tất cả
           button.segmented-option(type="button" data-value="1") Học kỳ I
           button.segmented-option(type="button" data-value="2") Học kỳ II
           button.segmented-option(type="button" data-value="3") Học kỳ hè
       .semester-filter-field.semester-filter-status
-        span.semester-filter-label Trạng thái
+        span.semester-filter-label Trạng thái cần lọc
         .segmented-control#semester-status-filter(role="group" aria-label="Lọc theo trạng thái")
           button.segmented-option.active(type="button" data-value="") Tất cả
           button.segmented-option(type="button" data-value="Sắp diễn ra") Sắp diễn ra
           button.segmented-option(type="button" data-value="Đang diễn ra") Đang diễn ra
           button.segmented-option(type="button" data-value="Đã kết thúc") Đã kết thúc
       .semester-filter-field.semester-filter-date-field
-        label(for="semester-date-field") Mốc thời gian
+        label(for="semester-date-field") Mốc thời gian cần tìm
         select.form-control#semester-date-field
           option(value="all") Tất cả mốc ngày
           option(value="NgayBatDau") Bắt đầu học kỳ
@@ -46,7 +46,7 @@ block content
           option(value="NgayKetThucDangKy") Hạn đăng ký
           option(value="HanDongHocPhi") Hạn đóng học phí
       .semester-filter-field.semester-filter-date-exact
-        label(for="semester-date-exact") Ngày chính xác
+        label(for="semester-date-exact") Ngày cần tìm
         input.form-control#semester-date-exact(type="date")
       .semester-filter-actions
         button.btn.btn-outline#semester-filter-reset(type="button")

@@ -42,34 +42,39 @@
   box-shadow: var(--shadow-sm);
   container-type: inline-size;
   margin-bottom: var(--spacing-lg);
-  padding: 18px;
+  padding: 20px;
 }
 
 .semester-filter-grid {
   align-items: end;
   display: grid;
-  gap: 16px;
+  gap: 18px 16px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
 .semester-filter-search {
-  grid-column: span 3;
+  grid-column: 1 / span 4;
+  grid-row: 2;
 }
 
 .semester-filter-kind {
-  grid-column: span 4;
+  grid-column: 1 / span 5;
+  grid-row: 1;
 }
 
 .semester-filter-status {
-  grid-column: span 5;
+  grid-column: 6 / -1;
+  grid-row: 1;
 }
 
 .semester-filter-date-field {
-  grid-column: span 4;
+  grid-column: 5 / span 3;
+  grid-row: 2;
 }
 
 .semester-filter-date-exact {
-  grid-column: span 3;
+  grid-column: 8 / span 3;
+  grid-row: 2;
 }
 
 .semester-filter-field {
@@ -98,7 +103,7 @@
   display: grid;
   gap: 4px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  min-height: 42px;
+  min-height: 44px;
   min-width: 0;
   padding: 4px;
 }
@@ -110,9 +115,9 @@
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 800;
-  min-height: 32px;
+  min-height: 34px;
   min-width: 0;
-  padding: 6px 10px;
+  padding: 6px 8px;
   text-align: center;
   transition: background var(--transition-speed) var(--transition-smooth), border-color var(--transition-speed) var(--transition-smooth), color var(--transition-speed) var(--transition-smooth);
   white-space: nowrap;
@@ -134,13 +139,16 @@
 .semester-filter-actions {
   align-items: end;
   display: flex;
-  grid-column: span 5;
+  grid-column: 11 / -1;
+  grid-row: 2;
   justify-content: flex-end;
 }
 
 .semester-filter-actions .btn {
-  min-height: 42px;
-  min-width: 118px;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
 }
 
 .semester-list {
@@ -291,19 +299,46 @@
 
 @container (max-width: 900px) {
   .semester-filter-grid {
+    gap: 16px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .semester-filter-search,
   .semester-filter-kind,
+  .semester-filter-status,
+  .semester-filter-date-field,
   .semester-filter-date-exact,
   .semester-filter-actions {
     grid-column: span 1;
+    grid-row: auto;
   }
 
-  .semester-filter-status,
+  .semester-filter-kind {
+    order: 1;
+  }
+
+  .semester-filter-status {
+    order: 2;
+  }
+
+  .semester-filter-search {
+    order: 3;
+  }
+
   .semester-filter-date-field {
-    grid-column: 1 / -1;
+    order: 4;
+  }
+
+  .semester-filter-date-exact {
+    order: 5;
+  }
+
+  .semester-filter-actions {
+    order: 6;
+  }
+
+  .segmented-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -319,6 +354,7 @@
   .semester-filter-date-exact,
   .semester-filter-actions {
     grid-column: 1 / -1;
+    grid-row: auto;
   }
 
   .segmented-control {
@@ -332,19 +368,6 @@
 }
 
 @media (max-width: 900px) {
-  .semester-filter-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .semester-filter-search,
-  .semester-filter-kind,
-  .semester-filter-status,
-  .semester-filter-date-field,
-  .semester-filter-date-exact,
-  .semester-filter-actions {
-    grid-column: 1 / -1;
-  }
-
   .semester-list-header {
     display: none;
   }
