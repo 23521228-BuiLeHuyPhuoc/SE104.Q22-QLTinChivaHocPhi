@@ -17,7 +17,6 @@ router.get('/admin/students', vc.requireViewAuth, vc.requireViewAdmin, vc.adminS
 router.get('/admin/courses', vc.requireViewAuth, vc.requireViewAdmin, vc.adminCourses);
 router.get('/admin/classes', vc.requireViewAuth, vc.requireViewAdmin, vc.adminClasses);
 router.get('/admin/semesters', vc.requireViewAuth, vc.requireViewAdmin, vc.adminSemesters);
-router.get('/admin/academic-years', vc.requireViewAuth, vc.requireViewAdmin, vc.adminAcademicYears);
 router.get('/admin/periods', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPeriods);
 router.get('/admin/prerequisites', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPrerequisites);
 router.get('/admin/registrations', vc.requireViewAuth, vc.requireViewAdmin, vc.adminRegistrations);

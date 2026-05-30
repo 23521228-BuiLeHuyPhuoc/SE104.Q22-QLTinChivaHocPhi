@@ -1323,21 +1323,37 @@ BEGIN
     END IF;
 
     IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
-        IF NEW."NgayBatDauDangKy" > NEW."NgayKetThucDangKy" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn hoặc bằng NgayKetThucDangKy.';
+        IF NEW."NgayBatDauDangKy" >= NEW."NgayKetThucDangKy" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayKetThucDangKy.';
         END IF;
     END IF;
 
-    IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
-        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayKetThuc (kiểu DATE) */
-        IF NEW."NgayKetThucDangKy"::DATE > NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy không được lớn hơn NgayKetThuc.';
+    IF (NEW."NgayBatDauDangKy" IS NOT NULL OR NEW."NgayKetThucDangKy" IS NOT NULL)
+       AND NEW."NgayBatDau" IS NULL THEN
+        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau trước khi nhập thời gian đăng ký.';
+    END IF;
+
+    IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
+        IF NEW."NgayBatDauDangKy"::DATE >= NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải trước NgayBatDau.';
         END IF;
     END IF;
 
-    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
-        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải lớn hơn hoặc bằng NgayBatDau.';
+    IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
+        IF NEW."NgayKetThucDangKy"::DATE >= NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải trước NgayBatDau.';
+        END IF;
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND (NEW."NgayBatDau" IS NULL OR NEW."NgayKetThuc" IS NULL) THEN
+        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau và NgayKetThuc trước khi nhập HanDongHocPhi.';
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
+        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" OR NEW."HanDongHocPhi" > NEW."NgayKetThuc" THEN
+            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nằm trong khoảng NgayBatDau đến NgayKetThuc.';
         END IF;
     END IF;
 

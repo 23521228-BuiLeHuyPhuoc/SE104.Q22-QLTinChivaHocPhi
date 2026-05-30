@@ -1,18 +1,62 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/semesters.css")
+
 block content
   .toolbar
     .toolbar-title
       h2.page-title Quản lý học kỳ
       p Cấu hình kỳ học, thời gian đăng ký và hạn đóng học phí.
-    .filter-group
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm học kỳ
-      a.btn.btn-outline(href="/admin/trash?entity=semesters") Thùng rác
+    .toolbar-actions
+      button.btn.btn-primary(type="button" onclick="openModal('add')")
+        span.material-symbols-rounded add
+        span Thêm học kỳ
+      a.btn.btn-outline(href="/admin/trash?entity=semesters")
+        span.material-symbols-rounded delete
+        span Thùng rác
+
+  .semester-filter-panel
+    .semester-filter-grid
+      .semester-filter-field.semester-filter-search
+        label(for="semester-keyword") Tìm nhanh
+        .search-box.semester-search-box
+          input#semester-keyword(type="text" placeholder="Mã học kỳ, năm học..." autocomplete="off")
+      .semester-filter-field.semester-filter-kind
+        span.semester-filter-label Học kỳ
+        .segmented-control#semester-kind-filter(role="group" aria-label="Lọc theo học kỳ")
+          button.segmented-option.active(type="button" data-value="") Tất cả
+          button.segmented-option(type="button" data-value="1") Học kỳ I
+          button.segmented-option(type="button" data-value="2") Học kỳ II
+          button.segmented-option(type="button" data-value="3") Học kỳ hè
+      .semester-filter-field.semester-filter-status
+        span.semester-filter-label Trạng thái
+        .segmented-control#semester-status-filter(role="group" aria-label="Lọc theo trạng thái")
+          button.segmented-option.active(type="button" data-value="") Tất cả
+          button.segmented-option(type="button" data-value="Sắp diễn ra") Sắp diễn ra
+          button.segmented-option(type="button" data-value="Đang diễn ra") Đang diễn ra
+          button.segmented-option(type="button" data-value="Đã kết thúc") Đã kết thúc
+      .semester-filter-field.semester-filter-date-field
+        label(for="semester-date-field") Mốc thời gian
+        select.form-control#semester-date-field
+          option(value="all") Tất cả mốc ngày
+          option(value="NgayBatDau") Bắt đầu học kỳ
+          option(value="NgayKetThuc") Kết thúc học kỳ
+          option(value="NgayBatDauDangKy") Bắt đầu đăng ký
+          option(value="NgayKetThucDangKy") Hạn đăng ký
+          option(value="HanDongHocPhi") Hạn đóng học phí
+      .semester-filter-field.semester-filter-date-exact
+        label(for="semester-date-exact") Ngày chính xác
+        input.form-control#semester-date-exact(type="date")
+      .semester-filter-actions
+        button.btn.btn-outline#semester-filter-reset(type="button")
+          span.material-symbols-rounded restart_alt
+          span Xóa lọc
 
   .card
     .card-header
       h3 Danh sách học kỳ
-      span.card-count= semesters ? `${semesters.length} bản ghi` : '0 bản ghi'
+      span.card-count#semester-card-count 0 bản ghi
     .semester-list
       .semester-list-header
         span Học kỳ
@@ -20,64 +64,13 @@ block content
         span Trạng thái
         span Cập nhật
         span Thao tác
-      if semesters && semesters.length > 0
-        each s in semesters
-          .semester-list-row
-            .semester-identity
-              .semester-meta
-                .semester-field
-                  span.semester-field-label Mã
-                  span.semester-field-value.mono= s.MaHocKy
-                .semester-field
-                  span.semester-field-label Tên học kỳ
-                  span.semester-field-value= s.TenHocKy
-                .semester-field
-                  span.semester-field-label Năm học
-                  span.semester-field-value= s.NAMHOC ? s.NAMHOC.TenNamHoc : s.MaNamHoc
-                .semester-field
-                  span.semester-field-label Loại
-                  span.semester-field-value= s.LoaiHocKy || '-'
-            .semester-date-grid
-              .semester-field
-                span.semester-field-label Bắt đầu kỳ
-                span.semester-field-value= s.NgayBatDau ? new Date(s.NgayBatDau).toLocaleDateString('vi-VN') : '-'
-              .semester-field
-                span.semester-field-label Kết thúc kỳ
-                span.semester-field-value= s.NgayKetThuc ? new Date(s.NgayKetThuc).toLocaleDateString('vi-VN') : '-'
-              .semester-field
-                span.semester-field-label Bắt đầu đăng ký
-                span.semester-field-value= s.NgayBatDauDangKy ? new Date(s.NgayBatDauDangKy).toLocaleDateString('vi-VN') : '-'
-              .semester-field
-                span.semester-field-label Hạn đăng ký
-                span.semester-field-value= s.NgayKetThucDangKy ? new Date(s.NgayKetThucDangKy).toLocaleDateString('vi-VN') : '-'
-              .semester-field.semester-field-wide
-                span.semester-field-label Hạn học phí
-                span.semester-field-value= s.HanDongHocPhi ? new Date(s.HanDongHocPhi).toLocaleDateString('vi-VN') : '-'
-            .semester-state
-              - const semesterStatus = s.TrangThai || '-'
-              - const semesterBadge = semesterStatus === 'Đang diễn ra' ? 'badge-success' : (semesterStatus === 'Sắp diễn ra' || semesterStatus === 'Sắp tới') ? 'badge-warning' : 'badge-secondary'
-              span.badge(class=semesterBadge)= semesterStatus
-              .semester-metrics
-                .semester-metric
-                  span.semester-metric-value= s.SoLopMo || 0
-                  span.semester-metric-label Lớp mở
-                .semester-metric
-                  span.semester-metric-value= s.SoSinhVienDangKy || 0
-                  span.semester-metric-label Sinh viên đăng ký
-            .semester-update
-              .semester-field
-                span.semester-field-label Người sửa
-                span.semester-field-value= s.NguoiCapNhatTen || s.NguoiCapNhat || '-'
-              .semester-field
-                span.semester-field-label Thời điểm sửa
-                span.semester-field-value= s.NgayCapNhat ? new Date(s.NgayCapNhat).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'
-            .semester-actions
-              button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(s) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-              button.btn.btn-sm.btn-danger(type="button" onclick=`deleteSemester('${s.MaHocKy}')`) Xóa
-      else
-        .empty-state Chưa có học kỳ
+      #semester-list-body.semester-list-body
+        .loading-overlay
+          .spinner
+          span Đang tải học kỳ...
 
-  include ../../partials/pagination
+  nav.pagination#semester-pagination(aria-label="Phân trang học kỳ")
+  .pagination-info#semester-pagination-info
 
 block modals
   #semester-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
@@ -100,10 +93,11 @@ block modals
               select.form-control#hk-manamhoc(required)
                 option(value="") Đang tải năm học...
             .form-group
-              label(for="hk-loai") Loại học kỳ
+              label(for="hk-loai") Học kỳ
               select.form-control#hk-loai
-                option(value="Chính") Chính
-                option(value="Hè") Hè
+                option(value="1") Học kỳ I
+                option(value="2") Học kỳ II
+                option(value="3") Học kỳ hè
           input#hk-thutu(type="hidden" value="1")
           .form-group
             label(for="hk-trangthai") Trạng thái
@@ -129,7 +123,8 @@ block modals
               small.field-error#hk-registration-date-error(aria-live="polite")
           .form-group
             label(for="hk-hanhocphi") Hạn đóng học phí
-            input.form-control#hk-hanhocphi(type="date")
+            input.form-control#hk-hanhocphi(type="date" aria-describedby="hk-tuition-date-error")
+            small.field-error#hk-tuition-date-error(aria-live="polite")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveSemester()") Lưu

@@ -135,7 +135,6 @@ const ROLE_PERMISSIONS = {
   training: [
     '/admin/dashboard', '/admin/students', '/admin/courses',
     '/admin/classes', '/admin/semesters', '/admin/registrations',
-    '/admin/academic-years',
     '/admin/faculties', '/admin/majors', '/admin/completed-courses',
     '/admin/periods', '/admin/prerequisites', '/admin/profile',
     '/api/students', '/api/courses', '/api/classes',
