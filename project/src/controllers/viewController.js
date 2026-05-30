@@ -1343,6 +1343,14 @@ const studentCurriculum = (req, res) => {
   renderStudent(res, 'curriculum', 'curriculum', 'Chương trình đào tạo', req);
 };
 
+const adminCurriculumPrograms = (req, res) => {
+  renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req);
+};
+
+const adminOpenedCourses = (req, res) => {
+  renderAdmin(res, 'opened-courses', 'opened-courses', 'Danh sách môn học mở', req);
+};
+
 module.exports = {
   requireViewAuth,
   requireViewAdmin,
@@ -1369,6 +1377,8 @@ module.exports = {
   adminUsers,
   adminFaculties,
   adminMajors,
+  adminCurriculumPrograms,
+  adminOpenedCourses,
   adminCompletedCourses,
   adminPricing,
   adminBeneficiaries,

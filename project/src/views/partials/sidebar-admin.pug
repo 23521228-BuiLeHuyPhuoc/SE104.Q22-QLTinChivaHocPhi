@@ -37,18 +37,27 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/classes" title="Lớp học" class=(active === 'classes' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded meeting_room
           span.link-label Lớp học
+        a.sidebar-link(href="/admin/opened-courses" title="Môn học mở" class=(active === 'opened-courses' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded event_available
+          span.link-label Môn học mở
         a.sidebar-link(href="/admin/periods" title="Tiết học" class=(active === 'periods' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded schedule
           span.link-label Tiết học
         a.sidebar-link(href="/admin/semesters" title="Học kỳ" class=(active === 'semesters' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded event
           span.link-label Học kỳ
+        a.sidebar-link(href="/admin/academic-years" title="Năm học" class=(active === 'academic-years' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded calendar_month
+          span.link-label Năm học
         a.sidebar-link(href="/admin/faculties" title="Khoa" class=(active === 'faculties' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded account_balance
           span.link-label Khoa
         a.sidebar-link(href="/admin/majors" title="Ngành học" class=(active === 'majors' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded hub
           span.link-label Ngành học
+        a.sidebar-link(href="/admin/curriculum-programs" title="Chương trình học" class=(active === 'curriculum-programs' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded account_tree
+          span.link-label Chương trình học
         a.sidebar-link(href="/admin/completed-courses" title="Môn đã học" class=(active === 'completed-courses' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded history_edu
           span.link-label Môn đã học
