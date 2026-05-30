@@ -1,12 +1,26 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
+  form.toolbar(method="get" action="/admin/classes")
     .search-box
-      input#search-input(type="text" placeholder="Tìm mã lớp, tên lớp hoặc giảng viên..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" name="search" placeholder="Tìm mã lớp, tên lớp, môn học hoặc giảng viên lớp mở..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
+      select.form-control#filter-course(name="MaMonHoc" onchange="applyFilters()")
+        option(value="") Tất cả môn
+        each course in courseOptions || []
+          option(value=course.MaMonHoc selected=(selectedCourse === course.MaMonHoc)) #{course.MaMonHoc} - #{course.TenMonHoc}
+      select.form-control#filter-semester(name="MaHocKy" onchange="applyFilters()")
+        option(value="") Tất cả học kỳ
+        each semester in semesterOptions || []
+          option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.TenNamHoc ? ' - ' + semester.TenNamHoc : ''}
+      select.form-control#filter-open-status(name="openStatus" onchange="applyFilters()")
+        option(value="" selected=(!openStatus)) Tất cả trạng thái
+        option(value="open" selected=(openStatus === 'open')) Đang mở
+        option(value="closed" selected=(openStatus === 'closed')) Đã đóng
+        option(value="not_open" selected=(openStatus === 'not_open')) Chưa mở
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm lớp
       a.btn.btn-outline(href="/admin/trash?entity=classes") Thùng rác
+      a.btn.btn-outline(href="/admin/classes") Xóa lọc
 
   .card
     .card-header
@@ -19,11 +33,11 @@ block content
             th Mã lớp
             th Tên lớp
             th Môn học
-            th Giảng viên
-            th Lịch học
+            th GV lớp mở
             th Phòng
-            th Đã đăng ký
-            th Sĩ số tối đa
+            th Lịch học
+            th Đã ĐK/Tối đa
+            th Trạng thái mở
             th Sửa bởi
             th Sửa lúc
             th Thao tác
@@ -36,16 +50,24 @@ block content
                 td
                   strong= cl.MONHOC ? cl.MONHOC.TenMonHoc : cl.MaMonHoc
                   small= cl.MaMonHoc
-                td= cl.GiangVien || '-'
-                td= cl.LichHoc || '-'
-                td= cl.PhongHoc || '-'
-                td= cl.CHITIETDANGKY ? cl.CHITIETDANGKY.length : 0
-                td= cl.SoLuongToiDa || '-'
+                td= cl.GiangVienDisplay || '-'
+                td= cl.PhongHocDisplay || '-'
+                td= cl.LichHocDisplay || '-'
+                td #{cl.SoLuongDaDangKy || 0} / #{cl.SoLuongToiDa || '-'}
+                td
+                  span.badge(class=cl.TrangThaiMoClass)= cl.TrangThaiMoLabel
+                  if cl.TenHocKyDangMo
+                    small= cl.TenHocKyDangMo
                 td= cl.NguoiCapNhatTen || cl.NguoiCapNhat || '-'
                 td= cl.NgayCapNhat ? new Date(cl.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteClass('${cl.MaLop}')`) Xóa
+                  button.btn.btn-sm.btn-outline(type="button" data-malop=cl.MaLop onclick="openClassModal(this.dataset.malop)") Mở lớp
+                  if cl.LopMoHienTaiId
+                    button.btn.btn-sm.btn-warning(type="button" data-lopmoid=cl.LopMoHienTaiId onclick="closeOpenedClass(this.dataset.lopmoid)") Đóng
+                  button.btn.btn-sm.btn-outline(type="button" data-malop=cl.MaLop data-tenlop=cl.TenLop onclick="openScheduleModal(this.dataset.malop, this.dataset.tenlop)") Lịch học
+                  button.btn.btn-sm.btn-outline(type="button" data-malop=cl.MaLop data-tenlop=cl.TenLop onclick="openStudentsModal(this.dataset.malop, this.dataset.tenlop)") DS SV
+                  button.btn.btn-sm.btn-danger(type="button" data-malop=cl.MaLop onclick="deleteClass(this.dataset.malop)") Xóa
           else
             tr
               td(colspan="11")
@@ -70,28 +92,177 @@ block modals
               input.form-control#cl-tenlop(type="text" required)
           .form-row
             .form-group
-              label(for="cl-mamonhoc") Mã môn học
-              input.form-control#cl-mamonhoc(type="text" required)
+              label(for="cl-course-search") Tìm môn học
+              input.form-control#cl-course-search(type="text" placeholder="Nhập mã hoặc tên môn học")
             .form-group
-              label(for="cl-giangvien") Giảng viên
-              input.form-control#cl-giangvien(type="text")
-          .form-row
-            .form-group
-              label(for="cl-lichhoc") Lịch học
-              input.form-control#cl-lichhoc(type="text" placeholder="VD: Thứ 2 (7:30-9:30)")
-            .form-group
-              label(for="cl-phonghoc") Phòng học
-              input.form-control#cl-phonghoc(type="text")
-          .form-row
-            .form-group
-              label(for="cl-soluong") Số lượng tối đa
-              input.form-control#cl-soluong(type="number" min="1" value="50")
-            .form-group
-              label(for="cl-mota") Mô tả
-              input.form-control#cl-mota(type="text")
+              label(for="cl-mamonhoc") Môn học
+              select.form-control#cl-mamonhoc(required)
+                option(value="") Chọn môn học
+                each course in courseOptions || []
+                  option(value=course.MaMonHoc) #{course.MaMonHoc} - #{course.TenMonHoc}
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveClass()") Lưu
+
+  #class-open-modal.modal-overlay(onclick="if(event.target===this)closeOpenClassModal()")
+    .modal
+      .modal-header
+        h2 Mở lớp theo học kỳ
+        button.modal-close(type="button" onclick="closeOpenClassModal()" aria-label="Đóng") ×
+      .modal-body
+        input#open-malop(type="hidden")
+        .form-group
+          label(for="open-mahocky") Học kỳ
+          select.form-control#open-mahocky
+            option(value="") Chọn học kỳ
+            each semester in semesterOptions || []
+              option(value=semester.MaHocKy) #{semester.TenHocKy}#{semester.TenNamHoc ? ' - ' + semester.TenNamHoc : ''}
+        .form-row
+          .form-group
+            label(for="open-lecturer-search") Tìm giảng viên
+            input.form-control#open-lecturer-search(type="text" placeholder="Nhập mã hoặc họ tên giảng viên")
+          .form-group
+            label(for="open-magiangvien") Giảng viên phụ trách
+            select.form-control#open-magiangvien(required)
+              option(value="") Chọn giảng viên
+              each lecturer in lecturerOptions || []
+                option(value=lecturer.MaGiangVien) #{lecturer.MaGiangVien} - #{lecturer.HocHamHocVi ? lecturer.HocHamHocVi + ' ' : ''}#{lecturer.HoTen}
+        .form-row
+          .form-group
+            label(for="open-thu") Thứ
+            select.form-control#open-thu
+              option(value="2") Thứ 2
+              option(value="3") Thứ 3
+              option(value="4") Thứ 4
+              option(value="5") Thứ 5
+              option(value="6") Thứ 6
+              option(value="7") Thứ 7
+              option(value="1") Chủ nhật
+          .form-group
+            label(for="open-tietbd") Tiết bắt đầu
+            select.form-control#open-tietbd
+              option(value="") Chọn tiết
+              each period in periodOptions || []
+                option(value=period.MaTiet) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
+        .form-row
+          .form-group
+            label(for="open-tietkt") Tiết kết thúc
+            select.form-control#open-tietkt
+              option(value="") Chọn tiết
+              each period in periodOptions || []
+                option(value=period.MaTiet) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
+          .form-group
+            label(for="open-room-search") Tìm phòng
+            input.form-control#open-room-search(type="text" placeholder="Nhập mã phòng hoặc tòa nhà")
+        .form-group
+          label(for="open-maphong") Phòng
+          select.form-control#open-maphong(required)
+            option(value="") Chọn phòng
+            each room in roomOptions || []
+              option(value=room.MaPhong) #{room.MaPhong} - #{room.TenPhong}#{room.SucChua ? ' (' + room.SucChua + ')' : ''}
+        .form-group
+          label(for="open-ghichu") Ghi chú
+          input.form-control#open-ghichu(type="text")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeOpenClassModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveOpenClass()") Mở lớp
+
+  #class-schedule-modal.modal-overlay(onclick="if(event.target===this)closeScheduleModal()")
+    .modal.modal-wide
+      .modal-header
+        h2#schedule-modal-title Lịch học
+        button.modal-close(type="button" onclick="closeScheduleModal()" aria-label="Đóng") ×
+      .modal-body
+        input#schedule-malop(type="hidden")
+        input#schedule-id(type="hidden")
+        .form-row
+          .form-group
+            label(for="schedule-mahocky") Học kỳ
+            select.form-control#schedule-mahocky(onchange="loadClassSchedules()")
+              option(value="") Chọn học kỳ
+              each semester in semesterOptions || []
+                option(value=semester.MaHocKy) #{semester.TenHocKy}#{semester.TenNamHoc ? ' - ' + semester.TenNamHoc : ''}
+          .form-group
+            label(for="schedule-thu") Thứ
+            select.form-control#schedule-thu
+              option(value="2") Thứ 2
+              option(value="3") Thứ 3
+              option(value="4") Thứ 4
+              option(value="5") Thứ 5
+              option(value="6") Thứ 6
+              option(value="7") Thứ 7
+              option(value="1") Chủ nhật
+        .form-row
+          .form-group
+            label(for="schedule-tietbd") Tiết bắt đầu
+            select.form-control#schedule-tietbd
+              option(value="") Chọn tiết
+              each period in periodOptions || []
+                option(value=period.MaTiet) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
+          .form-group
+            label(for="schedule-tietkt") Tiết kết thúc
+            select.form-control#schedule-tietkt
+              option(value="") Chọn tiết
+              each period in periodOptions || []
+                option(value=period.MaTiet) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
+        .form-row
+          .form-group
+            label(for="schedule-room-search") Tìm phòng
+            input.form-control#schedule-room-search(type="text" placeholder="Nhập mã phòng hoặc tòa nhà")
+          .form-group
+            label(for="schedule-maphong") Phòng
+            select.form-control#schedule-maphong
+              option(value="") Chọn phòng
+              each room in roomOptions || []
+                option(value=room.MaPhong) #{room.MaPhong} - #{room.TenPhong}#{room.SucChua ? ' (' + room.SucChua + ')' : ''}
+        .form-row
+          .form-group
+            label(for="schedule-ghichu") Ghi chú
+            input.form-control#schedule-ghichu(type="text")
+        .form-actions
+          button.btn.btn-outline(type="button" onclick="resetScheduleForm()") Làm mới
+          button.btn.btn-primary(type="button" onclick="saveClassSchedule()") Lưu lịch
+        .table-container
+          table.data-table
+            thead
+              tr
+                th Học kỳ
+                th Thứ
+                th Tiết
+                th Phòng
+                th Ghi chú
+                th Thao tác
+            tbody#schedule-table-body
+              tr
+                td(colspan="6")
+                  .empty-state Chọn học kỳ để xem lịch học
+
+  #class-students-modal.modal-overlay(onclick="if(event.target===this)closeStudentsModal()")
+    .modal.modal-wide
+      .modal-header
+        h2#students-modal-title Danh sách sinh viên
+        button.modal-close(type="button" onclick="closeStudentsModal()" aria-label="Đóng") ×
+      .modal-body
+        .form-group
+          label(for="students-mahocky") Học kỳ
+          select.form-control#students-mahocky(onchange="loadClassStudents()")
+            option(value="") Tất cả học kỳ
+            each semester in semesterOptions || []
+              option(value=semester.MaHocKy) #{semester.TenHocKy}#{semester.TenNamHoc ? ' - ' + semester.TenNamHoc : ''}
+        input#students-malop(type="hidden")
+        .table-container
+          table.data-table
+            thead
+              tr
+                th MSSV
+                th Họ tên
+                th Học kỳ
+                th Ngày ĐK
+                th Trạng thái
+            tbody#students-table-body
+              tr
+                td(colspan="5")
+                  .empty-state Chưa tải danh sách sinh viên
 
 block scripts
   script(src="/js/admin/classes.js")

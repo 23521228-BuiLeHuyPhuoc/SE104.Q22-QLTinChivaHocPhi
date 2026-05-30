@@ -13,6 +13,44 @@ const REGISTRATION_TYPE_LABELS = {
 
 const getRegistrationTypeLabel = (type) => REGISTRATION_TYPE_LABELS[type] || type || 'Học mới';
 
+const lecturerDisplayName = (lecturer) => {
+  if (!lecturer) return '';
+  return [lecturer.HocHamHocVi, lecturer.HoTen].filter(Boolean).join(' ').trim();
+};
+
+const weekdayLabel = (value) => {
+  const day = Number(value);
+  if (day === 1) return 'Chủ nhật';
+  if (day >= 2 && day <= 7) return `Thứ ${day}`;
+  return value ? `Thứ ${value}` : '';
+};
+
+const periodRangeLabel = (schedule) => {
+  const start = schedule?.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet || schedule?.MaTietBatDau;
+  const end = schedule?.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet || schedule?.MaTietKetThuc;
+  if (!start && !end) return '';
+  return start === end ? start : `${start}-${end}`;
+};
+
+const roomDisplayName = (room) => {
+  if (!room) return '';
+  return [room.MaPhong, room.TenPhong].filter(Boolean).join(' - ');
+};
+
+const openedClassScheduleLabel = (openedClass) => {
+  const schedules = (openedClass?.LICHHOCLOP || []).filter((schedule) => schedule.TrangThai !== false);
+  if (!schedules.length) return '';
+  return schedules.map((schedule) => {
+    const room = roomDisplayName(schedule.PHONGHOC) || schedule.PhongHoc || schedule.MaPhong;
+    return [weekdayLabel(schedule.ThuTrongTuan), periodRangeLabel(schedule)].filter(Boolean).join(' ') + (room ? ` (${room})` : '');
+  }).join('; ');
+};
+
+const openedClassRoomLabel = (openedClass) => {
+  const schedule = (openedClass?.LICHHOCLOP || []).find((item) => item.TrangThai !== false && (item.PHONGHOC || item.PhongHoc || item.MaPhong));
+  return roomDisplayName(schedule?.PHONGHOC) || schedule?.PhongHoc || schedule?.MaPhong || '';
+};
+
 const getStudentIdFromRequest = async (req) => {
   if (req.user?.Role === 'admin') return null;
   if (req.user?.MaSv) return req.user.MaSv;
@@ -295,9 +333,11 @@ const getStudentCourses = async (req, res) => {
               MONHOC: true,
               LOPMO: {
                 include: {
+                  GIANGVIEN: true,
                   LICHHOCLOP: {
                     where: { TrangThai: true },
                     include: {
+                      PHONGHOC: true,
                       TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
                       TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
                     },
@@ -321,6 +361,7 @@ const getStudentCourses = async (req, res) => {
     const courses = rows.map((row) => {
       const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
       const openedClasses = (row.LOP?.LOPMO || []).filter((item) => item.MaHocKy === row.PHIEUDANGKY?.MaHocKy);
+      const currentOpened = openedClasses[0] || null;
       return {
         id: row.id,
         SoPhieu: row.SoPhieu,
@@ -337,13 +378,15 @@ const getStudentCourses = async (req, res) => {
         LOP: {
           MaLop: row.MaLop,
           TenLop: row.LOP?.TenLop,
-          GiangVien: row.LOP?.GiangVien,
-          LichHoc: row.LOP?.LichHoc,
-          PhongHoc: row.LOP?.PhongHoc,
+          GiangVien: lecturerDisplayName(currentOpened?.GIANGVIEN) || currentOpened?.GiangVien || '',
+          LichHoc: openedClassScheduleLabel(currentOpened),
+          PhongHoc: openedClassRoomLabel(currentOpened),
           LOPMO: openedClasses.map((item) => ({
             id: item.id,
             MaHocKy: item.MaHocKy,
             MaLop: item.MaLop,
+            MaGiangVien: item.MaGiangVien,
+            GiangVien: lecturerDisplayName(item.GIANGVIEN) || item.GiangVien || '',
             LICHHOCLOP: item.LICHHOCLOP
           })),
           MONHOC: {
@@ -418,6 +461,16 @@ const getAvailableCourses = async (req, res) => {
             CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy } } }
           }
         },
+        GIANGVIEN: true,
+        LICHHOCLOP: {
+          where: { TrangThai: true },
+          include: {
+            PHONGHOC: true,
+            TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
+            TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+          },
+          orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
+        },
         HOCKY: true
       }
     }),
@@ -443,9 +496,9 @@ const getAvailableCourses = async (req, res) => {
         TenKhoa: course.KHOA?.TenKhoa,
         SoLuongToiDa: r.LOP.SoLuongToiDa,
         SoLuongDaDangKy: r.LOP.CHITIETDANGKY.length,
-        GiangVien: r.LOP.GiangVien,
-        PhongHoc: r.LOP.PhongHoc,
-        LichHoc: r.LOP.LichHoc,
+        GiangVien: lecturerDisplayName(r.GIANGVIEN) || r.GiangVien || '',
+        PhongHoc: openedClassRoomLabel(r),
+        LichHoc: openedClassScheduleLabel(r),
         LoaiDangKy: registrationType,
         LoaiDangKyLabel: getRegistrationTypeLabel(registrationType),
         DonGiaDuKien: price,
@@ -475,13 +528,13 @@ const registerCourse = async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
       const openedClass = await tx.LOPMO.findFirst({
         where: { MaHocKy, MaLop, TrangThai: true },
-        include: { LOP: { include: { MONHOC: true, CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } } } } }
+        include: { LOP: { include: { MONHOC: true } } }
       });
       if (!openedClass || !openedClass.LOP) throw { status: 404, message: 'Lớp học không tồn tại hoặc chưa mở trong học kỳ này' };
 
       const lop = openedClass.LOP;
       const course = lop.MONHOC;
-      if (Number(lop.SoLuongToiDa || 0) > 0 && lop.CHITIETDANGKY.length >= Number(lop.SoLuongToiDa || 0)) {
+      if (Number(lop.SoLuongToiDa || 0) > 0 && Number(openedClass.SoLuongDaDangKy || 0) >= Number(lop.SoLuongToiDa || 0)) {
         throw { status: 400, message: 'Lớp học đã hết chỗ' };
       }
 
@@ -526,6 +579,10 @@ const registerCourse = async (req, res) => {
           data: { ...data, NgayDangKy: new Date() }
         })
         : await tx.CHITIETDANGKY.create({ data });
+      await tx.LOPMO.updateMany({
+        where: { MaHocKy, MaLop, TrangThai: true },
+        data: { SoLuongDaDangKy: { increment: 1 } }
+      });
       const tuitionSummary = await recalculateRegistrationTotals(tx, phieu.SoPhieu);
       return { registration, tuitionSummary };
     });
@@ -541,7 +598,7 @@ const cancelRegistration = async (req, res) => {
   try {
     const reg = await prisma.CHITIETDANGKY.findUnique({
       where: { id: parseInt(req.params.id, 10) },
-      include: { PHIEUDANGKY: { select: { MaSv: true, SoPhieu: true } } }
+      include: { PHIEUDANGKY: { select: { MaSv: true, MaHocKy: true, SoPhieu: true } } }
     });
     if (!reg) return res.status(404).json({ success: false, message: 'Không tìm thấy đăng ký' });
     if (!(await ensureStudentAccess(req, res, reg.PHIEUDANGKY.MaSv))) return;
@@ -551,6 +608,16 @@ const cancelRegistration = async (req, res) => {
         where: { id: parseInt(req.params.id, 10) },
         data: { TrangThai: CANCELLED_REGISTRATION_STATUS, NgayHuy: new Date() }
       });
+      if (reg.TrangThai === ACTIVE_REGISTRATION_STATUS) {
+        await tx.LOPMO.updateMany({
+          where: {
+            MaHocKy: reg.PHIEUDANGKY.MaHocKy,
+            MaLop: reg.MaLop,
+            SoLuongDaDangKy: { gt: 0 }
+          },
+          data: { SoLuongDaDangKy: { decrement: 1 } }
+        });
+      }
       return recalculateRegistrationTotals(tx, reg.PHIEUDANGKY.SoPhieu);
     });
     res.json({ success: true, message: 'Hủy đăng ký thành công', data: result });

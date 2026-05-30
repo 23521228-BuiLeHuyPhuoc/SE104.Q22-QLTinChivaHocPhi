@@ -37,9 +37,12 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/classes" title="Lớp học" class=(active === 'classes' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded meeting_room
           span.link-label Lớp học
-        a.sidebar-link(href="/admin/opened-courses" title="Môn học mở" class=(active === 'opened-courses' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded event_available
-          span.link-label Môn học mở
+        a.sidebar-link(href="/admin/rooms" title="Phòng học" class=(active === 'rooms' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded door_front
+          span.link-label Phòng học
+        a.sidebar-link(href="/admin/lecturers" title="Giảng viên" class=(active === 'lecturers' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded co_present
+          span.link-label Giảng viên
         a.sidebar-link(href="/admin/periods" title="Tiết học" class=(active === 'periods' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded schedule
           span.link-label Tiết học

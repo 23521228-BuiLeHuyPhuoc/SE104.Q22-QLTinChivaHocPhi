@@ -14,9 +14,11 @@ router.get('/opened', classController.getOpenedClasses);
 
 // CRUD lớp học
 router.get('/', classController.getClasses);
-router.get('/:id', classController.getClassById);
+router.get('/:id/students', authorizeAdmin, classController.getClassStudents);
 router.get('/:id/schedules', authorizeAdmin, classController.getClassSchedules);
 router.post('/:id/schedules', authorizeAdmin, classController.upsertClassSchedule);
+router.delete('/:id/schedules/:scheduleId', authorizeAdmin, classController.deleteClassSchedule);
+router.get('/:id', classController.getClassById);
 router.post('/', authorizeAdmin, classController.createClass);
 router.put('/:id', authorizeAdmin, classController.updateClass);
 router.delete('/:id', authorizeAdmin, classController.deleteClass);

@@ -57,6 +57,8 @@ DROP TABLE IF EXISTS "CHUONGTRINHHOC" CASCADE;
 DROP TABLE IF EXISTS "HOCKY" CASCADE;
 DROP TABLE IF EXISTS "NAMHOC" CASCADE;
 DROP TABLE IF EXISTS "LOP" CASCADE;
+DROP TABLE IF EXISTS "GIANGVIEN" CASCADE;
+DROP TABLE IF EXISTS "PHONGHOC" CASCADE;
 DROP TABLE IF EXISTS "TIETHOC" CASCADE;
 DROP TABLE IF EXISTS "THAMSO" CASCADE;
 DROP TABLE IF EXISTS "CAUHINHDANGKY" CASCADE;
@@ -455,14 +457,60 @@ CREATE TABLE "THAMSO" (
 );
 
 -- =====================================================
+-- 13. BẢNG "PHONGHOC" - Danh mục phòng học
+-- =====================================================
+CREATE TABLE "PHONGHOC" (
+    "MaPhong" VARCHAR(50) NOT NULL,
+    "TenPhong" VARCHAR(100) NOT NULL,
+    "ToaNha" VARCHAR(50),
+    "SucChua" INTEGER DEFAULT 60,
+    "LoaiPhong" VARCHAR(30) DEFAULT 'ly_thuyet',
+    "MoTa" VARCHAR(300),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT phong_hoc_pkey PRIMARY KEY ("MaPhong"),
+    CONSTRAINT chk_phong_hoc_suc_chua CHECK ("SucChua" IS NULL OR "SucChua" > 0)
+);
+
+-- =====================================================
+-- 14. BẢNG "GIANGVIEN" - Danh mục giảng viên
+-- =====================================================
+CREATE TABLE "GIANGVIEN" (
+    "MaGiangVien" VARCHAR(20) NOT NULL,
+    "HoTen" VARCHAR(100) NOT NULL,
+    "HocHamHocVi" VARCHAR(50),
+    "MaKhoa" VARCHAR(10),
+    "Email" VARCHAR(100),
+    "Sdt" VARCHAR(15),
+    "MoTa" VARCHAR(300),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT giang_vien_pkey PRIMARY KEY ("MaGiangVien"),
+    CONSTRAINT fk_giangvien_khoa FOREIGN KEY ("MaKhoa")
+        REFERENCES "KHOA"("MaKhoa") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- =====================================================
 -- 13. BẢNG "LOP" - Lớp học
 -- =====================================================
 CREATE TABLE "LOP" (
     "MaLop" VARCHAR(20) NOT NULL,
     "TenLop" VARCHAR(100) NOT NULL,
     "MaMonHoc" VARCHAR(15) NOT NULL,
+    "MaGiangVien" VARCHAR(20),
     "GiangVien" VARCHAR(100),
     "LichHoc" VARCHAR(200),
+    "MaPhong" VARCHAR(50),
     "PhongHoc" VARCHAR(50),
     "SoLuongToiDa" INTEGER DEFAULT 50,
     "MoTa" VARCHAR(300),
@@ -475,7 +523,11 @@ CREATE TABLE "LOP" (
     "NgayXoa" TIMESTAMP,
     CONSTRAINT lop_pkey PRIMARY KEY ("MaLop"),
     CONSTRAINT fk_lop_monhoc FOREIGN KEY ("MaMonHoc")
-        REFERENCES "MONHOC"("MaMonHoc") ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES "MONHOC"("MaMonHoc") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_lop_giangvien FOREIGN KEY ("MaGiangVien")
+        REFERENCES "GIANGVIEN"("MaGiangVien") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_lop_phonghoc FOREIGN KEY ("MaPhong")
+        REFERENCES "PHONGHOC"("MaPhong") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -549,6 +601,8 @@ CREATE TABLE "LOPMO" (
     id SERIAL NOT NULL,
     "MaHocKy" VARCHAR(15) NOT NULL,
     "MaLop" VARCHAR(20) NOT NULL,
+    "MaGiangVien" VARCHAR(20),
+    "GiangVien" VARCHAR(100),
     "SoLuongDaDangKy" INTEGER DEFAULT 0,
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
@@ -558,7 +612,9 @@ CREATE TABLE "LOPMO" (
     CONSTRAINT fk_lopmo_hocky FOREIGN KEY ("MaHocKy")
         REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_lopmo_lop FOREIGN KEY ("MaLop")
-        REFERENCES "LOP"("MaLop") ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES "LOP"("MaLop") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_lopmo_giangvien FOREIGN KEY ("MaGiangVien")
+        REFERENCES "GIANGVIEN"("MaGiangVien") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -571,6 +627,7 @@ CREATE TABLE "LICHHOCLOP" (
     "ThuTrongTuan" INTEGER NOT NULL,
     "MaTietBatDau" VARCHAR(10) NOT NULL,
     "MaTietKetThuc" VARCHAR(10) NOT NULL,
+    "MaPhong" VARCHAR(50),
     "PhongHoc" VARCHAR(50),
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
@@ -579,6 +636,8 @@ CREATE TABLE "LICHHOCLOP" (
     CONSTRAINT chk_thu_trong_tuan CHECK ("ThuTrongTuan" >= 2 AND "ThuTrongTuan" <= 7),
     CONSTRAINT fk_lhl_lopmo FOREIGN KEY ("LopMoId")
         REFERENCES "LOPMO"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_lhl_phonghoc FOREIGN KEY ("MaPhong")
+        REFERENCES "PHONGHOC"("MaPhong") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT fk_lhl_tiet_bat_dau FOREIGN KEY ("MaTietBatDau")
         REFERENCES "TIETHOC"("MaTiet") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_lhl_tiet_ket_thuc FOREIGN KEY ("MaTietKetThuc")
@@ -2303,7 +2362,7 @@ DECLARE
     v_kt_thutu INT;
 BEGIN
     /* Bỏ qua kiểm tra nếu lịch học chưa được xếp phòng */
-    IF NEW."PhongHoc" IS NULL OR TRIM(NEW."PhongHoc") = '' THEN
+    IF COALESCE(NEW."MaPhong", NEW."PhongHoc") IS NULL OR TRIM(COALESCE(NEW."MaPhong", NEW."PhongHoc")) = '' THEN
         RETURN NEW;
     END IF;
 
@@ -2329,7 +2388,7 @@ BEGIN
         JOIN "TIETHOC" bd ON lh."MaTietBatDau" = bd."MaTiet"
         JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
         WHERE lh.id IS DISTINCT FROM NEW.id -- Loại trừ chính nó khi UPDATE
-          AND lh."PhongHoc" = NEW."PhongHoc"
+          AND COALESCE(lh."MaPhong", lh."PhongHoc") = COALESCE(NEW."MaPhong", NEW."PhongHoc")
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND lm."MaHocKy" = v_mahocky
           AND lm."TrangThai" = TRUE -- Chỉ xét các lớp đang hoạt động
@@ -2337,7 +2396,7 @@ BEGIN
           AND v_bd_thutu <= kt."ThuTu"
           AND bd."ThuTu" <= v_kt_thutu
     ) THEN
-        RAISE EXCEPTION 'RBTV13: Phòng % đã có lớp khác học vào Thứ % (Học kỳ %).', NEW."PhongHoc", NEW."ThuTrongTuan", v_mahocky;
+        RAISE EXCEPTION 'RBTV13: Phòng % đã có lớp khác học vào Thứ % (Học kỳ %).', COALESCE(NEW."MaPhong", NEW."PhongHoc"), NEW."ThuTrongTuan", v_mahocky;
     END IF;
 
     RETURN NEW;
@@ -2345,7 +2404,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_rbtv13_lichhoclop_ins_upd
-BEFORE INSERT OR UPDATE OF "PhongHoc", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "LopMoId" ON "LICHHOCLOP"
+BEFORE INSERT OR UPDATE OF "MaPhong", "PhongHoc", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "LopMoId" ON "LICHHOCLOP"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_rbtv13_lichhoclop();
 CREATE OR REPLACE FUNCTION fn_check_rbtv13_lopmo()
@@ -2361,14 +2420,15 @@ BEGIN
             JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
             JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
             -- Tìm lịch học của lớp khác cùng phòng, cùng thứ
-            JOIN "LICHHOCLOP" lh2 ON lh1."PhongHoc" = lh2."PhongHoc"
+            JOIN "LICHHOCLOP" lh2 ON COALESCE(lh1."MaPhong", lh1."PhongHoc") = COALESCE(lh2."MaPhong", lh2."PhongHoc")
                                  AND lh1."ThuTrongTuan" = lh2."ThuTrongTuan"
                                  AND lh1.id <> lh2.id
             JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE lh1."LopMoId" = NEW.id
-              AND lh1."PhongHoc" IS NOT NULL AND TRIM(lh1."PhongHoc") <> ''
+              AND COALESCE(lh1."MaPhong", lh1."PhongHoc") IS NOT NULL
+              AND TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc")) <> ''
               AND lm2."MaHocKy" = NEW."MaHocKy"
               AND lm2."TrangThai" = TRUE
               -- Công thức kiểm tra giao khoảng tiết
@@ -2399,7 +2459,7 @@ BEGIN
             FROM "LICHHOCLOP" lh1
             JOIN "LOPMO" lm1 ON lh1."LopMoId" = lm1.id
             -- Tìm cặp lịch học bất kỳ trùng phòng, trùng thứ
-            JOIN "LICHHOCLOP" lh2 ON lh1."PhongHoc" = lh2."PhongHoc"
+            JOIN "LICHHOCLOP" lh2 ON COALESCE(lh1."MaPhong", lh1."PhongHoc") = COALESCE(lh2."MaPhong", lh2."PhongHoc")
                                   AND lh1."ThuTrongTuan" = lh2."ThuTrongTuan"
                                   AND lh1.id < lh2.id -- id < id để tránh bắt chéo 2 lần
             JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
@@ -2407,7 +2467,8 @@ BEGIN
             JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
-            WHERE lh1."PhongHoc" IS NOT NULL AND TRIM(lh1."PhongHoc") <> ''
+            WHERE COALESCE(lh1."MaPhong", lh1."PhongHoc") IS NOT NULL
+              AND TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc")) <> ''
               AND lm1."MaHocKy" = lm2."MaHocKy" -- Cùng học kỳ
               AND lm1."TrangThai" = TRUE
               AND lm2."TrangThai" = TRUE -- Các lớp đều đang hoạt động
@@ -2440,11 +2501,10 @@ DECLARE
     v_bd_thutu INT;
     v_kt_thutu INT;
 BEGIN
-    /* Lấy thông tin Học kỳ, Trạng thái lớp mở và Giảng viên */
-    SELECT lm."MaHocKy", lm."TrangThai", l."GiangVien"
+    /* Lấy thông tin Học kỳ, trạng thái và giảng viên từ lớp mở */
+    SELECT lm."MaHocKy", lm."TrangThai", COALESCE(lm."MaGiangVien", lm."GiangVien")
     INTO v_mahocky, v_trangthai, v_giangvien
     FROM "LOPMO" lm
-    JOIN "LOP" l ON lm."MaLop" = l."MaLop"
     WHERE lm.id = NEW."LopMoId";
 
     /* Bỏ qua nếu không có giảng viên hoặc lớp mở đang bị vô hiệu hóa */
@@ -2461,11 +2521,10 @@ BEGIN
         SELECT 1
         FROM "LICHHOCLOP" lh
         JOIN "LOPMO" lm ON lh."LopMoId" = lm.id
-        JOIN "LOP" l ON lm."MaLop" = l."MaLop"
         JOIN "TIETHOC" bd ON lh."MaTietBatDau" = bd."MaTiet"
         JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
         WHERE lh.id IS DISTINCT FROM NEW.id
-          AND l."GiangVien" = v_giangvien
+          AND COALESCE(lm."MaGiangVien", lm."GiangVien") = v_giangvien
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND lm."MaHocKy" = v_mahocky
           AND lm."TrangThai" = TRUE
@@ -2484,59 +2543,23 @@ CREATE TRIGGER trg_rbtv14_lichhoclop_ins_upd
 BEFORE INSERT OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_rbtv14_lichhoclop();
-CREATE OR REPLACE FUNCTION fn_check_rbtv14_lop()
-RETURNS TRIGGER AS $$
-BEGIN
-    /* Chỉ kiểm tra nếu tên giảng viên có sự thay đổi và không rỗng */
-    IF NEW."GiangVien" IS NOT NULL AND TRIM(NEW."GiangVien") <> ''
-       AND NEW."GiangVien" IS DISTINCT FROM OLD."GiangVien" THEN
-
-        IF EXISTS (
-            SELECT 1
-            -- Các ca học thuộc về lớp đang được cập nhật giảng viên
-            FROM "LICHHOCLOP" lh1
-            JOIN "LOPMO" lm1 ON lh1."LopMoId" = lm1.id
-            JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
-            JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
-            -- Tham chiếu với các ca học của các lớp khác do chính GV này dạy
-            JOIN "LICHHOCLOP" lh2 ON lh1."ThuTrongTuan" = lh2."ThuTrongTuan" AND lh1.id <> lh2.id
-            JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
-            JOIN "LOP" l2 ON lm2."MaLop" = l2."MaLop"
-            JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
-            JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
-            WHERE lm1."MaLop" = NEW."MaLop"
-              AND lm1."TrangThai" = TRUE
-              AND lm2."TrangThai" = TRUE
-              AND lm1."MaHocKy" = lm2."MaHocKy"
-              AND l2."GiangVien" = NEW."GiangVien"
-              -- Công thức kiểm tra giao khoảng tiết
-              AND bd1."ThuTu" <= kt2."ThuTu"
-              AND bd2."ThuTu" <= kt1."ThuTu"
-        ) THEN
-            RAISE EXCEPTION 'RBTV14: Việc phân công giảng viên % cho lớp % gây trùng lịch dạy hiện hữu của giảng viên này.', NEW."GiangVien", NEW."MaLop";
-        END IF;
-
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_rbtv14_lop_upd
-BEFORE UPDATE OF "GiangVien" ON "LOP"
-FOR EACH ROW
-EXECUTE FUNCTION fn_check_rbtv14_lop();
 CREATE OR REPLACE FUNCTION fn_check_rbtv14_lopmo()
 RETURNS TRIGGER AS $$
 DECLARE
     v_giangvien VARCHAR(100);
 BEGIN
-    /* Lấy tên giảng viên của lớp này */
-    SELECT "GiangVien" INTO v_giangvien FROM "LOP" WHERE "MaLop" = NEW."MaLop";
+    /* Giảng viên được phân công ở lớp mở, không nằm trên danh mục lớp */
+    v_giangvien := COALESCE(NEW."MaGiangVien", NEW."GiangVien");
 
-    /* Tiến hành kiểm tra nếu lớp có giảng viên và lớp đang được kích hoạt hoặc dời học kỳ */
+    /* Kiểm tra nếu lớp mở có giảng viên và đang được kích hoạt, dời học kỳ hoặc đổi giảng viên */
     IF v_giangvien IS NOT NULL AND TRIM(v_giangvien) <> ''
        AND NEW."TrangThai" = TRUE
-       AND (NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai" OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy") THEN
+       AND (
+          NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai"
+          OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy"
+          OR NEW."MaGiangVien" IS DISTINCT FROM OLD."MaGiangVien"
+          OR NEW."GiangVien" IS DISTINCT FROM OLD."GiangVien"
+       ) THEN
 
         IF EXISTS (
             SELECT 1
@@ -2545,13 +2568,12 @@ BEGIN
             JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
             JOIN "LICHHOCLOP" lh2 ON lh1."ThuTrongTuan" = lh2."ThuTrongTuan" AND lh1.id <> lh2.id
             JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
-            JOIN "LOP" l2 ON lm2."MaLop" = l2."MaLop"
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE lh1."LopMoId" = NEW.id
               AND lm2."TrangThai" = TRUE
               AND lm2."MaHocKy" = NEW."MaHocKy"
-              AND l2."GiangVien" = v_giangvien
+              AND COALESCE(lm2."MaGiangVien", lm2."GiangVien") = v_giangvien
               -- Công thức kiểm tra giao khoảng tiết
               AND bd1."ThuTu" <= kt2."ThuTu"
               AND bd2."ThuTu" <= kt1."ThuTu"
@@ -2565,7 +2587,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_rbtv14_lopmo_upd
-BEFORE UPDATE OF "MaHocKy", "TrangThai" ON "LOPMO"
+BEFORE UPDATE OF "MaHocKy", "TrangThai", "MaGiangVien", "GiangVien" ON "LOPMO"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_rbtv14_lopmo();
 CREATE OR REPLACE FUNCTION fn_check_rbtv14_tiethoc()
@@ -2577,19 +2599,18 @@ BEGIN
             SELECT 1
             FROM "LICHHOCLOP" lh1
             JOIN "LOPMO" lm1 ON lh1."LopMoId" = lm1.id
-            JOIN "LOP" l1 ON lm1."MaLop" = l1."MaLop"
             -- Bắt cặp với các lịch học khác để tìm xung đột
             JOIN "LICHHOCLOP" lh2 ON lh1."ThuTrongTuan" = lh2."ThuTrongTuan" AND lh1.id < lh2.id
             JOIN "LOPMO" lm2 ON lh2."LopMoId" = lm2.id
-            JOIN "LOP" l2 ON lm2."MaLop" = l2."MaLop"
 
             JOIN "TIETHOC" bd1 ON lh1."MaTietBatDau" = bd1."MaTiet"
             JOIN "TIETHOC" kt1 ON lh1."MaTietKetThuc" = kt1."MaTiet"
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
 
-            WHERE l1."GiangVien" IS NOT NULL AND TRIM(l1."GiangVien") <> ''
-              AND l1."GiangVien" = l2."GiangVien"
+            WHERE COALESCE(lm1."MaGiangVien", lm1."GiangVien") IS NOT NULL
+              AND TRIM(COALESCE(lm1."MaGiangVien", lm1."GiangVien")) <> ''
+              AND COALESCE(lm1."MaGiangVien", lm1."GiangVien") = COALESCE(lm2."MaGiangVien", lm2."GiangVien")
               AND lm1."MaHocKy" = lm2."MaHocKy"
               AND lm1."TrangThai" = TRUE
               AND lm2."TrangThai" = TRUE
@@ -2644,7 +2665,7 @@ $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LICHHOCLOP
 CREATE TRIGGER trg_rbtv15_lichhoclop_del_upd
-BEFORE DELETE OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc"
+BEFORE DELETE OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "MaPhong", "PhongHoc"
 ON "LICHHOCLOP"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_rbtv15_lichhoclop();
@@ -11617,6 +11638,84 @@ SET
 FROM danh_sach_giang_vien dsgv
 WHERE dsgv."MaLop" = l."MaLop";
 
+-- Tạo danh mục phòng học từ dữ liệu lớp hiện có và liên kết ngược về LOP.
+WITH phong_nguon AS (
+  SELECT
+    TRIM("PhongHoc") AS "MaPhong",
+    MAX(COALESCE("SoLuongToiDa", 60)) AS "SucChua",
+    BOOL_OR("MaLop" LIKE '%_TH.%' OR COALESCE("SoLuongToiDa", 60) <= 30) AS "LaPhongThucHanh"
+  FROM "LOP"
+  WHERE "PhongHoc" IS NOT NULL AND TRIM("PhongHoc") <> ''
+  GROUP BY TRIM("PhongHoc")
+)
+INSERT INTO "PHONGHOC" ("MaPhong", "TenPhong", "ToaNha", "SucChua", "LoaiPhong", "TrangThai")
+SELECT
+  "MaPhong",
+  'Phòng ' || "MaPhong",
+  NULLIF(split_part("MaPhong", '.', 1), ''),
+  "SucChua",
+  CASE WHEN "LaPhongThucHanh" THEN 'thuc_hanh' ELSE 'ly_thuyet' END,
+  TRUE
+FROM phong_nguon
+ON CONFLICT ("MaPhong") DO UPDATE SET
+  "TenPhong" = EXCLUDED."TenPhong",
+  "ToaNha" = EXCLUDED."ToaNha",
+  "SucChua" = GREATEST(COALESCE("PHONGHOC"."SucChua", 0), COALESCE(EXCLUDED."SucChua", 0)),
+  "LoaiPhong" = EXCLUDED."LoaiPhong",
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL;
+
+UPDATE "LOP"
+SET "MaPhong" = TRIM("PhongHoc")
+WHERE "PhongHoc" IS NOT NULL
+  AND TRIM("PhongHoc") <> ''
+  AND EXISTS (
+    SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM("LOP"."PhongHoc")
+  );
+
+-- Tạo danh mục giảng viên từ dữ liệu lớp hiện có và liên kết ngược về LOP.
+WITH giang_vien_nguon AS (
+  SELECT
+    TRIM(l."GiangVien") AS "GiangVienDayDu",
+    'GV' || UPPER(substr(md5(TRIM(l."GiangVien")), 1, 8)) AS "MaGiangVien",
+    MIN(mh."MaKhoa") AS "MaKhoa"
+  FROM "LOP" l
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+  WHERE l."GiangVien" IS NOT NULL AND TRIM(l."GiangVien") <> ''
+  GROUP BY TRIM(l."GiangVien")
+)
+INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHamHocVi", "MaKhoa", "TrangThai")
+SELECT
+  "MaGiangVien",
+  NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(PGS\.TS|TS\.|ThS\.)\s+', '')), ''),
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'PGS.TS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS.'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS.'
+    ELSE NULL
+  END,
+  "MaKhoa",
+  TRUE
+FROM giang_vien_nguon
+ON CONFLICT ("MaGiangVien") DO UPDATE SET
+  "HoTen" = EXCLUDED."HoTen",
+  "HocHamHocVi" = EXCLUDED."HocHamHocVi",
+  "MaKhoa" = COALESCE("GIANGVIEN"."MaKhoa", EXCLUDED."MaKhoa"),
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL;
+
+UPDATE "LOP"
+SET "MaGiangVien" = 'GV' || UPPER(substr(md5(TRIM("GiangVien")), 1, 8))
+WHERE "GiangVien" IS NOT NULL
+  AND TRIM("GiangVien") <> ''
+  AND EXISTS (
+    SELECT 1
+    FROM "GIANGVIEN" gv
+    WHERE gv."MaGiangVien" = 'GV' || UPPER(substr(md5(TRIM("LOP"."GiangVien")), 1, 8))
+  );
+
 -- =====================================================
 -- INSERT DATA - Chương trình học (Curriculum)
 -- =====================================================
@@ -12475,6 +12574,13 @@ INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "SoLuongDaDangKy") VALUES
 ('HK2-2526', 'IS359.N01', 0),
 ('HK2-2526', 'CS5032.N01', 0);
 
+UPDATE "LOPMO" lm
+SET
+  "MaGiangVien" = COALESCE(lm."MaGiangVien", l."MaGiangVien"),
+  "GiangVien" = COALESCE(lm."GiangVien", l."GiangVien")
+FROM "LOP" l
+WHERE l."MaLop" = lm."MaLop";
+
 -- =====================================================
 -- INSERT DATA - Lịch học lớp (Class Schedule Details)
 -- Liên kết lớp mở với tiết học và thứ trong tuần
@@ -12746,6 +12852,31 @@ INSERT INTO "LICHHOCLOP" ("LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetT
 UPDATE "LICHHOCLOP"
 SET "GhiChu" = regexp_replace("GhiChu", '^(.+) Thu ([2-7]) T([0-9]+)-T([0-9]+)$', '\1 - Thứ \2, Tiết \3-\4')
 WHERE "GhiChu" ~ ' Thu [2-7] T[0-9]+-T[0-9]+$';
+
+-- Đồng bộ phòng học chi tiết trong lịch học lớp với danh mục PHONGHOC.
+WITH phong_lich AS (
+  SELECT DISTINCT TRIM("PhongHoc") AS "MaPhong"
+  FROM "LICHHOCLOP"
+  WHERE "PhongHoc" IS NOT NULL AND TRIM("PhongHoc") <> ''
+)
+INSERT INTO "PHONGHOC" ("MaPhong", "TenPhong", "ToaNha", "SucChua", "LoaiPhong", "TrangThai")
+SELECT
+  "MaPhong",
+  'Phòng ' || "MaPhong",
+  NULLIF(split_part("MaPhong", '.', 1), ''),
+  60,
+  'ly_thuyet',
+  TRUE
+FROM phong_lich
+ON CONFLICT ("MaPhong") DO NOTHING;
+
+UPDATE "LICHHOCLOP"
+SET "MaPhong" = TRIM("PhongHoc")
+WHERE "PhongHoc" IS NOT NULL
+  AND TRIM("PhongHoc") <> ''
+  AND EXISTS (
+    SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM("LICHHOCLOP"."PhongHoc")
+  );
 
 -- =====================================================
 -- INSERT DATA - Đối tượng của Sinh viên (Student Priority Objects)
@@ -13116,6 +13247,123 @@ SET
   "NguoiCapNhat" = COALESCE(l."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
   "NgayCapNhat" = COALESCE(l."NgayCapNhat", CURRENT_TIMESTAMP)
 WHERE l."DaXoa" = FALSE;
+
+UPDATE "LOPMO" lm
+SET
+  "MaGiangVien" = COALESCE(lm."MaGiangVien", l."MaGiangVien"),
+  "GiangVien" = COALESCE(lm."GiangVien", l."GiangVien")
+FROM "LOP" l
+WHERE l."MaLop" = lm."MaLop";
+
+ALTER TABLE "LOP"
+  DROP CONSTRAINT IF EXISTS fk_lop_giangvien,
+  DROP COLUMN IF EXISTS "MaGiangVien",
+  DROP COLUMN IF EXISTS "GiangVien";
+
+UPDATE "LOP"
+SET "LichHoc" = NULL,
+    "MaPhong" = NULL,
+    "PhongHoc" = NULL
+WHERE "LichHoc" IS NOT NULL
+   OR "MaPhong" IS NOT NULL
+   OR "PhongHoc" IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION fn_check_lop_catalog_only()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NULLIF(TRIM(COALESCE(NEW."LichHoc", '')), '') IS NOT NULL
+       OR NULLIF(TRIM(COALESCE(NEW."MaPhong", '')), '') IS NOT NULL
+       OR NULLIF(TRIM(COALESCE(NEW."PhongHoc", '')), '') IS NOT NULL THEN
+        RAISE EXCEPTION 'RBTV_LOP_DANHMUC: Lớp học chỉ lưu mã lớp, tên lớp và môn học. Giảng viên, phòng và lịch học phải khai báo khi mở lớp.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_lop_catalog_only ON "LOP";
+CREATE TRIGGER trg_check_lop_catalog_only
+BEFORE INSERT OR UPDATE OF "LichHoc", "MaPhong", "PhongHoc"
+ON "LOP"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_lop_catalog_only();
+
+CREATE OR REPLACE FUNCTION fn_check_lopmo_opening_required(p_lopmo_id INTEGER)
+RETURNS VOID AS $$
+DECLARE
+    v_lopmo RECORD;
+BEGIN
+    SELECT * INTO v_lopmo FROM "LOPMO" WHERE id = p_lopmo_id;
+    IF NOT FOUND OR COALESCE(v_lopmo."TrangThai", FALSE) = FALSE THEN
+        RETURN;
+    END IF;
+
+    IF NULLIF(TRIM(COALESCE(v_lopmo."MaGiangVien", v_lopmo."GiangVien", '')), '') IS NULL THEN
+        RAISE EXCEPTION 'RBTV_LOPMO_THONGTIN: Lớp mở phải có giảng viên phụ trách.';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM "LICHHOCLOP" lh
+        WHERE lh."LopMoId" = p_lopmo_id
+          AND COALESCE(lh."TrangThai", TRUE) = TRUE
+          AND lh."ThuTrongTuan" IS NOT NULL
+          AND NULLIF(TRIM(COALESCE(lh."MaTietBatDau", '')), '') IS NOT NULL
+          AND NULLIF(TRIM(COALESCE(lh."MaTietKetThuc", '')), '') IS NOT NULL
+          AND NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') IS NOT NULL
+    ) THEN
+        RAISE EXCEPTION 'RBTV_LOPMO_THONGTIN: Lớp mở phải có ít nhất một lịch học kèm phòng học.';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION fn_check_lopmo_opening_required_from_lopmo()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM fn_check_lopmo_opening_required(NEW.id);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION fn_check_lopmo_opening_required_from_schedule()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM fn_check_lopmo_opening_required(COALESCE(NEW."LopMoId", OLD."LopMoId"));
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_lopmo_opening_required ON "LOPMO";
+CREATE CONSTRAINT TRIGGER trg_check_lopmo_opening_required
+AFTER INSERT OR UPDATE OF "TrangThai", "MaGiangVien", "GiangVien"
+ON "LOPMO"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_lopmo_opening_required_from_lopmo();
+
+DROP TRIGGER IF EXISTS trg_check_lopmo_opening_required_lhl_ins ON "LICHHOCLOP";
+CREATE CONSTRAINT TRIGGER trg_check_lopmo_opening_required_lhl_ins
+AFTER INSERT
+ON "LICHHOCLOP"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_lopmo_opening_required_from_schedule();
+
+DROP TRIGGER IF EXISTS trg_check_lopmo_opening_required_lhl_upd ON "LICHHOCLOP";
+CREATE CONSTRAINT TRIGGER trg_check_lopmo_opening_required_lhl_upd
+AFTER UPDATE OF "LopMoId", "TrangThai", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "MaPhong", "PhongHoc"
+ON "LICHHOCLOP"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_lopmo_opening_required_from_schedule();
+
+DROP TRIGGER IF EXISTS trg_check_lopmo_opening_required_lhl_del ON "LICHHOCLOP";
+CREATE CONSTRAINT TRIGGER trg_check_lopmo_opening_required_lhl_del
+AFTER DELETE
+ON "LICHHOCLOP"
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_lopmo_opening_required_from_schedule();
 
 WITH admin_account AS (
   SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'
