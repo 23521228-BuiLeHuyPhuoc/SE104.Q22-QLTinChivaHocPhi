@@ -106,14 +106,14 @@ block modals
               input.form-control#cl-lecturer-search(type="text" placeholder="Nhập mã hoặc họ tên giảng viên")
             .form-group
               label(for="cl-magiangvien") Giảng viên
-              select.form-control#cl-magiangvien(disabled)
+              select.form-control#cl-magiangvien
                 option(value="") Chọn giảng viên
                 each lecturer in lecturerOptions || []
                   option(value=lecturer.MaGiangVien) #{lecturer.MaGiangVien} - #{lecturer.HocHamHocVi ? lecturer.HocHamHocVi + ' ' : ''}#{lecturer.HoTen}
           .form-row
             .form-group
               label(for="cl-thu") Thứ
-              select.form-control#cl-thu(disabled)
+              select.form-control#cl-thu
                 option(value="2") Thứ 2
                 option(value="3") Thứ 3
                 option(value="4") Thứ 4
@@ -123,14 +123,14 @@ block modals
                 option(value="1") Chủ nhật
             .form-group
               label(for="cl-tietbd") Tiết bắt đầu
-              select.form-control#cl-tietbd(disabled)
+              select.form-control#cl-tietbd
                 option(value="") Chọn tiết
                 each period in periodOptions || []
                   option(value=period.MaTiet) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
           .form-row
             .form-group
               label(for="cl-tietkt") Tiết kết thúc
-              select.form-control#cl-tietkt(disabled)
+              select.form-control#cl-tietkt
                 option(value="") Chọn tiết
                 each period in periodOptions || []
                   option(value=period.MaTiet) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
@@ -139,7 +139,7 @@ block modals
               input.form-control#cl-room-search(type="text" placeholder="Nhập mã phòng hoặc tòa nhà")
           .form-group
             label(for="cl-maphong") Phòng
-            select.form-control#cl-maphong(disabled)
+            select.form-control#cl-maphong
               option(value="") Chọn phòng
               each room in roomOptions || []
                 option(value=room.MaPhong) #{room.MaPhong} - #{room.TenPhong}#{room.SucChua ? ' (' + room.SucChua + ')' : ''}
