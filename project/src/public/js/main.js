@@ -158,6 +158,53 @@ function renderClientPagination(elementId, meta, loadFunctionName) {
   nav.innerHTML = html;
 }
 
+function setupStudentSidebarScrollPersistence() {
+  if (window.location.pathname.indexOf('/student') !== 0) return;
+
+  var storageKey = 'studentSidebarScrollState';
+  var sidebar = document.getElementById('sidebar');
+  var nav = sidebar ? sidebar.querySelector('.sidebar-nav') : null;
+  if (!sidebar) return;
+
+  function saveSidebarScroll() {
+    localStorage.setItem(storageKey, JSON.stringify({
+      sidebarTop: sidebar.scrollTop || 0,
+      navTop: nav ? nav.scrollTop || 0 : 0
+    }));
+  }
+
+  function restoreSidebarScroll() {
+    var saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    } catch (e) {
+      saved = { sidebarTop: parseInt(localStorage.getItem(storageKey) || '0', 10), navTop: 0 };
+    }
+
+    var sidebarTop = parseInt(saved.sidebarTop || 0, 10);
+    var navTop = parseInt(saved.navTop || 0, 10);
+
+    function applyScroll() {
+      if (Number.isFinite(sidebarTop)) sidebar.scrollTop = sidebarTop;
+      if (nav && Number.isFinite(navTop)) nav.scrollTop = navTop;
+    }
+
+    applyScroll();
+    requestAnimationFrame(applyScroll);
+    setTimeout(applyScroll, 80);
+    setTimeout(applyScroll, 250);
+  }
+
+  restoreSidebarScroll();
+  sidebar.addEventListener('scroll', saveSidebarScroll, { passive: true });
+  if (nav) nav.addEventListener('scroll', saveSidebarScroll, { passive: true });
+  sidebar.querySelectorAll('a.sidebar-link, a.sidebar-logout').forEach(function(link) {
+    link.addEventListener('pointerdown', saveSidebarScroll);
+    link.addEventListener('click', saveSidebarScroll);
+  });
+  window.addEventListener('beforeunload', saveSidebarScroll);
+}
+
 // Counter animation for stat numbers
 function animateCounter(element, target, duration) {
   duration = duration || 1000;
@@ -212,6 +259,8 @@ document.addEventListener('DOMContentLoaded', function() {
     backdrop.onclick = closeSidebar;
     document.body.appendChild(backdrop);
   }
+
+  setupStudentSidebarScrollPersistence();
 });
 
 window.addEventListener('resize', syncSidebarToggleIcon);
