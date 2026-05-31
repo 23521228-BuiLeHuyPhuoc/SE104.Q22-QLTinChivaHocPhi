@@ -1,7 +1,11 @@
 // Model: dinh dang du lieu lop hoc.
 const periodLabel = (schedule) => {
-  const start = schedule?.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet || schedule?.MaTietBatDau;
-  const end = schedule?.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet || schedule?.MaTietKetThuc;
+  const start = schedule?.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet ||
+    schedule?.TIETHOC_LOP_MaTietBatDauToTIETHOC?.TenTiet ||
+    schedule?.MaTietBatDau;
+  const end = schedule?.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet ||
+    schedule?.TIETHOC_LOP_MaTietKetThucToTIETHOC?.TenTiet ||
+    schedule?.MaTietKetThuc;
   if (!start && !end) return '';
   return start === end ? start : `${start}-${end}`;
 };
@@ -23,6 +27,13 @@ const scheduleLabel = (openedClass) => {
   }).join('; ');
 };
 
+const catalogScheduleLabel = (l) => {
+  if (!l?.ThuTrongTuan || !l?.MaTietBatDau || !l?.MaTietKetThuc) return l?.LichHoc || null;
+  const day = Number(l.ThuTrongTuan) === 1 ? 'Chu nhat' : `Thu ${l.ThuTrongTuan}`;
+  const room = roomLabel(l);
+  return [day, periodLabel(l)].filter(Boolean).join(' ') + (room ? ` (${room})` : '');
+};
+
 const formatClass = (l) => {
   const openedClass = l.LopMoHienTai || null;
   const firstSchedule = (openedClass?.LICHHOCLOP || []).find((item) => item.TrangThai !== false && roomLabel(item));
@@ -31,13 +42,13 @@ const formatClass = (l) => {
     MaLop: l.MaLop,
     TenLop: l.TenLop,
     MaMonHoc: l.MaMonHoc,
-    MaGiangVien: openedClass?.MaGiangVien || null,
+    MaGiangVien: openedClass?.MaGiangVien || l.MaGiangVien || null,
     GiangVien: openedClass?.GIANGVIEN
       ? [openedClass.GIANGVIEN.HocHamHocVi, openedClass.GIANGVIEN.HoTen].filter(Boolean).join(' ')
-      : openedClass?.GiangVien || null,
-    LichHoc: scheduleLabel(openedClass),
-    MaPhong: firstSchedule?.MaPhong || null,
-    PhongHoc: roomLabel(firstSchedule),
+      : openedClass?.GiangVien || (l.GIANGVIEN ? [l.GIANGVIEN.HocHamHocVi, l.GIANGVIEN.HoTen].filter(Boolean).join(' ') : l.GiangVien || null),
+    LichHoc: scheduleLabel(openedClass) || catalogScheduleLabel(l),
+    MaPhong: firstSchedule?.MaPhong || l.MaPhong || null,
+    PhongHoc: roomLabel(firstSchedule) || roomLabel(l),
     SoLuongToiDa: l.SoLuongToiDa,
     MoTa: l.MoTa,
     TrangThai: l.TrangThai,

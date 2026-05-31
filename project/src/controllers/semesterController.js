@@ -2,6 +2,13 @@ const prisma = require('../config/database');
 const { getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { assertRegistrationClosed, getRegistrationWindowState } = require('../utils/registrationWindow');
+const { recalculateRegistrationTotals } = require('./registrationController');
+
+const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
+const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
+const ONGOING_SEMESTER_STATUS = 'Đang diễn ra';
+const MIN_OPEN_CLASS_RATIO = 0.75;
 
 const semesterSelect = (hk) => ({
   MaHocKy: hk.MaHocKy,
@@ -28,6 +35,23 @@ const semesterSelect = (hk) => ({
   SoLopMo: hk.SoLopMo ?? hk._count?.LOPMO ?? 0,
   SoSinhVienDangKy: hk.SoSinhVienDangKy ?? hk._count?.PHIEUDANGKY ?? 0
 });
+
+const registrationSemesterSelect = (semester) => {
+  const windowState = getRegistrationWindowState(semester);
+  return {
+    ...semesterSelect(semester),
+    RegistrationWindow: {
+      isOpen: windowState.isOpen,
+      isClosed: windowState.isClosed,
+      reason: windowState.reason,
+      message: windowState.message,
+      registrationStart: windowState.registrationStart,
+      registrationDeadline: windowState.registrationDeadline
+    },
+    CoTheDangKy: windowState.isOpen,
+    LyDoKhongTheDangKy: windowState.message
+  };
+};
 
 const academicYearSelect = (year) => ({
   MaNamHoc: year.MaNamHoc,
@@ -118,11 +142,19 @@ const parseStrictDate = (value, label) => {
   return date;
 };
 
-const parseNullableDate = (value, label) => {
+const isDateOnlyInput = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+
+const toEndOfUtcDay = (date) => {
+  const end = new Date(date.getTime());
+  end.setUTCHours(23, 59, 59, 999);
+  return end;
+};
+
+const parseNullableDate = (value, label, options = {}) => {
   if (value === undefined || value === null || value === '') return null;
   const date = parseStrictDate(value, label);
   if (Number.isNaN(date.getTime())) throw makeSemesterDateError(`${label} không hợp lệ`);
-  return date;
+  return options.endOfDayForDateOnly && isDateOnlyInput(value) ? toEndOfUtcDay(date) : date;
 };
 
 const toDateOnly = (date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
@@ -309,41 +341,18 @@ const getAllSemesters = async (req, res) => {
 
 const getRegistrationOptions = async (req, res) => {
   try {
-    // 1. Find the currently ongoing semester (only one should be active at a time)
-    const ongoingSemester = await prisma.HOCKY.findFirst({
+    const semesters = await prisma.HOCKY.findMany({
       where: {
         DaXoa: false,
-        TrangThai: 'Đang diễn ra'
+        NgayBatDauDangKy: { not: null },
+        NgayKetThucDangKy: { not: null }
       },
+      take: 8,
+      orderBy: [{ NgayBatDau: { sort: 'desc', nulls: 'last' } }, { MaHocKy: 'desc' }],
       include: { NAMHOC: true }
     });
 
-    if (ongoingSemester) {
-      // If there is an ongoing semester, students can only register for this one!
-      return res.json({ success: true, data: [semesterSelect(ongoingSemester)] });
-    }
-
-    // 2. Fallback: if no ongoing semester, return semesters that are 'Sắp diễn ra'
-    const upcomingSemesters = await prisma.HOCKY.findMany({
-      where: {
-        DaXoa: false,
-        TrangThai: 'Sắp diễn ra'
-      },
-      orderBy: [{ NgayBatDau: 'asc' }, { MaHocKy: 'asc' }],
-      include: { NAMHOC: true }
-    });
-
-    if (upcomingSemesters.length) {
-      return res.json({ success: true, data: upcomingSemesters.map(semesterSelect) });
-    }
-
-    const fallbackSemesters = await prisma.HOCKY.findMany({
-      where: { DaXoa: false },
-      take: 5,
-      orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
-      include: { NAMHOC: true }
-    });
-    res.json({ success: true, data: fallbackSemesters.map(semesterSelect).reverse() });
+    res.json({ success: true, data: semesters.map(registrationSemesterSelect) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get registration options error:');
   }
@@ -370,6 +379,158 @@ const getSemesterById = async (req, res) => {
   }
 };
 
+const finalizeRegistration = async (req, res) => {
+  try {
+    const maHocKy = req.params.id;
+    const result = await prisma.$transaction(async (tx) => {
+      const semester = await tx.HOCKY.findFirst({
+        where: { MaHocKy: maHocKy, DaXoa: false }
+      });
+      if (!semester) throw { status: 404, message: 'Không tìm thấy học kỳ' };
+      assertRegistrationClosed(semester);
+
+      const otherOngoing = await tx.HOCKY.findFirst({
+        where: {
+          DaXoa: false,
+          TrangThai: ONGOING_SEMESTER_STATUS,
+          MaHocKy: { not: maHocKy }
+        },
+        select: { MaHocKy: true, TenHocKy: true }
+      });
+      if (otherOngoing) {
+        throw {
+          status: 400,
+          message: `Chỉ được có một học kỳ đang diễn ra. Học kỳ ${otherOngoing.MaHocKy} - ${otherOngoing.TenHocKy} đang diễn ra.`
+        };
+      }
+
+      const openedClasses = await tx.LOPMO.findMany({
+        where: { MaHocKy: maHocKy, LOP: { DaXoa: false } },
+        include: {
+          LOP: {
+            select: {
+              MaLop: true,
+              TenLop: true,
+              SoLuongToiDa: true
+            }
+          }
+        }
+      });
+
+      const countRows = await tx.CHITIETDANGKY.groupBy({
+        by: ['MaLop'],
+        where: {
+          TrangThai: ACTIVE_REGISTRATION_STATUS,
+          PHIEUDANGKY: { MaHocKy: maHocKy }
+        },
+        _count: { _all: true }
+      });
+      const registrationCountByClass = new Map(countRows.map((row) => [row.MaLop, row._count._all]));
+
+      const classSummaries = openedClasses.map((openedClass) => {
+        const capacity = Math.max(0, Number(openedClass.LOP?.SoLuongToiDa || 0));
+        const threshold = Math.ceil(capacity * MIN_OPEN_CLASS_RATIO);
+        const registeredCount = registrationCountByClass.get(openedClass.MaLop) || 0;
+        const willOpen = capacity > 0 && registeredCount >= threshold;
+
+        return {
+          id: openedClass.id,
+          MaLop: openedClass.MaLop,
+          TenLop: openedClass.LOP?.TenLop || null,
+          SoLuongToiDa: capacity,
+          SoLuongDaDangKy: registeredCount,
+          NguongMoLop: threshold,
+          TrangThaiSauChot: willOpen
+        };
+      });
+
+      const openedAfterFinalize = classSummaries.filter((item) => item.TrangThaiSauChot);
+      const closedAfterFinalize = classSummaries.filter((item) => !item.TrangThaiSauChot);
+      const closedClassCodes = closedAfterFinalize.map((item) => item.MaLop);
+
+      const affectedRegistrations = closedClassCodes.length
+        ? await tx.PHIEUDANGKY.findMany({
+          where: {
+            MaHocKy: maHocKy,
+            CHITIETDANGKY: {
+              some: {
+                MaLop: { in: closedClassCodes },
+                TrangThai: ACTIVE_REGISTRATION_STATUS
+              }
+            }
+          },
+          select: { SoPhieu: true }
+        })
+        : [];
+
+      const cancelled = closedClassCodes.length
+        ? await tx.CHITIETDANGKY.updateMany({
+          where: {
+            MaLop: { in: closedClassCodes },
+            TrangThai: ACTIVE_REGISTRATION_STATUS,
+            PHIEUDANGKY: { MaHocKy: maHocKy }
+          },
+          data: {
+            TrangThai: CANCELLED_REGISTRATION_STATUS,
+            NgayHuy: new Date(),
+            LyDoHuy: 'Lớp không đủ 75% sức chứa khi chốt đăng ký'
+          }
+        })
+        : { count: 0 };
+
+      for (const item of openedAfterFinalize) {
+        await tx.LOPMO.update({
+          where: { id: item.id },
+          data: {
+            TrangThai: true,
+            SoLuongDaDangKy: item.SoLuongDaDangKy
+          }
+        });
+      }
+
+      for (const item of closedAfterFinalize) {
+        await tx.LOPMO.update({
+          where: { id: item.id },
+          data: {
+            TrangThai: false,
+            SoLuongDaDangKy: 0
+          }
+        });
+      }
+
+      for (const registration of affectedRegistrations) {
+        await recalculateRegistrationTotals(tx, registration.SoPhieu);
+      }
+
+      await tx.HOCKY.update({
+        where: { MaHocKy: maHocKy },
+        data: {
+          TrangThai: ONGOING_SEMESTER_STATUS,
+          ...updateAudit(req)
+        }
+      });
+
+      return {
+        MaHocKy: maHocKy,
+        TiLeMoLopToiThieu: MIN_OPEN_CLASS_RATIO,
+        SoLopDatNguong: openedAfterFinalize.length,
+        SoLopBiDong: closedAfterFinalize.length,
+        SoDangKyBiHuy: cancelled.count,
+        classes: classSummaries
+      };
+    });
+
+    res.json({
+      success: true,
+      message: 'Chốt đăng ký học phần thành công. Học kỳ đã chuyển sang trạng thái đang diễn ra.',
+      data: result
+    });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message, code: error.code });
+        return sendErrorResponse(res, error, 'Không thể chốt đăng ký học phần', 'Finalize registration error:');
+  }
+};
+
 const createSemester = async (req, res) => {
   try {
     const { MaHocKy, TenHocKy, MaNamHoc, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi, TrangThai } = req.body;
@@ -381,7 +542,7 @@ const createSemester = async (req, res) => {
       NgayBatDau: parseNullableDate(NgayBatDau, 'Ngày bắt đầu học kỳ'),
       NgayKetThuc: parseNullableDate(NgayKetThuc, 'Ngày kết thúc học kỳ'),
       NgayBatDauDangKy: parseNullableDate(NgayBatDauDangKy, 'Ngày bắt đầu đăng ký'),
-      NgayKetThucDangKy: parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký'),
+      NgayKetThucDangKy: parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký', { endOfDayForDateOnly: true }),
       HanDongHocPhi: parseNullableDate(HanDongHocPhi, 'Hạn đóng học phí')
     };
     validateSemesterDateRange(dates);
@@ -425,7 +586,7 @@ const updateSemester = async (req, res) => {
       NgayBatDau: NgayBatDau !== undefined ? parseNullableDate(NgayBatDau, 'Ngày bắt đầu học kỳ') : existing.NgayBatDau,
       NgayKetThuc: NgayKetThuc !== undefined ? parseNullableDate(NgayKetThuc, 'Ngày kết thúc học kỳ') : existing.NgayKetThuc,
       NgayBatDauDangKy: NgayBatDauDangKy !== undefined ? parseNullableDate(NgayBatDauDangKy, 'Ngày bắt đầu đăng ký') : existing.NgayBatDauDangKy,
-      NgayKetThucDangKy: NgayKetThucDangKy !== undefined ? parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký') : existing.NgayKetThucDangKy,
+      NgayKetThucDangKy: NgayKetThucDangKy !== undefined ? parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký', { endOfDayForDateOnly: true }) : existing.NgayKetThucDangKy,
       HanDongHocPhi: HanDongHocPhi !== undefined ? parseNullableDate(HanDongHocPhi, 'Hạn đóng học phí') : existing.HanDongHocPhi
     };
     validateSemesterDateRange(nextDates);
@@ -553,6 +714,7 @@ module.exports = {
   getRegistrationOptions,
   getActiveSemester,
   getSemesterById,
+  finalizeRegistration,
   createSemester,
   updateSemester,
   deleteSemester,

@@ -24,6 +24,7 @@ router.get('/:id', semesterController.getSemesterById);
 
 // Admin only routes
 router.post('/', adminMiddleware, semesterController.createSemester);
+router.post('/:id/finalize-registration', adminMiddleware, semesterController.finalizeRegistration);
 router.put('/:id', adminMiddleware, semesterController.updateSemester);
 router.delete('/:id', adminMiddleware, semesterController.deleteSemester);
 

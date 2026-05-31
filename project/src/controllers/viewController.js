@@ -70,8 +70,12 @@ const weekdayLabel = (value) => {
 
 const periodRangeLabel = (schedule) => {
   if (!schedule) return '';
-  const start = schedule.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet || schedule.MaTietBatDau;
-  const end = schedule.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet || schedule.MaTietKetThuc;
+  const start = schedule.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet ||
+    schedule.TIETHOC_LOP_MaTietBatDauToTIETHOC?.TenTiet ||
+    schedule.MaTietBatDau;
+  const end = schedule.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet ||
+    schedule.TIETHOC_LOP_MaTietKetThucToTIETHOC?.TenTiet ||
+    schedule.MaTietKetThuc;
   if (!start && !end) return '';
   return start === end ? start : `${start}-${end}`;
 };
@@ -84,6 +88,13 @@ const classScheduleLabel = (openedClass) => {
     const room = roomDisplayName(schedule.PHONGHOC) || schedule.PhongHoc || schedule.MaPhong;
     return parts.join(' ') + (room ? ` (${room})` : '');
   }).join('; ');
+};
+
+const catalogScheduleLabel = (cls) => {
+  if (!cls?.ThuTrongTuan || !cls?.MaTietBatDau || !cls?.MaTietKetThuc) return cls?.LichHoc || '';
+  const parts = [weekdayLabel(cls.ThuTrongTuan), periodRangeLabel(cls)].filter(Boolean);
+  const room = roomDisplayName(cls.PHONGHOC) || cls.PhongHoc || cls.MaPhong;
+  return parts.join(' ') + (room ? ` (${room})` : '');
 };
 
 const lecturerDisplayName = (lecturer) => {
@@ -420,6 +431,13 @@ const adminClasses = async (req, res) => {
       { TenLop: { contains: search, mode: 'insensitive' } },
       { MaMonHoc: { contains: search, mode: 'insensitive' } },
       { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
+      { MaGiangVien: { contains: search, mode: 'insensitive' } },
+      { GiangVien: { contains: search, mode: 'insensitive' } },
+      { LichHoc: { contains: search, mode: 'insensitive' } },
+      { MaPhong: { contains: search, mode: 'insensitive' } },
+      { PhongHoc: { contains: search, mode: 'insensitive' } },
+      { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } },
+      { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } },
       { LOPMO: { some: { MaGiangVien: { contains: search, mode: 'insensitive' } } } },
       { LOPMO: { some: { GiangVien: { contains: search, mode: 'insensitive' } } } },
       { LOPMO: { some: { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } } } },
@@ -450,6 +468,10 @@ const adminClasses = async (req, res) => {
         orderBy: { MaLop: 'asc' },
         include: {
           MONHOC: { include: { KHOA: true } },
+          GIANGVIEN: true,
+          PHONGHOC: true,
+          TIETHOC_LOP_MaTietBatDauToTIETHOC: true,
+          TIETHOC_LOP_MaTietKetThucToTIETHOC: true,
           CHITIETDANGKY: { where: { TrangThai: 'Đã đăng ký' }, select: { id: true } },
           LOPMO: {
             include: {
@@ -515,9 +537,13 @@ const adminClasses = async (req, res) => {
 
       return {
         ...cls,
-        GiangVienDisplay: currentOpened ? (lecturerDisplayName(currentOpened.GIANGVIEN) || currentOpened.GiangVien || '') : '',
-        PhongHocDisplay: currentOpened ? (roomDisplayName(roomSchedule?.PHONGHOC) || roomSchedule?.PhongHoc || roomSchedule?.MaPhong || '') : '',
-        LichHocDisplay: currentOpened ? classScheduleLabel(currentOpened) : '',
+        GiangVienDisplay: currentOpened
+          ? (lecturerDisplayName(currentOpened.GIANGVIEN) || currentOpened.GiangVien || '')
+          : (lecturerDisplayName(cls.GIANGVIEN) || cls.GiangVien || ''),
+        PhongHocDisplay: currentOpened
+          ? (roomDisplayName(roomSchedule?.PHONGHOC) || roomSchedule?.PhongHoc || roomSchedule?.MaPhong || '')
+          : (roomDisplayName(cls.PHONGHOC) || cls.PhongHoc || cls.MaPhong || ''),
+        LichHocDisplay: currentOpened ? classScheduleLabel(currentOpened) : catalogScheduleLabel(cls),
         SoLuongDaDangKy: registeredCount,
         LopMoHienTaiId: currentOpened && currentOpened.TrangThai !== false ? currentOpened.id : null,
         MaHocKyDangMo: currentOpened ? currentOpened.MaHocKy : '',

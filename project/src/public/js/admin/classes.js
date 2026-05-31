@@ -160,6 +160,11 @@ async function loadRoomOptions(selectId, search, selectedValue, selectedLabel) {
   }
 }
 
+function classSetValue(id, value) {
+  var element = document.getElementById(id);
+  if (element) element.value = value || '';
+}
+
 function openModal(mode, cl) {
   editingId = null;
   document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa lớp học' : 'Thêm lớp học';
@@ -191,8 +196,12 @@ async function saveClass() {
   };
 
   if (!data.MaLop || !data.TenLop || !data.MaMonHoc) {
-    showToast('Vui lòng nhập mã lớp, tên lớp và chọn môn học', 'error');
+    showToast('Vui long nhap ma lop, ten lop va mon hoc', 'error');
     return;
+    /*
+    showToast('Vui lòng nhập đầy đủ lớp, môn học, giảng viên, phòng và lịch học', 'error');
+    return;
+    */
   }
 
   try {
@@ -227,8 +236,10 @@ async function deleteClass(id) {
   }
 }
 
-function openClassModal(maLop) {
-  document.getElementById('open-malop').value = maLop || '';
+async function openClassModal(maLop) {
+  var classData = typeof maLop === 'object' && maLop ? maLop : null;
+  var classId = classData ? classData.MaLop : maLop;
+  document.getElementById('open-malop').value = classId || '';
   document.getElementById('open-lecturer-search').value = '';
   document.getElementById('open-magiangvien').value = '';
   document.getElementById('open-thu').value = '2';
@@ -242,6 +253,21 @@ function openClassModal(maLop) {
   loadLecturerOptions('open-magiangvien', '', '', '');
   loadRoomOptions('open-maphong', '', '', '');
   document.getElementById('class-open-modal').classList.add('active');
+  if (!classData && classId) {
+    try {
+      var res = await apiFetch('/api/classes/' + encodeURIComponent(classId));
+      if (res.success) classData = res.data;
+    } catch (e) {}
+  }
+  if (classData) {
+    document.getElementById('open-lecturer-search').value = classData.GiangVienDisplay || classData.GiangVien || '';
+    document.getElementById('open-thu').value = classData.ThuTrongTuan || '2';
+    document.getElementById('open-tietbd').value = classData.MaTietBatDau || '';
+    document.getElementById('open-tietkt').value = classData.MaTietKetThuc || '';
+    document.getElementById('open-room-search').value = classData.PhongHocDisplay || classData.PhongHoc || classData.MaPhong || '';
+    loadLecturerOptions('open-magiangvien', '', classData.MaGiangVien || '', classData.GiangVienDisplay || classData.GiangVien || classData.MaGiangVien || '');
+    loadRoomOptions('open-maphong', '', classData.MaPhong || '', classData.PhongHocDisplay || classData.PhongHoc || classData.MaPhong || '');
+  }
 }
 
 function closeOpenClassModal() {
@@ -406,8 +432,8 @@ async function saveClassSchedule() {
     GhiChu: document.getElementById('schedule-ghichu').value.trim() || null
   };
 
-  if (!maLop || !body.MaHocKy || !body.ThuTrongTuan || !body.MaTietBatDau || !body.MaTietKetThuc) {
-    showToast('Vui lòng nhập đủ học kỳ, thứ và tiết học', 'error');
+  if (!maLop || !body.MaHocKy || !body.ThuTrongTuan || !body.MaTietBatDau || !body.MaTietKetThuc || !body.MaPhong) {
+    showToast('Vui lòng nhập đủ học kỳ, thứ, tiết học và phòng', 'error');
     return;
   }
 

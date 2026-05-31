@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { assertRegistrationOpen, getRegistrationWindowState } = require('../utils/registrationWindow');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
@@ -232,6 +233,7 @@ const recalculateRegistrationTotals = async (tx, soPhieu) => {
       TiLeGiam: discountRate,
       TienMienGiam: discountAmount,
       TongTienPhaiDong: amountDue,
+      TrangThai: phieu.CHITIETDANGKY.length ? ACTIVE_REGISTRATION_STATUS : CANCELLED_REGISTRATION_STATUS,
       NgayCapNhat: new Date()
     }
   });
@@ -428,6 +430,26 @@ const getAvailableCourses = async (req, res) => {
     const { MaHocKy, search = '', MaKhoa } = req.query;
     if (!MaHocKy) return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ' });
 
+    const semester = await prisma.HOCKY.findFirst({
+      where: { MaHocKy, DaXoa: false },
+      select: {
+        MaHocKy: true,
+        NgayBatDauDangKy: true,
+        NgayKetThucDangKy: true,
+        TrangThai: true
+      }
+    });
+    if (!semester) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
+    const windowState = getRegistrationWindowState(semester);
+    if (!windowState.isOpen) {
+      return res.status(400).json({
+        success: false,
+        code: 'REGISTRATION_WINDOW_CLOSED',
+        message: windowState.message || 'Đợt đăng ký học phần chưa mở',
+        registrationWindow: windowState
+      });
+    }
+
     let studentId = req.query.MaSv || null;
     if (!studentId && req.user?.Role !== 'admin') studentId = await getStudentIdFromRequest(req);
 
@@ -528,9 +550,10 @@ const registerCourse = async (req, res) => {
     const result = await prisma.$transaction(async (tx) => {
       const openedClass = await tx.LOPMO.findFirst({
         where: { MaHocKy, MaLop, TrangThai: true },
-        include: { LOP: { include: { MONHOC: true } } }
+        include: { HOCKY: true, LOP: { include: { MONHOC: true } } }
       });
       if (!openedClass || !openedClass.LOP) throw { status: 404, message: 'Lớp học không tồn tại hoặc chưa mở trong học kỳ này' };
+      assertRegistrationOpen(openedClass.HOCKY);
 
       const lop = openedClass.LOP;
       const course = lop.MONHOC;
@@ -598,15 +621,25 @@ const cancelRegistration = async (req, res) => {
   try {
     const reg = await prisma.CHITIETDANGKY.findUnique({
       where: { id: parseInt(req.params.id, 10) },
-      include: { PHIEUDANGKY: { select: { MaSv: true, MaHocKy: true, SoPhieu: true } } }
+      include: {
+        PHIEUDANGKY: {
+          select: {
+            MaSv: true,
+            MaHocKy: true,
+            SoPhieu: true,
+            HOCKY: true
+          }
+        }
+      }
     });
     if (!reg) return res.status(404).json({ success: false, message: 'Không tìm thấy đăng ký' });
     if (!(await ensureStudentAccess(req, res, reg.PHIEUDANGKY.MaSv))) return;
+    assertRegistrationOpen(reg.PHIEUDANGKY.HOCKY);
 
     const result = await prisma.$transaction(async (tx) => {
       await tx.CHITIETDANGKY.update({
         where: { id: parseInt(req.params.id, 10) },
-        data: { TrangThai: CANCELLED_REGISTRATION_STATUS, NgayHuy: new Date() }
+        data: { TrangThai: CANCELLED_REGISTRATION_STATUS, NgayHuy: new Date(), LyDoHuy: 'Sinh viên hủy đăng ký' }
       });
       if (reg.TrangThai === ACTIVE_REGISTRATION_STATUS) {
         await tx.LOPMO.updateMany({
