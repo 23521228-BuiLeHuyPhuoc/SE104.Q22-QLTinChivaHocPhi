@@ -442,7 +442,12 @@ const getAvailableCourses = async (req, res) => {
     if (!semester) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
     const windowState = getRegistrationWindowState(semester);
     if (!windowState.isOpen) {
-      return res.status(400).json({ success: false, message: windowState.message || 'Đợt đăng ký học phần chưa mở' });
+      return res.status(400).json({
+        success: false,
+        code: 'REGISTRATION_WINDOW_CLOSED',
+        message: windowState.message || 'Đợt đăng ký học phần chưa mở',
+        registrationWindow: windowState
+      });
     }
 
     let studentId = req.query.MaSv || null;

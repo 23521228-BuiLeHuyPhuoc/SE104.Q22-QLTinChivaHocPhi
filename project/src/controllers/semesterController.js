@@ -36,6 +36,23 @@ const semesterSelect = (hk) => ({
   SoSinhVienDangKy: hk.SoSinhVienDangKy ?? hk._count?.PHIEUDANGKY ?? 0
 });
 
+const registrationSemesterSelect = (semester) => {
+  const windowState = getRegistrationWindowState(semester);
+  return {
+    ...semesterSelect(semester),
+    RegistrationWindow: {
+      isOpen: windowState.isOpen,
+      isClosed: windowState.isClosed,
+      reason: windowState.reason,
+      message: windowState.message,
+      registrationStart: windowState.registrationStart,
+      registrationDeadline: windowState.registrationDeadline
+    },
+    CoTheDangKy: windowState.isOpen,
+    LyDoKhongTheDangKy: windowState.message
+  };
+};
+
 const academicYearSelect = (year) => ({
   MaNamHoc: year.MaNamHoc,
   TenNamHoc: year.TenNamHoc,
@@ -324,19 +341,18 @@ const getAllSemesters = async (req, res) => {
 
 const getRegistrationOptions = async (req, res) => {
   try {
-    const candidates = await prisma.HOCKY.findMany({
+    const semesters = await prisma.HOCKY.findMany({
       where: {
         DaXoa: false,
-        TrangThai: { not: 'Đã kết thúc' },
         NgayBatDauDangKy: { not: null },
         NgayKetThucDangKy: { not: null }
       },
-      orderBy: [{ NgayBatDauDangKy: 'asc' }, { MaHocKy: 'asc' }],
+      take: 8,
+      orderBy: [{ NgayBatDau: { sort: 'desc', nulls: 'last' } }, { MaHocKy: 'desc' }],
       include: { NAMHOC: true }
     });
 
-    const openSemesters = candidates.filter((semester) => getRegistrationWindowState(semester).isOpen);
-    res.json({ success: true, data: openSemesters.map(semesterSelect) });
+    res.json({ success: true, data: semesters.map(registrationSemesterSelect) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get registration options error:');
   }
