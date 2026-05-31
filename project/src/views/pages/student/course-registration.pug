@@ -1,38 +1,31 @@
 extends ../../layouts/student
 
+block styles
+  link(rel="stylesheet" href="/css/student/course-registration.css")
+
 block content
-  .toolbar
+  .toolbar.course-registration-toolbar
     .toolbar-title
       h2.page-title Đăng ký môn học
-      p Chọn học kỳ rồi tải danh sách lớp đang mở đăng ký.
-    .filter-group
-      select.form-control#semester-input
-        option(value="") Chọn học kỳ
-      input.form-control#course-search(type="text" placeholder="Tìm môn học")
-      button.btn.btn-primary(type="button" id="load-courses" onclick="loadAvailableCourses()") Tải lớp mở
+      p Tìm lớp đang mở đăng ký trong học kỳ hiện hành.
+    .filter-group.course-registration-filter
+      input#semester-input(type="hidden")
+      span.registration-semester-pill#semester-label Đang tải học kỳ
+      .search-box.course-registration-search
+        input#course-search(type="text" placeholder="Tìm môn học")
+      button.btn.btn-primary(type="button" id="load-courses" onclick="loadAvailableCourses()")
+        span.material-symbols-rounded search
+        span Tìm kiếm
   #registration-window-message.empty-state.hidden
 
-  .card
+  .card.course-registration-card
     .card-header
       h3 Môn học có thể đăng ký
+      span.card-count#available-count
     .card-body
       .loading-overlay.hidden#loading
         .spinner
-      .table-container
-        table.data-table#courses-table.hidden
-          thead
-            tr
-              th Mã lớp
-              th Tên môn
-              th Tín chỉ
-              th Giảng viên
-              th Lịch học
-              th Phòng
-              th Loại đăng ký
-              th Học phí dự kiến
-              th Còn trống
-              th Thao tác
-          tbody#available-courses
+      #available-courses.available-course-list.hidden
       #available-empty.empty-state Chọn học kỳ để xem danh sách lớp mở
       nav.pagination#available-pagination(style="display:none")
 

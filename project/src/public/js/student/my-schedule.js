@@ -72,10 +72,40 @@ function getCourseTitle(course) {
   return (monHoc && monHoc.TenMonHoc) || course.MaMonHoc || (course.LOP && course.LOP.MaLop) || 'Môn học';
 }
 
+function roomDisplayName(room) {
+  if (!room) return '';
+  var code = String(room.MaPhong || '').trim();
+  var name = String(room.TenPhong || '').trim();
+  if (!code) return name;
+  if (!name) return code;
+  if (name.toLowerCase().indexOf(code.toLowerCase()) >= 0) return name;
+  return code + ' - ' + name;
+}
+
+function normalizeRoomText(value, fallbackCode) {
+  var text = String(value || '').trim();
+  var code = String(fallbackCode || '').trim();
+  if (!text) return code;
+
+  var parts = text.split(/\s+-\s+/);
+  if (parts.length >= 2) {
+    var first = parts[0].trim();
+    var rest = parts.slice(1).join(' - ').trim();
+    if (first && rest.toLowerCase().indexOf(first.toLowerCase()) >= 0) return rest;
+  }
+
+  return text;
+}
+
+function roomDetailLabel(room) {
+  if (!room || room === '-') return '';
+  return String(room).toLowerCase().indexOf('phòng ') === 0 ? room : 'Phòng ' + room;
+}
+
 function createScheduleItem(course, slot, colorIndex) {
   var startIndex = Math.max(slot.startIndex, 0);
   var endIndex = Math.max(slot.endIndex, startIndex);
-  var room = slot.room || (course.LOP && course.LOP.PhongHoc) || '-';
+  var room = normalizeRoomText(slot.room || (course.LOP && course.LOP.PhongHoc) || '-');
   var startPeriod = PERIODS[startIndex];
   var endPeriod = PERIODS[endIndex];
   var maLop = course.LOP && course.LOP.MaLop;
@@ -92,7 +122,7 @@ function createScheduleItem(course, slot, colorIndex) {
     detail: [
       'Thứ ' + slot.day,
       startPeriod && endPeriod ? 'Tiết ' + startPeriod.order + '-' + endPeriod.order : '',
-      room !== '-' ? 'Phòng ' + room : '',
+      roomDetailLabel(room),
       maLop || ''
     ].filter(Boolean).join(' | ')
   };
@@ -107,8 +137,8 @@ function getDetailedSlots(course) {
       var endIndex = getPeriodIndex(schedule, 'MaTietKetThuc', 'TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC');
       if (DAYS.indexOf(day) >= 0 && startIndex >= 0) {
         var scheduleRoom = schedule.PHONGHOC
-          ? [schedule.PHONGHOC.MaPhong, schedule.PHONGHOC.TenPhong].filter(Boolean).join(' - ')
-          : (schedule.PhongHoc || schedule.MaPhong);
+          ? roomDisplayName(schedule.PHONGHOC)
+          : normalizeRoomText(schedule.PhongHoc, schedule.MaPhong);
         slots.push({
           day: day,
           startIndex: startIndex,

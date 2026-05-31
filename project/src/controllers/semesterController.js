@@ -489,6 +489,10 @@ const finalizeRegistration = async (req, res) => {
       }
 
       for (const item of closedAfterFinalize) {
+        await tx.LICHHOCLOP.updateMany({
+          where: { LopMoId: item.id, TrangThai: true },
+          data: { TrangThai: false }
+        });
         await tx.LOPMO.update({
           where: { id: item.id },
           data: {

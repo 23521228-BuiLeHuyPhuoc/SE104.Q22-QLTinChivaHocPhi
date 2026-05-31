@@ -10,11 +10,31 @@ const periodLabel = (schedule) => {
   return start === end ? start : `${start}-${end}`;
 };
 
+const normalizeRoomText = (value, fallbackCode = '') => {
+  const text = String(value || '').trim();
+  const code = String(fallbackCode || '').trim();
+  if (!text) return code || null;
+
+  const parts = text.split(/\s+-\s+/);
+  if (parts.length >= 2) {
+    const first = parts[0].trim();
+    const rest = parts.slice(1).join(' - ').trim();
+    if (first && rest.toLowerCase().includes(first.toLowerCase())) return rest;
+  }
+
+  return text;
+};
+
 const roomLabel = (schedule) => {
   if (schedule?.PHONGHOC) {
-    return [schedule.PHONGHOC.MaPhong, schedule.PHONGHOC.TenPhong].filter(Boolean).join(' - ');
+    const code = String(schedule.PHONGHOC.MaPhong || '').trim();
+    const name = String(schedule.PHONGHOC.TenPhong || '').trim();
+    if (!code) return name;
+    if (!name) return code;
+    if (name.toLowerCase().includes(code.toLowerCase())) return name;
+    return `${code} - ${name}`;
   }
-  return schedule?.PhongHoc || schedule?.MaPhong || null;
+  return normalizeRoomText(schedule?.PhongHoc, schedule?.MaPhong);
 };
 
 const scheduleLabel = (openedClass) => {

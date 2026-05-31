@@ -33,23 +33,43 @@ const periodRangeLabel = (schedule) => {
   return start === end ? start : `${start}-${end}`;
 };
 
+const normalizeRoomText = (value, fallbackCode = '') => {
+  const text = String(value || '').trim();
+  const code = String(fallbackCode || '').trim();
+  if (!text) return code;
+
+  const parts = text.split(/\s+-\s+/);
+  if (parts.length >= 2) {
+    const first = parts[0].trim();
+    const rest = parts.slice(1).join(' - ').trim();
+    if (first && rest.toLowerCase().includes(first.toLowerCase())) return rest;
+  }
+
+  return text;
+};
+
 const roomDisplayName = (room) => {
   if (!room) return '';
-  return [room.MaPhong, room.TenPhong].filter(Boolean).join(' - ');
+  const code = String(room.MaPhong || '').trim();
+  const name = String(room.TenPhong || '').trim();
+  if (!code) return name;
+  if (!name) return code;
+  if (name.toLowerCase().includes(code.toLowerCase())) return name;
+  return `${code} - ${name}`;
 };
 
 const openedClassScheduleLabel = (openedClass) => {
   const schedules = (openedClass?.LICHHOCLOP || []).filter((schedule) => schedule.TrangThai !== false);
   if (!schedules.length) return '';
   return schedules.map((schedule) => {
-    const room = roomDisplayName(schedule.PHONGHOC) || schedule.PhongHoc || schedule.MaPhong;
+    const room = roomDisplayName(schedule.PHONGHOC) || normalizeRoomText(schedule.PhongHoc, schedule.MaPhong);
     return [weekdayLabel(schedule.ThuTrongTuan), periodRangeLabel(schedule)].filter(Boolean).join(' ') + (room ? ` (${room})` : '');
   }).join('; ');
 };
 
 const openedClassRoomLabel = (openedClass) => {
   const schedule = (openedClass?.LICHHOCLOP || []).find((item) => item.TrangThai !== false && (item.PHONGHOC || item.PhongHoc || item.MaPhong));
-  return roomDisplayName(schedule?.PHONGHOC) || schedule?.PhongHoc || schedule?.MaPhong || '';
+  return roomDisplayName(schedule?.PHONGHOC) || normalizeRoomText(schedule?.PhongHoc, schedule?.MaPhong);
 };
 
 const getStudentIdFromRequest = async (req) => {

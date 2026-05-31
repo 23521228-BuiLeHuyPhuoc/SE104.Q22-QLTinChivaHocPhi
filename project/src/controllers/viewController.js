@@ -104,7 +104,12 @@ const lecturerDisplayName = (lecturer) => {
 
 const roomDisplayName = (room) => {
   if (!room) return '';
-  return [room.MaPhong, room.TenPhong].filter(Boolean).join(' - ');
+  const code = String(room.MaPhong || '').trim();
+  const name = String(room.TenPhong || '').trim();
+  if (!code) return name;
+  if (!name) return code;
+  if (name.toLowerCase().includes(code.toLowerCase())) return name;
+  return `${code} - ${name}`;
 };
 
 const conditionTypeLabel = (value) => {
@@ -532,6 +537,9 @@ const adminClasses = async (req, res) => {
       const roomSchedule = currentOpened
         ? (currentOpened.LICHHOCLOP || []).find((schedule) => schedule.TrangThai !== false && (schedule.PHONGHOC || schedule.MaPhong || schedule.PhongHoc))
         : null;
+      const openedScheduleLabel = currentOpened ? classScheduleLabel(currentOpened) : '';
+      const catalogRoomLabel = roomDisplayName(cls.PHONGHOC) || cls.PhongHoc || cls.MaPhong || '';
+      const catalogSchedule = catalogScheduleLabel(cls);
 
       return {
         ...cls,
@@ -539,9 +547,9 @@ const adminClasses = async (req, res) => {
           ? (lecturerDisplayName(currentOpened.GIANGVIEN) || currentOpened.GiangVien || '')
           : (lecturerDisplayName(cls.GIANGVIEN) || cls.GiangVien || ''),
         PhongHocDisplay: currentOpened
-          ? (roomDisplayName(roomSchedule?.PHONGHOC) || roomSchedule?.PhongHoc || roomSchedule?.MaPhong || '')
-          : (roomDisplayName(cls.PHONGHOC) || cls.PhongHoc || cls.MaPhong || ''),
-        LichHocDisplay: currentOpened ? classScheduleLabel(currentOpened) : catalogScheduleLabel(cls),
+          ? (roomDisplayName(roomSchedule?.PHONGHOC) || roomSchedule?.PhongHoc || roomSchedule?.MaPhong || catalogRoomLabel)
+          : catalogRoomLabel,
+        LichHocDisplay: openedScheduleLabel && openedScheduleLabel !== '-' ? openedScheduleLabel : catalogSchedule,
         SoLuongDaDangKy: registeredCount,
         LopMoHienTaiId: currentOpened && currentOpened.TrangThai !== false ? currentOpened.id : null,
         MaHocKyDangMo: currentOpened ? currentOpened.MaHocKy : '',

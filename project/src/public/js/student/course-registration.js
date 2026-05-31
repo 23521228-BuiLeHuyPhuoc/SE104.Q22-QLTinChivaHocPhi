@@ -59,29 +59,78 @@ function renderRegistrationWindowMessage() {
 }
 
 function renderSemesterOptions(semesters) {
-  var select = document.getElementById('semester-input');
-  if (!select) return;
+  var semesterInput = document.getElementById('semester-input');
+  var label = document.getElementById('semester-label');
+  if (!semesterInput) return;
   semesterOptionsById = {};
 
-  select.innerHTML = '<option value="">Chọn học kỳ</option>' + (semesters || []).map(function(item) {
+  var selected = null;
+  (semesters || []).forEach(function(item) {
     var yearName = item.NAMHOC ? item.NAMHOC.TenNamHoc : '';
     var windowState = getSemesterWindow(item);
     var suffix = windowState
       ? (windowState.isOpen ? ' - đang mở ĐK' : ' - ' + (windowState.message || 'chưa mở ĐK'))
       : '';
+    item.DisplayLabel = item.TenHocKy + (yearName ? ' - ' + yearName : '') + suffix;
     semesterOptionsById[item.MaHocKy] = item;
-    return '<option value="' + courseEscapeHtml(item.MaHocKy) + '">' +
-      courseEscapeHtml(item.TenHocKy + (yearName ? ' - ' + yearName : '') + suffix) +
-      '</option>';
-  }).join('');
+  });
   if (semesters && semesters.length) {
     var firstOpen = semesters.find(function(item) {
       var state = getSemesterWindow(item);
       return state && state.isOpen;
     });
-    select.value = (firstOpen || semesters[0]).MaHocKy;
+    selected = firstOpen || semesters[0];
+    semesterInput.value = selected.MaHocKy;
+  } else {
+    semesterInput.value = '';
+  }
+  if (label) {
+    label.textContent = selected ? selected.DisplayLabel : 'Chưa có học kỳ đăng ký';
+    label.classList.toggle('text-error', Boolean(selected && getSemesterWindow(selected) && !getSemesterWindow(selected).isOpen));
   }
   renderRegistrationWindowMessage();
+}
+
+function courseField(label, value) {
+  return '<div class="available-course-field">' +
+    '<span class="available-course-label">' + courseEscapeHtml(label) + '</span>' +
+    '<span class="available-course-value">' + courseEscapeHtml(value || '-') + '</span>' +
+  '</div>';
+}
+
+function renderAvailableCourseCard(c) {
+  var max = Number(c.SoLuongToiDa || 0);
+  var registered = Number(c.SoLuongDaDangKy || 0);
+  var remaining = Math.max(max - registered, 0);
+  var canRegister = remaining > 0;
+
+  return '<article class="available-course-card">' +
+    '<div class="available-course-main">' +
+      '<div class="available-course-topline">' +
+        '<span class="available-course-code mono">' + courseEscapeHtml(c.MaLop || '-') + '</span>' +
+        '<span class="badge ' + registrationBadgeClass(c.LoaiDangKy) + '">' + courseEscapeHtml(c.LoaiDangKyLabel || 'Học mới') + '</span>' +
+      '</div>' +
+      '<div>' +
+        '<div class="available-course-title">' + courseEscapeHtml(c.TenMonHoc || '-') + '</div>' +
+        '<div class="available-course-faculty">' + courseEscapeHtml(c.TenKhoa || '') + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="available-course-details">' +
+      courseField('Tín chỉ', c.SoTinChi || '-') +
+      courseField('Giảng viên', c.GiangVien || '-') +
+      courseField('Lịch học', c.LichHoc || '-') +
+      courseField('Phòng', c.PhongHoc || '-') +
+    '</div>' +
+    '<div class="available-course-action">' +
+      '<div>' +
+        '<div class="available-course-price">' + formatCurrency(c.ThanhTienDuKien || 0) + '</div>' +
+        '<div class="available-course-seats">' + registered + ' / ' + (max || '-') + ' đã đăng ký</div>' +
+      '</div>' +
+      (canRegister
+        ? '<button class="btn btn-sm btn-primary" type="button" data-register-course data-malop="' + courseEscapeHtml(c.MaLop || '') + '" data-mahocky="' + courseEscapeHtml(c.MaHocKy || '') + '">Đăng ký</button>'
+        : '<span class="badge badge-error">Hết chỗ</span>') +
+    '</div>' +
+  '</article>';
 }
 
 function renderAvailablePagination(meta) {
@@ -124,13 +173,14 @@ async function loadAvailableCourses(page) {
   var search = document.getElementById('course-search').value.trim();
   var empty = document.getElementById('available-empty');
   var loading = document.getElementById('loading');
-  var table = document.getElementById('courses-table');
-  var tbody = document.getElementById('available-courses');
+  var list = document.getElementById('available-courses');
+  var count = document.getElementById('available-count');
 
   if (!semester) {
-    table.classList.add('hidden');
+    list.classList.add('hidden');
     empty.classList.remove('hidden');
     empty.textContent = 'Vui lòng chọn học kỳ';
+    if (count) count.textContent = '';
     renderAvailablePagination({});
     return;
   }
@@ -140,15 +190,16 @@ async function loadAvailableCourses(page) {
   var selectedWindow = getSemesterWindow(selectedSemester);
   if (selectedWindow && !selectedWindow.isOpen) {
     loading.classList.add('hidden');
-    table.classList.add('hidden');
+    list.classList.add('hidden');
     empty.classList.remove('hidden');
     empty.textContent = getSemesterWindowMessage(selectedSemester);
+    if (count) count.textContent = '';
     renderAvailablePagination({});
     return;
   }
 
   loading.classList.remove('hidden');
-  table.classList.add('hidden');
+  list.classList.add('hidden');
   empty.classList.add('hidden');
 
   try {
@@ -158,44 +209,35 @@ async function loadAvailableCourses(page) {
 
     loading.classList.add('hidden');
     if (!res.success) {
-      table.classList.add('hidden');
+      list.classList.add('hidden');
       empty.classList.remove('hidden');
       empty.textContent = res.message || 'Không thể tải danh sách lớp mở';
+      if (count) count.textContent = '';
       renderAvailablePagination({});
       return;
     }
 
-    table.classList.remove('hidden');
     renderAvailablePagination(res.pagination || {});
+    if (count) {
+      var total = res.pagination && Number(res.pagination.total || res.pagination.totalItems || 0);
+      count.textContent = total ? total + ' bản ghi' : ((res.data || []).length + ' bản ghi');
+    }
 
     if (res.data && res.data.length > 0) {
-      tbody.innerHTML = res.data.map(function(c) {
-        var max = Number(c.SoLuongToiDa || 0);
-        var registered = Number(c.SoLuongDaDangKy || 0);
-        var remaining = Math.max(max - registered, 0);
-        return '<tr>' +
-          '<td class="mono">' + courseEscapeHtml(c.MaLop || '-') + '</td>' +
-          '<td><strong>' + courseEscapeHtml(c.TenMonHoc || '-') + '</strong><small>' + courseEscapeHtml(c.TenKhoa || '') + '</small></td>' +
-          '<td>' + courseEscapeHtml(c.SoTinChi || '-') + '</td>' +
-          '<td>' + courseEscapeHtml(c.GiangVien || '-') + '</td>' +
-          '<td>' + courseEscapeHtml(c.LichHoc || '-') + '</td>' +
-          '<td>' + courseEscapeHtml(c.PhongHoc || '-') + '</td>' +
-          '<td><span class="badge ' + registrationBadgeClass(c.LoaiDangKy) + '">' + courseEscapeHtml(c.LoaiDangKyLabel || 'Học mới') + '</span></td>' +
-          '<td class="currency">' + formatCurrency(c.ThanhTienDuKien || 0) + '</td>' +
-          '<td>' + registered + ' / ' + (max || '-') + '</td>' +
-          '<td>' + (remaining > 0
-            ? '<button class="btn btn-sm btn-primary" type="button" onclick="registerCourse(\'' + courseEscapeHtml(c.MaLop) + '\', \'' + courseEscapeHtml(c.MaHocKy) + '\')">Đăng ký</button>'
-            : '<span class="badge badge-error">Hết chỗ</span>') + '</td>' +
-        '</tr>';
-      }).join('');
+      list.innerHTML = res.data.map(renderAvailableCourseCard).join('');
+      list.classList.remove('hidden');
     } else {
-      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Học kỳ này đang mở đăng ký nhưng chưa có lớp mở phù hợp.</div></td></tr>';
+      list.classList.add('hidden');
+      empty.classList.remove('hidden');
+      empty.textContent = 'Học kỳ này đang mở đăng ký nhưng chưa có lớp mở phù hợp.';
     }
   } catch (e) {
     loading.classList.add('hidden');
-    table.classList.remove('hidden');
+    list.classList.add('hidden');
+    empty.classList.remove('hidden');
+    empty.textContent = 'Lỗi tải dữ liệu';
+    if (count) count.textContent = '';
     renderAvailablePagination({});
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
   }
 }
 
@@ -227,6 +269,7 @@ async function registerCourse(maLop, maHocKy) {
 document.addEventListener('DOMContentLoaded', function() {
   var search = document.getElementById('course-search');
   var semester = document.getElementById('semester-input');
+  var list = document.getElementById('available-courses');
   if (search) {
     search.addEventListener('keydown', function(event) {
       if (event.key === 'Enter') loadAvailableCourses(1);
@@ -236,6 +279,13 @@ document.addEventListener('DOMContentLoaded', function() {
     semester.addEventListener('change', function() {
       renderRegistrationWindowMessage();
       loadAvailableCourses(1);
+    });
+  }
+  if (list) {
+    list.addEventListener('click', function(event) {
+      var button = event.target.closest('[data-register-course]');
+      if (!button) return;
+      registerCourse(button.dataset.malop, button.dataset.mahocky);
     });
   }
   initializeRegistrationPage();
