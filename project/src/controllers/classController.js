@@ -65,17 +65,27 @@ const resolveRoomData = async (value) => {
   return { MaPhong, PhongHoc: room.MaPhong };
 };
 
-const rejectCatalogScheduleFields = (body) => {
-  const forbiddenFields = ['LichHoc', 'MaPhong', 'PhongHoc', 'GiangVien', 'MaGiangVien'];
-  const field = forbiddenFields.find((key) => cleanOptionalText(body[key]) !== undefined && cleanOptionalText(body[key]) !== null);
-  if (!field) return null;
-  return `Không nhập ${field} khi tạo/sửa lớp học. Giảng viên, phòng và lịch học chỉ được khai báo khi mở lớp.`;
+const chooseAssignmentValue = (body, existing, field) => {
+  if (Object.prototype.hasOwnProperty.call(body, field)) return cleanOptionalText(body[field]) ?? null;
+  return existing?.[field] ?? null;
 };
 
-const chooseAssignmentValue = (body, existing, field) => {
-  const value = cleanOptionalText(body[field]);
-  return value !== undefined && value !== null ? value : existing?.[field];
-};
+const hasAssignmentInput = (body) => (
+  ['MaGiangVien', 'ThuTrongTuan', 'MaTietBatDau', 'MaTietKetThuc', 'MaPhong'].some((field) => (
+    Object.prototype.hasOwnProperty.call(body, field)
+  ))
+);
+
+const emptyClassAssignmentData = () => ({
+  MaGiangVien: null,
+  GiangVien: null,
+  ThuTrongTuan: null,
+  MaTietBatDau: null,
+  MaTietKetThuc: null,
+  MaPhong: null,
+  PhongHoc: null,
+  LichHoc: null
+});
 
 const formatCatalogScheduleText = (thuTrongTuan, startOrder, endOrder) => {
   const day = Number(thuTrongTuan) === 1 ? 'Chủ nhật' : `Thứ ${thuTrongTuan}`;
@@ -83,14 +93,21 @@ const formatCatalogScheduleText = (thuTrongTuan, startOrder, endOrder) => {
 };
 
 const resolveClassAssignmentData = async (body, existing = {}) => {
+  if (!hasAssignmentInput(body)) return { data: {}, conflictInput: null };
+
   const MaGiangVien = cleanOptionalText(chooseAssignmentValue(body, existing, 'MaGiangVien'));
   const MaPhong = cleanOptionalText(chooseAssignmentValue(body, existing, 'MaPhong'));
   const ThuTrongTuanRaw = chooseAssignmentValue(body, existing, 'ThuTrongTuan');
   const MaTietBatDau = cleanOptionalText(chooseAssignmentValue(body, existing, 'MaTietBatDau'));
   const MaTietKetThuc = cleanOptionalText(chooseAssignmentValue(body, existing, 'MaTietKetThuc'));
 
+  const hasMeaningfulAssignment = Boolean(MaGiangVien || MaPhong || MaTietBatDau || MaTietKetThuc);
+  if (!hasMeaningfulAssignment) {
+    return { data: hasAssignmentInput(body) ? emptyClassAssignmentData() : {}, conflictInput: null };
+  }
+
   if (!MaGiangVien || !MaPhong || !ThuTrongTuanRaw || !MaTietBatDau || !MaTietKetThuc) {
-    throw makeHttpError('Vui lòng chọn giảng viên, phòng học và lịch học cho lớp');
+    throw makeHttpError('Vui lòng chọn đủ giảng viên, phòng học và lịch học cho lớp');
   }
 
   const ThuTrongTuan = parseInt(ThuTrongTuanRaw, 10);
@@ -127,38 +144,6 @@ const resolveClassAssignmentData = async (body, existing = {}) => {
       endOrder
     }
   };
-};
-
-const ensureCatalogScheduleAvailable = async (client, { MaLop, MaGiangVien, MaPhong, ThuTrongTuan, startOrder, endOrder }) => {
-  const conflicts = await client.$queryRaw`
-    SELECT
-      l."MaLop",
-      l."TenLop",
-      COALESCE(l."MaGiangVien", l."GiangVien") AS "MaGiangVien",
-      COALESCE(l."MaPhong", l."PhongHoc") AS "MaPhong"
-    FROM "LOP" l
-    JOIN "TIETHOC" bd ON bd."MaTiet" = l."MaTietBatDau"
-    JOIN "TIETHOC" kt ON kt."MaTiet" = l."MaTietKetThuc"
-    WHERE l."MaLop" <> ${MaLop}
-      AND COALESCE(l."DaXoa", FALSE) = FALSE
-      AND COALESCE(l."TrangThai", TRUE) = TRUE
-      AND l."ThuTrongTuan" = ${ThuTrongTuan}
-      AND (
-        COALESCE(l."MaPhong", l."PhongHoc") = ${MaPhong}
-        OR COALESCE(l."MaGiangVien", l."GiangVien") = ${MaGiangVien}
-      )
-      AND ${startOrder} <= kt."ThuTu"
-      AND bd."ThuTu" <= ${endOrder}
-    LIMIT 1
-  `;
-
-  if (!conflicts.length) return;
-  const conflict = conflicts[0];
-  const className = [conflict.MaLop, conflict.TenLop].filter(Boolean).join(' - ');
-  if (conflict.MaPhong === MaPhong) {
-    throw makeHttpError(`Phòng ${MaPhong} bị trùng lịch với lớp ${className}`);
-  }
-  throw makeHttpError(`Giảng viên ${MaGiangVien} bị trùng lịch với lớp ${className}`);
 };
 
 const ensureOpenedScheduleAvailable = async (client, {
@@ -335,11 +320,13 @@ const createClass = async (req, res) => {
     if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
     const course = await prisma.MONHOC.findFirst({ where: { MaMonHoc, DaXoa: false } });
     if (!course) return res.status(400).json({ success: false, message: 'Môn học không tồn tại' });
+    const assignment = await resolveClassAssignmentData(req.body);
     const cls = await prisma.LOP.create({
       data: {
         MaLop,
         TenLop,
         MaMonHoc,
+        ...assignment.data,
         ...updateAudit(req)
       }
     });
@@ -362,6 +349,8 @@ const updateClass = async (req, res) => {
     if (TenLop) data.TenLop = TenLop;
     if (MaMonHoc) data.MaMonHoc = MaMonHoc;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
+    const assignment = await resolveClassAssignmentData(req.body, existing);
+    Object.assign(data, assignment.data);
     Object.assign(data, updateAudit(req));
     const updated = await prisma.LOP.update({ where: { MaLop: req.params.id }, data });
     res.json({ success: true, message: 'Cập nhật lớp học thành công', data: updated });

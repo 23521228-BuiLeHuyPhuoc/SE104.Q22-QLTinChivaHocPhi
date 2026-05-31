@@ -1,6 +1,8 @@
 var editingId = null;
 var searchTimer = null;
 var courseSearchTimer = null;
+var classLecturerSearchTimer = null;
+var classRoomSearchTimer = null;
 var lecturerSearchTimer = null;
 var openRoomSearchTimer = null;
 var scheduleRoomSearchTimer = null;
@@ -165,6 +167,16 @@ function classSetValue(id, value) {
   if (element) element.value = value || '';
 }
 
+function ensureSelectOption(selectId, value, label) {
+  var select = document.getElementById(selectId);
+  if (!select || !value) return;
+  var exists = Array.prototype.some.call(select.options, function(option) {
+    return option.value === value;
+  });
+  if (!exists) select.add(new Option(label || value, value, true, true));
+  select.value = value;
+}
+
 function openModal(mode, cl) {
   editingId = null;
   document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa lớp học' : 'Thêm lớp học';
@@ -175,10 +187,25 @@ function openModal(mode, cl) {
     document.getElementById('cl-malop').value = cl.MaLop || '';
     document.getElementById('cl-tenlop').value = cl.TenLop || '';
     document.getElementById('cl-course-search').value = cl.MONHOC && cl.MONHOC.TenMonHoc ? cl.MONHOC.TenMonHoc : '';
+    document.getElementById('cl-lecturer-search').value = cl.GIANGVIEN
+      ? lecturerOptionLabel(cl.GIANGVIEN)
+      : (cl.GiangVien || cl.MaGiangVien || '');
+    document.getElementById('cl-thu').value = cl.ThuTrongTuan || '2';
+    document.getElementById('cl-tietbd').value = cl.MaTietBatDau || '';
+    document.getElementById('cl-tietkt').value = cl.MaTietKetThuc || '';
+    document.getElementById('cl-room-search').value = cl.PHONGHOC
+      ? roomOptionLabel(cl.PHONGHOC)
+      : (cl.PhongHoc || cl.MaPhong || '');
+    ensureSelectOption('cl-magiangvien', cl.MaGiangVien || '', cl.GiangVien || cl.MaGiangVien || '');
+    ensureSelectOption('cl-maphong', cl.MaPhong || '', cl.PhongHoc || cl.MaPhong || '');
     loadCourseOptions('', cl.MaMonHoc || '', cl.MaMonHoc ? cl.MaMonHoc + ' - ' + (cl.MONHOC && cl.MONHOC.TenMonHoc ? cl.MONHOC.TenMonHoc : '') : '');
+    loadLecturerOptions('cl-magiangvien', '', cl.MaGiangVien || '', cl.GiangVien || cl.MaGiangVien || '');
+    loadRoomOptions('cl-maphong', '', cl.MaPhong || '', cl.PhongHoc || cl.MaPhong || '');
   } else {
     document.getElementById('class-form').reset();
     loadCourseOptions('', '', '');
+    loadLecturerOptions('cl-magiangvien', '', '', '');
+    loadRoomOptions('cl-maphong', '', '', '');
   }
 
   document.getElementById('class-modal').classList.add('active');
@@ -189,10 +216,21 @@ function closeModal() {
 }
 
 async function saveClass() {
+  var hasAssignment = Boolean(
+    document.getElementById('cl-magiangvien').value ||
+    document.getElementById('cl-tietbd').value ||
+    document.getElementById('cl-tietkt').value ||
+    document.getElementById('cl-maphong').value
+  );
   var data = {
     MaLop: document.getElementById('cl-malop').value.trim(),
     TenLop: document.getElementById('cl-tenlop').value.trim(),
-    MaMonHoc: document.getElementById('cl-mamonhoc').value
+    MaMonHoc: document.getElementById('cl-mamonhoc').value,
+    MaGiangVien: document.getElementById('cl-magiangvien').value || null,
+    ThuTrongTuan: hasAssignment ? document.getElementById('cl-thu').value : null,
+    MaTietBatDau: document.getElementById('cl-tietbd').value || null,
+    MaTietKetThuc: document.getElementById('cl-tietkt').value || null,
+    MaPhong: document.getElementById('cl-maphong').value || null
   };
 
   if (!data.MaLop || !data.TenLop || !data.MaMonHoc) {
@@ -202,6 +240,10 @@ async function saveClass() {
     showToast('Vui lòng nhập đầy đủ lớp, môn học, giảng viên, phòng và lịch học', 'error');
     return;
     */
+  }
+  if (hasAssignment && (!data.MaGiangVien || !data.ThuTrongTuan || !data.MaTietBatDau || !data.MaTietKetThuc || !data.MaPhong)) {
+    showToast('Vui lòng chọn đủ giảng viên, thứ, tiết bắt đầu, tiết kết thúc và phòng', 'error');
+    return;
   }
 
   try {
@@ -519,6 +561,26 @@ document.addEventListener('DOMContentLoaded', function() {
       clearTimeout(courseSearchTimer);
       courseSearchTimer = setTimeout(function() {
         loadCourseOptions(courseSearch.value.trim(), document.getElementById('cl-mamonhoc').value, '');
+      }, 300);
+    });
+  }
+
+  var classLecturerSearch = document.getElementById('cl-lecturer-search');
+  if (classLecturerSearch) {
+    classLecturerSearch.addEventListener('input', function() {
+      clearTimeout(classLecturerSearchTimer);
+      classLecturerSearchTimer = setTimeout(function() {
+        loadLecturerOptions('cl-magiangvien', classLecturerSearch.value.trim(), document.getElementById('cl-magiangvien').value, '');
+      }, 300);
+    });
+  }
+
+  var classRoomSearch = document.getElementById('cl-room-search');
+  if (classRoomSearch) {
+    classRoomSearch.addEventListener('input', function() {
+      clearTimeout(classRoomSearchTimer);
+      classRoomSearchTimer = setTimeout(function() {
+        loadRoomOptions('cl-maphong', classRoomSearch.value.trim(), document.getElementById('cl-maphong').value, '');
       }, 300);
     });
   }
