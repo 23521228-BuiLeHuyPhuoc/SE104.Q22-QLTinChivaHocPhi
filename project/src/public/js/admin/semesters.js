@@ -256,6 +256,7 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Thời điểm sửa</span><span class="semester-field-value">' + escapeHtml(formatSemesterDateTime(s.NgayCapNhat)) + '</span></div>',
         '</div>',
         '<div class="semester-actions">',
+          '<button class="btn btn-sm btn-outline" type="button" data-action="finalize" data-id="' + escapeHtml(s.MaHocKy || '') + '">Chốt ĐK</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="edit" data-index="' + index + '">Sửa</button>',
           '<button class="btn btn-sm btn-danger" type="button" data-action="delete" data-id="' + escapeHtml(s.MaHocKy || '') + '">Xóa</button>',
         '</div>',
@@ -592,6 +593,27 @@ async function deleteSemester(id) {
   }
 }
 
+async function finalizeSemesterRegistration(id) {
+  if (!confirm('Chốt đăng ký học phần cho học kỳ này? Các lớp dưới 75% sức chứa sẽ bị đóng và đăng ký của các lớp đó sẽ bị hủy.')) return;
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(id) + '/finalize-registration', { method: 'POST' });
+    if (res.success) {
+      var summary = res.data || {};
+      showToast(
+        'Đã chốt đăng ký: ' + (summary.SoLopDatNguong || 0) + ' lớp mở, ' +
+          (summary.SoLopBiDong || 0) + ' lớp đóng, ' +
+          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy',
+        'success'
+      );
+      loadSemesters(semesterPage);
+    } else {
+      showToast(res.message || 'Không thể chốt đăng ký học phần', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối khi chốt đăng ký học phần', 'error');
+  }
+}
+
 function bindSemesterFilters() {
   var keyword = document.getElementById('semester-keyword');
   var dateField = document.getElementById('semester-date-field');
@@ -636,6 +658,8 @@ function bindSemesterFilters() {
         if (semesterRecords[index]) openModal('edit', semesterRecords[index]);
       } else if (button.dataset.action === 'delete') {
         deleteSemester(button.dataset.id);
+      } else if (button.dataset.action === 'finalize') {
+        finalizeSemesterRegistration(button.dataset.id);
       }
     });
   }

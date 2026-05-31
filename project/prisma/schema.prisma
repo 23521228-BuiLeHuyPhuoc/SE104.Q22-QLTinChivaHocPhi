@@ -275,6 +275,7 @@ model GIANGVIEN {
   NguoiXoa     Int?
   NgayXoa      DateTime? @db.Timestamp(6)
   KHOA         KHOA?     @relation(fields: [MaKhoa], references: [MaKhoa], onDelete: SetNull, map: "fk_giangvien_khoa")
+  LOP          LOP[]
   LOPMO        LOPMO[]
 }
 
@@ -301,6 +302,11 @@ model LOP {
   TenLop        String          @db.VarChar(100)
   MaMonHoc      String          @db.VarChar(15)
   LichHoc       String?         @db.VarChar(200)
+  MaGiangVien   String?         @db.VarChar(20)
+  GiangVien     String?         @db.VarChar(100)
+  ThuTrongTuan  Int?
+  MaTietBatDau  String?         @db.VarChar(10)
+  MaTietKetThuc String?         @db.VarChar(10)
   MaPhong       String?         @db.VarChar(50)
   PhongHoc      String?         @db.VarChar(50)
   SoLuongToiDa  Int?            @default(50)
@@ -315,7 +321,10 @@ model LOP {
   CHITIETDANGKY CHITIETDANGKY[]
   MONDAHOC      MONDAHOC[]
   MONHOC        MONHOC          @relation(fields: [MaMonHoc], references: [MaMonHoc], onDelete: Cascade, map: "fk_lop_monhoc")
+  GIANGVIEN     GIANGVIEN?      @relation(fields: [MaGiangVien], references: [MaGiangVien], onDelete: SetNull, map: "fk_lop_giangvien")
   PHONGHOC      PHONGHOC?       @relation(fields: [MaPhong], references: [MaPhong], onDelete: SetNull, map: "fk_lop_phonghoc")
+  TIETHOC_LOP_MaTietBatDauToTIETHOC  TIETHOC? @relation("LOP_MaTietBatDauToTIETHOC", fields: [MaTietBatDau], references: [MaTiet], map: "fk_lop_tiet_bat_dau")
+  TIETHOC_LOP_MaTietKetThucToTIETHOC TIETHOC? @relation("LOP_MaTietKetThucToTIETHOC", fields: [MaTietKetThuc], references: [MaTiet], map: "fk_lop_tiet_ket_thuc")
   LOPMO         LOPMO[]
 }
 
@@ -591,6 +600,8 @@ model TIETHOC {
   NgayXoa                                      DateTime?    @db.Timestamp(6)
   LICHHOCLOP_LICHHOCLOP_MaTietBatDauToTIETHOC  LICHHOCLOP[] @relation("LICHHOCLOP_MaTietBatDauToTIETHOC")
   LICHHOCLOP_LICHHOCLOP_MaTietKetThucToTIETHOC LICHHOCLOP[] @relation("LICHHOCLOP_MaTietKetThucToTIETHOC")
+  LOP_LOP_MaTietBatDauToTIETHOC                LOP[]        @relation("LOP_MaTietBatDauToTIETHOC")
+  LOP_LOP_MaTietKetThucToTIETHOC               LOP[]        @relation("LOP_MaTietKetThucToTIETHOC")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
