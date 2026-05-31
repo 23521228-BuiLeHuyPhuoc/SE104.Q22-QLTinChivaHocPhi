@@ -1,5 +1,8 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/classes.css")
+
 block content
   form.toolbar(method="get" action="/admin/classes")
     .search-box
@@ -77,7 +80,7 @@ block content
 
 block modals
   #class-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
-    .modal
+    .modal.class-form-modal
       .modal-header
         h2#modal-title Thêm lớp học
         button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
@@ -92,24 +95,23 @@ block modals
               input.form-control#cl-tenlop(type="text" required)
           .form-row
             .form-group
-              label(for="cl-course-search") Tìm môn học
-              input.form-control#cl-course-search(type="text" placeholder="Nhập mã hoặc tên môn học")
-            .form-group
               label(for="cl-mamonhoc") Môn học
-              select.form-control#cl-mamonhoc(required)
+              select.form-control.class-picker-native#cl-mamonhoc(required)
                 option(value="") Chọn môn học
                 each course in courseOptions || []
                   option(value=course.MaMonHoc) #{course.MaMonHoc} - #{course.TenMonHoc}
-          .form-row
-            .form-group
-              label(for="cl-lecturer-search") Tìm giảng viên
-              input.form-control#cl-lecturer-search(type="text" placeholder="Nhập mã hoặc họ tên giảng viên")
+              button.class-picker-trigger#cl-course-picker(type="button" onclick="openEntityPicker('course')")
+                span.class-picker-main#cl-course-picker-text Chọn môn học
+                span.material-symbols-rounded search
             .form-group
               label(for="cl-magiangvien") Giảng viên
-              select.form-control#cl-magiangvien
+              select.form-control.class-picker-native#cl-magiangvien
                 option(value="") Chọn giảng viên
                 each lecturer in lecturerOptions || []
                   option(value=lecturer.MaGiangVien) #{lecturer.MaGiangVien} - #{lecturer.HocHamHocVi ? lecturer.HocHamHocVi + ' ' : ''}#{lecturer.HoTen}
+              button.class-picker-trigger#cl-lecturer-picker(type="button" onclick="openEntityPicker('lecturer')")
+                span.class-picker-main#cl-lecturer-picker-text Chọn giảng viên
+                span.material-symbols-rounded person_search
           .form-row
             .form-group
               label(for="cl-thu") Thứ
@@ -126,26 +128,41 @@ block modals
               select.form-control#cl-tietbd
                 option(value="") Chọn tiết
                 each period in periodOptions || []
-                  option(value=period.MaTiet) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
+                  option(value=period.MaTiet data-order=period.ThuTu) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
           .form-row
             .form-group
               label(for="cl-tietkt") Tiết kết thúc
               select.form-control#cl-tietkt
                 option(value="") Chọn tiết
                 each period in periodOptions || []
-                  option(value=period.MaTiet) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
+                  option(value=period.MaTiet data-order=period.ThuTu) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
             .form-group
-              label(for="cl-room-search") Tìm phòng
-              input.form-control#cl-room-search(type="text" placeholder="Nhập mã phòng hoặc tòa nhà")
-          .form-group
-            label(for="cl-maphong") Phòng
-            select.form-control#cl-maphong
-              option(value="") Chọn phòng
-              each room in roomOptions || []
-                option(value=room.MaPhong) #{room.MaPhong} - #{room.TenPhong}#{room.SucChua ? ' (' + room.SucChua + ')' : ''}
+              label(for="cl-maphong") Phòng
+              select.form-control.class-picker-native#cl-maphong
+                option(value="") Chọn phòng
+                each room in roomOptions || []
+                  option(value=room.MaPhong) #{room.MaPhong} - #{room.TenPhong}#{room.SucChua ? ' (' + room.SucChua + ')' : ''}
+              button.class-picker-trigger#cl-room-picker(type="button" onclick="openEntityPicker('room')")
+                span.class-picker-main#cl-room-picker-text Chọn phòng
+                span.material-symbols-rounded meeting_room
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveClass()") Lưu
+
+  #entity-picker-modal.modal-overlay.entity-picker-overlay(onclick="if(event.target===this)closeEntityPicker()")
+    .modal.entity-picker-modal
+      .modal-header
+        div
+          h2#entity-picker-title Chọn dữ liệu
+          p#entity-picker-subtitle.entity-picker-subtitle Tìm theo mã hoặc tên
+        button.modal-close(type="button" onclick="closeEntityPicker()" aria-label="Đóng") ×
+      .modal-body.entity-picker-body
+        .entity-picker-search
+          span.material-symbols-rounded search
+          input.form-control#entity-picker-search(type="text" autocomplete="off" placeholder="Nhập mã hoặc tên")
+        .entity-picker-meta#entity-picker-meta
+        .entity-picker-results#entity-picker-results
+          .empty-state Chưa có dữ liệu
 
   #class-open-modal.modal-overlay(onclick="if(event.target===this)closeOpenClassModal()")
     .modal
@@ -186,14 +203,14 @@ block modals
             select.form-control#open-tietbd
               option(value="") Chọn tiết
               each period in periodOptions || []
-                option(value=period.MaTiet) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
+                option(value=period.MaTiet data-order=period.ThuTu) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
         .form-row
           .form-group
             label(for="open-tietkt") Tiết kết thúc
             select.form-control#open-tietkt
               option(value="") Chọn tiết
               each period in periodOptions || []
-                option(value=period.MaTiet) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
+                option(value=period.MaTiet data-order=period.ThuTu) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
           .form-group
             label(for="open-room-search") Tìm phòng
             input.form-control#open-room-search(type="text" placeholder="Nhập mã phòng hoặc tòa nhà")
@@ -241,13 +258,13 @@ block modals
             select.form-control#schedule-tietbd
               option(value="") Chọn tiết
               each period in periodOptions || []
-                option(value=period.MaTiet) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
+                option(value=period.MaTiet data-order=period.ThuTu) #{period.TenTiet}#{period.GioBatDauText ? ' (' + period.GioBatDauText + ')' : ''}
           .form-group
             label(for="schedule-tietkt") Tiết kết thúc
             select.form-control#schedule-tietkt
               option(value="") Chọn tiết
               each period in periodOptions || []
-                option(value=period.MaTiet) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
+                option(value=period.MaTiet data-order=period.ThuTu) #{period.TenTiet}#{period.GioKetThucText ? ' (' + period.GioKetThucText + ')' : ''}
         .form-row
           .form-group
             label(for="schedule-room-search") Tìm phòng

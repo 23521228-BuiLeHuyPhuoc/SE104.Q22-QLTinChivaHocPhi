@@ -509,13 +509,11 @@ const adminClasses = async (req, res) => {
       prisma.GIANGVIEN.findMany({
         where: { DaXoa: false, TrangThai: true },
         orderBy: { MaGiangVien: 'asc' },
-        take: 15,
         include: { KHOA: true }
       }),
       prisma.PHONGHOC.findMany({
         where: { DaXoa: false, TrangThai: true },
-        orderBy: { MaPhong: 'asc' },
-        take: 15
+        orderBy: { MaPhong: 'asc' }
       })
     ]);
     const displayClasses = (await attachUpdaterNames(classes)).map((cls) => {

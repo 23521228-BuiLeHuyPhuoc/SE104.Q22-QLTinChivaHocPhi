@@ -512,8 +512,10 @@ const ensureAuthSchema = async () => {
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND lm."MaHocKy" = v_mahocky
           AND lm."TrangThai" = TRUE
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND (
+            (v_bd_thutu < kt."ThuTu" AND bd."ThuTu" < v_kt_thutu)
+            OR (bd."ThuTu" = v_bd_thutu AND kt."ThuTu" = v_kt_thutu)
+          )
       ) THEN
         RAISE EXCEPTION 'RBTV14: Giang vien % bi trung lich day thu % hoc ky %.', v_giangvien, NEW."ThuTrongTuan", v_mahocky;
       END IF;
@@ -561,8 +563,10 @@ const ensureAuthSchema = async () => {
             AND lm2."TrangThai" = TRUE
             AND lm2."MaHocKy" = NEW."MaHocKy"
             AND COALESCE(lm2."MaGiangVien", lm2."GiangVien") = v_giangvien
-            AND bd1."ThuTu" <= kt2."ThuTu"
-            AND bd2."ThuTu" <= kt1."ThuTu"
+            AND (
+              (bd1."ThuTu" < kt2."ThuTu" AND bd2."ThuTu" < kt1."ThuTu")
+              OR (bd1."ThuTu" = bd2."ThuTu" AND kt1."ThuTu" = kt2."ThuTu")
+            )
         ) THEN
           RAISE EXCEPTION 'RBTV14: Lop mo % gay trung lich day cua giang vien % trong hoc ky %.', NEW.id, v_giangvien, NEW."MaHocKy";
         END IF;
@@ -603,10 +607,20 @@ const ensureAuthSchema = async () => {
             AND lm1."MaHocKy" = lm2."MaHocKy"
             AND lm1."TrangThai" = TRUE
             AND lm2."TrangThai" = TRUE
-            AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <=
+            AND (
+              (
+                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
                 (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
-            AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <=
+                AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <
                 (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+              )
+              OR (
+                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) =
+                (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END)
+                AND (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END) =
+                (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+              )
+            )
         ) THEN
           RAISE EXCEPTION 'RBTV14: Sua ThuTu tiet hoc lam trung lich day cua giang vien.';
         END IF;
@@ -677,8 +691,10 @@ const ensureAuthSchema = async () => {
           AND COALESCE(lm."TrangThai", TRUE) = TRUE
           AND COALESCE(lh."TrangThai", TRUE) = TRUE
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND (
+            (v_bd_thutu < kt."ThuTu" AND bd."ThuTu" < v_kt_thutu)
+            OR (bd."ThuTu" = v_bd_thutu AND kt."ThuTu" = v_kt_thutu)
+          )
           AND (
             NULLIF(TRIM(COALESCE(lm."MaGiangVien", lm."GiangVien", '')), '') = v_giangvien
             OR NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') = v_phong
@@ -731,8 +747,10 @@ const ensureAuthSchema = async () => {
           AND COALESCE(lh2."TrangThai", TRUE) = TRUE
           AND COALESCE(lm2."TrangThai", TRUE) = TRUE
           AND lm2."MaHocKy" = NEW."MaHocKy"
-          AND bd1."ThuTu" <= kt2."ThuTu"
-          AND bd2."ThuTu" <= kt1."ThuTu"
+          AND (
+            (bd1."ThuTu" < kt2."ThuTu" AND bd2."ThuTu" < kt1."ThuTu")
+            OR (bd1."ThuTu" = bd2."ThuTu" AND kt1."ThuTu" = kt2."ThuTu")
+          )
           AND (
             NULLIF(TRIM(COALESCE(lm2."MaGiangVien", lm2."GiangVien", '')), '') = v_giangvien
             OR NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '') = NULLIF(TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc", '')), '')
@@ -779,10 +797,20 @@ const ensureAuthSchema = async () => {
               NULLIF(TRIM(COALESCE(lm1."MaGiangVien", lm1."GiangVien", '')), '') = NULLIF(TRIM(COALESCE(lm2."MaGiangVien", lm2."GiangVien", '')), '')
               OR NULLIF(TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc", '')), '') = NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '')
             )
-            AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <=
+            AND (
+              (
+                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
                 (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
-            AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <=
+                AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <
                 (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+              )
+              OR (
+                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) =
+                (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END)
+                AND (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END) =
+                (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+              )
+            )
         ) THEN
           RAISE EXCEPTION 'RBTV14: Sua ThuTu tiet hoc lam trung lich giang vien hoac phong hoc.';
         END IF;
@@ -792,6 +820,21 @@ const ensureAuthSchema = async () => {
     END;
     $$ LANGUAGE plpgsql;
   `);
+
+  // RBTV lịch học được kiểm tra ở service/API để frontend và backend dùng cùng logic.
+  // Gỡ trigger lịch cũ để DB không chặn trường hợp hai khoảng tiết chỉ chạm biên.
+  for (const [tableName, triggerName] of [
+    ['LICHHOCLOP', 'trg_rbtv12_lichhoclop_ins_upd'],
+    ['TIETHOC', 'trg_rbtv12_tiethoc_upd'],
+    ['LICHHOCLOP', 'trg_rbtv13_lichhoclop_ins_upd'],
+    ['LOPMO', 'trg_rbtv13_lopmo_upd'],
+    ['TIETHOC', 'trg_rbtv13_tiethoc_upd'],
+    ['LICHHOCLOP', 'trg_rbtv14_lichhoclop_ins_upd'],
+    ['LOPMO', 'trg_rbtv14_lopmo_upd'],
+    ['TIETHOC', 'trg_rbtv14_tiethoc_upd']
+  ]) {
+    await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "${triggerName}" ON "${tableName}"`);
+  }
 
   await prisma.$executeRawUnsafe(`
     WITH phong_lich AS (
