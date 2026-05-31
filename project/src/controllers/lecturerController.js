@@ -12,7 +12,8 @@ const cleanText = (value) => {
 const getAllLecturers = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search, MaKhoa, TrangThai } = req.query;
+    const { search, MaKhoa, TrangThai, all } = req.query;
+    const returnAll = all === 'true';
     const where = notDeleted();
 
     if (MaKhoa) where.MaKhoa = MaKhoa;
@@ -30,8 +31,7 @@ const getAllLecturers = async (req, res) => {
     const [lecturers, total] = await Promise.all([
       prisma.GIANGVIEN.findMany({
         where,
-        skip,
-        take: limit,
+        ...(returnAll ? {} : { skip, take: limit }),
         orderBy: { MaGiangVien: 'asc' },
         include: {
           KHOA: true,
@@ -41,7 +41,7 @@ const getAllLecturers = async (req, res) => {
       prisma.GIANGVIEN.count({ where })
     ]);
 
-    res.json({ success: true, data: lecturers, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data: lecturers, pagination: getPaginationMeta(total, returnAll ? 1 : page, returnAll ? Math.max(total, 1) : limit) });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi server', 'getAllLecturers error:');
   }

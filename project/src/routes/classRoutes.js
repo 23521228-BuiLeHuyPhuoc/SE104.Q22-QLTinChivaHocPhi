@@ -14,6 +14,7 @@ router.get('/opened', classController.getOpenedClasses);
 
 // CRUD lớp học
 router.get('/', classController.getClasses);
+router.post('/validate-schedule', authorizeAdmin, classController.validateClassSchedule);
 router.get('/:id/students', authorizeAdmin, classController.getClassStudents);
 router.get('/:id/schedules', authorizeAdmin, classController.getClassSchedules);
 router.post('/:id/schedules', authorizeAdmin, classController.upsertClassSchedule);

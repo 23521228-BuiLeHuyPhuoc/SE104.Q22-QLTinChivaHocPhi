@@ -1,11 +1,9 @@
 var editingId = null;
 var searchTimer = null;
-var courseSearchTimer = null;
-var classLecturerSearchTimer = null;
-var classRoomSearchTimer = null;
 var lecturerSearchTimer = null;
 var openRoomSearchTimer = null;
 var scheduleRoomSearchTimer = null;
+var entityPickerState = { type: null, timer: null };
 
 function classEscapeHtml(value) {
   return String(value === null || value === undefined ? '' : value)
@@ -28,6 +26,36 @@ function getSelectedClassSemester() {
   return filter ? filter.value : '';
 }
 
+function selectedPeriodOrder(selectId) {
+  var select = document.getElementById(selectId);
+  if (!select || !select.value) return null;
+  var option = select.options[select.selectedIndex];
+  var order = option ? Number(option.dataset.order) : NaN;
+  return Number.isFinite(order) ? order : null;
+}
+
+function validatePeriodRange(startSelectId, endSelectId) {
+  var startOrder = selectedPeriodOrder(startSelectId);
+  var endOrder = selectedPeriodOrder(endSelectId);
+  if (startOrder === null || endOrder === null) return true;
+  if (startOrder <= endOrder) return true;
+  showToast('Tiết bắt đầu phải trước hoặc bằng tiết kết thúc', 'error');
+  return false;
+}
+
+async function validateScheduleConflict(mode, body) {
+  try {
+    var payload = Object.assign({ mode: mode }, body);
+    var res = await apiFetch('/api/classes/validate-schedule', { method: 'POST', body: payload });
+    if (res && res.success) return true;
+    showToast((res && res.message) || 'Lịch học bị trùng', 'error');
+    return false;
+  } catch (e) {
+    showToast('Lỗi kết nối khi kiểm tra lịch học', 'error');
+    return false;
+  }
+}
+
 function applyFilters() {
   var params = new URLSearchParams();
   var search = document.getElementById('search-input');
@@ -48,37 +76,8 @@ function debounceSearch() {
   searchTimer = setTimeout(applyFilters, 400);
 }
 
-async function loadCourseOptions(search, selectedValue, selectedLabel) {
-  var select = document.getElementById('cl-mamonhoc');
-  if (!select) return;
-
-  try {
-    var url = '/api/courses';
-    if (search) url += '?search=' + encodeURIComponent(search);
-    var res = await apiFetch(url);
-    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
-    var hasSelected = false;
-    var html = '<option value="">Chọn môn học</option>';
-
-    rows.forEach(function(course) {
-      var value = course.MaMonHoc || '';
-      if (!value) return;
-      if (value === selectedValue) hasSelected = true;
-      html += '<option value="' + classEscapeHtml(value) + '"' + (value === selectedValue ? ' selected' : '') + '>' +
-        classEscapeHtml(value + ' - ' + (course.TenMonHoc || '')) +
-        '</option>';
-    });
-
-    if (selectedValue && !hasSelected) {
-      html += '<option value="' + classEscapeHtml(selectedValue) + '" selected>' +
-        classEscapeHtml(selectedLabel || selectedValue) +
-        '</option>';
-    }
-
-    select.innerHTML = html;
-  } catch (e) {
-    showToast('Không thể tải danh sách môn học', 'error');
-  }
+function courseOptionLabel(course) {
+  return (course.MaMonHoc || '') + ' - ' + (course.TenMonHoc || '');
 }
 
 function lecturerOptionLabel(lecturer) {
@@ -94,6 +93,7 @@ async function loadLecturerOptions(selectId, search, selectedValue, selectedLabe
   try {
     var params = new URLSearchParams();
     params.set('TrangThai', 'true');
+    params.set('all', 'true');
     if (search) params.set('search', search);
     var url = '/api/lecturers?' + params.toString();
     var res = await apiFetch(url);
@@ -134,6 +134,7 @@ async function loadRoomOptions(selectId, search, selectedValue, selectedLabel) {
   try {
     var params = new URLSearchParams();
     params.set('TrangThai', 'true');
+    params.set('all', 'true');
     if (search) params.set('search', search);
     var url = '/api/rooms?' + params.toString();
     var res = await apiFetch(url);
@@ -177,6 +178,179 @@ function ensureSelectOption(selectId, value, label) {
   select.value = value;
 }
 
+var entityPickerConfig = {
+  course: {
+    targetId: 'cl-mamonhoc',
+    textId: 'cl-course-picker-text',
+    buttonId: 'cl-course-picker',
+    title: 'Chọn môn học',
+    subtitle: 'Tìm theo mã môn hoặc tên môn học',
+    placeholder: 'Nhập mã hoặc tên môn học',
+    empty: 'Không tìm thấy môn học phù hợp',
+    valueField: 'MaMonHoc',
+    label: courseOptionLabel,
+    detail: function(course) {
+      return [course.TenKhoa || (course.KHOA && course.KHOA.TenKhoa), course.LoaiMon, course.SoTinChi ? course.SoTinChi + ' tín chỉ' : '']
+        .filter(Boolean)
+        .join(' · ');
+    },
+    url: function(search) {
+      var params = new URLSearchParams();
+      params.set('all', 'true');
+      params.set('TrangThai', 'true');
+      if (search) params.set('search', search);
+      return '/api/courses?' + params.toString();
+    }
+  },
+  lecturer: {
+    targetId: 'cl-magiangvien',
+    textId: 'cl-lecturer-picker-text',
+    buttonId: 'cl-lecturer-picker',
+    title: 'Chọn giảng viên',
+    subtitle: 'Tìm theo mã giảng viên hoặc họ tên',
+    placeholder: 'Nhập mã hoặc họ tên giảng viên',
+    empty: 'Không tìm thấy giảng viên phù hợp',
+    valueField: 'MaGiangVien',
+    label: lecturerOptionLabel,
+    detail: function(lecturer) {
+      return [lecturer.Email, lecturer.TenKhoa || (lecturer.KHOA && lecturer.KHOA.TenKhoa)].filter(Boolean).join(' · ');
+    },
+    url: function(search) {
+      var params = new URLSearchParams();
+      params.set('TrangThai', 'true');
+      params.set('all', 'true');
+      if (search) params.set('search', search);
+      return '/api/lecturers?' + params.toString();
+    }
+  },
+  room: {
+    targetId: 'cl-maphong',
+    textId: 'cl-room-picker-text',
+    buttonId: 'cl-room-picker',
+    title: 'Chọn phòng',
+    subtitle: 'Tìm theo mã phòng, tên phòng hoặc tòa nhà',
+    placeholder: 'Nhập mã phòng, tên phòng hoặc tòa nhà',
+    empty: 'Không tìm thấy phòng phù hợp',
+    valueField: 'MaPhong',
+    label: roomOptionLabel,
+    detail: function(room) {
+      return [room.ToaNha ? 'Tòa ' + room.ToaNha : '', room.LoaiPhong, room.SucChua ? 'Sức chứa ' + room.SucChua : '']
+        .filter(Boolean)
+        .join(' · ');
+    },
+    url: function(search) {
+      var params = new URLSearchParams();
+      params.set('TrangThai', 'true');
+      params.set('all', 'true');
+      if (search) params.set('search', search);
+      return '/api/rooms?' + params.toString();
+    }
+  }
+};
+
+function setPickerDisplay(type, value, label) {
+  var config = entityPickerConfig[type];
+  if (!config) return;
+  var text = document.getElementById(config.textId);
+  var button = document.getElementById(config.buttonId);
+  if (text) text.textContent = value ? (label || value) : config.title;
+  if (button) button.classList.toggle('is-empty', !value);
+}
+
+function setPickerValue(type, value, label) {
+  var config = entityPickerConfig[type];
+  if (!config) return;
+  var select = document.getElementById(config.targetId);
+  if (!select) return;
+  if (value) {
+    ensureSelectOption(config.targetId, value, label || value);
+    select.value = value;
+  } else {
+    select.value = '';
+  }
+  setPickerDisplay(type, value, label);
+}
+
+function selectedPickerValue() {
+  var config = entityPickerConfig[entityPickerState.type];
+  var select = config ? document.getElementById(config.targetId) : null;
+  return select ? select.value : '';
+}
+
+function openEntityPicker(type) {
+  var config = entityPickerConfig[type];
+  if (!config) return;
+
+  entityPickerState.type = type;
+  document.getElementById('entity-picker-title').textContent = config.title;
+  document.getElementById('entity-picker-subtitle').textContent = config.subtitle;
+  document.getElementById('entity-picker-search').placeholder = config.placeholder;
+  document.getElementById('entity-picker-search').value = '';
+  document.getElementById('entity-picker-modal').classList.add('active');
+  loadEntityPickerRows('');
+  setTimeout(function() {
+    var input = document.getElementById('entity-picker-search');
+    if (input) input.focus();
+  }, 50);
+}
+
+function closeEntityPicker() {
+  document.getElementById('entity-picker-modal').classList.remove('active');
+  entityPickerState.type = null;
+}
+
+function renderEntityPickerRows(rows) {
+  var config = entityPickerConfig[entityPickerState.type];
+  var results = document.getElementById('entity-picker-results');
+  var meta = document.getElementById('entity-picker-meta');
+  if (!config || !results) return;
+
+  if (meta) meta.textContent = rows.length ? rows.length + ' kết quả' : '';
+  if (!rows.length) {
+    results.innerHTML = '<div class="empty-state">' + classEscapeHtml(config.empty) + '</div>';
+    return;
+  }
+
+  var selectedValue = selectedPickerValue();
+  results.innerHTML = rows.map(function(row) {
+    var value = row[config.valueField] || '';
+    var label = config.label(row);
+    var detail = config.detail(row);
+    return '<button class="entity-picker-option' + (value === selectedValue ? ' is-selected' : '') + '" type="button" data-value="' +
+      classEscapeHtml(value) + '" data-label="' + classEscapeHtml(label) + '" onclick="selectEntityPickerOption(this)">' +
+      '<span class="entity-picker-title-row">' +
+        '<span class="entity-picker-code">' + classEscapeHtml(value) + '</span>' +
+        '<span class="entity-picker-name">' + classEscapeHtml(label.replace(value + ' - ', '')) + '</span>' +
+      '</span>' +
+      '<span class="entity-picker-detail">' + classEscapeHtml(detail || label) + '</span>' +
+    '</button>';
+  }).join('');
+}
+
+async function loadEntityPickerRows(search) {
+  var config = entityPickerConfig[entityPickerState.type];
+  var results = document.getElementById('entity-picker-results');
+  var meta = document.getElementById('entity-picker-meta');
+  if (!config || !results) return;
+
+  results.innerHTML = '<div class="loading-overlay"><div class="spinner"></div><span>Đang tải dữ liệu...</span></div>';
+  if (meta) meta.textContent = '';
+  try {
+    var res = await apiFetch(config.url(search));
+    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
+    renderEntityPickerRows(rows);
+  } catch (e) {
+    results.innerHTML = '<div class="empty-state">Không thể tải dữ liệu</div>';
+  }
+}
+
+function selectEntityPickerOption(button) {
+  var type = entityPickerState.type;
+  if (!type || !button) return;
+  setPickerValue(type, button.dataset.value || '', button.dataset.label || '');
+  closeEntityPicker();
+}
+
 function openModal(mode, cl) {
   editingId = null;
   document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa lớp học' : 'Thêm lớp học';
@@ -186,26 +360,17 @@ function openModal(mode, cl) {
     editingId = cl.MaLop;
     document.getElementById('cl-malop').value = cl.MaLop || '';
     document.getElementById('cl-tenlop').value = cl.TenLop || '';
-    document.getElementById('cl-course-search').value = cl.MONHOC && cl.MONHOC.TenMonHoc ? cl.MONHOC.TenMonHoc : '';
-    document.getElementById('cl-lecturer-search').value = cl.GIANGVIEN
-      ? lecturerOptionLabel(cl.GIANGVIEN)
-      : (cl.GiangVien || cl.MaGiangVien || '');
     document.getElementById('cl-thu').value = cl.ThuTrongTuan || '2';
     document.getElementById('cl-tietbd').value = cl.MaTietBatDau || '';
     document.getElementById('cl-tietkt').value = cl.MaTietKetThuc || '';
-    document.getElementById('cl-room-search').value = cl.PHONGHOC
-      ? roomOptionLabel(cl.PHONGHOC)
-      : (cl.PhongHoc || cl.MaPhong || '');
-    ensureSelectOption('cl-magiangvien', cl.MaGiangVien || '', cl.GiangVien || cl.MaGiangVien || '');
-    ensureSelectOption('cl-maphong', cl.MaPhong || '', cl.PhongHoc || cl.MaPhong || '');
-    loadCourseOptions('', cl.MaMonHoc || '', cl.MaMonHoc ? cl.MaMonHoc + ' - ' + (cl.MONHOC && cl.MONHOC.TenMonHoc ? cl.MONHOC.TenMonHoc : '') : '');
-    loadLecturerOptions('cl-magiangvien', '', cl.MaGiangVien || '', cl.GiangVien || cl.MaGiangVien || '');
-    loadRoomOptions('cl-maphong', '', cl.MaPhong || '', cl.PhongHoc || cl.MaPhong || '');
+    setPickerValue('course', cl.MaMonHoc || '', cl.MaMonHoc ? cl.MaMonHoc + ' - ' + (cl.MONHOC && cl.MONHOC.TenMonHoc ? cl.MONHOC.TenMonHoc : '') : '');
+    setPickerValue('lecturer', cl.MaGiangVien || '', cl.GIANGVIEN ? lecturerOptionLabel(cl.GIANGVIEN) : (cl.GiangVien || cl.MaGiangVien || ''));
+    setPickerValue('room', cl.MaPhong || '', cl.PHONGHOC ? roomOptionLabel(cl.PHONGHOC) : (cl.PhongHoc || cl.MaPhong || ''));
   } else {
     document.getElementById('class-form').reset();
-    loadCourseOptions('', '', '');
-    loadLecturerOptions('cl-magiangvien', '', '', '');
-    loadRoomOptions('cl-maphong', '', '', '');
+    setPickerValue('course', '', '');
+    setPickerValue('lecturer', '', '');
+    setPickerValue('room', '', '');
   }
 
   document.getElementById('class-modal').classList.add('active');
@@ -245,6 +410,8 @@ async function saveClass() {
     showToast('Vui lòng chọn đủ giảng viên, thứ, tiết bắt đầu, tiết kết thúc và phòng', 'error');
     return;
   }
+  if (hasAssignment && !validatePeriodRange('cl-tietbd', 'cl-tietkt')) return;
+  if (hasAssignment && !(await validateScheduleConflict('catalog', data))) return;
 
   try {
     var res = editingId
@@ -331,6 +498,8 @@ async function saveOpenClass() {
     showToast('Vui lòng chọn học kỳ, giảng viên, phòng và lịch học', 'error');
     return;
   }
+  if (!validatePeriodRange('open-tietbd', 'open-tietkt')) return;
+  if (!(await validateScheduleConflict('open', body))) return;
 
   try {
     var res = await apiFetch('/api/classes/open', { method: 'POST', body: body });
@@ -478,6 +647,8 @@ async function saveClassSchedule() {
     showToast('Vui lòng nhập đủ học kỳ, thứ, tiết học và phòng', 'error');
     return;
   }
+  if (!validatePeriodRange('schedule-tietbd', 'schedule-tietkt')) return;
+  if (!(await validateScheduleConflict('opened', Object.assign({ MaLop: maLop }, body)))) return;
 
   try {
     var res = await apiFetch('/api/classes/' + encodeURIComponent(maLop) + '/schedules', { method: 'POST', body: body });
@@ -555,33 +726,13 @@ async function loadClassStudents() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var courseSearch = document.getElementById('cl-course-search');
-  if (courseSearch) {
-    courseSearch.addEventListener('input', function() {
-      clearTimeout(courseSearchTimer);
-      courseSearchTimer = setTimeout(function() {
-        loadCourseOptions(courseSearch.value.trim(), document.getElementById('cl-mamonhoc').value, '');
-      }, 300);
-    });
-  }
-
-  var classLecturerSearch = document.getElementById('cl-lecturer-search');
-  if (classLecturerSearch) {
-    classLecturerSearch.addEventListener('input', function() {
-      clearTimeout(classLecturerSearchTimer);
-      classLecturerSearchTimer = setTimeout(function() {
-        loadLecturerOptions('cl-magiangvien', classLecturerSearch.value.trim(), document.getElementById('cl-magiangvien').value, '');
-      }, 300);
-    });
-  }
-
-  var classRoomSearch = document.getElementById('cl-room-search');
-  if (classRoomSearch) {
-    classRoomSearch.addEventListener('input', function() {
-      clearTimeout(classRoomSearchTimer);
-      classRoomSearchTimer = setTimeout(function() {
-        loadRoomOptions('cl-maphong', classRoomSearch.value.trim(), document.getElementById('cl-maphong').value, '');
-      }, 300);
+  var entitySearch = document.getElementById('entity-picker-search');
+  if (entitySearch) {
+    entitySearch.addEventListener('input', function() {
+      clearTimeout(entityPickerState.timer);
+      entityPickerState.timer = setTimeout(function() {
+        loadEntityPickerRows(entitySearch.value.trim());
+      }, 250);
     });
   }
 

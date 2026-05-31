@@ -18,7 +18,8 @@ const parseCapacity = (value) => {
 const getAllRooms = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search, LoaiPhong, TrangThai } = req.query;
+    const { search, LoaiPhong, TrangThai, all } = req.query;
+    const returnAll = all === 'true';
     const where = notDeleted();
 
     if (LoaiPhong) where.LoaiPhong = LoaiPhong;
@@ -35,15 +36,14 @@ const getAllRooms = async (req, res) => {
     const [rooms, total] = await Promise.all([
       prisma.PHONGHOC.findMany({
         where,
-        skip,
-        take: limit,
+        ...(returnAll ? {} : { skip, take: limit }),
         orderBy: { MaPhong: 'asc' },
         include: { _count: { select: { LOP: true, LICHHOCLOP: true } } }
       }),
       prisma.PHONGHOC.count({ where })
     ]);
 
-    res.json({ success: true, data: rooms, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data: rooms, pagination: getPaginationMeta(total, returnAll ? 1 : page, returnAll ? Math.max(total, 1) : limit) });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi server', 'getAllRooms error:');
   }

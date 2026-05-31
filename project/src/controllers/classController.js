@@ -29,9 +29,10 @@ const lecturerDisplayName = (lecturer) => {
   return [lecturer.HocHamHocVi, lecturer.HoTen].filter(Boolean).join(' ').trim() || null;
 };
 
-const makeHttpError = (message, status = 400) => {
+const makeHttpError = (message, status = 400, code) => {
   const error = new Error(message);
   error.status = status;
+  if (code) error.code = code;
   return error;
 };
 
@@ -140,20 +141,130 @@ const resolveClassAssignmentData = async (body, existing = {}) => {
       MaGiangVien: lecturerData.MaGiangVien,
       MaPhong: roomData.MaPhong,
       ThuTrongTuan,
+      MaTietBatDau,
+      MaTietKetThuc,
       startOrder,
       endOrder
     }
   };
 };
 
+const sameText = (left, right) => {
+  const normalizedLeft = cleanOptionalText(left);
+  const normalizedRight = cleanOptionalText(right);
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+};
+
+const conflictClassName = (conflict) => (
+  [conflict.MaLop, conflict.TenLop].filter(Boolean).join(' - ') || conflict.MaLop || 'khác'
+);
+
+const scheduleConflictDetails = (conflict, input) => {
+  if (!conflict) return null;
+
+  const sameRoom = sameText(conflict.MaPhong, input.MaPhong);
+  const sameLecturer = sameText(conflict.MaGiangVien, input.MaGiangVien);
+  const sameClass = sameText(conflict.MaLop, input.MaLop);
+  const samePeriod =
+    Number(conflict.StartOrder) === Number(input.startOrder) &&
+    Number(conflict.EndOrder) === Number(input.endOrder);
+  const className = conflictClassName(conflict);
+
+  if (sameRoom && sameLecturer && samePeriod) {
+    return {
+      code: 'RBTV04',
+      message: `RBTV04: Không được tạo hai lịch học giống hệt nhau với lớp ${className}.`,
+      conflict
+    };
+  }
+
+  if (sameClass) {
+    return {
+      code: 'RBTV03',
+      message: `RBTV03: Lớp ${className} đã có lịch học trùng thời gian.`,
+      conflict
+    };
+  }
+
+  if (sameRoom) {
+    return {
+      code: 'RBTV01_RBTV05_RBTV07',
+      message: `RBTV01/RBTV05/RBTV07: Phòng ${input.MaPhong} đã có lớp ${className} học trùng thời gian.`,
+      conflict
+    };
+  }
+
+  if (sameLecturer) {
+    return {
+      code: 'RBTV02_RBTV06_RBTV08',
+      message: `RBTV02/RBTV06/RBTV08: Giảng viên ${input.MaGiangVien} đã có lớp ${className} dạy trùng thời gian.`,
+      conflict
+    };
+  }
+
+  return null;
+};
+
+const throwScheduleConflict = (details) => {
+  if (!details) return;
+  const error = makeHttpError(details.message, 409, details.code);
+  error.details = details;
+  throw error;
+};
+
+const firstScheduleConflict = (conflicts, input) => {
+  const details = conflicts.map((conflict) => scheduleConflictDetails(conflict, input)).filter(Boolean);
+  return details.find((item) => item.code === 'RBTV04') ||
+    details.find((item) => item.code === 'RBTV03') ||
+    details[0] ||
+    null;
+};
+
+const ensureCatalogScheduleAvailable = async (client, input) => {
+  const conflicts = await client.$queryRaw`
+    SELECT
+      l."MaLop",
+      l."TenLop",
+      COALESCE(l."MaGiangVien", l."GiangVien") AS "MaGiangVien",
+      COALESCE(l."MaPhong", l."PhongHoc") AS "MaPhong",
+      l."ThuTrongTuan",
+      l."MaTietBatDau",
+      l."MaTietKetThuc",
+      bd."ThuTu" AS "StartOrder",
+      kt."ThuTu" AS "EndOrder"
+    FROM "LOP" l
+    JOIN "TIETHOC" bd ON bd."MaTiet" = l."MaTietBatDau"
+    JOIN "TIETHOC" kt ON kt."MaTiet" = l."MaTietKetThuc"
+    WHERE l."MaLop" IS DISTINCT FROM ${input.MaLop || ''}
+      AND COALESCE(l."DaXoa", FALSE) = FALSE
+      AND COALESCE(l."TrangThai", TRUE) = TRUE
+      AND l."ThuTrongTuan" = ${input.ThuTrongTuan}
+      AND (
+        COALESCE(l."MaPhong", l."PhongHoc") = ${input.MaPhong}
+        OR COALESCE(l."MaGiangVien", l."GiangVien") = ${input.MaGiangVien}
+      )
+      AND (
+        (${input.startOrder} < kt."ThuTu" AND bd."ThuTu" < ${input.endOrder})
+        OR (bd."ThuTu" = ${input.startOrder} AND kt."ThuTu" = ${input.endOrder})
+      )
+    LIMIT 20
+  `;
+
+  throwScheduleConflict(firstScheduleConflict(conflicts, input));
+};
+
 const ensureOpenedScheduleAvailable = async (client, {
   MaHocKy,
+  MaLop,
   MaGiangVien,
   MaPhong,
   ThuTrongTuan,
+  MaTietBatDau,
+  MaTietKetThuc,
   startOrder,
   endOrder,
-  excludeScheduleId
+  excludeScheduleId,
+  excludeLopMoId
 }) => {
   const conflicts = await client.$queryRaw`
     SELECT
@@ -161,33 +272,47 @@ const ensureOpenedScheduleAvailable = async (client, {
       lm."MaLop",
       l."TenLop",
       COALESCE(lm."MaGiangVien", lm."GiangVien") AS "MaGiangVien",
-      COALESCE(lh."MaPhong", lh."PhongHoc") AS "MaPhong"
+      COALESCE(lh."MaPhong", lh."PhongHoc") AS "MaPhong",
+      lh."ThuTrongTuan",
+      lh."MaTietBatDau",
+      lh."MaTietKetThuc",
+      bd."ThuTu" AS "StartOrder",
+      kt."ThuTu" AS "EndOrder"
     FROM "LOPMO" lm
     JOIN "LOP" l ON l."MaLop" = lm."MaLop"
     JOIN "LICHHOCLOP" lh ON lh."LopMoId" = lm.id
     JOIN "TIETHOC" bd ON bd."MaTiet" = lh."MaTietBatDau"
     JOIN "TIETHOC" kt ON kt."MaTiet" = lh."MaTietKetThuc"
     WHERE lm."MaHocKy" = ${MaHocKy}
+      AND COALESCE(l."DaXoa", FALSE) = FALSE
       AND COALESCE(lm."TrangThai", TRUE) = TRUE
       AND COALESCE(lh."TrangThai", TRUE) = TRUE
       AND lh.id <> ${excludeScheduleId || -1}
+      AND lm.id <> ${excludeLopMoId || -1}
       AND lh."ThuTrongTuan" = ${ThuTrongTuan}
       AND (
         COALESCE(lh."MaPhong", lh."PhongHoc") = ${MaPhong}
         OR COALESCE(lm."MaGiangVien", lm."GiangVien") = ${MaGiangVien}
+        OR lm."MaLop" = ${MaLop}
       )
-      AND ${startOrder} <= kt."ThuTu"
-      AND bd."ThuTu" <= ${endOrder}
-    LIMIT 1
+      AND (
+        (${startOrder} < kt."ThuTu" AND bd."ThuTu" < ${endOrder})
+        OR (bd."ThuTu" = ${startOrder} AND kt."ThuTu" = ${endOrder})
+      )
+    LIMIT 20
   `;
 
-  if (!conflicts.length) return;
-  const conflict = conflicts[0];
-  const className = [conflict.MaLop, conflict.TenLop].filter(Boolean).join(' - ');
-  if (conflict.MaPhong === MaPhong) {
-    throw makeHttpError(`Phòng ${MaPhong} đã được xếp cho lớp ${className} trong học kỳ này`);
-  }
-  throw makeHttpError(`Giảng viên ${MaGiangVien} đã có lịch dạy lớp ${className} trong học kỳ này`);
+  throwScheduleConflict(firstScheduleConflict(conflicts, {
+    MaHocKy,
+    MaLop,
+    MaGiangVien,
+    MaPhong,
+    ThuTrongTuan,
+    MaTietBatDau,
+    MaTietKetThuc,
+    startOrder,
+    endOrder
+  }));
 };
 
 const getClasses = async (req, res) => {
@@ -312,6 +437,87 @@ const getClassById = async (req, res) => {
   }
 };
 
+const validateClassSchedule = async (req, res) => {
+  try {
+    const mode = cleanOptionalText(req.body.mode) || 'opened';
+
+    if (mode === 'catalog') {
+      const MaLop = cleanOptionalText(req.body.MaLop);
+      if (!MaLop) return res.status(400).json({ success: false, message: 'Vui lòng nhập mã lớp trước khi kiểm tra lịch học' });
+
+      const assignment = await resolveClassAssignmentData(req.body);
+      if (assignment.conflictInput) {
+        await ensureCatalogScheduleAvailable(prisma, { MaLop, ...assignment.conflictInput });
+      }
+
+      return res.json({ success: true, data: { valid: true } });
+    }
+
+    const { MaHocKy, MaLop, ThuTrongTuan, MaTietBatDau, MaTietKetThuc, MaPhong, id } = req.body;
+    if (!MaHocKy || !MaLop || !ThuTrongTuan || !MaTietBatDau || !MaTietKetThuc || !MaPhong) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập học kỳ, lớp, thứ, tiết học và phòng' });
+    }
+
+    const thuTrongTuan = parseInt(ThuTrongTuan, 10);
+    if (!Number.isInteger(thuTrongTuan) || thuTrongTuan < 1 || thuTrongTuan > 7) {
+      return res.status(400).json({ success: false, message: 'Thứ trong tuần không hợp lệ' });
+    }
+
+    const periodOrderMap = await getPeriodOrderMap(MaTietBatDau, MaTietKetThuc);
+    if (!periodOrderMap.has(MaTietBatDau) || !periodOrderMap.has(MaTietKetThuc)) {
+      return res.status(400).json({ success: false, message: 'Tiết học không hợp lệ' });
+    }
+    if (periodOrderMap.get(MaTietBatDau) > periodOrderMap.get(MaTietKetThuc)) {
+      return res.status(400).json({ success: false, message: 'Tiết bắt đầu phải trước hoặc bằng tiết kết thúc' });
+    }
+
+    const roomData = await resolveRoomData(MaPhong);
+    let lecturerId = cleanOptionalText(req.body.MaGiangVien);
+    let excludeLopMoId = null;
+
+    if (mode === 'open') {
+      if (!lecturerId) return res.status(400).json({ success: false, message: 'Vui lòng chọn giảng viên' });
+      await resolveLecturerData(lecturerId);
+
+      const existing = await prisma.LOPMO.findFirst({
+        where: { MaHocKy, MaLop },
+        select: { id: true, TrangThai: true }
+      });
+      if (existing && existing.TrangThai !== false) {
+        return res.status(400).json({ success: false, message: 'Lớp đã được mở trong học kỳ này' });
+      }
+      excludeLopMoId = existing?.id || null;
+    } else if (!lecturerId) {
+      const opened = await prisma.LOPMO.findFirst({
+        where: { MaHocKy, MaLop, TrangThai: true },
+        select: { MaGiangVien: true, GiangVien: true }
+      });
+      if (!opened) return res.status(404).json({ success: false, message: 'Lớp chưa được mở trong học kỳ này' });
+      lecturerId = cleanOptionalText(opened.MaGiangVien || opened.GiangVien);
+    }
+
+    if (!lecturerId) return res.status(400).json({ success: false, message: 'Lớp mở chưa có giảng viên phụ trách' });
+
+    await ensureOpenedScheduleAvailable(prisma, {
+      MaHocKy,
+      MaLop,
+      MaGiangVien: lecturerId,
+      MaPhong: roomData.MaPhong,
+      ThuTrongTuan: thuTrongTuan,
+      MaTietBatDau,
+      MaTietKetThuc,
+      startOrder: periodOrderMap.get(MaTietBatDau),
+      endOrder: periodOrderMap.get(MaTietKetThuc),
+      excludeScheduleId: parseIntOrNull(id),
+      excludeLopMoId
+    });
+
+    return res.json({ success: true, data: { valid: true } });
+  } catch (error) {
+        return sendErrorResponse(res, error, 'Lỗi server', 'validateClassSchedule error:');
+  }
+};
+
 const createClass = async (req, res) => {
   try {
     const { MaLop, TenLop, MaMonHoc } = req.body;
@@ -321,6 +527,9 @@ const createClass = async (req, res) => {
     const course = await prisma.MONHOC.findFirst({ where: { MaMonHoc, DaXoa: false } });
     if (!course) return res.status(400).json({ success: false, message: 'Môn học không tồn tại' });
     const assignment = await resolveClassAssignmentData(req.body);
+    if (assignment.conflictInput) {
+      await ensureCatalogScheduleAvailable(prisma, { MaLop, ...assignment.conflictInput });
+    }
     const cls = await prisma.LOP.create({
       data: {
         MaLop,
@@ -350,6 +559,9 @@ const updateClass = async (req, res) => {
     if (MaMonHoc) data.MaMonHoc = MaMonHoc;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     const assignment = await resolveClassAssignmentData(req.body, existing);
+    if (assignment.conflictInput) {
+      await ensureCatalogScheduleAvailable(prisma, { MaLop: req.params.id, ...assignment.conflictInput });
+    }
     Object.assign(data, assignment.data);
     Object.assign(data, updateAudit(req));
     const updated = await prisma.LOP.update({ where: { MaLop: req.params.id }, data });
@@ -440,9 +652,12 @@ const openClass = async (req, res) => {
 
       await ensureOpenedScheduleAvailable(tx, {
         MaHocKy,
+        MaLop,
         MaGiangVien: lecturerData.MaGiangVien,
         MaPhong: roomData.MaPhong,
         ThuTrongTuan: thuTrongTuan,
+        MaTietBatDau,
+        MaTietKetThuc,
         startOrder: periodOrderMap.get(MaTietBatDau),
         endOrder: periodOrderMap.get(MaTietKetThuc)
       });
@@ -555,9 +770,12 @@ const upsertClassSchedule = async (req, res) => {
     }
     await ensureOpenedScheduleAvailable(prisma, {
       MaHocKy,
+      MaLop: req.params.id,
       MaGiangVien: opened.MaGiangVien || opened.GiangVien,
       MaPhong: roomData.MaPhong,
       ThuTrongTuan: thuTrongTuan,
+      MaTietBatDau,
+      MaTietKetThuc,
       startOrder: periodOrderMap.get(MaTietBatDau),
       endOrder: periodOrderMap.get(MaTietKetThuc),
       excludeScheduleId: scheduleId
@@ -646,6 +864,7 @@ const getClassStats = async (req, res) => {
 module.exports = {
   getClasses,
   getClassById,
+  validateClassSchedule,
   createClass,
   updateClass,
   deleteClass,
