@@ -187,6 +187,7 @@ const buildSemesterWhere = (query = {}) => {
   const where = { DaXoa: false };
   const and = [];
   const q = String(query.q || query.search || '').trim();
+  const searchScope = ['semesterCode', 'semesterName', 'academicYear'].includes(query.searchScope) ? query.searchScope : 'semesterCode';
   const semesterKind = normalizeSemesterKind(query.semesterKind || (query.searchField === 'HocKy' ? query.search : ''));
   const status = String(query.status || '').trim();
   const requestedDateField = SEMESTER_DATE_FIELDS.has(query.dateField) ? query.dateField : 'all';
@@ -196,13 +197,20 @@ const buildSemesterWhere = (query = {}) => {
   const dateTo = exactDate || parseFilterDate(query.dateTo, 'Đến ngày');
 
   if (q && query.searchField !== 'HocKy' && !SEMESTER_DATE_FIELDS.has(query.searchField)) {
-    and.push({
-      OR: [
-        { MaHocKy: { contains: q, mode: 'insensitive' } },
-        { TenHocKy: { contains: q, mode: 'insensitive' } },
+    const scopedSearch = {
+      semesterCode: [
+        { MaHocKy: { contains: q, mode: 'insensitive' } }
+      ],
+      semesterName: [
+        { TenHocKy: { contains: q, mode: 'insensitive' } }
+      ],
+      academicYear: [
         { MaNamHoc: { contains: q, mode: 'insensitive' } },
         { NAMHOC: { TenNamHoc: { contains: q, mode: 'insensitive' } } }
       ]
+    };
+    and.push({
+      OR: scopedSearch[searchScope]
     });
   }
 
@@ -489,6 +497,10 @@ const finalizeRegistration = async (req, res) => {
       }
 
       for (const item of closedAfterFinalize) {
+        await tx.LICHHOCLOP.updateMany({
+          where: { LopMoId: item.id, TrangThai: true },
+          data: { TrangThai: false }
+        });
         await tx.LOPMO.update({
           where: { id: item.id },
           data: {

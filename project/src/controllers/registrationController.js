@@ -2,6 +2,8 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { assertRegistrationOpen, getRegistrationWindowState } = require('../utils/registrationWindow');
+const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
+const { buildRegistrationStudentRows, buildRegistrationDistribution } = require('../utils/registrationStats');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
@@ -9,10 +11,87 @@ const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
 const REGISTRATION_TYPE_LABELS = {
   hoc_moi: 'Học mới',
   hoc_lai: 'Học lại',
-  hoc_cai_thien: 'Cải thiện'
+  hoc_cai_thien: 'Cải thiện',
+  hoc_he: 'Học hè'
 };
 
 const getRegistrationTypeLabel = (type) => REGISTRATION_TYPE_LABELS[type] || type || 'Học mới';
+
+const AVAILABLE_SEARCH_SCOPES = new Set(['course', 'lecturer', 'class']);
+
+const normalizeAvailableSearchScope = (scope) => {
+  const value = String(scope || '').trim();
+  return AVAILABLE_SEARCH_SCOPES.has(value) ? value : 'course';
+};
+
+const parsePositiveIntOrNull = (value) => {
+  const parsed = parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const escapeExcelXml = (value) => String(value === null || value === undefined ? '' : value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
+const excelCell = (value, type = 'String', styleId = '') => `<Cell${styleId ? ` ss:StyleID="${styleId}"` : ''}><Data ss:Type="${type}">${escapeExcelXml(value)}</Data></Cell>`;
+
+const chartBar = (percent) => {
+  const width = Math.max(1, Math.round(Number(percent || 0) / 5));
+  return '█'.repeat(width);
+};
+
+const buildStatsWorksheet = (sheetName, title, headers, rows, getCells) => `
+  <Worksheet ss:Name="${escapeExcelXml(sheetName)}">
+    <Table>
+      <Row><Cell ss:MergeAcross="${headers.length - 1}" ss:StyleID="title"><Data ss:Type="String">${escapeExcelXml(title)}</Data></Cell></Row>
+      <Row>${headers.map((header) => excelCell(header, 'String', 'header')).join('')}</Row>
+      ${rows.map((row) => `<Row>${getCells(row).join('')}</Row>`).join('\n')}
+    </Table>
+  </Worksheet>`;
+
+const buildRegistrationStatsExcelXml = ({ byFaculty, byMajor }) => {
+  const facultyHeaders = ['Mã khoa', 'Tên khoa', 'Sinh viên', 'Số phiếu', 'Số môn', 'Tín chỉ', 'Tỷ lệ', 'Biểu đồ'];
+  const majorHeaders = ['Mã ngành', 'Tên ngành', 'Khoa', 'Sinh viên', 'Số phiếu', 'Số môn', 'Tín chỉ', 'Tỷ lệ', 'Biểu đồ'];
+  const facultyRows = byFaculty.map((row) => [
+    excelCell(row.code),
+    excelCell(row.name),
+    excelCell(row.studentCount, 'Number'),
+    excelCell(row.registrationCount, 'Number'),
+    excelCell(row.courseCount, 'Number'),
+    excelCell(row.creditCount, 'Number'),
+    excelCell(`${row.percent}%`),
+    excelCell(chartBar(row.percent), 'String', 'bar')
+  ]);
+  const majorRows = byMajor.map((row) => [
+    excelCell(row.code),
+    excelCell(row.name),
+    excelCell(row.parentName || '-'),
+    excelCell(row.studentCount, 'Number'),
+    excelCell(row.registrationCount, 'Number'),
+    excelCell(row.courseCount, 'Number'),
+    excelCell(row.creditCount, 'Number'),
+    excelCell(`${row.percent}%`),
+    excelCell(chartBar(row.percent), 'String', 'bar')
+  ]);
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:html="http://www.w3.org/TR/REC-html40">
+  <Styles>
+    <Style ss:ID="title"><Font ss:Bold="1" ss:Size="13"/><Interior ss:Color="#E0F2FE" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+    <Style ss:ID="bar"><Font ss:Color="#0EA5E9" ss:Bold="1"/></Style>
+  </Styles>
+  ${buildStatsWorksheet('TheoKhoa', 'Thống kê đăng ký môn học theo khoa', facultyHeaders, facultyRows, (row) => row)}
+  ${buildStatsWorksheet('TheoNganh', 'Thống kê đăng ký môn học theo ngành', majorHeaders, majorRows, (row) => row)}
+</Workbook>`;
+};
 
 const lecturerDisplayName = (lecturer) => {
   if (!lecturer) return '';
@@ -33,23 +112,43 @@ const periodRangeLabel = (schedule) => {
   return start === end ? start : `${start}-${end}`;
 };
 
+const normalizeRoomText = (value, fallbackCode = '') => {
+  const text = String(value || '').trim();
+  const code = String(fallbackCode || '').trim();
+  if (!text) return code;
+
+  const parts = text.split(/\s+-\s+/);
+  if (parts.length >= 2) {
+    const first = parts[0].trim();
+    const rest = parts.slice(1).join(' - ').trim();
+    if (first && rest.toLowerCase().includes(first.toLowerCase())) return rest;
+  }
+
+  return text;
+};
+
 const roomDisplayName = (room) => {
   if (!room) return '';
-  return [room.MaPhong, room.TenPhong].filter(Boolean).join(' - ');
+  const code = String(room.MaPhong || '').trim();
+  const name = String(room.TenPhong || '').trim();
+  if (!code) return name;
+  if (!name) return code;
+  if (name.toLowerCase().includes(code.toLowerCase())) return name;
+  return `${code} - ${name}`;
 };
 
 const openedClassScheduleLabel = (openedClass) => {
   const schedules = (openedClass?.LICHHOCLOP || []).filter((schedule) => schedule.TrangThai !== false);
   if (!schedules.length) return '';
   return schedules.map((schedule) => {
-    const room = roomDisplayName(schedule.PHONGHOC) || schedule.PhongHoc || schedule.MaPhong;
+    const room = roomDisplayName(schedule.PHONGHOC) || normalizeRoomText(schedule.PhongHoc, schedule.MaPhong);
     return [weekdayLabel(schedule.ThuTrongTuan), periodRangeLabel(schedule)].filter(Boolean).join(' ') + (room ? ` (${room})` : '');
   }).join('; ');
 };
 
 const openedClassRoomLabel = (openedClass) => {
   const schedule = (openedClass?.LICHHOCLOP || []).find((item) => item.TrangThai !== false && (item.PHONGHOC || item.PhongHoc || item.MaPhong));
-  return roomDisplayName(schedule?.PHONGHOC) || schedule?.PhongHoc || schedule?.MaPhong || '';
+  return roomDisplayName(schedule?.PHONGHOC) || normalizeRoomText(schedule?.PhongHoc, schedule?.MaPhong);
 };
 
 const getStudentIdFromRequest = async (req) => {
@@ -71,13 +170,32 @@ const ensureStudentAccess = async (req, res, studentId) => {
 };
 
 const getCreditPrice = async (tx, loaiMon, loaiHoc, maHocKy) => {
+  let effectiveLoaiHoc = loaiHoc || 'hoc_moi';
+  if (effectiveLoaiHoc === 'hoc_moi' && maHocKy) {
+    const semester = await tx.HOCKY.findUnique({
+      where: { MaHocKy: maHocKy },
+      select: { LoaiHocKy: true }
+    });
+    const semesterType = String(semester?.LoaiHocKy || '').toLowerCase();
+    if (semesterType.includes('h\u00e8') || semesterType.includes('he')) effectiveLoaiHoc = 'hoc_he';
+  }
+
+  const activePriceWhere = {
+    LoaiMon: loaiMon,
+    LoaiHoc: effectiveLoaiHoc,
+    DaXoa: false,
+    TrangThai: true
+  };
+
   const semesterPrice = maHocKy ? await tx.DONGIATINCHI.findFirst({
-    where: { LoaiMon: loaiMon, LoaiHoc: loaiHoc, MaHocKy: maHocKy, TrangThai: true }
+    where: { ...activePriceWhere, MaHocKy: maHocKy },
+    orderBy: [{ NgayApDung: 'desc' }, { id: 'desc' }]
   }) : null;
   if (semesterPrice) return Number(semesterPrice.DonGia);
 
   const defaultPrice = await tx.DONGIATINCHI.findFirst({
-    where: { LoaiMon: loaiMon, LoaiHoc: loaiHoc, MaHocKy: null, TrangThai: true }
+    where: { ...activePriceWhere, MaHocKy: null },
+    orderBy: [{ NgayApDung: 'desc' }, { id: 'desc' }]
   });
   if (defaultPrice) return Number(defaultPrice.DonGia);
 
@@ -239,21 +357,66 @@ const recalculateRegistrationTotals = async (tx, soPhieu) => {
   });
 };
 
+const recalculateRegistrationPricingForScope = async (tx, scope = {}) => {
+  const where = {
+    TrangThai: ACTIVE_REGISTRATION_STATUS,
+    ...(scope.LoaiMon ? { LoaiMon: scope.LoaiMon } : {}),
+    PHIEUDANGKY: {
+      ...(scope.MaHocKy ? { MaHocKy: scope.MaHocKy } : {})
+    }
+  };
+
+  const details = await tx.CHITIETDANGKY.findMany({
+    where,
+    select: {
+      id: true,
+      SoPhieu: true,
+      LoaiDangKy: true,
+      SoTinChi: true,
+      LoaiMon: true,
+      DonGia: true,
+      ThanhTien: true,
+      PHIEUDANGKY: { select: { MaHocKy: true } }
+    }
+  });
+
+  const affectedRegistrations = new Set();
+  for (const detail of details) {
+    const price = await getCreditPrice(
+      tx,
+      detail.LoaiMon,
+      detail.LoaiDangKy || 'hoc_moi',
+      detail.PHIEUDANGKY?.MaHocKy
+    );
+    const amount = price * Number(detail.SoTinChi || 0);
+    if (Number(detail.DonGia || 0) !== price || Number(detail.ThanhTien || 0) !== amount) {
+      await tx.CHITIETDANGKY.update({
+        where: { id: detail.id },
+        data: { DonGia: price, ThanhTien: amount }
+      });
+    }
+    affectedRegistrations.add(detail.SoPhieu);
+  }
+
+  for (const soPhieu of affectedRegistrations) {
+    await recalculateRegistrationTotals(tx, soPhieu);
+  }
+
+  return {
+    details: details.length,
+    registrations: affectedRegistrations.size
+  };
+};
+
 const getAllRegistrations = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { search = '', MaHocKy, TrangThai } = req.query;
+    const searchScope = normalizeRegistrationSearchScope(req.query.searchScope);
     const where = {};
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (TrangThai) where.TrangThai = TrangThai;
-    if (search) {
-      where.SINHVIEN = {
-        OR: [
-          { MaSv: { contains: search, mode: 'insensitive' } },
-          { HoTen: { contains: search, mode: 'insensitive' } }
-        ]
-      };
-    }
+    applyRegistrationSearch(where, searchScope, search);
 
     const [rows, total] = await Promise.all([
       prisma.PHIEUDANGKY.findMany({
@@ -310,6 +473,47 @@ const getRegistrationById = async (req, res) => {
   }
 };
 
+const exportRegistrations = async (req, res) => {
+  try {
+    const { MaHocKy, search = '' } = req.query;
+    const searchScope = normalizeRegistrationSearchScope(req.query.searchScope);
+    const status = req.query.status || req.query.TrangThai || '';
+    const where = {};
+    if (MaHocKy) where.MaHocKy = MaHocKy;
+    if (status) where.TrangThai = status;
+    applyRegistrationSearch(where, searchScope, search);
+
+    const registrations = await prisma.PHIEUDANGKY.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: {
+        SINHVIEN: {
+          include: {
+            NGANHHOC: { include: { KHOA: true } }
+          }
+        },
+        HOCKY: { include: { NAMHOC: true } },
+        CHITIETDANGKY: {
+          where: { TrangThai: ACTIVE_REGISTRATION_STATUS },
+          orderBy: [{ NgayDangKy: 'asc' }, { id: 'asc' }],
+          select: { id: true, SoTinChi: true }
+        }
+      }
+    });
+
+    const studentRows = buildRegistrationStudentRows(registrations);
+    const xml = buildRegistrationStatsExcelXml({
+      byFaculty: buildRegistrationDistribution(studentRows, 'faculty'),
+      byMajor: buildRegistrationDistribution(studentRows, 'major')
+    });
+    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="thong-ke-dang-ky-mon-hoc.xls"');
+    res.send(Buffer.from(xml, 'utf8'));
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'Export registrations error:');
+  }
+};
+
 const getStudentCourses = async (req, res) => {
   try {
     const studentId = req.params.studentId;
@@ -322,8 +526,9 @@ const getStudentCourses = async (req, res) => {
         ...(semesterId ? { MaHocKy: semesterId } : {})
       }
     };
+    const activeWhere = { ...where, TrangThai: ACTIVE_REGISTRATION_STATUS };
 
-    const [rows, total, totals] = await Promise.all([
+    const [rows, total, totals, limitInfo] = await Promise.all([
       prisma.CHITIETDANGKY.findMany({
         where,
         skip,
@@ -355,9 +560,10 @@ const getStudentCourses = async (req, res) => {
       }),
       prisma.CHITIETDANGKY.count({ where }),
       prisma.CHITIETDANGKY.aggregate({
-        where,
+        where: activeWhere,
         _sum: { SoTinChi: true }
-      })
+      }),
+      semesterId ? getEnglishLimitInfo(prisma, studentId, semesterId) : Promise.resolve(null)
     ]);
 
     const courses = rows.map((row) => {
@@ -376,6 +582,7 @@ const getStudentCourses = async (req, res) => {
         TrangThai: row.TrangThai,
         NgayDangKy: row.NgayDangKy,
         NgayHuy: row.NgayHuy,
+        LyDoHuy: row.LyDoHuy,
         SoTinChi: row.SoTinChi || monHoc.SoTinChi || 0,
         LOP: {
           MaLop: row.MaLop,
@@ -399,7 +606,10 @@ const getStudentCourses = async (req, res) => {
           }
         },
         PHIEUDANGKY: {
+          SoPhieu: row.PHIEUDANGKY?.SoPhieu,
           MaHocKy: row.PHIEUDANGKY?.MaHocKy,
+          TongTinChi: row.PHIEUDANGKY?.TongTinChi,
+          TrangThai: row.PHIEUDANGKY?.TrangThai,
           HOCKY: {
             TenHocKy: row.PHIEUDANGKY?.HOCKY?.TenHocKy,
             NAMHOC: { TenNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc }
@@ -414,7 +624,12 @@ const getStudentCourses = async (req, res) => {
         courses,
         summary: {
           totalCourses: total,
-          totalCredits: Number(totals._sum.SoTinChi || 0)
+          totalCredits: Number(totals._sum.SoTinChi || 0),
+          registeredCredits: Number(totals._sum.SoTinChi || 0),
+          maxCredits: Number(limitInfo?.maxCredits || 0),
+          creditLimitReason: limitInfo?.limited
+            ? `Giới hạn do chưa hoàn tất ${limitInfo.missingCourses.join(', ')}`
+            : ''
         }
       },
       pagination: getPaginationMeta(total, page, limit)
@@ -428,7 +643,12 @@ const getAvailableCourses = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { MaHocKy, search = '', MaKhoa } = req.query;
-    if (!MaHocKy) return res.status(400).json({ success: false, message: 'Vui long chon hoc ky' });
+    const searchScope = normalizeAvailableSearchScope(req.query.searchScope);
+    const courseType = String(req.query.LoaiMon || '').trim().toUpperCase();
+    const weekday = parsePositiveIntOrNull(req.query.ThuTrongTuan);
+    const periodStartId = String(req.query.MaTietBatDau || '').trim();
+    const periodEndId = String(req.query.MaTietKetThuc || '').trim();
+    if (!MaHocKy) return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ' });
 
     const semester = await prisma.HOCKY.findFirst({
       where: { MaHocKy, DaXoa: false },
@@ -453,6 +673,25 @@ const getAvailableCourses = async (req, res) => {
     let studentId = req.query.MaSv || null;
     if (!studentId && req.user?.Role !== 'admin') studentId = await getStudentIdFromRequest(req);
 
+    const periodIds = Array.from(new Set([periodStartId, periodEndId].filter(Boolean)));
+    const periodOrderMap = periodIds.length
+      ? new Map((await prisma.TIETHOC.findMany({
+        where: { MaTiet: { in: periodIds }, DaXoa: false, TrangThai: true },
+        select: { MaTiet: true, ThuTu: true }
+      })).map((period) => [period.MaTiet, period.ThuTu]))
+      : new Map();
+    if (periodStartId && !periodOrderMap.has(periodStartId)) {
+      return res.status(400).json({ success: false, message: 'Tiết bắt đầu không hợp lệ' });
+    }
+    if (periodEndId && !periodOrderMap.has(periodEndId)) {
+      return res.status(400).json({ success: false, message: 'Tiết kết thúc không hợp lệ' });
+    }
+    const periodStartOrder = periodStartId ? periodOrderMap.get(periodStartId) : null;
+    const periodEndOrder = periodEndId ? periodOrderMap.get(periodEndId) : null;
+    if (periodStartOrder !== null && periodEndOrder !== null && periodStartOrder > periodEndOrder) {
+      return res.status(400).json({ success: false, message: 'Tiết bắt đầu phải trước hoặc bằng tiết kết thúc' });
+    }
+
     const where = {
       MaHocKy,
       TrangThai: true,
@@ -463,13 +702,62 @@ const getAvailableCourses = async (req, res) => {
         MONHOC: { DaXoa: false, TrangThai: true }
       }
     };
+    const andFilters = [];
     if (search) {
-      where.LOP.MONHOC.OR = [
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { TenMonHoc: { contains: search, mode: 'insensitive' } }
-      ];
+      if (searchScope === 'lecturer') {
+        andFilters.push({
+          OR: [
+            { MaGiangVien: { contains: search, mode: 'insensitive' } },
+            { GiangVien: { contains: search, mode: 'insensitive' } },
+            {
+              GIANGVIEN: {
+                is: {
+                  OR: [
+                    { MaGiangVien: { contains: search, mode: 'insensitive' } },
+                    { HoTen: { contains: search, mode: 'insensitive' } },
+                    { HocHamHocVi: { contains: search, mode: 'insensitive' } }
+                  ]
+                }
+              }
+            }
+          ]
+        });
+      } else if (searchScope === 'class') {
+        andFilters.push({
+          LOP: {
+            OR: [
+              { MaLop: { contains: search, mode: 'insensitive' } },
+              { TenLop: { contains: search, mode: 'insensitive' } }
+            ]
+          }
+        });
+      } else {
+        andFilters.push({
+          LOP: {
+            MONHOC: {
+              OR: [
+                { MaMonHoc: { contains: search, mode: 'insensitive' } },
+                { TenMonHoc: { contains: search, mode: 'insensitive' } }
+              ]
+            }
+          }
+        });
+      }
     }
     if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
+    if (courseType) where.LOP.MONHOC.LoaiMon = courseType;
+    if (weekday || periodStartOrder !== null || periodEndOrder !== null) {
+      const scheduleFilter = { TrangThai: true };
+      if (weekday) scheduleFilter.ThuTrongTuan = weekday;
+      if (periodStartOrder !== null) {
+        scheduleFilter.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC = { ThuTu: { gte: periodStartOrder } };
+      }
+      if (periodEndOrder !== null) {
+        scheduleFilter.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC = { ThuTu: { lte: periodEndOrder } };
+      }
+      andFilters.push({ LICHHOCLOP: { some: scheduleFilter } });
+    }
+    if (andFilters.length) where.AND = andFilters;
 
     const [rows, total] = await Promise.all([
       prisma.LOPMO.findMany({
@@ -634,12 +922,16 @@ const cancelRegistration = async (req, res) => {
     });
     if (!reg) return res.status(404).json({ success: false, message: 'Khong tim thay dang ky' });
     if (!(await ensureStudentAccess(req, res, reg.PHIEUDANGKY.MaSv))) return;
+    if (reg.TrangThai === CANCELLED_REGISTRATION_STATUS) {
+      return res.status(400).json({ success: false, message: reg.LyDoHuy || 'Đăng ký này đã được hủy' });
+    }
     assertRegistrationOpen(reg.PHIEUDANGKY.HOCKY);
+    const cancelReason = req.user?.Role === 'admin' ? 'Admin hủy đăng ký' : 'Sinh viên hủy đăng ký';
 
     const result = await prisma.$transaction(async (tx) => {
       await tx.CHITIETDANGKY.update({
         where: { id: parseInt(req.params.id, 10) },
-        data: { TrangThai: CANCELLED_REGISTRATION_STATUS, NgayHuy: new Date(), LyDoHuy: 'Sinh viên hủy đăng ký' }
+        data: { TrangThai: CANCELLED_REGISTRATION_STATUS, NgayHuy: new Date(), LyDoHuy: cancelReason }
       });
       if (reg.TrangThai === ACTIVE_REGISTRATION_STATUS) {
         await tx.LOPMO.updateMany({
@@ -677,11 +969,14 @@ const getRegistrationStats = async (req, res) => {
 module.exports = {
   getAllRegistrations,
   getRegistrationById,
+  exportRegistrations,
   getStudentCourses,
   getAvailableCourses,
   registerCourse,
   cancelRegistration,
   getRegistrationStats,
   recalculateRegistrationTotals,
+  recalculateRegistrationPricingForScope,
+  getCreditPrice,
   getRegistrationTypeLabel
 };

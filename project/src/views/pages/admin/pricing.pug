@@ -1,22 +1,63 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/pricing.css")
+
 block content
-  .toolbar
+  .toolbar.pricing-toolbar
     .toolbar-title
       h2.page-title Đơn giá tín chỉ
       p Thiết lập đơn giá cho từng loại môn và loại đăng ký theo học kỳ.
-    .filter-group
-      select#filter-loaimon(onchange="applyFilters()")
-        option(value="" selected=(!filterLoaiMon)) Tất cả loại môn
-        option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết (LT)
-        option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành (TH)
-      select#filter-hocky(onchange="applyFilters()")
-        option(value="" selected=(!filterHocKy)) Tất cả học kỳ
-        if semesters && semesters.length > 0
-          each s in semesters
-            option(value=s.MaHocKy selected=(filterHocKy === s.MaHocKy))= s.TenHocKy
+    .pricing-toolbar-actions
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đơn giá
       a.btn.btn-outline(href="/admin/trash?entity=pricing") Thùng rác
+
+  - const pricingScope = pricingSearchScope || 'loai_mon'
+  - const pricingSearchPlaceholders = { loai_mon: 'Nhập LT, TH, lý thuyết hoặc thực hành', loai_hoc: 'Nhập học mới, học hè, cải thiện hoặc học lại', hoc_ky: 'Nhập mã học kỳ, tên học kỳ hoặc năm học' }
+  - const pricingSearchPlaceholder = pricingSearchPlaceholders[pricingScope] || 'Nhập từ khóa tìm kiếm'
+  form.pricing-filter-panel(method="get" action="/admin/pricing")
+    .pricing-search-row
+      .pricing-filter-field.pricing-search-scope
+        label(for="pricing-search-scope") Tìm theo
+        select.form-control#pricing-search-scope(name="searchScope" onchange="updatePricingSearchPlaceholder(); applyFilters()")
+          option(value="loai_mon" selected=(pricingScope === 'loai_mon') data-placeholder=pricingSearchPlaceholders.loai_mon) Loại môn
+          option(value="loai_hoc" selected=(pricingScope === 'loai_hoc') data-placeholder=pricingSearchPlaceholders.loai_hoc) Loại học
+          option(value="hoc_ky" selected=(pricingScope === 'hoc_ky') data-placeholder=pricingSearchPlaceholders.hoc_ky) Học kỳ
+      .pricing-filter-field.pricing-search-keyword
+        label(for="pricing-search") Từ khóa tìm kiếm
+        .search-box.pricing-search-box
+          input#pricing-search(type="text" name="search" value=(pricingSearch || '') placeholder=pricingSearchPlaceholder autocomplete="off" onkeyup="debounceSearch()")
+    .pricing-filter-grid
+      .pricing-filter-field
+        label(for="filter-loaimon") Lọc theo loại môn
+        select.form-control#filter-loaimon(name="LoaiMon" onchange="applyFilters()")
+          option(value="" selected=(!filterLoaiMon)) Tất cả loại môn
+          option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết (LT)
+          option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành (TH)
+      .pricing-filter-field
+        label(for="filter-loaihoc") Lọc theo loại học
+        select.form-control#filter-loaihoc(name="LoaiHoc" onchange="applyFilters()")
+          option(value="" selected=(!filterLoaiHoc)) Tất cả loại học
+          option(value="hoc_moi" selected=(filterLoaiHoc === 'hoc_moi')) Học mới
+          option(value="hoc_he" selected=(filterLoaiHoc === 'hoc_he')) Học hè
+          option(value="hoc_cai_thien" selected=(filterLoaiHoc === 'hoc_cai_thien')) Cải thiện
+          option(value="hoc_lai" selected=(filterLoaiHoc === 'hoc_lai')) Học lại
+      .pricing-filter-field.pricing-filter-field-wide
+        label(for="filter-hocky") Lọc theo học kỳ áp dụng
+        select.form-control#filter-hocky(name="MaHocKy" onchange="applyFilters()")
+          option(value="" selected=(!filterHocKy)) Tất cả học kỳ
+          option(value="__all__" selected=(filterHocKy === '__all__')) Áp dụng tất cả
+          if semesters && semesters.length > 0
+            each s in semesters
+              option(value=s.MaHocKy selected=(filterHocKy === s.MaHocKy)) #{s.TenHocKy}#{s.NAMHOC && s.NAMHOC.TenNamHoc ? ' - ' + s.NAMHOC.TenNamHoc : ''}
+      .pricing-filter-field
+        label(for="filter-trangthai") Lọc theo trạng thái
+        select.form-control#filter-trangthai(name="TrangThai" onchange="applyFilters()")
+          option(value="" selected=(!filterTrangThai)) Tất cả trạng thái
+          option(value="active" selected=(filterTrangThai === 'active')) Đang áp dụng
+          option(value="inactive" selected=(filterTrangThai === 'inactive')) Ngưng
+      .pricing-filter-actions.pricing-clear-actions
+        a.btn.btn-outline(href="/admin/pricing") Xóa lọc
 
   .card
     .card-header
@@ -29,7 +70,7 @@ block content
             th #
             th Loại môn
             th Loại học
-            th Đơn giá / TC
+            th Đơn giá/ 1 tín chỉ
             th Học kỳ
             th Trạng thái
             th Sửa bởi
@@ -38,15 +79,17 @@ block content
         tbody
           if pricing && pricing.length > 0
             each p in pricing
+              - const loaiMonLabel = p.LoaiMon === 'LT' ? 'Lý thuyết' : 'Thực hành'
               - const loaiHocLabel = p.LoaiHoc === 'hoc_moi' ? 'Học mới' : p.LoaiHoc === 'hoc_lai' ? 'Học lại' : p.LoaiHoc === 'hoc_cai_thien' ? 'Cải thiện' : p.LoaiHoc === 'hoc_he' ? 'Học hè' : p.LoaiHoc
+              - const loaiHocBadge = p.LoaiHoc === 'hoc_moi' ? 'badge-primary' : p.LoaiHoc === 'hoc_he' ? 'badge-warning' : p.LoaiHoc === 'hoc_cai_thien' ? 'badge-info' : p.LoaiHoc === 'hoc_lai' ? 'badge-error' : 'badge-secondary'
               tr
                 td.mono= p.id
                 td
-                  span.badge(class=p.LoaiMon === 'LT' ? 'badge-info' : 'badge-success')= p.LoaiMon === 'LT' ? 'Lý thuyết' : 'Thực hành'
+                  span.badge(class=p.LoaiMon === 'LT' ? 'badge-info' : 'badge-success')= loaiMonLabel
                 td
-                  span.badge.badge-secondary= loaiHocLabel
+                  span.badge(class=loaiHocBadge)= loaiHocLabel
                 td.currency= Number(p.DonGia || 0).toLocaleString('vi-VN') + ' đ'
-                td= p.HOCKY ? p.HOCKY.TenHocKy : 'Mặc định'
+                td= p.HOCKY ? `${p.HOCKY.TenHocKy}${p.HOCKY.NAMHOC && p.HOCKY.NAMHOC.TenNamHoc ? ' - ' + p.HOCKY.NAMHOC.TenNamHoc : ''}` : 'Tất cả'
                 td
                   if p.TrangThai !== false
                     span.badge.badge-success Đang áp dụng
@@ -87,15 +130,15 @@ block modals
                 option(value="hoc_he") Học hè
           .form-row
             .form-group
-              label(for="pr-dongia") Đơn giá / tín chỉ (VNĐ)
+              label(for="pr-dongia") Đơn giá/ 1 tín chỉ (VNĐ)
               input.form-control#pr-dongia(type="number" min="0" required placeholder="VD: 27000")
             .form-group
               label(for="pr-hocky") Học kỳ áp dụng
               select.form-control#pr-hocky
-                option(value="") Mặc định (tất cả)
+                option(value="") Tất cả
                 if semesters && semesters.length > 0
                   each s in semesters
-                    option(value=s.MaHocKy)= s.TenHocKy
+                    option(value=s.MaHocKy) #{s.TenHocKy}#{s.NAMHOC && s.NAMHOC.TenNamHoc ? ' - ' + s.NAMHOC.TenNamHoc : ''}
           .form-group
             label(for="pr-ghichu") Ghi chú
             input.form-control#pr-ghichu(type="text" placeholder="Ghi chú thêm...")

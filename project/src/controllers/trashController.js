@@ -3,6 +3,7 @@ const { TRASH_ENTITIES, getTrashEntity, parseTrashId, getTrashTitle } = require(
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { updateAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { recalculateRegistrationPricingForScope } = require('./registrationController');
 
 const decorateRows = async (config, rows) => {
   const userIds = Array.from(new Set(rows.map((row) => row.NguoiXoa).filter(Boolean)));
@@ -71,14 +72,24 @@ const restoreTrashItem = async (req, res) => {
       return res.status(400).json({ success: false, message: 'ID khong hop le' });
     }
 
-    const row = await prisma[config.model].update({
-      where: { [config.pk]: id },
-      data: {
-        DaXoa: false,
-        NguoiXoa: null,
-        NgayXoa: null,
-        ...updateAudit(req)
+    const row = await prisma.$transaction(async (tx) => {
+      const restored = await tx[config.model].update({
+        where: { [config.pk]: id },
+        data: {
+          DaXoa: false,
+          NguoiXoa: null,
+          NgayXoa: null,
+          ...updateAudit(req)
+        }
+      });
+      if (config.model === 'DONGIATINCHI') {
+        await recalculateRegistrationPricingForScope(tx, {
+          LoaiMon: restored.LoaiMon,
+          LoaiHoc: restored.LoaiHoc,
+          MaHocKy: restored.MaHocKy
+        });
       }
+      return restored;
     });
 
     res.json({ success: true, message: 'Khoi phuc thanh cong', data: row });

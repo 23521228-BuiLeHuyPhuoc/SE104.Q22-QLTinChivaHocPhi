@@ -36,6 +36,46 @@ const makeHttpError = (message, status = 400, code) => {
   return error;
 };
 
+const getVietnamDateOnly = (value = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(value).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return new Date(Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day)
+  ));
+};
+
+const resolveCurrentSemesterId = async (value, client = prisma) => {
+  const requested = cleanOptionalText(value);
+  if (requested) return requested;
+
+  const today = getVietnamDateOnly();
+  const semester = await client.HOCKY.findFirst({
+    where: {
+      DaXoa: false,
+      NgayBatDau: { lte: today },
+      NgayKetThuc: { gte: today }
+    },
+    orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
+    select: { MaHocKy: true }
+  });
+
+  if (!semester) {
+    throw makeHttpError('Không tìm thấy học kỳ hiện tại theo ngày bắt đầu và kết thúc học kỳ');
+  }
+
+  return semester.MaHocKy;
+};
+
 const resolveLecturerData = async (value) => {
   const MaGiangVien = cleanOptionalText(value);
   if (!MaGiangVien) return { MaGiangVien: null, GiangVien: null };
@@ -453,9 +493,10 @@ const validateClassSchedule = async (req, res) => {
       return res.json({ success: true, data: { valid: true } });
     }
 
-    const { MaHocKy, MaLop, ThuTrongTuan, MaTietBatDau, MaTietKetThuc, MaPhong, id } = req.body;
-    if (!MaHocKy || !MaLop || !ThuTrongTuan || !MaTietBatDau || !MaTietKetThuc || !MaPhong) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập học kỳ, lớp, thứ, tiết học và phòng' });
+    const { MaLop, ThuTrongTuan, MaTietBatDau, MaTietKetThuc, MaPhong, id } = req.body;
+    const MaHocKy = await resolveCurrentSemesterId(req.body.MaHocKy);
+    if (!MaLop || !ThuTrongTuan || !MaTietBatDau || !MaTietKetThuc || !MaPhong) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập lớp, thứ, tiết học và phòng' });
     }
 
     const thuTrongTuan = parseInt(ThuTrongTuan, 10);
@@ -609,9 +650,10 @@ const getOpenedClasses = async (req, res) => {
 
 const openClass = async (req, res) => {
   try {
-    const { MaHocKy, MaLop, MaGiangVien, MaPhong, ThuTrongTuan, MaTietBatDau, MaTietKetThuc, GhiChu } = req.body;
-    if (!MaHocKy || !MaLop || !MaGiangVien || !MaPhong || !ThuTrongTuan || !MaTietBatDau || !MaTietKetThuc) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ, giảng viên, phòng và lịch học khi mở lớp' });
+    const { MaLop, MaGiangVien, MaPhong, ThuTrongTuan, MaTietBatDau, MaTietKetThuc, GhiChu } = req.body;
+    const MaHocKy = await resolveCurrentSemesterId(req.body.MaHocKy);
+    if (!MaLop || !MaGiangVien || !MaPhong || !ThuTrongTuan || !MaTietBatDau || !MaTietKetThuc) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn giảng viên, phòng và lịch học khi mở lớp' });
     }
     const thuTrongTuan = parseInt(ThuTrongTuan, 10);
     if (!Number.isInteger(thuTrongTuan) || thuTrongTuan < 1 || thuTrongTuan > 7) {
@@ -689,7 +731,13 @@ const closeClass = async (req, res) => {
     if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'Mã lớp mở không hợp lệ' });
     const opened = await prisma.LOPMO.findFirst({ where: { id, LOP: { DaXoa: false } }, select: { id: true } });
     if (!opened) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp mở' });
-    await prisma.LOPMO.update({ where: { id }, data: { TrangThai: false } });
+    await prisma.$transaction(async (tx) => {
+      await tx.LICHHOCLOP.updateMany({
+        where: { LopMoId: id, TrangThai: true },
+        data: { TrangThai: false }
+      });
+      await tx.LOPMO.update({ where: { id }, data: { TrangThai: false } });
+    });
     res.json({ success: true, message: 'Đóng lớp thành công' });
   } catch (error) {
         return sendErrorResponse(res, error, 'Loi server', 'Error closing class:');

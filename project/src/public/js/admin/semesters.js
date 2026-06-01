@@ -173,6 +173,7 @@ function setActiveSegmentValue(groupId, value) {
 
 function getSemesterFilters() {
   var keyword = document.getElementById('semester-keyword');
+  var searchScope = document.getElementById('semester-search-scope');
   var dateField = document.getElementById('semester-date-field');
   var dateExact = document.getElementById('semester-date-exact');
   var exactValue = dateExact ? dateExact.value : '';
@@ -181,6 +182,7 @@ function getSemesterFilters() {
 
   return {
     q: keyword ? keyword.value.trim() : '',
+    searchScope: searchScope ? searchScope.value : 'semesterCode',
     semesterKind: getActiveSegmentValue('semester-kind-filter'),
     status: getActiveSegmentValue('semester-status-filter'),
     dateField: dateField ? dateField.value : 'all',
@@ -197,6 +199,7 @@ function buildSemesterQuery(page) {
   params.set('page', String(page || 1));
   params.set('limit', filters.limit);
   if (filters.q) params.set('q', filters.q);
+  if (filters.q && filters.searchScope) params.set('searchScope', filters.searchScope);
   if (filters.semesterKind) params.set('semesterKind', filters.semesterKind);
   if (filters.status) params.set('status', filters.status);
   if (filters.dateField && filters.dateField !== 'all') params.set('dateField', filters.dateField);
@@ -263,6 +266,10 @@ function renderSemesterRows(rows) {
       '</div>'
     ].join('');
   }).join('');
+
+  body.querySelectorAll('[data-action=finalize]').forEach(function(button) {
+    button.textContent = 'Ch\u1ed1t \u0111\u0103ng k\u00fd';
+  });
 }
 
 function renderSemesterPagination(meta) {
@@ -337,10 +344,12 @@ function debounceSemesterSearch() {
 
 function resetSemesterFilters() {
   var keyword = document.getElementById('semester-keyword');
+  var searchScope = document.getElementById('semester-search-scope');
   var dateField = document.getElementById('semester-date-field');
   var dateExact = document.getElementById('semester-date-exact');
 
   if (keyword) keyword.value = '';
+  if (searchScope) searchScope.value = 'semesterCode';
   if (dateField) dateField.value = 'all';
   if (dateExact) {
     dateExact.value = '';
@@ -616,6 +625,7 @@ async function finalizeSemesterRegistration(id) {
 
 function bindSemesterFilters() {
   var keyword = document.getElementById('semester-keyword');
+  var searchScope = document.getElementById('semester-search-scope');
   var dateField = document.getElementById('semester-date-field');
   var dateExact = document.getElementById('semester-date-exact');
   var reset = document.getElementById('semester-filter-reset');
@@ -623,7 +633,7 @@ function bindSemesterFilters() {
   var listBody = document.getElementById('semester-list-body');
 
   if (keyword) keyword.addEventListener('input', debounceSemesterSearch);
-  [dateField, dateExact].forEach(function(input) {
+  [searchScope, dateField, dateExact].forEach(function(input) {
     if (!input) return;
     input.addEventListener('change', function() { loadSemesters(1); });
   });
