@@ -6,6 +6,7 @@ const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pr
 const { recalculateRegistrationPricingForScope } = require('./registrationController');
 
 const REQUIRED_PRICE_TYPES = ['hoc_moi', 'hoc_lai', 'hoc_cai_thien', 'hoc_he'];
+const bypassPricingGuard = (tx) => tx.$executeRawUnsafe('SELECT set_config($$app.bypass_pricing_guard$$, $$1$$, true)');
 
 const normalizeSemester = (value) => value || null;
 
@@ -114,6 +115,7 @@ const createPricing = async (req, res) => {
         NgayXoa: null,
         ...updateAudit(req)
       };
+      if (reusablePricing) await bypassPricingGuard(tx);
       const row = reusablePricing
         ? await tx.DONGIATINCHI.update({ where: { id: reusablePricing.id }, data })
         : await tx.DONGIATINCHI.create({ data });
@@ -156,6 +158,7 @@ const updatePricing = async (req, res) => {
     }
 
     const pricing = await prisma.$transaction(async (tx) => {
+      await bypassPricingGuard(tx);
       const row = await tx.DONGIATINCHI.update({ where: { id }, data });
       await recalculatePricingScopes(tx, [current, row]);
       return row;

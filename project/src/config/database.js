@@ -70,6 +70,40 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_check_rbtv21_dongiatinchi()
+    RETURNS TRIGGER AS $fn$
+    BEGIN
+      IF current_setting('app.bypass_pricing_guard', true) = '1' THEN
+        RETURN NEW;
+      END IF;
+
+      IF NEW.${qi}DonGia${qi} IS DISTINCT FROM OLD.${qi}DonGia${qi} OR NEW.${qi}TrangThai${qi} IS DISTINCT FROM OLD.${qi}TrangThai${qi} THEN
+        IF EXISTS (
+          SELECT 1 FROM ${qi}CHITIETDANGKY${qi} ctdk
+          JOIN ${qi}PHIEUDANGKY${qi} pdk ON ctdk.${qi}SoPhieu${qi} = pdk.${qi}SoPhieu${qi}
+          JOIN ${qi}HOCKY${qi} hk ON pdk.${qi}MaHocKy${qi} = hk.${qi}MaHocKy${qi}
+          WHERE ctdk.${qi}LoaiMon${qi} = OLD.${qi}LoaiMon${qi}
+            AND (CASE WHEN hk.${qi}LoaiHocKy${qi} = U&'H\\00E8' AND ctdk.${qi}LoaiDangKy${qi} = 'hoc_moi' THEN 'hoc_he' ELSE ctdk.${qi}LoaiDangKy${qi} END) = OLD.${qi}LoaiHoc${qi}
+            AND (OLD.${qi}MaHocKy${qi} IS NULL OR pdk.${qi}MaHocKy${qi} = OLD.${qi}MaHocKy${qi})
+            AND ctdk.${qi}DonGia${qi} = OLD.${qi}DonGia${qi}
+        ) THEN
+          RAISE EXCEPTION 'RBTV21: Khong the sua DonGia hoac TrangThai. Muc gia nay dang duoc su dung trong cac phieu dang ky da luu.';
+        END IF;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $fn$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE TRIGGER trg_rbtv21_dongiatinchi_upd
+    BEFORE UPDATE OF ${qi}DonGia${qi}, ${qi}TrangThai${qi} ON ${qi}DONGIATINCHI${qi}
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_check_rbtv21_dongiatinchi();
+  `);
+
+  await prisma.$executeRawUnsafe(`
     ALTER TABLE "NGUOIDUNG"
       ADD COLUMN IF NOT EXISTS "TrangThaiDuyet" VARCHAR(20) NOT NULL DEFAULT 'approved',
       ADD COLUMN IF NOT EXISTS "NgayDuyet" TIMESTAMP,

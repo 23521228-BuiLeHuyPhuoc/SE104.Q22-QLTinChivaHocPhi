@@ -2493,6 +2493,10 @@ EXECUTE FUNCTION fn_check_rbtv21_hocky();
 CREATE OR REPLACE FUNCTION fn_check_rbtv21_dongiatinchi()
 RETURNS TRIGGER AS $$
 BEGIN
+    IF current_setting('app.bypass_pricing_guard', true) = '1' THEN
+        RETURN NEW;
+    END IF;
+
     IF NEW."DonGia" IS DISTINCT FROM OLD."DonGia" OR NEW."TrangThai" IS DISTINCT FROM OLD."TrangThai" THEN
         /* Quét xem có chi tiết đăng ký nào đang phụ thuộc vào cấu hình giá cũ này không */
         IF EXISTS (
