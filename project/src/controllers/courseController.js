@@ -19,11 +19,13 @@ const getStudentIdFromRequest = async (req) => {
 const getAllCourses = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search = '', LoaiMon, MaKhoa, sortBy = 'MaMonHoc', sortOrder = 'asc', all } = req.query;
+    const { search = '', LoaiMon, MaKhoa, TrangThai, sortBy = 'MaMonHoc', sortOrder = 'asc', all } = req.query;
+    const returnAll = all === 'true';
     const where = notDeleted();
     if (search) where.OR = [{ MaMonHoc: { contains: search, mode: 'insensitive' } }, { TenMonHoc: { contains: search, mode: 'insensitive' } }];
     if (LoaiMon) where.LoaiMon = LoaiMon;
     if (MaKhoa) where.MaKhoa = MaKhoa;
+    if (TrangThai !== undefined) where.TrangThai = TrangThai === 'true';
 
     const validSort = ['MaMonHoc', 'TenMonHoc', 'SoTinChi', 'NgayTao', 'NgayCapNhat'];
     const orderField = validSort.includes(sortBy) ? sortBy : 'MaMonHoc';
@@ -31,14 +33,13 @@ const getAllCourses = async (req, res) => {
     const [rows, total] = await Promise.all([
       prisma.MONHOC.findMany({
         where,
-        skip: isAll ? undefined : skip,
-        take: isAll ? undefined : limit,
+        ...(returnAll ? {} : { skip, take: limit }),
         orderBy: { [orderField]: String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc' },
         include: { KHOA: true }
       }),
       prisma.MONHOC.count({ where })
     ]);
-    res.json({ success: true, data: formatCourseList(rows), pagination: getPaginationMeta(total, page, isAll ? total : limit) });
+    res.json({ success: true, data: formatCourseList(rows), pagination: getPaginationMeta(total, returnAll ? 1 : page, returnAll ? Math.max(total, 1) : limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Loi server', 'Get all courses error:');
   }

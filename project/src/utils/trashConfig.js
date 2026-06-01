@@ -20,6 +20,20 @@ const TRASH_ENTITIES = {
     type: 'string',
     title: ['TenLop', 'MaLop']
   },
+  rooms: {
+    label: 'Phòng học',
+    model: 'PHONGHOC',
+    pk: 'MaPhong',
+    type: 'string',
+    title: ['TenPhong', 'MaPhong']
+  },
+  lecturers: {
+    label: 'Giảng viên',
+    model: 'GIANGVIEN',
+    pk: 'MaGiangVien',
+    type: 'string',
+    title: ['HoTen', 'MaGiangVien']
+  },
   semesters: {
     label: 'Học kỳ',
     model: 'HOCKY',

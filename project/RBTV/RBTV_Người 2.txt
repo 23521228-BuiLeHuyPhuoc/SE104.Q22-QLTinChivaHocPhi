@@ -10,7 +10,8 @@ BEGIN
         (NEW."LoaiMon" = 'LT' AND NEW."SoTiet" % 15 = 0) OR 
         (NEW."LoaiMon" = 'TH' AND NEW."SoTiet" % 30 = 0)
     ) THEN
-        RAISE EXCEPTION 'Vi phạm RBTV04: Số tiết không hợp lệ. Mon Ly thuyet phai chia het cho 15, mon Thuc hanh phai chia het cho 30.';
+        RAISE EXCEPTION 'Vi phạm RBTV04: Số tiết không hợp lệ. Môn Lý thuyết phải chia hết cho 15, môn Thực hành phải chia hết cho 30.';
+        
     END IF;
 
     RETURN NEW;

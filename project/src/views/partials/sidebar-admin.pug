@@ -37,18 +37,30 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/classes" title="Lớp học" class=(active === 'classes' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded meeting_room
           span.link-label Lớp học
+        a.sidebar-link(href="/admin/rooms" title="Phòng học" class=(active === 'rooms' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded door_front
+          span.link-label Phòng học
+        a.sidebar-link(href="/admin/lecturers" title="Giảng viên" class=(active === 'lecturers' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded co_present
+          span.link-label Giảng viên
         a.sidebar-link(href="/admin/periods" title="Tiết học" class=(active === 'periods' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded schedule
           span.link-label Tiết học
         a.sidebar-link(href="/admin/semesters" title="Học kỳ" class=(active === 'semesters' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded event
           span.link-label Học kỳ
+        a.sidebar-link(href="/admin/academic-years" title="Năm học" class=(active === 'academic-years' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded calendar_month
+          span.link-label Năm học
         a.sidebar-link(href="/admin/faculties" title="Khoa" class=(active === 'faculties' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded account_balance
           span.link-label Khoa
         a.sidebar-link(href="/admin/majors" title="Ngành học" class=(active === 'majors' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded hub
           span.link-label Ngành học
+        a.sidebar-link(href="/admin/curriculum-programs" title="Chương trình học" class=(active === 'curriculum-programs' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded account_tree
+          span.link-label Chương trình học
         a.sidebar-link(href="/admin/completed-courses" title="Môn đã học" class=(active === 'completed-courses' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded history_edu
           span.link-label Môn đã học
@@ -117,3 +129,66 @@ nav.sidebar.sidebar-admin(id="sidebar")
     a.sidebar-logout(href="/logout" title="Đăng xuất")
       span.sidebar-icon.material-symbols-rounded logout
       span.link-label Đăng xuất
+
+script.
+  (function() {
+    var storageKey = 'adminSidebarScrollState';
+
+    function getSidebar() {
+      return document.getElementById('sidebar');
+    }
+
+    function getSidebarNav() {
+      var sidebar = getSidebar();
+      return sidebar ? sidebar.querySelector('.sidebar-nav') : null;
+    }
+
+    function saveSidebarScroll() {
+      var sidebar = getSidebar();
+      var nav = getSidebarNav();
+      if (!sidebar && !nav) return;
+      localStorage.setItem(storageKey, JSON.stringify({
+        sidebarTop: sidebar ? sidebar.scrollTop || 0 : 0,
+        navTop: nav ? nav.scrollTop || 0 : 0
+      }));
+    }
+
+    function restoreSidebarScroll() {
+      var sidebar = getSidebar();
+      var nav = getSidebarNav();
+      var saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      } catch (e) {
+        saved = { sidebarTop: parseInt(localStorage.getItem(storageKey) || '0', 10), navTop: 0 };
+      }
+      var sidebarTop = parseInt(saved.sidebarTop || 0, 10);
+      var navTop = parseInt(saved.navTop || 0, 10);
+
+      function applyScroll() {
+        if (sidebar && Number.isFinite(sidebarTop)) sidebar.scrollTop = sidebarTop;
+        if (nav && Number.isFinite(navTop)) nav.scrollTop = navTop;
+      }
+
+      applyScroll();
+      requestAnimationFrame(applyScroll);
+      setTimeout(applyScroll, 80);
+      setTimeout(applyScroll, 250);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var sidebar = getSidebar();
+      var nav = getSidebarNav();
+      if (!sidebar) return;
+
+      restoreSidebarScroll();
+      sidebar.addEventListener('scroll', saveSidebarScroll, { passive: true });
+      if (nav) nav.addEventListener('scroll', saveSidebarScroll, { passive: true });
+      sidebar.querySelectorAll('a.sidebar-link, a.sidebar-logout').forEach(function(link) {
+        link.addEventListener('pointerdown', saveSidebarScroll);
+        link.addEventListener('click', saveSidebarScroll);
+      });
+    });
+
+    window.addEventListener('beforeunload', saveSidebarScroll);
+  })();

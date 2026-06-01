@@ -15,12 +15,16 @@ router.get('/registration-options', semesterController.getRegistrationOptions);
 
 // Get academic years
 router.get('/years', semesterController.getAcademicYears);
+router.post('/years', adminMiddleware, semesterController.createAcademicYear);
+router.put('/years/:id', adminMiddleware, semesterController.updateAcademicYear);
+router.delete('/years/:id', adminMiddleware, semesterController.deleteAcademicYear);
 
 // Get semester by ID
 router.get('/:id', semesterController.getSemesterById);
 
 // Admin only routes
 router.post('/', adminMiddleware, semesterController.createSemester);
+router.post('/:id/finalize-registration', adminMiddleware, semesterController.finalizeRegistration);
 router.put('/:id', adminMiddleware, semesterController.updateSemester);
 router.delete('/:id', adminMiddleware, semesterController.deleteSemester);
 

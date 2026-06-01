@@ -1,0 +1,82 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type="text" placeholder="Tìm mã hoặc tên năm học..." value=(search || '') onkeyup="debounceAcademicYearSearch()")
+    .filter-group
+      select.form-control#status-filter(onchange="applyAcademicYearFilters()")
+        option(value="" selected=(!status)) Tất cả trạng thái
+        option(value="active" selected=(status === 'active')) Đang dùng
+        option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+      button.btn.btn-primary(type="button" onclick="openAcademicYearModal('add')") Thêm năm học
+
+  .card
+    .card-header
+      h3 Danh sách năm học
+      span.card-count= academicYears ? `${academicYears.length} bản ghi` : '0 bản ghi'
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã năm học
+            th Tên năm học
+            th Năm bắt đầu
+            th Năm kết thúc
+            th Học kỳ
+            th Trạng thái
+            th Thao tác
+        tbody
+          if academicYears && academicYears.length > 0
+            each y in academicYears
+              tr
+                td.mono= y.MaNamHoc
+                td= y.TenNamHoc
+                td= y.NamBatDau
+                td= y.NamKetThuc
+                td= y.SoHocKy || 0
+                td
+                  span.badge(class=y.TrangThai === false ? 'badge-secondary' : 'badge-success')= y.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(y) onclick="openAcademicYearModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteAcademicYear('${y.MaNamHoc}')`) Xóa
+          else
+            tr
+              td(colspan="7")
+                .empty-state Chưa có năm học phù hợp
+
+  include ../../partials/pagination
+
+block modals
+  #academic-year-modal.modal-overlay(onclick="if(event.target===this)closeAcademicYearModal()")
+    .modal
+      .modal-header
+        h2#academic-year-modal-title Thêm năm học
+        button.modal-close(type="button" onclick="closeAcademicYearModal()" aria-label="Đóng") ×
+      .modal-body
+        form#academic-year-form
+          .form-row
+            .form-group
+              label(for="year-ma") Mã năm học
+              input.form-control#year-ma(type="text" required placeholder="VD: 2025-2026" onblur="syncAcademicYearFromCode()")
+            .form-group
+              label(for="year-ten") Tên năm học
+              input.form-control#year-ten(type="text" required placeholder="VD: 2025-2026")
+          .form-row
+            .form-group
+              label(for="year-batdau") Năm bắt đầu
+              input.form-control#year-batdau(type="number" min="1900" max="2100" required placeholder="VD: 2025")
+            .form-group
+              label(for="year-ketthuc") Năm kết thúc
+              input.form-control#year-ketthuc(type="number" min="1901" max="2101" required placeholder="VD: 2026")
+          .form-group
+            label(for="year-trangthai") Trạng thái
+            select.form-control#year-trangthai
+              option(value="true") Đang dùng
+              option(value="false") Tạm khóa
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeAcademicYearModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveAcademicYear()") Lưu
+
+block scripts
+  script(src="/js/admin/academic-years.js")

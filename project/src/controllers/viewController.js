@@ -61,6 +61,52 @@ const formatTimeValue = (value) => {
   return date.toISOString().slice(11, 16);
 };
 
+const weekdayLabel = (value) => {
+  const day = Number(value);
+  if (day === 1) return 'Chủ nhật';
+  if (day >= 2 && day <= 7) return `Thứ ${day}`;
+  return value ? `Thứ ${value}` : '';
+};
+
+const periodRangeLabel = (schedule) => {
+  if (!schedule) return '';
+  const start = schedule.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC?.TenTiet ||
+    schedule.TIETHOC_LOP_MaTietBatDauToTIETHOC?.TenTiet ||
+    schedule.MaTietBatDau;
+  const end = schedule.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC?.TenTiet ||
+    schedule.TIETHOC_LOP_MaTietKetThucToTIETHOC?.TenTiet ||
+    schedule.MaTietKetThuc;
+  if (!start && !end) return '';
+  return start === end ? start : `${start}-${end}`;
+};
+
+const classScheduleLabel = (openedClass) => {
+  const schedules = (openedClass.LICHHOCLOP || []).filter((schedule) => schedule.TrangThai !== false);
+  if (!schedules.length) return '-';
+  return schedules.map((schedule) => {
+    const parts = [weekdayLabel(schedule.ThuTrongTuan), periodRangeLabel(schedule)].filter(Boolean);
+    const room = roomDisplayName(schedule.PHONGHOC) || schedule.PhongHoc || schedule.MaPhong;
+    return parts.join(' ') + (room ? ` (${room})` : '');
+  }).join('; ');
+};
+
+const catalogScheduleLabel = (cls) => {
+  if (!cls?.ThuTrongTuan || !cls?.MaTietBatDau || !cls?.MaTietKetThuc) return cls?.LichHoc || '';
+  const parts = [weekdayLabel(cls.ThuTrongTuan), periodRangeLabel(cls)].filter(Boolean);
+  const room = roomDisplayName(cls.PHONGHOC) || cls.PhongHoc || cls.MaPhong;
+  return parts.join(' ') + (room ? ` (${room})` : '');
+};
+
+const lecturerDisplayName = (lecturer) => {
+  if (!lecturer) return '';
+  return [lecturer.HocHamHocVi, lecturer.HoTen].filter(Boolean).join(' ').trim();
+};
+
+const roomDisplayName = (room) => {
+  if (!room) return '';
+  return [room.MaPhong, room.TenPhong].filter(Boolean).join(' - ');
+};
+
 const conditionTypeLabel = (value) => {
   if (value === 'tien_quyet') return 'Tiên quyết';
   if (value === 'hoc_truoc') return 'Học trước';
@@ -365,49 +411,337 @@ const adminClasses = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const selectedCourse = req.query.MaMonHoc || '';
+  const selectedSemester = req.query.MaHocKy || '';
+  const openStatus = req.query.openStatus || '';
   const where = { DaXoa: false };
+
+  if (selectedCourse) where.MaMonHoc = selectedCourse;
+  if (selectedSemester && openStatus === 'not_open') {
+    where.LOPMO = { none: { MaHocKy: selectedSemester } };
+  } else if (selectedSemester) {
+    where.LOPMO = {
+      some: {
+        MaHocKy: selectedSemester,
+        HOCKY: { DaXoa: false },
+        ...(openStatus === 'open' ? { TrangThai: true } : {}),
+        ...(openStatus === 'closed' ? { TrangThai: false } : {})
+      }
+    };
+  } else if (openStatus === 'open') {
+    where.LOPMO = { some: { TrangThai: true, HOCKY: { DaXoa: false } } };
+  } else if (openStatus === 'closed') {
+    where.LOPMO = { some: { TrangThai: false, HOCKY: { DaXoa: false } } };
+  } else if (openStatus === 'not_open') {
+    where.LOPMO = { none: {} };
+  }
 
   if (search) {
     where.OR = [
       { MaLop: { contains: search, mode: 'insensitive' } },
       { TenLop: { contains: search, mode: 'insensitive' } },
-      { GiangVien: { contains: search, mode: 'insensitive' } }
+      { MaMonHoc: { contains: search, mode: 'insensitive' } },
+      { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
+      { MaGiangVien: { contains: search, mode: 'insensitive' } },
+      { GiangVien: { contains: search, mode: 'insensitive' } },
+      { LichHoc: { contains: search, mode: 'insensitive' } },
+      { MaPhong: { contains: search, mode: 'insensitive' } },
+      { PhongHoc: { contains: search, mode: 'insensitive' } },
+      { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } },
+      { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } },
+      { LOPMO: { some: { MaGiangVien: { contains: search, mode: 'insensitive' } } } },
+      { LOPMO: { some: { GiangVien: { contains: search, mode: 'insensitive' } } } },
+      { LOPMO: { some: { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } } } },
+      {
+        LOPMO: {
+          some: {
+            LICHHOCLOP: {
+              some: {
+                OR: [
+                  { MaPhong: { contains: search, mode: 'insensitive' } },
+                  { PhongHoc: { contains: search, mode: 'insensitive' } },
+                  { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } }
+                ]
+              }
+            }
+          }
+        }
+      }
     ];
   }
 
   try {
-    const [classes, total] = await Promise.all([
+    const [classes, total, courses, semesters, periods, lecturers, rooms] = await Promise.all([
       prisma.LOP.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { MaLop: 'asc' },
         include: {
-          MONHOC: true,
-          CHITIETDANGKY: { where: { TrangThai: 'Đã đăng ký' }, select: { id: true } }
+          MONHOC: { include: { KHOA: true } },
+          GIANGVIEN: true,
+          PHONGHOC: true,
+          TIETHOC_LOP_MaTietBatDauToTIETHOC: true,
+          TIETHOC_LOP_MaTietKetThucToTIETHOC: true,
+          CHITIETDANGKY: { where: { TrangThai: 'Đã đăng ký' }, select: { id: true } },
+          LOPMO: {
+            include: {
+              HOCKY: { include: { NAMHOC: true } },
+              GIANGVIEN: true,
+              LICHHOCLOP: {
+                where: { TrangThai: true },
+                include: {
+                  PHONGHOC: true,
+                  TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
+                  TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+                },
+                orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
+              }
+            },
+            orderBy: { NgayTao: 'desc' }
+          }
         }
       }),
-      prisma.LOP.count({ where })
+      prisma.LOP.count({ where }),
+      prisma.MONHOC.findMany({
+        where: { DaXoa: false, TrangThai: true },
+        orderBy: { MaMonHoc: 'asc' },
+        select: { MaMonHoc: true, TenMonHoc: true }
+      }),
+      prisma.HOCKY.findMany({
+        where: { DaXoa: false },
+        orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
+        include: { NAMHOC: true }
+      }),
+      prisma.TIETHOC.findMany({
+        where: { DaXoa: false, TrangThai: true },
+        orderBy: [{ ThuTu: 'asc' }, { MaTiet: 'asc' }]
+      }),
+      prisma.GIANGVIEN.findMany({
+        where: { DaXoa: false, TrangThai: true },
+        orderBy: { MaGiangVien: 'asc' },
+        include: { KHOA: true }
+      }),
+      prisma.PHONGHOC.findMany({
+        where: { DaXoa: false, TrangThai: true },
+        orderBy: { MaPhong: 'asc' }
+      })
     ]);
-    const displayClasses = await attachUpdaterNames(classes);
+    const displayClasses = (await attachUpdaterNames(classes)).map((cls) => {
+      const openedForSemester = selectedSemester
+        ? cls.LOPMO.find((item) => item.MaHocKy === selectedSemester)
+        : null;
+      const activeOpened = cls.LOPMO.find((item) => item.TrangThai !== false);
+      const currentOpened = openedForSemester || activeOpened || cls.LOPMO[0] || null;
+      const registeredCount = currentOpened ? Number(currentOpened.SoLuongDaDangKy || 0) : cls.CHITIETDANGKY.length;
+      let statusLabel = 'Chưa mở';
+      let statusClass = 'badge-secondary';
+      if (currentOpened) {
+        statusLabel = currentOpened.TrangThai === false ? 'Đã đóng' : 'Đang mở';
+        statusClass = currentOpened.TrangThai === false ? 'badge-warning' : 'badge-success';
+      }
+      const roomSchedule = currentOpened
+        ? (currentOpened.LICHHOCLOP || []).find((schedule) => schedule.TrangThai !== false && (schedule.PHONGHOC || schedule.MaPhong || schedule.PhongHoc))
+        : null;
+
+      return {
+        ...cls,
+        GiangVienDisplay: currentOpened
+          ? (lecturerDisplayName(currentOpened.GIANGVIEN) || currentOpened.GiangVien || '')
+          : (lecturerDisplayName(cls.GIANGVIEN) || cls.GiangVien || ''),
+        PhongHocDisplay: currentOpened
+          ? (roomDisplayName(roomSchedule?.PHONGHOC) || roomSchedule?.PhongHoc || roomSchedule?.MaPhong || '')
+          : (roomDisplayName(cls.PHONGHOC) || cls.PhongHoc || cls.MaPhong || ''),
+        LichHocDisplay: currentOpened ? classScheduleLabel(currentOpened) : catalogScheduleLabel(cls),
+        SoLuongDaDangKy: registeredCount,
+        LopMoHienTaiId: currentOpened && currentOpened.TrangThai !== false ? currentOpened.id : null,
+        MaHocKyDangMo: currentOpened ? currentOpened.MaHocKy : '',
+        TenHocKyDangMo: currentOpened ? currentOpened.HOCKY?.TenHocKy : '',
+        TrangThaiMoLabel: statusLabel,
+        TrangThaiMoClass: statusClass
+      };
+    });
 
     renderAdmin(res, 'classes', 'classes', 'Quản lý lớp học', req, {
       classes: displayClasses,
+      courseOptions: courses,
+      semesterOptions: semesters.map((semester) => ({
+        MaHocKy: semester.MaHocKy,
+        TenHocKy: semester.TenHocKy,
+        TenNamHoc: semester.NAMHOC?.TenNamHoc || ''
+      })),
+      periodOptions: periods.map((period) => ({
+        MaTiet: period.MaTiet,
+        TenTiet: period.TenTiet,
+        ThuTu: period.ThuTu,
+        GioBatDauText: formatTimeValue(period.GioBatDau),
+        GioKetThucText: formatTimeValue(period.GioKetThuc)
+      })),
+      lecturerOptions: lecturers.map((lecturer) => ({
+        MaGiangVien: lecturer.MaGiangVien,
+        HoTen: lecturer.HoTen,
+        HocHamHocVi: lecturer.HocHamHocVi,
+        TenKhoa: lecturer.KHOA?.TenKhoa || ''
+      })),
+      roomOptions: rooms.map((room) => ({
+        MaPhong: room.MaPhong,
+        TenPhong: room.TenPhong,
+        ToaNha: room.ToaNha,
+        SucChua: room.SucChua,
+        LoaiPhong: room.LoaiPhong
+      })),
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/classes',
-      queryParams: { search, limit },
-      search
+      queryParams: { search, MaMonHoc: selectedCourse, MaHocKy: selectedSemester, openStatus, limit },
+      search,
+      selectedCourse,
+      selectedSemester,
+      openStatus
     });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'classes', 'classes', 'Quản lý lớp học', req, {
       classes: [],
+      courseOptions: [],
+      semesterOptions: [],
+      periodOptions: [],
+      lecturerOptions: [],
+      roomOptions: [],
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/classes',
       queryParams: {},
-      search: ''
+      search: '',
+      selectedCourse: '',
+      selectedSemester: '',
+      openStatus: ''
+    });
+  }
+};
+
+const adminRooms = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const type = req.query.type || '';
+  const status = req.query.status || '';
+  const where = { DaXoa: false };
+
+  if (type) where.LoaiPhong = type;
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaPhong: { contains: search, mode: 'insensitive' } },
+      { TenPhong: { contains: search, mode: 'insensitive' } },
+      { ToaNha: { contains: search, mode: 'insensitive' } },
+      { LoaiPhong: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  try {
+    const [rooms, total] = await Promise.all([
+      prisma.PHONGHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { MaPhong: 'asc' },
+        include: { _count: { select: { LOP: true, LICHHOCLOP: true } } }
+      }),
+      prisma.PHONGHOC.count({ where })
+    ]);
+
+    renderAdmin(res, 'rooms', 'rooms', 'Quản lý phòng học', req, {
+      rooms: await attachUpdaterNames(rooms),
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/rooms',
+      queryParams: { search, type, status, limit },
+      search,
+      type,
+      status
+    });
+  } catch (err) {
+    console.error('adminRooms error:', err);
+    renderAdmin(res, 'rooms', 'rooms', 'Quản lý phòng học', req, {
+      rooms: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/rooms',
+      queryParams: {},
+      search: '',
+      type: '',
+      status: ''
+    });
+  }
+};
+
+const adminLecturers = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const faculty = req.query.MaKhoa || '';
+  const status = req.query.status || '';
+  const where = { DaXoa: false };
+
+  if (faculty) where.MaKhoa = faculty;
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaGiangVien: { contains: search, mode: 'insensitive' } },
+      { HoTen: { contains: search, mode: 'insensitive' } },
+      { HocHamHocVi: { contains: search, mode: 'insensitive' } },
+      { Email: { contains: search, mode: 'insensitive' } },
+      { Sdt: { contains: search, mode: 'insensitive' } },
+      { KHOA: { is: { TenKhoa: { contains: search, mode: 'insensitive' } } } }
+    ];
+  }
+
+  try {
+    const [lecturers, total, faculties] = await Promise.all([
+      prisma.GIANGVIEN.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { MaGiangVien: 'asc' },
+        include: {
+          KHOA: true,
+          _count: { select: { LOPMO: true } }
+        }
+      }),
+      prisma.GIANGVIEN.count({ where }),
+      prisma.KHOA.findMany({
+        where: { DaXoa: false, TrangThai: true },
+        orderBy: { MaKhoa: 'asc' },
+        select: { MaKhoa: true, TenKhoa: true }
+      })
+    ]);
+
+    renderAdmin(res, 'lecturers', 'lecturers', 'Quản lý giảng viên', req, {
+      lecturers: await attachUpdaterNames(lecturers),
+      facultyOptions: faculties,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/lecturers',
+      queryParams: { search, MaKhoa: faculty, status, limit },
+      search,
+      selectedFaculty: faculty,
+      status
+    });
+  } catch (err) {
+    console.error('adminLecturers error:', err);
+    renderAdmin(res, 'lecturers', 'lecturers', 'Quản lý giảng viên', req, {
+      lecturers: [],
+      facultyOptions: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/lecturers',
+      queryParams: {},
+      search: '',
+      selectedFaculty: '',
+      status: ''
     });
   }
 };
@@ -415,24 +749,104 @@ const adminClasses = async (req, res) => {
 const adminSemesters = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
+  const search = String(req.query.search || '').trim();
+  const dateSearchFields = new Set(['NgayBatDau', 'NgayKetThuc', 'NgayBatDauDangKy', 'NgayKetThucDangKy', 'HanDongHocPhi']);
+  const validSearchFields = new Set(['all', 'MaHocKy', 'TenHocKy', 'MaNamHoc', 'HocKy', 'LoaiHocKy', 'TrangThai', ...dateSearchFields]);
+  const searchField = validSearchFields.has(req.query.searchField) ? req.query.searchField : 'all';
+  const containsSearch = (field) => ({ [field]: { contains: search, mode: 'insensitive' } });
+  const normalizedSearch = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const getSemesterKindSearchClauses = () => {
+    const clauses = [containsSearch('LoaiHocKy')];
+    if (/\b(i|1)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 1 });
+    if (/\b(ii|2)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 2 });
+    if (/\b(he|3)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 3 });
+    return clauses;
+  };
+  const parseSearchDate = (value) => {
+    const raw = String(value || '').trim();
+    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    const vi = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!iso && !vi) return null;
+
+    const year = Number(iso ? iso[1] : vi[3]);
+    const month = Number(iso ? iso[2] : vi[2]);
+    const day = Number(iso ? iso[3] : vi[1]);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return date;
+  };
+  const searchDate = parseSearchDate(search);
+  const containsDate = (field) => {
+    const nextDay = new Date(searchDate.getTime());
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    return { [field]: { gte: searchDate, lt: nextDay } };
+  };
+  const semesterSearchWhere = {};
+
+  if (search) {
+    if (searchField === 'all') {
+      semesterSearchWhere.OR = [
+        containsSearch('MaHocKy'),
+        containsSearch('TenHocKy'),
+        containsSearch('MaNamHoc'),
+        containsSearch('LoaiHocKy'),
+        containsSearch('TrangThai'),
+        { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } }
+      ];
+      if (searchDate) {
+        dateSearchFields.forEach((field) => semesterSearchWhere.OR.push(containsDate(field)));
+      }
+    } else if (searchField === 'MaNamHoc') {
+      semesterSearchWhere.OR = [
+        containsSearch('MaNamHoc'),
+        { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } }
+      ];
+    } else if (searchField === 'HocKy' || searchField === 'LoaiHocKy') {
+      semesterSearchWhere.OR = getSemesterKindSearchClauses();
+    } else if (dateSearchFields.has(searchField)) {
+      Object.assign(semesterSearchWhere, searchDate ? containsDate(searchField) : { MaHocKy: '__NO_DATE_MATCH__' });
+    } else {
+      Object.assign(semesterSearchWhere, containsSearch(searchField));
+    }
+  }
+
+  const where = { DaXoa: false, ...semesterSearchWhere };
+
   try {
     const [semesters, total] = await Promise.all([
       prisma.HOCKY.findMany({
-        where: { DaXoa: false },
+        where,
         skip: (page - 1) * limit,
         take: limit,
-        include: { NAMHOC: true },
+        include: {
+          NAMHOC: true,
+          _count: {
+            select: {
+              LOPMO: true,
+              PHIEUDANGKY: true
+            }
+          }
+        },
         orderBy: { NgayBatDau: 'desc' }
       }),
-      prisma.HOCKY.count({ where: { DaXoa: false } })
+      prisma.HOCKY.count({ where })
     ]);
-    const displaySemesters = await attachUpdaterNames(semesters);
+    const semestersWithStats = semesters.map((semester) => ({
+      ...semester,
+      SoLopMo: semester._count?.LOPMO || 0,
+      SoSinhVienDangKy: semester._count?.PHIEUDANGKY || 0
+    }));
+    const displaySemesters = await attachUpdaterNames(semestersWithStats);
     renderAdmin(res, 'semesters', 'semesters', 'Quản lý học kỳ', req, {
       semesters: displaySemesters,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      pageSize: limit,
       baseUrl: '/admin/semesters',
-      queryParams: { limit }
+      queryParams: { search, searchField, limit },
+      search,
+      searchField
     });
   } catch (err) {
     console.error('Error:', err);
@@ -440,8 +854,72 @@ const adminSemesters = async (req, res) => {
       semesters: [],
       currentPage: 1,
       totalPages: 0,
+      totalRecords: 0,
+      pageSize: limit,
       baseUrl: '/admin/semesters',
-      queryParams: {}
+      queryParams: {},
+      search: '',
+      searchField: 'all'
+    });
+  }
+};
+
+const adminAcademicYears = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const status = req.query.status || '';
+  const where = {};
+
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaNamHoc: { contains: search, mode: 'insensitive' } },
+      { TenNamHoc: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
+  try {
+    const [academicYears, total] = await Promise.all([
+      prisma.NAMHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              HOCKY: { where: { DaXoa: false } }
+            }
+          }
+        },
+        orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
+      }),
+      prisma.NAMHOC.count({ where })
+    ]);
+
+    renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
+      academicYears: academicYears.map((year) => ({
+        ...year,
+        SoHocKy: year._count?.HOCKY || 0
+      })),
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/academic-years',
+      queryParams: { search, status, limit },
+      search,
+      status
+    });
+  } catch (err) {
+    console.error('Error:', err);
+    renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
+      academicYears: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/academic-years',
+      queryParams: {},
+      search: '',
+      status: ''
     });
   }
 };
@@ -1228,6 +1706,88 @@ const studentCurriculum = (req, res) => {
   renderStudent(res, 'curriculum', 'curriculum', 'Chương trình đào tạo', req);
 };
 
+const adminCurriculumPrograms = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const major = req.query.major || '';
+  const status = req.query.status || '';
+  const where = {
+    NGANHHOC: { DaXoa: false },
+    MONHOC: { DaXoa: false }
+  };
+
+  if (major) where.MaNganh = major;
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+  if (search) {
+    where.OR = [
+      { MaNganh: { contains: search, mode: 'insensitive' } },
+      { MaMonHoc: { contains: search, mode: 'insensitive' } },
+      { NGANHHOC: { TenNganh: { contains: search, mode: 'insensitive' } } },
+      { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } }
+    ];
+  }
+
+  try {
+    const [rows, total, majors] = await Promise.all([
+      prisma.CHUONGTRINHHOC.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
+        include: {
+          NGANHHOC: { include: { KHOA: true } },
+          MONHOC: { include: { KHOA: true } }
+        }
+      }),
+      prisma.CHUONGTRINHHOC.count({ where }),
+      prisma.NGANHHOC.findMany({
+        where: { DaXoa: false },
+        orderBy: { TenNganh: 'asc' },
+        select: { MaNganh: true, TenNganh: true }
+      })
+    ]);
+
+    renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req, {
+      curriculumPrograms: rows.map((row) => ({
+        ...row,
+        TenNganh: row.NGANHHOC?.TenNganh || row.MaNganh,
+        TenKhoa: row.NGANHHOC?.KHOA?.TenKhoa || '-',
+        TenMonHoc: row.MONHOC?.TenMonHoc || row.MaMonHoc,
+        SoTinChi: row.MONHOC?.SoTinChi || 0,
+        LoaiMon: row.MONHOC?.LoaiMon || '-',
+        BatBuocLabel: row.BatBuoc === false ? 'Tự chọn' : 'Bắt buộc',
+        TrangThaiLabel: row.TrangThai === false ? 'Tạm ngưng' : 'Đang áp dụng',
+        TrangThaiClass: row.TrangThai === false ? 'badge-secondary' : 'badge-success'
+      })),
+      majors,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      baseUrl: '/admin/curriculum-programs',
+      queryParams: { search, major, status, limit },
+      search,
+      major,
+      status
+    });
+  } catch (err) {
+    console.error('adminCurriculumPrograms error:', err);
+    renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req, {
+      curriculumPrograms: [],
+      majors: [],
+      currentPage: 1,
+      totalPages: 0,
+      totalRecords: 0,
+      baseUrl: '/admin/curriculum-programs',
+      queryParams: {},
+      search: '',
+      major: '',
+      status: ''
+    });
+  }
+};
+
 module.exports = {
   requireViewAuth,
   requireViewAdmin,
@@ -1243,7 +1803,10 @@ module.exports = {
   adminStudents,
   adminCourses,
   adminClasses,
+  adminRooms,
+  adminLecturers,
   adminSemesters,
+  adminAcademicYears,
   adminPeriods,
   adminPrerequisites,
   adminRegistrations,
@@ -1253,6 +1816,7 @@ module.exports = {
   adminUsers,
   adminFaculties,
   adminMajors,
+  adminCurriculumPrograms,
   adminCompletedCourses,
   adminPricing,
   adminBeneficiaries,

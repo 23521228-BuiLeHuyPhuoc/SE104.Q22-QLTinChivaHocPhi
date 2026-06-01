@@ -1,4 +1,355 @@
 var editingId = null;
+var searchTimer = null;
+var lecturerSearchTimer = null;
+var openRoomSearchTimer = null;
+var scheduleRoomSearchTimer = null;
+var entityPickerState = { type: null, timer: null };
+
+function classEscapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function classFormatDate(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('vi-VN');
+}
+
+function getSelectedClassSemester() {
+  var filter = document.getElementById('filter-semester');
+  return filter ? filter.value : '';
+}
+
+function selectedPeriodOrder(selectId) {
+  var select = document.getElementById(selectId);
+  if (!select || !select.value) return null;
+  var option = select.options[select.selectedIndex];
+  var order = option ? Number(option.dataset.order) : NaN;
+  return Number.isFinite(order) ? order : null;
+}
+
+function validatePeriodRange(startSelectId, endSelectId) {
+  var startOrder = selectedPeriodOrder(startSelectId);
+  var endOrder = selectedPeriodOrder(endSelectId);
+  if (startOrder === null || endOrder === null) return true;
+  if (startOrder <= endOrder) return true;
+  showToast('Tiết bắt đầu phải trước hoặc bằng tiết kết thúc', 'error');
+  return false;
+}
+
+async function validateScheduleConflict(mode, body) {
+  try {
+    var payload = Object.assign({ mode: mode }, body);
+    var res = await apiFetch('/api/classes/validate-schedule', { method: 'POST', body: payload });
+    if (res && res.success) return true;
+    showToast((res && res.message) || 'Lịch học bị trùng', 'error');
+    return false;
+  } catch (e) {
+    showToast('Lỗi kết nối khi kiểm tra lịch học', 'error');
+    return false;
+  }
+}
+
+function applyFilters() {
+  var params = new URLSearchParams();
+  var search = document.getElementById('search-input');
+  var course = document.getElementById('filter-course');
+  var semester = document.getElementById('filter-semester');
+  var status = document.getElementById('filter-open-status');
+
+  params.set('page', '1');
+  if (search && search.value.trim()) params.set('search', search.value.trim());
+  if (course && course.value) params.set('MaMonHoc', course.value);
+  if (semester && semester.value) params.set('MaHocKy', semester.value);
+  if (status && status.value) params.set('openStatus', status.value);
+  window.location.href = '/admin/classes?' + params.toString();
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilters, 400);
+}
+
+function courseOptionLabel(course) {
+  return (course.MaMonHoc || '') + ' - ' + (course.TenMonHoc || '');
+}
+
+function lecturerOptionLabel(lecturer) {
+  var degree = lecturer.HocHamHocVi ? lecturer.HocHamHocVi + ' ' : '';
+  var faculty = lecturer.TenKhoa || (lecturer.KHOA && lecturer.KHOA.TenKhoa) || '';
+  return (lecturer.MaGiangVien || '') + ' - ' + degree + (lecturer.HoTen || '') + (faculty ? ' (' + faculty + ')' : '');
+}
+
+async function loadLecturerOptions(selectId, search, selectedValue, selectedLabel) {
+  var select = document.getElementById(selectId);
+  if (!select) return;
+
+  try {
+    var params = new URLSearchParams();
+    params.set('TrangThai', 'true');
+    params.set('all', 'true');
+    if (search) params.set('search', search);
+    var url = '/api/lecturers?' + params.toString();
+    var res = await apiFetch(url);
+    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
+    var hasSelected = false;
+    var html = '<option value="">Chọn giảng viên</option>';
+
+    rows.forEach(function(lecturer) {
+      var value = lecturer.MaGiangVien || '';
+      if (!value) return;
+      if (value === selectedValue) hasSelected = true;
+      html += '<option value="' + classEscapeHtml(value) + '"' + (value === selectedValue ? ' selected' : '') + '>' +
+        classEscapeHtml(lecturerOptionLabel(lecturer)) +
+        '</option>';
+    });
+
+    if (selectedValue && !hasSelected) {
+      html += '<option value="' + classEscapeHtml(selectedValue) + '" selected>' +
+        classEscapeHtml(selectedLabel || selectedValue) +
+        '</option>';
+    }
+
+    select.innerHTML = html;
+  } catch (e) {
+    showToast('Không thể tải danh sách giảng viên', 'error');
+  }
+}
+
+function roomOptionLabel(room) {
+  var capacity = room.SucChua ? ' (' + room.SucChua + ')' : '';
+  return (room.MaPhong || '') + ' - ' + (room.TenPhong || '') + capacity;
+}
+
+async function loadRoomOptions(selectId, search, selectedValue, selectedLabel) {
+  var select = document.getElementById(selectId);
+  if (!select) return;
+
+  try {
+    var params = new URLSearchParams();
+    params.set('TrangThai', 'true');
+    params.set('all', 'true');
+    if (search) params.set('search', search);
+    var url = '/api/rooms?' + params.toString();
+    var res = await apiFetch(url);
+    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
+    var hasSelected = false;
+    var html = '<option value="">Chọn phòng học</option>';
+
+    rows.forEach(function(room) {
+      var value = room.MaPhong || '';
+      if (!value) return;
+      if (value === selectedValue) hasSelected = true;
+      html += '<option value="' + classEscapeHtml(value) + '"' + (value === selectedValue ? ' selected' : '') + '>' +
+        classEscapeHtml(roomOptionLabel(room)) +
+        '</option>';
+    });
+
+    if (selectedValue && !hasSelected) {
+      html += '<option value="' + classEscapeHtml(selectedValue) + '" selected>' +
+        classEscapeHtml(selectedLabel || selectedValue) +
+        '</option>';
+    }
+
+    select.innerHTML = html;
+  } catch (e) {
+    showToast('Không thể tải danh sách phòng học', 'error');
+  }
+}
+
+function classSetValue(id, value) {
+  var element = document.getElementById(id);
+  if (element) element.value = value || '';
+}
+
+function ensureSelectOption(selectId, value, label) {
+  var select = document.getElementById(selectId);
+  if (!select || !value) return;
+  var exists = Array.prototype.some.call(select.options, function(option) {
+    return option.value === value;
+  });
+  if (!exists) select.add(new Option(label || value, value, true, true));
+  select.value = value;
+}
+
+var entityPickerConfig = {
+  course: {
+    targetId: 'cl-mamonhoc',
+    textId: 'cl-course-picker-text',
+    buttonId: 'cl-course-picker',
+    title: 'Chọn môn học',
+    subtitle: 'Tìm theo mã môn hoặc tên môn học',
+    placeholder: 'Nhập mã hoặc tên môn học',
+    empty: 'Không tìm thấy môn học phù hợp',
+    valueField: 'MaMonHoc',
+    label: courseOptionLabel,
+    detail: function(course) {
+      return [course.TenKhoa || (course.KHOA && course.KHOA.TenKhoa), course.LoaiMon, course.SoTinChi ? course.SoTinChi + ' tín chỉ' : '']
+        .filter(Boolean)
+        .join(' · ');
+    },
+    url: function(search) {
+      var params = new URLSearchParams();
+      params.set('all', 'true');
+      params.set('TrangThai', 'true');
+      if (search) params.set('search', search);
+      return '/api/courses?' + params.toString();
+    }
+  },
+  lecturer: {
+    targetId: 'cl-magiangvien',
+    textId: 'cl-lecturer-picker-text',
+    buttonId: 'cl-lecturer-picker',
+    title: 'Chọn giảng viên',
+    subtitle: 'Tìm theo mã giảng viên hoặc họ tên',
+    placeholder: 'Nhập mã hoặc họ tên giảng viên',
+    empty: 'Không tìm thấy giảng viên phù hợp',
+    valueField: 'MaGiangVien',
+    label: lecturerOptionLabel,
+    detail: function(lecturer) {
+      return [lecturer.Email, lecturer.TenKhoa || (lecturer.KHOA && lecturer.KHOA.TenKhoa)].filter(Boolean).join(' · ');
+    },
+    url: function(search) {
+      var params = new URLSearchParams();
+      params.set('TrangThai', 'true');
+      params.set('all', 'true');
+      if (search) params.set('search', search);
+      return '/api/lecturers?' + params.toString();
+    }
+  },
+  room: {
+    targetId: 'cl-maphong',
+    textId: 'cl-room-picker-text',
+    buttonId: 'cl-room-picker',
+    title: 'Chọn phòng',
+    subtitle: 'Tìm theo mã phòng, tên phòng hoặc tòa nhà',
+    placeholder: 'Nhập mã phòng, tên phòng hoặc tòa nhà',
+    empty: 'Không tìm thấy phòng phù hợp',
+    valueField: 'MaPhong',
+    label: roomOptionLabel,
+    detail: function(room) {
+      return [room.ToaNha ? 'Tòa ' + room.ToaNha : '', room.LoaiPhong, room.SucChua ? 'Sức chứa ' + room.SucChua : '']
+        .filter(Boolean)
+        .join(' · ');
+    },
+    url: function(search) {
+      var params = new URLSearchParams();
+      params.set('TrangThai', 'true');
+      params.set('all', 'true');
+      if (search) params.set('search', search);
+      return '/api/rooms?' + params.toString();
+    }
+  }
+};
+
+function setPickerDisplay(type, value, label) {
+  var config = entityPickerConfig[type];
+  if (!config) return;
+  var text = document.getElementById(config.textId);
+  var button = document.getElementById(config.buttonId);
+  if (text) text.textContent = value ? (label || value) : config.title;
+  if (button) button.classList.toggle('is-empty', !value);
+}
+
+function setPickerValue(type, value, label) {
+  var config = entityPickerConfig[type];
+  if (!config) return;
+  var select = document.getElementById(config.targetId);
+  if (!select) return;
+  if (value) {
+    ensureSelectOption(config.targetId, value, label || value);
+    select.value = value;
+  } else {
+    select.value = '';
+  }
+  setPickerDisplay(type, value, label);
+}
+
+function selectedPickerValue() {
+  var config = entityPickerConfig[entityPickerState.type];
+  var select = config ? document.getElementById(config.targetId) : null;
+  return select ? select.value : '';
+}
+
+function openEntityPicker(type) {
+  var config = entityPickerConfig[type];
+  if (!config) return;
+
+  entityPickerState.type = type;
+  document.getElementById('entity-picker-title').textContent = config.title;
+  document.getElementById('entity-picker-subtitle').textContent = config.subtitle;
+  document.getElementById('entity-picker-search').placeholder = config.placeholder;
+  document.getElementById('entity-picker-search').value = '';
+  document.getElementById('entity-picker-modal').classList.add('active');
+  loadEntityPickerRows('');
+  setTimeout(function() {
+    var input = document.getElementById('entity-picker-search');
+    if (input) input.focus();
+  }, 50);
+}
+
+function closeEntityPicker() {
+  document.getElementById('entity-picker-modal').classList.remove('active');
+  entityPickerState.type = null;
+}
+
+function renderEntityPickerRows(rows) {
+  var config = entityPickerConfig[entityPickerState.type];
+  var results = document.getElementById('entity-picker-results');
+  var meta = document.getElementById('entity-picker-meta');
+  if (!config || !results) return;
+
+  if (meta) meta.textContent = rows.length ? rows.length + ' kết quả' : '';
+  if (!rows.length) {
+    results.innerHTML = '<div class="empty-state">' + classEscapeHtml(config.empty) + '</div>';
+    return;
+  }
+
+  var selectedValue = selectedPickerValue();
+  results.innerHTML = rows.map(function(row) {
+    var value = row[config.valueField] || '';
+    var label = config.label(row);
+    var detail = config.detail(row);
+    return '<button class="entity-picker-option' + (value === selectedValue ? ' is-selected' : '') + '" type="button" data-value="' +
+      classEscapeHtml(value) + '" data-label="' + classEscapeHtml(label) + '" onclick="selectEntityPickerOption(this)">' +
+      '<span class="entity-picker-title-row">' +
+        '<span class="entity-picker-code">' + classEscapeHtml(value) + '</span>' +
+        '<span class="entity-picker-name">' + classEscapeHtml(label.replace(value + ' - ', '')) + '</span>' +
+      '</span>' +
+      '<span class="entity-picker-detail">' + classEscapeHtml(detail || label) + '</span>' +
+    '</button>';
+  }).join('');
+}
+
+async function loadEntityPickerRows(search) {
+  var config = entityPickerConfig[entityPickerState.type];
+  var results = document.getElementById('entity-picker-results');
+  var meta = document.getElementById('entity-picker-meta');
+  if (!config || !results) return;
+
+  results.innerHTML = '<div class="loading-overlay"><div class="spinner"></div><span>Đang tải dữ liệu...</span></div>';
+  if (meta) meta.textContent = '';
+  try {
+    var res = await apiFetch(config.url(search));
+    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
+    renderEntityPickerRows(rows);
+  } catch (e) {
+    results.innerHTML = '<div class="empty-state">Không thể tải dữ liệu</div>';
+  }
+}
+
+function selectEntityPickerOption(button) {
+  var type = entityPickerState.type;
+  if (!type || !button) return;
+  setPickerValue(type, button.dataset.value || '', button.dataset.label || '');
+  closeEntityPicker();
+}
 
 function openModal(mode, cl) {
   editingId = null;
@@ -9,15 +360,17 @@ function openModal(mode, cl) {
     editingId = cl.MaLop;
     document.getElementById('cl-malop').value = cl.MaLop || '';
     document.getElementById('cl-tenlop').value = cl.TenLop || '';
-    document.getElementById('cl-mamonhoc').value = cl.MaMonHoc || '';
-    document.getElementById('cl-giangvien').value = cl.GiangVien || '';
-    document.getElementById('cl-lichhoc').value = cl.LichHoc || '';
-    document.getElementById('cl-phonghoc').value = cl.PhongHoc || '';
-    document.getElementById('cl-soluong').value = cl.SoLuongToiDa || 50;
-    document.getElementById('cl-mota').value = cl.MoTa || '';
+    document.getElementById('cl-thu').value = cl.ThuTrongTuan || '2';
+    document.getElementById('cl-tietbd').value = cl.MaTietBatDau || '';
+    document.getElementById('cl-tietkt').value = cl.MaTietKetThuc || '';
+    setPickerValue('course', cl.MaMonHoc || '', cl.MaMonHoc ? cl.MaMonHoc + ' - ' + (cl.MONHOC && cl.MONHOC.TenMonHoc ? cl.MONHOC.TenMonHoc : '') : '');
+    setPickerValue('lecturer', cl.MaGiangVien || '', cl.GIANGVIEN ? lecturerOptionLabel(cl.GIANGVIEN) : (cl.GiangVien || cl.MaGiangVien || ''));
+    setPickerValue('room', cl.MaPhong || '', cl.PHONGHOC ? roomOptionLabel(cl.PHONGHOC) : (cl.PhongHoc || cl.MaPhong || ''));
   } else {
     document.getElementById('class-form').reset();
-    document.getElementById('cl-soluong').value = 50;
+    setPickerValue('course', '', '');
+    setPickerValue('lecturer', '', '');
+    setPickerValue('room', '', '');
   }
 
   document.getElementById('class-modal').classList.add('active');
@@ -28,20 +381,41 @@ function closeModal() {
 }
 
 async function saveClass() {
+  var hasAssignment = Boolean(
+    document.getElementById('cl-magiangvien').value ||
+    document.getElementById('cl-tietbd').value ||
+    document.getElementById('cl-tietkt').value ||
+    document.getElementById('cl-maphong').value
+  );
   var data = {
     MaLop: document.getElementById('cl-malop').value.trim(),
     TenLop: document.getElementById('cl-tenlop').value.trim(),
-    MaMonHoc: document.getElementById('cl-mamonhoc').value.trim(),
-    GiangVien: document.getElementById('cl-giangvien').value.trim() || null,
-    LichHoc: document.getElementById('cl-lichhoc').value.trim() || null,
-    PhongHoc: document.getElementById('cl-phonghoc').value.trim() || null,
-    SoLuongToiDa: parseInt(document.getElementById('cl-soluong').value, 10) || 50,
-    MoTa: document.getElementById('cl-mota').value.trim() || null
+    MaMonHoc: document.getElementById('cl-mamonhoc').value,
+    MaGiangVien: document.getElementById('cl-magiangvien').value || null,
+    ThuTrongTuan: hasAssignment ? document.getElementById('cl-thu').value : null,
+    MaTietBatDau: document.getElementById('cl-tietbd').value || null,
+    MaTietKetThuc: document.getElementById('cl-tietkt').value || null,
+    MaPhong: document.getElementById('cl-maphong').value || null
   };
+
+  if (!data.MaLop || !data.TenLop || !data.MaMonHoc) {
+    showToast('Vui long nhap ma lop, ten lop va mon hoc', 'error');
+    return;
+    /*
+    showToast('Vui lòng nhập đầy đủ lớp, môn học, giảng viên, phòng và lịch học', 'error');
+    return;
+    */
+  }
+  if (hasAssignment && (!data.MaGiangVien || !data.ThuTrongTuan || !data.MaTietBatDau || !data.MaTietKetThuc || !data.MaPhong)) {
+    showToast('Vui lòng chọn đủ giảng viên, thứ, tiết bắt đầu, tiết kết thúc và phòng', 'error');
+    return;
+  }
+  if (hasAssignment && !validatePeriodRange('cl-tietbd', 'cl-tietkt')) return;
+  if (hasAssignment && !(await validateScheduleConflict('catalog', data))) return;
 
   try {
     var res = editingId
-      ? await apiFetch('/api/classes/' + editingId, { method: 'PUT', body: data })
+      ? await apiFetch('/api/classes/' + encodeURIComponent(editingId), { method: 'PUT', body: data })
       : await apiFetch('/api/classes', { method: 'POST', body: data });
 
     if (res.success) {
@@ -59,7 +433,7 @@ async function saveClass() {
 async function deleteClass(id) {
   if (!confirm('Bạn có chắc muốn xóa lớp này?')) return;
   try {
-    var res = await apiFetch('/api/classes/' + id, { method: 'DELETE' });
+    var res = await apiFetch('/api/classes/' + encodeURIComponent(id), { method: 'DELETE' });
     if (res.success) {
       showToast('Đã xóa lớp học', 'success');
       setTimeout(function() { location.reload(); }, 500);
@@ -71,10 +445,324 @@ async function deleteClass(id) {
   }
 }
 
-var searchTimer;
-function debounceSearch() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(function() {
-    window.location.href = '/admin/classes?page=1&search=' + encodeURIComponent(document.getElementById('search-input').value);
-  }, 400);
+async function openClassModal(maLop) {
+  var classData = typeof maLop === 'object' && maLop ? maLop : null;
+  var classId = classData ? classData.MaLop : maLop;
+  document.getElementById('open-malop').value = classId || '';
+  document.getElementById('open-lecturer-search').value = '';
+  document.getElementById('open-magiangvien').value = '';
+  document.getElementById('open-thu').value = '2';
+  document.getElementById('open-tietbd').value = '';
+  document.getElementById('open-tietkt').value = '';
+  document.getElementById('open-room-search').value = '';
+  document.getElementById('open-maphong').value = '';
+  document.getElementById('open-ghichu').value = '';
+  var semester = document.getElementById('open-mahocky');
+  if (semester) semester.value = getSelectedClassSemester() || semester.value;
+  loadLecturerOptions('open-magiangvien', '', '', '');
+  loadRoomOptions('open-maphong', '', '', '');
+  document.getElementById('class-open-modal').classList.add('active');
+  if (!classData && classId) {
+    try {
+      var res = await apiFetch('/api/classes/' + encodeURIComponent(classId));
+      if (res.success) classData = res.data;
+    } catch (e) {}
+  }
+  if (classData) {
+    document.getElementById('open-lecturer-search').value = classData.GiangVienDisplay || classData.GiangVien || '';
+    document.getElementById('open-thu').value = classData.ThuTrongTuan || '2';
+    document.getElementById('open-tietbd').value = classData.MaTietBatDau || '';
+    document.getElementById('open-tietkt').value = classData.MaTietKetThuc || '';
+    document.getElementById('open-room-search').value = classData.PhongHocDisplay || classData.PhongHoc || classData.MaPhong || '';
+    loadLecturerOptions('open-magiangvien', '', classData.MaGiangVien || '', classData.GiangVienDisplay || classData.GiangVien || classData.MaGiangVien || '');
+    loadRoomOptions('open-maphong', '', classData.MaPhong || '', classData.PhongHocDisplay || classData.PhongHoc || classData.MaPhong || '');
+  }
 }
+
+function closeOpenClassModal() {
+  document.getElementById('class-open-modal').classList.remove('active');
+}
+
+async function saveOpenClass() {
+  var body = {
+    MaLop: document.getElementById('open-malop').value,
+    MaHocKy: document.getElementById('open-mahocky').value,
+    MaGiangVien: document.getElementById('open-magiangvien').value,
+    ThuTrongTuan: document.getElementById('open-thu').value,
+    MaTietBatDau: document.getElementById('open-tietbd').value,
+    MaTietKetThuc: document.getElementById('open-tietkt').value,
+    MaPhong: document.getElementById('open-maphong').value,
+    GhiChu: document.getElementById('open-ghichu').value.trim() || null
+  };
+  if (!body.MaLop || !body.MaHocKy || !body.MaGiangVien || !body.ThuTrongTuan || !body.MaTietBatDau || !body.MaTietKetThuc || !body.MaPhong) {
+    showToast('Vui lòng chọn học kỳ, giảng viên, phòng và lịch học', 'error');
+    return;
+  }
+  if (!validatePeriodRange('open-tietbd', 'open-tietkt')) return;
+  if (!(await validateScheduleConflict('open', body))) return;
+
+  try {
+    var res = await apiFetch('/api/classes/open', { method: 'POST', body: body });
+    if (res.success) {
+      showToast(res.message || 'Mở lớp thành công', 'success');
+      closeOpenClassModal();
+      setTimeout(function() { location.reload(); }, 500);
+    } else {
+      showToast(res.message || 'Không thể mở lớp', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function closeOpenedClass(lopMoId) {
+  if (!confirm('Bạn có chắc muốn đóng lớp mở này?')) return;
+  try {
+    var res = await apiFetch('/api/classes/opened/' + encodeURIComponent(lopMoId), { method: 'DELETE' });
+    if (res.success) {
+      showToast('Đã đóng lớp', 'success');
+      setTimeout(function() { location.reload(); }, 500);
+    } else {
+      showToast(res.message || 'Không thể đóng lớp', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+function openScheduleModal(maLop, tenLop) {
+  document.getElementById('schedule-malop').value = maLop || '';
+  document.getElementById('schedule-modal-title').textContent = 'Lịch học - ' + (tenLop || maLop || '');
+  resetScheduleForm();
+  loadRoomOptions('schedule-maphong', '', '', '');
+  var semester = document.getElementById('schedule-mahocky');
+  if (semester) semester.value = getSelectedClassSemester() || semester.value;
+  document.getElementById('class-schedule-modal').classList.add('active');
+  loadClassSchedules();
+}
+
+function closeScheduleModal() {
+  document.getElementById('class-schedule-modal').classList.remove('active');
+}
+
+function resetScheduleForm() {
+  document.getElementById('schedule-id').value = '';
+  document.getElementById('schedule-thu').value = '2';
+  document.getElementById('schedule-tietbd').value = '';
+  document.getElementById('schedule-tietkt').value = '';
+  document.getElementById('schedule-room-search').value = '';
+  document.getElementById('schedule-maphong').value = '';
+  document.getElementById('schedule-ghichu').value = '';
+}
+
+function weekdayText(value) {
+  var day = Number(value);
+  if (day === 1) return 'Chủ nhật';
+  if (day >= 2 && day <= 7) return 'Thứ ' + day;
+  return value || '-';
+}
+
+function periodText(schedule) {
+  var start = schedule.TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC;
+  var end = schedule.TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC;
+  var startText = start && start.TenTiet ? start.TenTiet : schedule.MaTietBatDau;
+  var endText = end && end.TenTiet ? end.TenTiet : schedule.MaTietKetThuc;
+  return startText === endText ? startText : startText + ' - ' + endText;
+}
+
+function scheduleRoomText(schedule) {
+  if (schedule.PHONGHOC) return roomOptionLabel(schedule.PHONGHOC);
+  return schedule.PhongHoc || schedule.MaPhong || '-';
+}
+
+async function loadClassSchedules() {
+  var maLop = document.getElementById('schedule-malop').value;
+  var maHocKy = document.getElementById('schedule-mahocky').value;
+  var body = document.getElementById('schedule-table-body');
+  if (!maLop || !body) return;
+
+  body.innerHTML = '<tr><td colspan="6"><div class="empty-state">Đang tải lịch học...</div></td></tr>';
+  try {
+    var url = '/api/classes/' + encodeURIComponent(maLop) + '/schedules';
+    if (maHocKy) url += '?MaHocKy=' + encodeURIComponent(maHocKy);
+    var res = await apiFetch(url);
+    var rows = [];
+    if (res.success && Array.isArray(res.data)) {
+      res.data.forEach(function(opened) {
+        (opened.LICHHOCLOP || []).forEach(function(schedule) {
+          rows.push({ opened: opened, schedule: schedule });
+        });
+      });
+    }
+
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="6"><div class="empty-state">Chưa có lịch học</div></td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(function(item) {
+      var schedule = item.schedule;
+      var opened = item.opened;
+      return '<tr>' +
+        '<td>' + classEscapeHtml(opened.HOCKY && opened.HOCKY.TenHocKy ? opened.HOCKY.TenHocKy : opened.MaHocKy) + '</td>' +
+        '<td>' + classEscapeHtml(weekdayText(schedule.ThuTrongTuan)) + '</td>' +
+        '<td>' + classEscapeHtml(periodText(schedule)) + '</td>' +
+        '<td>' + classEscapeHtml(scheduleRoomText(schedule)) + '</td>' +
+        '<td>' + classEscapeHtml(schedule.GhiChu || '-') + '</td>' +
+        '<td class="table-actions">' +
+          '<button class="btn btn-sm btn-outline" type="button" data-id="' + schedule.id + '" data-mahocky="' + classEscapeHtml(opened.MaHocKy) + '" data-thu="' + schedule.ThuTrongTuan + '" data-tietbd="' + classEscapeHtml(schedule.MaTietBatDau) + '" data-tietkt="' + classEscapeHtml(schedule.MaTietKetThuc) + '" data-maphong="' + classEscapeHtml(schedule.MaPhong || '') + '" data-phonglabel="' + classEscapeHtml(scheduleRoomText(schedule)) + '" data-ghichu="' + classEscapeHtml(schedule.GhiChu || '') + '" onclick="editSchedule(this)">Sửa</button>' +
+          '<button class="btn btn-sm btn-danger" type="button" onclick="deleteSchedule(' + schedule.id + ')">Xóa</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="6"><div class="empty-state">Không thể tải lịch học</div></td></tr>';
+  }
+}
+
+function editSchedule(button) {
+  document.getElementById('schedule-id').value = button.dataset.id || '';
+  document.getElementById('schedule-mahocky').value = button.dataset.mahocky || '';
+  document.getElementById('schedule-thu').value = button.dataset.thu || '2';
+  document.getElementById('schedule-tietbd').value = button.dataset.tietbd || '';
+  document.getElementById('schedule-tietkt').value = button.dataset.tietkt || '';
+  document.getElementById('schedule-room-search').value = button.dataset.phonglabel || '';
+  loadRoomOptions('schedule-maphong', '', button.dataset.maphong || '', button.dataset.phonglabel || button.dataset.maphong || '');
+  document.getElementById('schedule-ghichu').value = button.dataset.ghichu || '';
+}
+
+async function saveClassSchedule() {
+  var maLop = document.getElementById('schedule-malop').value;
+  var body = {
+    id: document.getElementById('schedule-id').value || null,
+    MaHocKy: document.getElementById('schedule-mahocky').value,
+    ThuTrongTuan: document.getElementById('schedule-thu').value,
+    MaTietBatDau: document.getElementById('schedule-tietbd').value,
+    MaTietKetThuc: document.getElementById('schedule-tietkt').value,
+    MaPhong: document.getElementById('schedule-maphong').value || null,
+    GhiChu: document.getElementById('schedule-ghichu').value.trim() || null
+  };
+
+  if (!maLop || !body.MaHocKy || !body.ThuTrongTuan || !body.MaTietBatDau || !body.MaTietKetThuc || !body.MaPhong) {
+    showToast('Vui lòng nhập đủ học kỳ, thứ, tiết học và phòng', 'error');
+    return;
+  }
+  if (!validatePeriodRange('schedule-tietbd', 'schedule-tietkt')) return;
+  if (!(await validateScheduleConflict('opened', Object.assign({ MaLop: maLop }, body)))) return;
+
+  try {
+    var res = await apiFetch('/api/classes/' + encodeURIComponent(maLop) + '/schedules', { method: 'POST', body: body });
+    if (res.success) {
+      showToast('Đã lưu lịch học', 'success');
+      resetScheduleForm();
+      loadClassSchedules();
+    } else {
+      showToast(res.message || 'Không thể lưu lịch học', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function deleteSchedule(scheduleId) {
+  var maLop = document.getElementById('schedule-malop').value;
+  if (!maLop || !confirm('Bạn có chắc muốn xóa lịch học này?')) return;
+  try {
+    var res = await apiFetch('/api/classes/' + encodeURIComponent(maLop) + '/schedules/' + encodeURIComponent(scheduleId), { method: 'DELETE' });
+    if (res.success) {
+      showToast('Đã xóa lịch học', 'success');
+      loadClassSchedules();
+    } else {
+      showToast(res.message || 'Không thể xóa lịch học', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+function openStudentsModal(maLop, tenLop) {
+  document.getElementById('students-malop').value = maLop || '';
+  document.getElementById('students-modal-title').textContent = 'DS sinh viên - ' + (tenLop || maLop || '');
+  var semester = document.getElementById('students-mahocky');
+  if (semester) semester.value = getSelectedClassSemester() || '';
+  document.getElementById('class-students-modal').classList.add('active');
+  loadClassStudents();
+}
+
+function closeStudentsModal() {
+  document.getElementById('class-students-modal').classList.remove('active');
+}
+
+async function loadClassStudents() {
+  var maLop = document.getElementById('students-malop').value;
+  var maHocKy = document.getElementById('students-mahocky').value;
+  var body = document.getElementById('students-table-body');
+  if (!maLop || !body) return;
+
+  body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Đang tải sinh viên...</div></td></tr>';
+  try {
+    var url = '/api/classes/' + encodeURIComponent(maLop) + '/students';
+    if (maHocKy) url += '?MaHocKy=' + encodeURIComponent(maHocKy);
+    var res = await apiFetch(url);
+    var rows = res.success && Array.isArray(res.data) ? res.data : [];
+
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Chưa có sinh viên đăng ký</div></td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(function(row) {
+      return '<tr>' +
+        '<td class="mono">' + classEscapeHtml(row.MaSv || '-') + '</td>' +
+        '<td>' + classEscapeHtml(row.HoTen || '-') + '</td>' +
+        '<td>' + classEscapeHtml(row.TenHocKy || row.MaHocKy || '-') + '</td>' +
+        '<td>' + classEscapeHtml(classFormatDate(row.NgayDangKy)) + '</td>' +
+        '<td><span class="badge badge-success">' + classEscapeHtml(row.TrangThai || '-') + '</span></td>' +
+      '</tr>';
+    }).join('');
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Không thể tải danh sách sinh viên</div></td></tr>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var entitySearch = document.getElementById('entity-picker-search');
+  if (entitySearch) {
+    entitySearch.addEventListener('input', function() {
+      clearTimeout(entityPickerState.timer);
+      entityPickerState.timer = setTimeout(function() {
+        loadEntityPickerRows(entitySearch.value.trim());
+      }, 250);
+    });
+  }
+
+  var lecturerSearch = document.getElementById('open-lecturer-search');
+  if (lecturerSearch) {
+    lecturerSearch.addEventListener('input', function() {
+      clearTimeout(lecturerSearchTimer);
+      lecturerSearchTimer = setTimeout(function() {
+        loadLecturerOptions('open-magiangvien', lecturerSearch.value.trim(), document.getElementById('open-magiangvien').value, '');
+      }, 300);
+    });
+  }
+
+  var openRoomSearch = document.getElementById('open-room-search');
+  if (openRoomSearch) {
+    openRoomSearch.addEventListener('input', function() {
+      clearTimeout(openRoomSearchTimer);
+      openRoomSearchTimer = setTimeout(function() {
+        loadRoomOptions('open-maphong', openRoomSearch.value.trim(), document.getElementById('open-maphong').value, '');
+      }, 300);
+    });
+  }
+
+  var scheduleRoomSearch = document.getElementById('schedule-room-search');
+  if (scheduleRoomSearch) {
+    scheduleRoomSearch.addEventListener('input', function() {
+      clearTimeout(scheduleRoomSearchTimer);
+      scheduleRoomSearchTimer = setTimeout(function() {
+        loadRoomOptions('schedule-maphong', scheduleRoomSearch.value.trim(), document.getElementById('schedule-maphong').value, '');
+      }, 300);
+    });
+  }
+});

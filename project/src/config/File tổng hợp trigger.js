@@ -23,6 +23,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_sinhvien_rbtv01 ON "SINHVIEN";
 CREATE CONSTRAINT TRIGGER trg_sinhvien_rbtv01
 AFTER INSERT OR UPDATE OF "MaPhuongXa", "MaDanToc" ON "SINHVIEN"
 DEFERRABLE INITIALLY DEFERRED
@@ -51,6 +52,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_phuongxa_rbtv01 ON "PHUONGXA";
 CREATE CONSTRAINT TRIGGER trg_phuongxa_rbtv01
 AFTER UPDATE OF "KhuVuc" ON "PHUONGXA"
 DEFERRABLE INITIALLY DEFERRED
@@ -79,6 +81,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_dantoc_rbtv01 ON "DANTOC";
 CREATE CONSTRAINT TRIGGER trg_dantoc_rbtv01
 AFTER UPDATE OF "LaDanTocThieuSo" ON "DANTOC"
 DEFERRABLE INITIALLY DEFERRED
@@ -107,6 +110,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_doituongsinhvien_rbtv01 ON "DOITUONGSINHVIEN";
 CREATE CONSTRAINT TRIGGER trg_doituongsinhvien_rbtv01
 AFTER INSERT OR UPDATE OR DELETE ON "DOITUONGSINHVIEN"
 DEFERRABLE INITIALLY DEFERRED
@@ -123,6 +127,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_doituong_rbtv01 ON "DOITUONG";
 CREATE TRIGGER trg_doituong_rbtv01
 BEFORE UPDATE OR DELETE ON "DOITUONG"
 FOR EACH ROW 
@@ -177,6 +182,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_phieudangky_tilegiam ON "PHIEUDANGKY";
 CREATE TRIGGER trg_phieudangky_tilegiam
 BEFORE INSERT OR UPDATE OF "MaSv", "TrangThai", "TiLeGiam"
 ON "PHIEUDANGKY"
@@ -201,6 +207,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_doituongsinhvien_sync ON "DOITUONGSINHVIEN";
 CREATE TRIGGER trg_doituongsinhvien_sync
 AFTER INSERT OR UPDATE OR DELETE
 ON "DOITUONGSINHVIEN"
@@ -241,6 +248,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_doituong_sync ON "DOITUONG";
 CREATE TRIGGER trg_doituong_sync
 AFTER UPDATE ON "DOITUONG"
 FOR EACH ROW
@@ -259,6 +267,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_sinhvien_sync ON "SINHVIEN";
 CREATE TRIGGER trg_sinhvien_sync
 AFTER UPDATE OF "MaPhuongXa", "MaDanToc" ON "SINHVIEN"
 FOR EACH ROW
@@ -280,6 +289,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_phuongxa_sync ON "PHUONGXA";
 CREATE TRIGGER trg_phuongxa_sync
 AFTER UPDATE OF "KhuVuc" ON "PHUONGXA"
 FOR EACH ROW
@@ -301,6 +311,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_dantoc_sync ON "DANTOC";
 CREATE TRIGGER trg_dantoc_sync
 AFTER UPDATE OF "LaDanTocThieuSo" ON "DANTOC"
 FOR EACH ROW
@@ -324,6 +335,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Tạo trigger áp dụng cho cả hành động INSERT và UPDATE trên bảng PHIEUDANGKY
+DROP TRIGGER IF EXISTS trg_phieudangky_tinhtien ON "PHIEUDANGKY";
 CREATE TRIGGER trg_phieudangky_tinhtien
 BEFORE INSERT OR UPDATE OF "TongTienDangKy", "TiLeGiam", "TienMienGiam", "TongTienPhaiDong"
 ON "PHIEUDANGKY"
@@ -363,6 +375,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_phieudangky_rbtv16 ON "PHIEUDANGKY";
 CREATE TRIGGER trg_phieudangky_rbtv16
 BEFORE INSERT OR UPDATE OF "MaSv" ON "PHIEUDANGKY"
 FOR EACH ROW
@@ -396,6 +409,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_sinhvien_rbtv16 ON "SINHVIEN";
 CREATE TRIGGER trg_sinhvien_rbtv16
 AFTER UPDATE OF "TrangThai", "MaTaiKhoan" ON "SINHVIEN"
 FOR EACH ROW
@@ -419,6 +433,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_nguoidung_rbtv16 ON "NGUOIDUNG";
 CREATE TRIGGER trg_nguoidung_rbtv16
 AFTER UPDATE OF "TrangThai" ON "NGUOIDUNG"
 FOR EACH ROW
@@ -782,6 +797,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_rbtv22_check_loai_dang_ky ON "CHITIETDANGKY";
 
 -- Tạo trigger cho INSERT và UPDATE
+DROP TRIGGER IF EXISTS trg_rbtv22_check_loai_dang_ky ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv22_check_loai_dang_ky
 BEFORE INSERT OR UPDATE ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -897,16 +913,19 @@ DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_update ON "MONDAHOC";
 DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_delete ON "MONDAHOC";
 
 -- Tạo trigger
+DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_insert ON "MONDAHOC";
 CREATE TRIGGER trg_rbtv22_mondahoc_insert
 AFTER INSERT ON "MONDAHOC"
 FOR EACH ROW
 EXECUTE FUNCTION fn_rbtv22_validate_registrations_on_history_change();
 
+DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_update ON "MONDAHOC";
 CREATE TRIGGER trg_rbtv22_mondahoc_update
 AFTER UPDATE ON "MONDAHOC"
 FOR EACH ROW
 EXECUTE FUNCTION fn_rbtv22_validate_registrations_on_history_change();
 
+DROP TRIGGER IF EXISTS trg_rbtv22_mondahoc_delete ON "MONDAHOC";
 CREATE TRIGGER trg_rbtv22_mondahoc_delete
 BEFORE DELETE ON "MONDAHOC"
 FOR EACH ROW
@@ -1023,6 +1042,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_rbtv23_check_prerequisite_on_registration ON "CHITIETDANGKY";
 
 -- Tạo trigger cho INSERT và UPDATE
+DROP TRIGGER IF EXISTS trg_rbtv23_check_prerequisite_on_registration ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv23_check_prerequisite_on_registration
 BEFORE INSERT OR UPDATE ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -1125,16 +1145,19 @@ DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_update ON "DIEUKIENMONHOC";
 DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_delete ON "DIEUKIENMONHOC";
 
 -- Tạo trigger
+DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_insert ON "DIEUKIENMONHOC";
 CREATE TRIGGER trg_rbtv23_check_condition_insert
 BEFORE INSERT ON "DIEUKIENMONHOC"
 FOR EACH ROW
 EXECUTE FUNCTION fn_rbtv23_validate_registrations_on_condition_change();
 
+DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_update ON "DIEUKIENMONHOC";
 CREATE TRIGGER trg_rbtv23_check_condition_update
 BEFORE UPDATE ON "DIEUKIENMONHOC"
 FOR EACH ROW
 EXECUTE FUNCTION fn_rbtv23_validate_registrations_on_condition_change();
 
+DROP TRIGGER IF EXISTS trg_rbtv23_check_condition_delete ON "DIEUKIENMONHOC";
 CREATE TRIGGER trg_rbtv23_check_condition_delete
 BEFORE DELETE ON "DIEUKIENMONHOC"
 FOR EACH ROW
@@ -1241,6 +1264,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_rbtv23_check_mondahoc_change ON "MONDAHOC";
 
 -- Tạo trigger
+DROP TRIGGER IF EXISTS trg_rbtv23_check_mondahoc_change ON "MONDAHOC";
 CREATE TRIGGER trg_rbtv23_check_mondahoc_change
 BEFORE INSERT OR UPDATE OR DELETE ON "MONDAHOC"
 FOR EACH ROW
@@ -1299,21 +1323,37 @@ BEGIN
     END IF;
 
     IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
-        IF NEW."NgayBatDauDangKy" > NEW."NgayKetThucDangKy" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn hoặc bằng NgayKetThucDangKy.';
+        IF NEW."NgayBatDauDangKy" >= NEW."NgayKetThucDangKy" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayKetThucDangKy.';
         END IF;
     END IF;
 
-    IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
-        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayKetThuc (kiểu DATE) */
-        IF NEW."NgayKetThucDangKy"::DATE > NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy không được lớn hơn NgayKetThuc.';
+    IF (NEW."NgayBatDauDangKy" IS NOT NULL OR NEW."NgayKetThucDangKy" IS NOT NULL)
+       AND NEW."NgayBatDau" IS NULL THEN
+        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau trước khi nhập thời gian đăng ký.';
+    END IF;
+
+    IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
+        IF NEW."NgayBatDauDangKy"::DATE >= NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải trước NgayBatDau.';
         END IF;
     END IF;
 
-    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
-        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải lớn hơn hoặc bằng NgayBatDau.';
+    IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
+        IF NEW."NgayKetThucDangKy"::DATE >= NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải trước NgayBatDau.';
+        END IF;
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND (NEW."NgayBatDau" IS NULL OR NEW."NgayKetThuc" IS NULL) THEN
+        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau và NgayKetThuc trước khi nhập HanDongHocPhi.';
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
+        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" OR NEW."HanDongHocPhi" > NEW."NgayKetThuc" THEN
+            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nằm trong khoảng NgayBatDau đến NgayKetThuc.';
         END IF;
     END IF;
 
@@ -1322,6 +1362,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng HOCKY
+DROP TRIGGER IF EXISTS trg_rbtv09_hocky_ins_upd ON "HOCKY";
 CREATE TRIGGER trg_rbtv09_hocky_ins_upd
 BEFORE INSERT OR UPDATE ON "HOCKY"
 FOR EACH ROW
@@ -1350,6 +1391,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng NAMHOC
+DROP TRIGGER IF EXISTS trg_rbtv09_namhoc_upd ON "NAMHOC";
 CREATE TRIGGER trg_rbtv09_namhoc_upd
 AFTER UPDATE OF "MaNamHoc" ON "NAMHOC"
 FOR EACH ROW
@@ -1369,6 +1411,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LOP
+DROP TRIGGER IF EXISTS trg_rbtv10_lop_ins_upd ON "LOP";
 CREATE TRIGGER trg_rbtv10_lop_ins_upd
 BEFORE INSERT OR UPDATE OF "SoLuongToiDa" ON "LOP"
 FOR EACH ROW
@@ -1399,6 +1442,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv11_lichhoclop_ins_upd ON "LICHHOCLOP";
 CREATE TRIGGER trg_rbtv11_lichhoclop_ins_upd
 BEFORE INSERT OR UPDATE OF "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
 FOR EACH ROW
@@ -1441,6 +1485,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv11_tiethoc_upd ON "TIETHOC";
 CREATE TRIGGER trg_rbtv11_tiethoc_upd
 BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
 FOR EACH ROW
@@ -1478,6 +1523,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LICHHOCLOP
+DROP TRIGGER IF EXISTS trg_rbtv12_lichhoclop_ins_upd ON "LICHHOCLOP";
 CREATE TRIGGER trg_rbtv12_lichhoclop_ins_upd
 BEFORE INSERT OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
 FOR EACH ROW
@@ -1520,6 +1566,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng TIETHOC
+DROP TRIGGER IF EXISTS trg_rbtv12_tiethoc_upd ON "TIETHOC";
 CREATE TRIGGER trg_rbtv12_tiethoc_upd
 BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
 FOR EACH ROW
@@ -1575,6 +1622,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv13_lichhoclop_ins_upd ON "LICHHOCLOP";
 CREATE TRIGGER trg_rbtv13_lichhoclop_ins_upd
 BEFORE INSERT OR UPDATE OF "PhongHoc", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "LopMoId" ON "LICHHOCLOP"
 FOR EACH ROW
@@ -1615,6 +1663,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv13_lopmo_upd ON "LOPMO";
 CREATE TRIGGER trg_rbtv13_lopmo_upd
 BEFORE UPDATE OF "MaHocKy", "TrangThai" ON "LOPMO"
 FOR EACH ROW
@@ -1657,6 +1706,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv13_tiethoc_upd ON "TIETHOC";
 CREATE TRIGGER trg_rbtv13_tiethoc_upd
 BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
 FOR EACH ROW
@@ -1711,6 +1761,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv14_lichhoclop_ins_upd ON "LICHHOCLOP";
 CREATE TRIGGER trg_rbtv14_lichhoclop_ins_upd
 BEFORE INSERT OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc" ON "LICHHOCLOP"
 FOR EACH ROW
@@ -1752,6 +1803,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv14_lop_upd ON "LOP";
 CREATE TRIGGER trg_rbtv14_lop_upd
 BEFORE UPDATE OF "GiangVien" ON "LOP"
 FOR EACH ROW
@@ -1795,6 +1847,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv14_lopmo_upd ON "LOPMO";
 CREATE TRIGGER trg_rbtv14_lopmo_upd
 BEFORE UPDATE OF "MaHocKy", "TrangThai" ON "LOPMO"
 FOR EACH ROW
@@ -1837,6 +1890,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv14_tiethoc_upd ON "TIETHOC";
 CREATE TRIGGER trg_rbtv14_tiethoc_upd
 BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
 FOR EACH ROW
@@ -1874,6 +1928,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LICHHOCLOP
+DROP TRIGGER IF EXISTS trg_rbtv15_lichhoclop_del_upd ON "LICHHOCLOP";
 CREATE TRIGGER trg_rbtv15_lichhoclop_del_upd
 BEFORE DELETE OR UPDATE OF "LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc" 
 ON "LICHHOCLOP"
@@ -1908,6 +1963,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LOPMO
+DROP TRIGGER IF EXISTS trg_rbtv15_lopmo_upd ON "LOPMO";
 CREATE TRIGGER trg_rbtv15_lopmo_upd
 BEFORE UPDATE OF "MaLop", "MaHocKy" ON "LOPMO"
 FOR EACH ROW
@@ -1936,6 +1992,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng PHIEUDANGKY
+DROP TRIGGER IF EXISTS trg_rbtv17_phieudangky_ins ON "PHIEUDANGKY";
 CREATE TRIGGER trg_rbtv17_phieudangky_ins
 BEFORE INSERT ON "PHIEUDANGKY"
 FOR EACH ROW
@@ -1972,6 +2029,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng CHITIETDANGKY
+DROP TRIGGER IF EXISTS trg_rbtv17_chitietdangky_ins_upd ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv17_chitietdangky_ins_upd
 BEFORE INSERT OR UPDATE OF "TrangThai" ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -2024,6 +2082,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng HOCKY
+DROP TRIGGER IF EXISTS trg_rbtv17_hocky_upd ON "HOCKY";
 CREATE TRIGGER trg_rbtv17_hocky_upd
 BEFORE UPDATE OF "NgayBatDauDangKy", "NgayKetThucDangKy", "TrangThai" ON "HOCKY"
 FOR EACH ROW
@@ -2060,6 +2119,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng CHITIETDANGKY
+DROP TRIGGER IF EXISTS trg_rbtv18_chitietdangky_ins_upd ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv18_chitietdangky_ins_upd
 BEFORE INSERT OR UPDATE OF "MaLop", "SoPhieu", "TrangThai" ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -2094,6 +2154,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng PHIEUDANGKY
+DROP TRIGGER IF EXISTS trg_rbtv18_phieudangky_upd ON "PHIEUDANGKY";
 CREATE TRIGGER trg_rbtv18_phieudangky_upd
 BEFORE UPDATE OF "MaHocKy" ON "PHIEUDANGKY"
 FOR EACH ROW
@@ -2128,6 +2189,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LOPMO
+DROP TRIGGER IF EXISTS trg_rbtv18_lopmo_del_upd ON "LOPMO";
 CREATE TRIGGER trg_rbtv18_lopmo_del_upd
 BEFORE DELETE OR UPDATE OF "TrangThai", "MaHocKy", "MaLop" ON "LOPMO"
 FOR EACH ROW
@@ -2153,6 +2215,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng CHITIETDANGKY
+DROP TRIGGER IF EXISTS trg_rbtv19_chitietdangky_ins_upd ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv19_chitietdangky_ins_upd
 BEFORE INSERT OR UPDATE OF "MaLop", "MaMonHoc" ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -2180,6 +2243,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LOP
+DROP TRIGGER IF EXISTS trg_rbtv19_lop_upd ON "LOP";
 CREATE TRIGGER trg_rbtv19_lop_upd
 BEFORE UPDATE OF "MaMonHoc" ON "LOP"
 FOR EACH ROW
@@ -2209,6 +2273,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng CHITIETDANGKY
+DROP TRIGGER IF EXISTS trg_rbtv20_chitietdangky_ins_upd ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv20_chitietdangky_ins_upd
 BEFORE INSERT OR UPDATE OF "MaLop", "SoTinChi", "LoaiMon" ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -2243,6 +2308,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng LOP
+DROP TRIGGER IF EXISTS trg_rbtv20_lop_upd ON "LOP";
 CREATE TRIGGER trg_rbtv20_lop_upd
 BEFORE UPDATE OF "MaMonHoc" ON "LOP"
 FOR EACH ROW
@@ -2281,6 +2347,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Gắn trigger vào bảng MONHOC
+DROP TRIGGER IF EXISTS trg_rbtv20_monhoc_upd ON "MONHOC";
 CREATE TRIGGER trg_rbtv20_monhoc_upd
 BEFORE UPDATE OF "LoaiMon", "SoTiet" ON "MONHOC"
 FOR EACH ROW
@@ -2348,6 +2415,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv21_chitietdangky_ins_upd ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv21_chitietdangky_ins_upd
 BEFORE INSERT OR UPDATE OF "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "SoPhieu" ON "CHITIETDANGKY"
 FOR EACH ROW
@@ -2364,6 +2432,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv21_phieudangky_upd ON "PHIEUDANGKY";
 CREATE TRIGGER trg_rbtv21_phieudangky_upd
 BEFORE UPDATE OF "MaHocKy" ON "PHIEUDANGKY"
 FOR EACH ROW
@@ -2385,6 +2454,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv21_hocky_upd ON "HOCKY";
 CREATE TRIGGER trg_rbtv21_hocky_upd
 BEFORE UPDATE OF "LoaiHocKy" ON "HOCKY"
 FOR EACH ROW
@@ -2410,6 +2480,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv21_dongiatinchi_upd ON "DONGIATINCHI";
 CREATE TRIGGER trg_rbtv21_dongiatinchi_upd
 BEFORE UPDATE OF "DonGia", "TrangThai" ON "DONGIATINCHI"
 FOR EACH ROW
@@ -2426,6 +2497,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv21_monhoc_upd ON "MONHOC";
 CREATE TRIGGER trg_rbtv21_monhoc_upd
 BEFORE UPDATE OF "LoaiMon", "SoTiet" ON "MONHOC"
 FOR EACH ROW
@@ -2787,6 +2859,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_chk_rbtv26_ctdk ON "CHITIETDANGKY";
 CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_ctdk
 AFTER INSERT OR DELETE OR UPDATE OF "MaLop", "TrangThai"
 ON "CHITIETDANGKY"
@@ -2822,6 +2895,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_chk_rbtv26_lopmo ON "LOPMO";
 CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_lopmo
 AFTER UPDATE OF "SoLuongDaDangKy", "TrangThai"
 ON "LOPMO"
@@ -2847,6 +2921,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_chk_rbtv26_lop ON "LOP";
 CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_lop
 AFTER UPDATE OF "SoLuongToiDa"
 ON "LOP"
@@ -2911,6 +2986,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_chk_rbtv26_pdk ON "PHIEUDANGKY";
 CREATE CONSTRAINT TRIGGER trg_chk_rbtv26_pdk
 AFTER UPDATE OF "MaHocKy", "TrangThai"
 ON "PHIEUDANGKY"
@@ -2939,6 +3015,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Tạo Constraint Trigger (Hoãn kiểm tra đến cuối transaction)
+DROP TRIGGER IF EXISTS trg_chk_rbtv27_pdk ON "PHIEUDANGKY";
 CREATE CONSTRAINT TRIGGER trg_chk_rbtv27_pdk
 AFTER UPDATE OF "TrangThai"
 ON "PHIEUDANGKY"
@@ -2968,6 +3045,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Tạo Constraint Trigger (Hoãn kiểm tra đến cuối transaction)
+DROP TRIGGER IF EXISTS trg_chk_rbtv27_ctdk ON "CHITIETDANGKY";
 CREATE CONSTRAINT TRIGGER trg_chk_rbtv27_ctdk
 AFTER INSERT OR UPDATE OF "SoPhieu", "TrangThai"
 ON "CHITIETDANGKY"
@@ -3298,6 +3376,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_chitietdangky ON "CHITIETDANGKY";
 CREATE TRIGGER trg_rbtv34_chitietdangky
 BEFORE INSERT OR UPDATE OF "MaLop", "MaMonHoc", "SoPhieu", "TrangThai" ON "CHITIETDANGKY"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_chitietdangky();
@@ -3324,6 +3403,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_phieudangky ON "PHIEUDANGKY";
 CREATE TRIGGER trg_rbtv34_phieudangky
 BEFORE INSERT OR UPDATE OF "MaSv", "MaHocKy", "TrangThai" ON "PHIEUDANGKY"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phieudangky();
@@ -3350,6 +3430,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_phieuthuhocphi ON "PHIEUTHUHOCPHI";
 CREATE TRIGGER trg_rbtv34_phieuthuhocphi
 BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "MaSv", "TrangThai" ON "PHIEUTHUHOCPHI"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phieuthuhocphi();
@@ -3375,6 +3456,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_lopmo ON "LOPMO";
 CREATE TRIGGER trg_rbtv34_lopmo
 BEFORE INSERT OR UPDATE OF "MaHocKy", "MaLop", "TrangThai" ON "LOPMO"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lopmo();
@@ -3413,6 +3495,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_mondahoc ON "MONDAHOC";
 CREATE TRIGGER trg_rbtv34_mondahoc
 BEFORE INSERT OR UPDATE OF "MaSv", "MaMonHoc", "MaHocKy", "MaLop", "DaXoa" ON "MONDAHOC"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_mondahoc();
@@ -3432,6 +3515,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_phuongxa ON "PHUONGXA";
 CREATE TRIGGER trg_rbtv34_phuongxa
 BEFORE INSERT OR UPDATE OF "MaTinh", "TrangThai" ON "PHUONGXA"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phuongxa();
@@ -3451,10 +3535,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_nganhhoc ON "NGANHHOC";
 CREATE TRIGGER trg_rbtv34_nganhhoc
 BEFORE INSERT OR UPDATE OF "MaKhoa", "TrangThai", "DaXoa" ON "NGANHHOC"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_khoa_ref();
 
+DROP TRIGGER IF EXISTS trg_rbtv34_monhoc ON "MONHOC";
 CREATE TRIGGER trg_rbtv34_monhoc
 BEFORE INSERT OR UPDATE OF "MaKhoa", "TrangThai", "DaXoa" ON "MONHOC"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_khoa_ref();
@@ -3481,6 +3567,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_dieukienmonhoc ON "DIEUKIENMONHOC";
 CREATE TRIGGER trg_rbtv34_dieukienmonhoc
 BEFORE INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien", "TrangThai", "DaXoa" ON "DIEUKIENMONHOC"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_dieukienmonhoc();
@@ -3500,6 +3587,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_lop ON "LOP";
 CREATE TRIGGER trg_rbtv34_lop
 BEFORE INSERT OR UPDATE OF "MaMonHoc", "TrangThai", "DaXoa" ON "LOP"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lop();
@@ -3526,6 +3614,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_chuongtrinhhoc ON "CHUONGTRINHHOC";
 CREATE TRIGGER trg_rbtv34_chuongtrinhhoc
 BEFORE INSERT OR UPDATE OF "MaNganh", "MaMonHoc", "TrangThai" ON "CHUONGTRINHHOC"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_chuongtrinhhoc();
@@ -3545,6 +3634,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_hocky ON "HOCKY";
 CREATE TRIGGER trg_rbtv34_hocky
 BEFORE INSERT OR UPDATE OF "MaNamHoc", "TrangThai", "DaXoa" ON "HOCKY"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_hocky();
@@ -3577,6 +3667,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_lichhoclop ON "LICHHOCLOP";
 CREATE TRIGGER trg_rbtv34_lichhoclop
 BEFORE INSERT OR UPDATE OF "LopMoId", "MaTietBatDau", "MaTietKetThuc", "TrangThai" ON "LICHHOCLOP"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lichhoclop();
@@ -3596,6 +3687,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_dongiatinchi ON "DONGIATINCHI";
 CREATE TRIGGER trg_rbtv34_dongiatinchi
 BEFORE INSERT OR UPDATE OF "MaHocKy", "TrangThai", "DaXoa" ON "DONGIATINCHI"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_dongiatinchi();
@@ -3635,6 +3727,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_sinhvien ON "SINHVIEN";
 CREATE TRIGGER trg_rbtv34_sinhvien
 BEFORE INSERT OR UPDATE OF "MaPhuongXa", "MaDanToc", "MaNganh", "MaTaiKhoan", "TrangThai", "DaXoa" ON "SINHVIEN"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_sinhvien();
@@ -3662,6 +3755,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_nguoidung ON "NGUOIDUNG";
 CREATE TRIGGER trg_rbtv34_nguoidung
 BEFORE INSERT OR UPDATE OF "MaNhom", "MaSv", "TrangThai" ON "NGUOIDUNG"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nguoidung();
@@ -3681,6 +3775,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_quantrivien ON "QUANTRIVIEN";
 CREATE TRIGGER trg_rbtv34_quantrivien
 BEFORE INSERT OR UPDATE OF "MaTaiKhoan", "TrangThai" ON "QUANTRIVIEN"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_quantrivien();
@@ -3700,6 +3795,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_rbtv34_thongbao ON "THONGBAO";
 CREATE TRIGGER trg_rbtv34_thongbao
 BEFORE INSERT OR UPDATE OF "MaTaiKhoanNhan", "TrangThai", "DaXoa" ON "THONGBAO"
 FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_thongbao();
@@ -3722,6 +3818,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_lop_parent ON "LOP";
 CREATE TRIGGER trg_rbtv34_lop_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "LOP" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lop_parent();
 
 -- 2. MONHOC (Cha)
@@ -3738,13 +3835,14 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_monhoc_parent ON "MONHOC";
 CREATE TRIGGER trg_rbtv34_monhoc_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "MONHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_monhoc_parent();
 
 -- 3. HOCKY (Cha)
 CREATE OR REPLACE FUNCTION fn_chk_rbtv34_hocky_parent()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = 'Đã kết thúc' AND OLD."TrangThai" != 'Đã kết thúc') THEN
+    IF NEW."DaXoa" = TRUE AND COALESCE(OLD."DaXoa", FALSE) = FALSE THEN
         IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUDANGKY con hoat dong.'; END IF;
         IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOPMO con hoat dong.'; END IF;
         IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
@@ -3753,7 +3851,31 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_hocky_parent ON "HOCKY";
 CREATE TRIGGER trg_rbtv34_hocky_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "HOCKY" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_hocky_parent();
+
+CREATE OR REPLACE FUNCTION fn_chk_one_ongoing_hocky()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF COALESCE(NEW."DaXoa", FALSE) = FALSE AND NEW."TrangThai" = 'Đang diễn ra' THEN
+        IF EXISTS (
+            SELECT 1
+            FROM "HOCKY"
+            WHERE "MaHocKy" IS DISTINCT FROM NEW."MaHocKy"
+              AND COALESCE("DaXoa", FALSE) = FALSE
+              AND "TrangThai" = 'Đang diễn ra'
+        ) THEN
+            RAISE EXCEPTION 'RBTV_HOCKY_01: Chỉ được có một học kỳ đang diễn ra.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_chk_one_ongoing_hocky ON "HOCKY";
+CREATE TRIGGER trg_chk_one_ongoing_hocky
+BEFORE INSERT OR UPDATE OF "TrangThai", "DaXoa" ON "HOCKY"
+FOR EACH ROW EXECUTE FUNCTION fn_chk_one_ongoing_hocky();
 
 -- 4. SINHVIEN (Cha)
 CREATE OR REPLACE FUNCTION fn_chk_rbtv34_sinhvien_parent()
@@ -3768,6 +3890,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_sinhvien_parent ON "SINHVIEN";
 CREATE TRIGGER trg_rbtv34_sinhvien_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "SINHVIEN" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_sinhvien_parent();
 
 -- 5. PHIEUDANGKY (Cha)
@@ -3781,6 +3904,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_phieudangky_parent ON "PHIEUDANGKY";
 CREATE TRIGGER trg_rbtv34_phieudangky_parent BEFORE UPDATE OF "TrangThai" ON "PHIEUDANGKY" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_phieudangky_parent();
 
 -- 6. TINH (Cha)
@@ -3793,6 +3917,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_tinh_parent ON "TINH";
 CREATE TRIGGER trg_rbtv34_tinh_parent BEFORE UPDATE OF "TrangThai" ON "TINH" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_tinh_parent();
 
 -- 7. KHOA (Cha)
@@ -3806,6 +3931,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_khoa_parent ON "KHOA";
 CREATE TRIGGER trg_rbtv34_khoa_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "KHOA" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_khoa_parent();
 
 -- 8. NAMHOC (Cha)
@@ -3818,6 +3944,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_namhoc_parent ON "NAMHOC";
 CREATE TRIGGER trg_rbtv34_namhoc_parent BEFORE UPDATE OF "TrangThai" ON "NAMHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_namhoc_parent();
 
 -- 9. LOPMO (Cha)
@@ -3830,6 +3957,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_lopmo_parent ON "LOPMO";
 CREATE TRIGGER trg_rbtv34_lopmo_parent BEFORE UPDATE OF "TrangThai" ON "LOPMO" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_lopmo_parent();
 
 -- 10. TIETHOC (Cha)
@@ -3842,6 +3970,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_tiethoc_parent ON "TIETHOC";
 CREATE TRIGGER trg_rbtv34_tiethoc_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "TIETHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_tiethoc_parent();
 
 -- 11. PHUONGXA & DANTOC (Cha)
@@ -3858,7 +3987,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_phuongxa_parent ON "PHUONGXA";
 CREATE TRIGGER trg_rbtv34_phuongxa_parent BEFORE UPDATE OF "TrangThai" ON "PHUONGXA" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_px_dt_parent();
+DROP TRIGGER IF EXISTS trg_rbtv34_dantoc_parent ON "DANTOC";
 CREATE TRIGGER trg_rbtv34_dantoc_parent BEFORE UPDATE OF "TrangThai" ON "DANTOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_px_dt_parent();
 
 -- 12. NGANHHOC (Cha)
@@ -3872,6 +4003,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_nganhhoc_parent ON "NGANHHOC";
 CREATE TRIGGER trg_rbtv34_nganhhoc_parent BEFORE UPDATE OF "DaXoa", "TrangThai" ON "NGANHHOC" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nganhhoc_parent();
 
 -- 13. NHOMNGUOIDUNG (Cha)
@@ -3884,6 +4016,7 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_nhomnguoidung_parent ON "NHOMNGUOIDUNG";
 CREATE TRIGGER trg_rbtv34_nhomnguoidung_parent BEFORE UPDATE OF "DaXoa" ON "NHOMNGUOIDUNG" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nhomnguoidung_parent();
 
 -- 14. NGUOIDUNG (Cha)
@@ -3898,4 +4031,5 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_rbtv34_nguoidung_parent ON "NGUOIDUNG";
 CREATE TRIGGER trg_rbtv34_nguoidung_parent BEFORE UPDATE OF "TrangThai" ON "NGUOIDUNG" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nguoidung_parent();

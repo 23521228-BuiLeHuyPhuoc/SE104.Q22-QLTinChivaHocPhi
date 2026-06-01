@@ -1,0 +1,60 @@
+extends ../../layouts/admin
+
+block content
+  form.toolbar(method="get" action="/admin/curriculum-programs")
+    .search-box
+      input(type="text" name="search" placeholder="Tìm ngành, mã môn hoặc tên môn..." value=(search || ''))
+    .filter-group
+      select.form-control(name="major")
+        option(value="") Tất cả ngành
+        each item in majors || []
+          option(value=item.MaNganh selected=(major === item.MaNganh)) #{item.TenNganh} (#{item.MaNganh})
+      select.form-control(name="status")
+        option(value="") Tất cả trạng thái
+        option(value="active" selected=(status === 'active')) Đang áp dụng
+        option(value="inactive" selected=(status === 'inactive')) Tạm ngưng
+      button.btn.btn-primary(type="submit") Lọc
+      a.btn.btn-outline(href="/admin/curriculum-programs") Xóa lọc
+
+  .card
+    .card-header
+      h3 Chương trình học
+      span.card-count= typeof totalRecords !== 'undefined' ? `${totalRecords} bản ghi` : `${curriculumPrograms ? curriculumPrograms.length : 0} bản ghi`
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Ngành
+            th Khoa
+            th Học kỳ
+            th Môn học
+            th Tín chỉ
+            th Loại
+            th Tính chất
+            th Trạng thái
+            th Ghi chú
+        tbody
+          if curriculumPrograms && curriculumPrograms.length > 0
+            each row in curriculumPrograms
+              tr
+                td
+                  strong= row.TenNganh
+                  small= row.MaNganh
+                td= row.TenKhoa
+                td
+                  span.badge.badge-primary HK #{row.HocKyDuKien}
+                td
+                  strong= row.TenMonHoc
+                  small= row.MaMonHoc
+                td= row.SoTinChi
+                td= row.LoaiMon
+                td= row.BatBuocLabel
+                td
+                  span.badge(class=row.TrangThaiClass)= row.TrangThaiLabel
+                td= row.GhiChu || '-'
+          else
+            tr
+              td(colspan="9")
+                .empty-state Không có dữ liệu chương trình học phù hợp
+
+  include ../../partials/pagination

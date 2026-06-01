@@ -106,11 +106,14 @@ function getDetailedSlots(course) {
       var startIndex = getPeriodIndex(schedule, 'MaTietBatDau', 'TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC');
       var endIndex = getPeriodIndex(schedule, 'MaTietKetThuc', 'TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC');
       if (DAYS.indexOf(day) >= 0 && startIndex >= 0) {
+        var scheduleRoom = schedule.PHONGHOC
+          ? [schedule.PHONGHOC.MaPhong, schedule.PHONGHOC.TenPhong].filter(Boolean).join(' - ')
+          : (schedule.PhongHoc || schedule.MaPhong);
         slots.push({
           day: day,
           startIndex: startIndex,
           endIndex: endIndex >= startIndex ? endIndex : startIndex,
-          room: schedule.PhongHoc
+          room: scheduleRoom
         });
       }
     });
