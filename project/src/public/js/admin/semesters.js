@@ -259,7 +259,7 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Thời điểm sửa</span><span class="semester-field-value">' + escapeHtml(formatSemesterDateTime(s.NgayCapNhat)) + '</span></div>',
         '</div>',
         '<div class="semester-actions">',
-          '<button class="btn btn-sm btn-outline" type="button" data-action="finalize" data-id="' + escapeHtml(s.MaHocKy || '') + '">Chốt ĐK</button>',
+          '<button class="btn btn-sm btn-outline" type="button" data-action="finalize" data-id="' + escapeHtml(s.MaHocKy || '') + '">Ch\u1ed1t \u0111\u0103ng k\u00fd</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="edit" data-index="' + index + '">Sửa</button>',
           '<button class="btn btn-sm btn-danger" type="button" data-action="delete" data-id="' + escapeHtml(s.MaHocKy || '') + '">Xóa</button>',
         '</div>',
