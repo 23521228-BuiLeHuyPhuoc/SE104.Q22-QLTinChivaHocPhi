@@ -30,6 +30,45 @@ const AUDITED_SOFT_DELETE_TABLES = [
 ];
 
 const ensureAuthSchema = async () => {
+  const qi = String.fromCharCode(34);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE ${qi}DONGIATINCHI${qi}
+      ADD COLUMN IF NOT EXISTS ${qi}NgayApDung${qi} DATE DEFAULT CURRENT_DATE,
+      ADD COLUMN IF NOT EXISTS ${qi}TrangThai${qi} BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS ${qi}DaXoa${qi} BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_lay_don_gia(
+      p_LoaiMon VARCHAR,
+      p_LoaiGia VARCHAR,
+      p_MaHocKy VARCHAR
+    ) RETURNS DECIMAL AS $$
+    DECLARE
+      v_DonGia DECIMAL(12,0);
+    BEGIN
+      SELECT ${qi}DonGia${qi} INTO v_DonGia
+      FROM ${qi}DONGIATINCHI${qi}
+      WHERE ${qi}LoaiMon${qi} = p_LoaiMon
+        AND ${qi}LoaiHoc${qi} = p_LoaiGia
+        AND COALESCE(${qi}DaXoa${qi}, FALSE) = FALSE
+        AND ${qi}TrangThai${qi} = TRUE
+        AND (${qi}MaHocKy${qi} = p_MaHocKy OR ${qi}MaHocKy${qi} IS NULL)
+      ORDER BY
+        CASE WHEN ${qi}MaHocKy${qi} = p_MaHocKy THEN 0 ELSE 1 END,
+        ${qi}NgayApDung${qi} DESC NULLS LAST,
+        ${qi}id${qi} DESC
+      LIMIT 1;
+
+      IF v_DonGia IS NULL THEN
+        RAISE EXCEPTION 'RBTV21: Khong tim thay bang gia ap dung cho Loai mon: %, Loai hoc: %, Hoc ky: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
+      END IF;
+
+      RETURN v_DonGia;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "NGUOIDUNG"
       ADD COLUMN IF NOT EXISTS "TrangThaiDuyet" VARCHAR(20) NOT NULL DEFAULT 'approved',

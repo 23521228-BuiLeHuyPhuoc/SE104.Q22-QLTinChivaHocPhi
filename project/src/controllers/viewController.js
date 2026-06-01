@@ -3,6 +3,9 @@ const prisma = require('../config/database');
 const { isSystemAdminUser } = require('../middleware/auth');
 const { DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 const { TRASH_ENTITIES } = require('../utils/trashConfig');
+const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pricingSearch');
+const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
+const { buildRegistrationStudentRows, buildRegistrationDistribution } = require('../utils/registrationStats');
 require('dotenv').config();
 
 function getTokenFromCookie(req) {
@@ -405,12 +408,11 @@ const adminClasses = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
-  const selectedCourse = req.query.MaMonHoc || '';
+  const searchScope = ['classCode', 'className', 'course', 'lecturer'].includes(req.query.searchScope) ? req.query.searchScope : 'classCode';
   const selectedSemester = req.query.MaHocKy || '';
   const openStatus = req.query.openStatus || '';
   const where = { DaXoa: false };
 
-  if (selectedCourse) where.MaMonHoc = selectedCourse;
   if (selectedSemester && openStatus === 'not_open') {
     where.LOPMO = { none: { MaHocKy: selectedSemester } };
   } else if (selectedSemester) {
@@ -431,37 +433,31 @@ const adminClasses = async (req, res) => {
   }
 
   if (search) {
-    where.OR = [
-      { MaLop: { contains: search, mode: 'insensitive' } },
-      { TenLop: { contains: search, mode: 'insensitive' } },
-      { MaMonHoc: { contains: search, mode: 'insensitive' } },
-      { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
-      { MaGiangVien: { contains: search, mode: 'insensitive' } },
-      { GiangVien: { contains: search, mode: 'insensitive' } },
-      { LichHoc: { contains: search, mode: 'insensitive' } },
-      { MaPhong: { contains: search, mode: 'insensitive' } },
-      { PhongHoc: { contains: search, mode: 'insensitive' } },
-      { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } },
-      { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } },
-      { LOPMO: { some: { MaGiangVien: { contains: search, mode: 'insensitive' } } } },
-      { LOPMO: { some: { GiangVien: { contains: search, mode: 'insensitive' } } } },
-      { LOPMO: { some: { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } } } },
-      {
-        LOPMO: {
-          some: {
-            LICHHOCLOP: {
-              some: {
-                OR: [
-                  { MaPhong: { contains: search, mode: 'insensitive' } },
-                  { PhongHoc: { contains: search, mode: 'insensitive' } },
-                  { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } }
-                ]
-              }
-            }
-          }
-        }
-      }
-    ];
+    const scopedSearch = {
+      class: [
+        { MaLop: { contains: search, mode: 'insensitive' } },
+        { TenLop: { contains: search, mode: 'insensitive' } }
+      ],
+      classCode: [
+        { MaLop: { contains: search, mode: 'insensitive' } }
+      ],
+      className: [
+        { TenLop: { contains: search, mode: 'insensitive' } }
+      ],
+      course: [
+        { MaMonHoc: { contains: search, mode: 'insensitive' } },
+        { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } }
+      ],
+      lecturer: [
+        { MaGiangVien: { contains: search, mode: 'insensitive' } },
+        { GiangVien: { contains: search, mode: 'insensitive' } },
+        { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } },
+        { LOPMO: { some: { MaGiangVien: { contains: search, mode: 'insensitive' } } } },
+        { LOPMO: { some: { GiangVien: { contains: search, mode: 'insensitive' } } } },
+        { LOPMO: { some: { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } } } }
+      ]
+    };
+    where.OR = scopedSearch[searchScope];
   }
 
   try {
@@ -590,9 +586,9 @@ const adminClasses = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/classes',
-      queryParams: { search, MaMonHoc: selectedCourse, MaHocKy: selectedSemester, openStatus, limit },
+      queryParams: { search, searchScope, MaHocKy: selectedSemester, openStatus, limit },
       search,
-      selectedCourse,
+      searchScope,
       selectedSemester,
       openStatus
     });
@@ -610,7 +606,7 @@ const adminClasses = async (req, res) => {
       baseUrl: '/admin/classes',
       queryParams: {},
       search: '',
-      selectedCourse: '',
+      searchScope: 'classCode',
       selectedSemester: '',
       openStatus: ''
     });
@@ -1050,93 +1046,68 @@ const adminRegistrations = async (req, res) => {
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
   const status = req.query.status || '';
+  const registrationSearchScope = normalizeRegistrationSearchScope(req.query.searchScope);
+  const selectedSemester = req.query.MaHocKy || '';
   const where = {};
 
   if (status) where.TrangThai = status;
-  if (search) {
-    where.SINHVIEN = {
-      OR: [
-        { MaSv: { contains: search, mode: 'insensitive' } },
-        { HoTen: { contains: search, mode: 'insensitive' } }
-      ]
-    };
-  }
+  if (selectedSemester) where.MaHocKy = selectedSemester;
+  applyRegistrationSearch(where, registrationSearchScope, search);
 
   try {
     const registrations = await prisma.PHIEUDANGKY.findMany({
       where,
       orderBy: { NgayLap: 'desc' },
       include: {
-        SINHVIEN: true,
+        SINHVIEN: {
+          include: {
+            NGANHHOC: { include: { KHOA: true } }
+          }
+        },
         HOCKY: { include: { NAMHOC: true } },
         CHITIETDANGKY: {
           where: { TrangThai: 'Đã đăng ký' },
           select: { id: true, SoTinChi: true }
-        },
-        PHIEUTHUHOCPHI: { where: { TrangThai: 'Thành công' } }
+        }
       }
     });
 
-    const grouped = Array.from(registrations.reduce((map, registration) => {
-      const key = registration.MaSv;
-      if (!map.has(key)) {
-        map.set(key, {
-          MaSv: registration.MaSv,
-          SINHVIEN: registration.SINHVIEN,
-          latestRegistration: registration,
-          soPhieu: 0,
-          soMon: 0,
-          TongTinChi: 0,
-          TongTienPhaiDong: 0,
-          DaThu: 0,
-          statuses: new Set(),
-          semesters: new Set()
-        });
-      }
-
-      const row = map.get(key);
-      row.soPhieu += 1;
-      row.soMon += registration.CHITIETDANGKY.length;
-      row.TongTinChi += Number(registration.TongTinChi || registration.CHITIETDANGKY.reduce((sum, item) => sum + Number(item.SoTinChi || 0), 0));
-      row.TongTienPhaiDong += Number(registration.TongTienPhaiDong || registration.TongTienDangKy || 0);
-      row.DaThu += registration.PHIEUTHUHOCPHI.reduce((sum, item) => sum + Number(item.SoTienThu || 0), 0);
-      if (registration.TrangThai) row.statuses.add(registration.TrangThai);
-      const semesterName = registration.HOCKY
-        ? `${registration.HOCKY.TenHocKy}${registration.HOCKY.NAMHOC ? ' - ' + registration.HOCKY.NAMHOC.TenNamHoc : ''}`
-        : registration.MaHocKy;
-      row.semesters.add(semesterName);
-      return map;
-    }, new Map()).values()).map((row) => ({
-      ...row,
-      TrangThaiTongHop: Array.from(row.statuses).join(', ') || 'Đã đăng ký',
-      HocKyGanNhat: row.latestRegistration?.HOCKY
-        ? `${row.latestRegistration.HOCKY.TenHocKy}${row.latestRegistration.HOCKY.NAMHOC ? ' - ' + row.latestRegistration.HOCKY.NAMHOC.TenNamHoc : ''}`
-        : row.latestRegistration?.MaHocKy,
-      DanhSachHocKy: Array.from(row.semesters).join(', ')
-    }));
+    const grouped = buildRegistrationStudentRows(registrations);
 
     const total = grouped.length;
     const registrationStudents = grouped.slice((page - 1) * limit, page * limit);
+    const registrationStatsByFaculty = buildRegistrationDistribution(grouped, 'faculty');
+    const registrationStatsByMajor = buildRegistrationDistribution(grouped, 'major');
 
     renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký môn học', req, {
       registrations: registrationStudents,
+      totalRegistrationStudents: total,
+      registrationStatsByFaculty,
+      registrationStatsByMajor,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/registrations',
-      queryParams: { search, status, limit },
+      queryParams: { search, searchScope: registrationSearchScope, status, MaHocKy: selectedSemester, limit },
       search,
-      status
+      status,
+      registrationSearchScope,
+      selectedSemester
     });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'registrations', 'registrations', 'Quản lý đăng ký môn học', req, {
       registrations: [],
+      totalRegistrationStudents: 0,
+      registrationStatsByFaculty: [],
+      registrationStatsByMajor: [],
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/registrations',
       queryParams: {},
       search: '',
-      status: ''
+      status: '',
+      registrationSearchScope: 'studentId',
+      selectedSemester: ''
     });
   }
 };
@@ -1482,26 +1453,39 @@ const adminPricing = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const filterLoaiMon = req.query.LoaiMon || '';
+  const filterLoaiHoc = req.query.LoaiHoc || '';
   const filterHocKy = req.query.MaHocKy || '';
+  const filterTrangThai = req.query.TrangThai || '';
+  const pricingSearchScope = normalizePricingSearchScope(req.query.searchScope);
+  const pricingSearch = String(req.query.search || '').trim();
   const where = { DaXoa: false };
   if (filterLoaiMon) where.LoaiMon = filterLoaiMon;
-  if (filterHocKy) where.MaHocKy = filterHocKy;
+  if (filterLoaiHoc) where.LoaiHoc = filterLoaiHoc;
+  if (filterHocKy === '__all__') where.MaHocKy = null;
+  else if (filterHocKy) where.MaHocKy = filterHocKy;
+  if (filterTrangThai === 'active') where.TrangThai = true;
+  if (filterTrangThai === 'inactive') where.TrangThai = false;
+  applyPricingSearch(where, pricingSearchScope, pricingSearch);
   try {
     const [pricing, total, semesters] = await Promise.all([
-      prisma.DONGIATINCHI.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { id: 'desc' }, include: { HOCKY: true } }),
+      prisma.DONGIATINCHI.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { id: 'desc' }, include: { HOCKY: { include: { NAMHOC: true } } } }),
       prisma.DONGIATINCHI.count({ where }),
-      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' } })
+      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' }, include: { NAMHOC: true } })
     ]);
     const displayPricing = await attachUpdaterNames(pricing);
     renderAdmin(res, 'pricing', 'pricing', 'Đơn giá tín chỉ', req, {
       pricing: displayPricing,
       semesters,
       filterLoaiMon,
+      filterLoaiHoc,
       filterHocKy,
+      filterTrangThai,
+      pricingSearchScope,
+      pricingSearch,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/pricing',
-      queryParams: { LoaiMon: filterLoaiMon, MaHocKy: filterHocKy, limit }
+      queryParams: { searchScope: pricingSearchScope, search: pricingSearch, LoaiMon: filterLoaiMon, LoaiHoc: filterLoaiHoc, MaHocKy: filterHocKy, TrangThai: filterTrangThai, limit }
     });
   } catch (err) {
     console.error('Error:', err);
@@ -1509,7 +1493,11 @@ const adminPricing = async (req, res) => {
       pricing: [],
       semesters: [],
       filterLoaiMon: '',
+      filterLoaiHoc: '',
       filterHocKy: '',
+      filterTrangThai: '',
+      pricingSearchScope: 'loai_mon',
+      pricingSearch: '',
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/pricing',

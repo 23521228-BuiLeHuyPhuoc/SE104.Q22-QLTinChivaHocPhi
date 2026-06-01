@@ -19,9 +19,14 @@ block content
   .semester-filter-panel
     .semester-filter-grid
       .semester-filter-field.semester-filter-search
-        label(for="semester-keyword") Tìm theo mã học kỳ hoặc năm học
-        .search-box.semester-search-box
-          input#semester-keyword(type="text" placeholder="Nhập mã học kỳ hoặc năm học" autocomplete="off")
+        label(for="semester-keyword") Từ khóa tìm kiếm
+        .semester-search-row
+          .search-box.semester-search-box
+            input#semester-keyword(type="text" placeholder="Nhập từ khóa" autocomplete="off")
+          select.form-control#semester-search-scope(aria-label="Tìm học kỳ theo")
+            option(value="semesterCode") Mã học kỳ
+            option(value="semesterName") Tên học kỳ
+            option(value="academicYear") Năm học
       .semester-filter-field.semester-filter-kind
         span.semester-filter-label Học kỳ cần lọc
         .segmented-control#semester-kind-filter(role="group" aria-label="Lọc theo học kỳ")

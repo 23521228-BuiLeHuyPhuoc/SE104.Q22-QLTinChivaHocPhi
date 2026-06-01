@@ -1,64 +1,128 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/registrations.css")
+
 block content
-  .toolbar
-    .search-box
-      input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên sinh viên..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
-      select#filter-status(onchange="applyFilters()")
-        option(value="" selected=(!status)) Tất cả trạng thái
-        option(value="Đã đăng ký" selected=(status === 'Đã đăng ký')) Đã đăng ký
-        option(value="Đã hủy" selected=(status === 'Đã hủy')) Đã hủy
+  - const registrationScope = registrationSearchScope || 'studentId'
+  - const registrationSearchPlaceholders = { studentId: 'Nhập MSSV', studentName: 'Nhập họ tên sinh viên', major: 'Nhập mã ngành hoặc tên ngành', faculty: 'Nhập mã khoa hoặc tên khoa', semester: 'Nhập mã học kỳ, tên học kỳ hoặc năm học' }
+  - const registrationSearchPlaceholder = registrationSearchPlaceholders[registrationScope] || 'Nhập từ khóa tìm kiếm'
+  form.registration-filter-panel(method="get" action="/admin/registrations")
+    .registration-search-row
+      .registration-filter-field.registration-search-scope
+        label(for="registration-search-scope") Tìm theo
+        select.form-control#registration-search-scope(name="searchScope" onchange="updateRegistrationSearchPlaceholder(); applyFilters()")
+          option(value="studentId" selected=(registrationScope === 'studentId') data-placeholder=registrationSearchPlaceholders.studentId) MSSV
+          option(value="studentName" selected=(registrationScope === 'studentName') data-placeholder=registrationSearchPlaceholders.studentName) Họ tên
+          option(value="major" selected=(registrationScope === 'major') data-placeholder=registrationSearchPlaceholders.major) Ngành
+          option(value="faculty" selected=(registrationScope === 'faculty') data-placeholder=registrationSearchPlaceholders.faculty) Khoa
+          option(value="semester" selected=(registrationScope === 'semester') data-placeholder=registrationSearchPlaceholders.semester) Học kỳ
+      .registration-filter-field.registration-search-keyword
+        label(for="search-input") Từ khóa tìm kiếm
+        .search-box.registration-search-box
+          input#search-input(type="text" name="search" placeholder=registrationSearchPlaceholder value=(search || '') autocomplete="off" onkeyup="debounceSearch()")
+    .registration-filter-row
+      .registration-filter-field
+        label(for="filter-status") Lọc theo trạng thái
+        select.form-control#filter-status(name="status" onchange="applyFilters()")
+          option(value="" selected=(!status)) Tất cả trạng thái
+          option(value="Đã đăng ký" selected=(status === 'Đã đăng ký')) Đã đăng ký
+          option(value="Đã hủy" selected=(status === 'Đã hủy')) Đã hủy
+      .registration-filter-actions
+        button.btn.btn-outline#registration-stats-toggle(type="button" aria-controls="registration-stats-panel" aria-expanded="false" onclick="toggleRegistrationStats()") Thống kê đăng ký môn học
+        a.btn.btn-outline(href="/admin/registrations") Xóa lọc
+        button.btn.btn-outline(type="button" onclick="exportRegistrations()") Xuất thống kê Excel
+
+  #registration-stats-panel.registration-stat-grid(hidden)
+    .registration-stat-card
+      .registration-stat-header
+        div
+          h3 Theo khoa
+          p Sinh viên đăng ký được nhóm theo khoa quản lý ngành học.
+        span.registration-stat-total #{registrationStatsByFaculty ? registrationStatsByFaculty.length : 0} khoa
+      if registrationStatsByFaculty && registrationStatsByFaculty.length > 0
+        .registration-stat-list
+          each item in registrationStatsByFaculty
+            .registration-stat-row
+              .registration-stat-main
+                strong= item.name
+                span #{item.code} · #{item.registrationCount} phiếu · #{item.courseCount} môn · #{item.creditCount} tín chỉ
+              .registration-stat-count
+                strong= item.studentCount
+                span SV
+              .registration-stat-meter
+                span(style=`width: ${item.percent}%`)
+      else
+        .empty-state Không có dữ liệu thống kê theo khoa
+    .registration-stat-card
+      .registration-stat-header
+        div
+          h3 Theo ngành
+          p Sinh viên đăng ký được nhóm theo ngành học hiện tại.
+        span.registration-stat-total #{registrationStatsByMajor ? registrationStatsByMajor.length : 0} ngành
+      if registrationStatsByMajor && registrationStatsByMajor.length > 0
+        .registration-stat-list
+          each item in registrationStatsByMajor
+            .registration-stat-row
+              .registration-stat-main
+                strong= item.name
+                span #{item.code}#{item.parentName ? ' · ' + item.parentName : ''} · #{item.registrationCount} phiếu · #{item.courseCount} môn · #{item.creditCount} tín chỉ
+              .registration-stat-count
+                strong= item.studentCount
+                span SV
+              .registration-stat-meter
+                span(style=`width: ${item.percent}%`)
+      else
+        .empty-state Không có dữ liệu thống kê theo ngành
 
   .card
     .card-header
       h3 Sinh viên đã đăng ký môn học
-      span.card-count= registrations ? `${registrations.length} sinh viên` : '0 sinh viên'
+      span.card-count= typeof totalRegistrationStudents !== 'undefined' ? `${totalRegistrationStudents} sinh viên` : (registrations ? `${registrations.length} sinh viên` : '0 sinh viên')
     .table-container
       table.data-table
         thead
           tr
             th MSSV
             th Họ tên
+            th Ngành/Khoa
             th Số phiếu
-            th Học kỳ gần nhất
+            th Học kỳ
             th Môn đã đăng ký
             th Tín chỉ
-            th Học phí
-            th Đã thu
             th Trạng thái
             th Thao tác
         tbody
           if registrations && registrations.length > 0
             each r in registrations
-              - const totalFee = Number(r.TongTienPhaiDong || 0)
-              - const paid = Number(r.DaThu || 0)
               tr
                 td.mono= r.MaSv
                 td= r.SINHVIEN ? r.SINHVIEN.HoTen : '-'
+                td.registration-student-academic
+                  - const major = r.SINHVIEN && r.SINHVIEN.NGANHHOC ? r.SINHVIEN.NGANHHOC : null
+                  - const faculty = major && major.KHOA ? major.KHOA : null
+                  div= major ? major.TenNganh : '-'
+                  small= faculty ? faculty.TenKhoa : ''
                 td= r.soPhieu || 0
                 td
-                  div= r.HocKyGanNhat || '-'
-                  small= r.DanhSachHocKy || ''
+                  div= r.HocKyHienThi || r.DanhSachHocKy || '-'
                 td= r.soMon || 0
                 td= r.TongTinChi || 0
-                td= totalFee.toLocaleString('vi-VN') + ' đ'
-                td= paid.toLocaleString('vi-VN') + ' đ'
                 td
                   span.badge(class=((r.TrangThaiTongHop || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThaiTongHop || 'Đã đăng ký'
                 td.table-actions
                   button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem chi tiết" aria-label="Xem chi tiết" data-ma-sv=r.MaSv onclick="openStudentRegistrationDetail(this.dataset.maSv)")
-                    span.icon-eye(aria-hidden="true")
+                    span.material-symbols-rounded(aria-hidden="true") visibility
           else
             tr
-              td(colspan="10")
+              td(colspan="9")
                 .empty-state Không có dữ liệu đăng ký
 
   include ../../partials/pagination
 
 block modals
   #registration-detail-modal.modal-overlay(onclick="if(event.target===this)closeRegistrationDetail()")
-    .modal
+    .modal.modal-wide
       .modal-header
         h3 Chi tiết đăng ký môn học
         button.modal-close(type="button" onclick="closeRegistrationDetail()") ×

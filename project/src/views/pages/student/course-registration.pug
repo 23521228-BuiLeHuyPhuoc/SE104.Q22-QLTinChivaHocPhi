@@ -8,20 +8,59 @@ block content
     .toolbar-title
       h2.page-title Đăng ký môn học
       p Tìm lớp đang mở đăng ký trong học kỳ hiện hành.
-    .filter-group.course-registration-filter
-      input#semester-input(type="hidden")
-      span.registration-semester-pill#semester-label Đang tải học kỳ
-      .search-box.course-registration-search
-        input#course-search(type="text" placeholder="Tìm môn học")
-      button.btn.btn-primary(type="button" id="load-courses" onclick="loadAvailableCourses()")
-        span.material-symbols-rounded search
-        span Tìm kiếm
+  form.course-registration-filter-panel#course-registration-filter
+    input#semester-input(type="hidden")
+    .registration-filter-grid
+      .registration-filter-field.registration-filter-semester
+        label Học kỳ đăng ký
+        span.registration-semester-pill#semester-label Đang tải học kỳ
+      .registration-filter-field.registration-filter-scope
+        label(for="course-search-scope") Tìm theo
+        select.form-control#course-search-scope
+          option(value="course") Môn học
+          option(value="lecturer") Giảng viên
+          option(value="class") Lớp
+      .registration-filter-field.registration-filter-search
+        label(for="course-search") Từ khóa tìm kiếm
+        .search-box.course-registration-search
+          input#course-search(type="text" placeholder="Nhập mã hoặc tên môn học" autocomplete="off")
+      .registration-filter-field.registration-filter-type
+        label(for="filter-course-type") Loại môn
+        select.form-control#filter-course-type
+          option(value="") Tất cả
+          option(value="LT") Lý thuyết
+          option(value="TH") Thực hành
+      .registration-filter-field.registration-filter-weekday
+        label(for="filter-weekday") Thứ
+        select.form-control#filter-weekday
+          option(value="") Tất cả
+          option(value="2") Thứ 2
+          option(value="3") Thứ 3
+          option(value="4") Thứ 4
+          option(value="5") Thứ 5
+          option(value="6") Thứ 6
+          option(value="7") Thứ 7
+          option(value="1") Chủ nhật
+      .registration-filter-field.registration-filter-period-start
+        label(for="filter-period-start") Từ tiết
+        select.form-control#filter-period-start
+          option(value="") Tất cả
+      .registration-filter-field.registration-filter-period-end
+        label(for="filter-period-end") Đến tiết
+        select.form-control#filter-period-end
+          option(value="") Tất cả
+      .registration-filter-actions
+        button.btn.btn-outline#reset-filters(type="button")
+          span.material-symbols-rounded restart_alt
+          span Xóa lọc
   #registration-window-message.empty-state.hidden
 
   .card.course-registration-card
-    .card-header
+    .card-header.course-registration-card-header
       h3 Môn học có thể đăng ký
-      span.card-count#available-count
+      .course-registration-header-meta
+        span.registration-credit-summary#registered-credit-summary Đã đăng ký: -- tín chỉ / Max -- tín chỉ
+        span.card-count#available-count
     .card-body
       .loading-overlay.hidden#loading
         .spinner

@@ -56,11 +56,13 @@ async function validateScheduleConflict(mode, body) {
 function applyFilters() {
   var params = new URLSearchParams();
   var search = document.getElementById('search-input');
+  var scope = document.getElementById('filter-search-scope');
   var semester = document.getElementById('filter-semester');
   var status = document.getElementById('filter-open-status');
 
   params.set('page', '1');
   if (search && search.value.trim()) params.set('search', search.value.trim());
+  if (scope && scope.value) params.set('searchScope', scope.value);
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (status && status.value) params.set('openStatus', status.value);
   window.location.href = '/admin/classes?' + params.toString();

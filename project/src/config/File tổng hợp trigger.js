@@ -2377,6 +2377,37 @@ BEGIN
     RETURN v_DonGia;
 END;
 $$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION fn_lay_don_gia(
+    p_LoaiMon VARCHAR,
+    p_LoaiGia VARCHAR,
+    p_MaHocKy VARCHAR
+) RETURNS DECIMAL AS $$
+DECLARE
+    v_DonGia DECIMAL(12,0);
+BEGIN
+    EXECUTE format(
+        'SELECT %1$I FROM %2$I
+         WHERE %3$I = $1
+           AND %4$I = $2
+           AND %5$I = TRUE
+           AND COALESCE(%6$I, FALSE) = FALSE
+           AND (%7$I = $3 OR %7$I IS NULL)
+         ORDER BY CASE WHEN %7$I = $3 THEN 0 ELSE 1 END,
+                  %8$I DESC NULLS LAST,
+                  %9$I DESC
+         LIMIT 1',
+        'DonGia', 'DONGIATINCHI', 'LoaiMon', 'LoaiHoc', 'TrangThai', 'DaXoa', 'MaHocKy', 'NgayApDung', 'id'
+    ) INTO v_DonGia
+    USING p_LoaiMon, p_LoaiGia, p_MaHocKy;
+
+    IF v_DonGia IS NULL THEN
+        RAISE EXCEPTION 'RBTV21: Khong tim thay bang gia ap dung cho Loai mon: %, Loai hoc: %, Hoc ky: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
+    END IF;
+
+    RETURN v_DonGia;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION fn_check_rbtv21_chitietdangky()
 RETURNS TRIGGER AS $$
 DECLARE

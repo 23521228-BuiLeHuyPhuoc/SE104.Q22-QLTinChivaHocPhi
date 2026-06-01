@@ -1,11 +1,91 @@
 .course-registration-toolbar {
   align-items: flex-start;
+  margin-bottom: var(--spacing-md);
 }
 
-.course-registration-filter {
-  flex: 1 1 520px;
+.course-registration-filter-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-lg);
+  padding: 16px;
+}
+
+.registration-filter-grid {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.registration-filter-field {
+  min-width: 0;
+}
+
+.registration-filter-field label {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.registration-filter-field .form-control,
+.course-registration-search,
+.course-registration-search input {
+  max-width: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.registration-filter-semester {
+  grid-column: 1 / span 3;
+  grid-row: 1;
+}
+
+.registration-filter-scope {
+  grid-column: 4 / span 3;
+  grid-row: 1;
+}
+
+.registration-filter-search {
+  grid-column: 7 / -1;
+  grid-row: 1;
+}
+
+.registration-filter-type {
+  grid-column: 1 / span 3;
+  grid-row: 2;
+}
+
+.registration-filter-weekday {
+  grid-column: 4 / span 3;
+  grid-row: 2;
+}
+
+.registration-filter-period-start {
+  grid-column: 7 / span 2;
+  grid-row: 2;
+}
+
+.registration-filter-period-end {
+  grid-column: 9 / span 2;
+  grid-row: 2;
+}
+
+.registration-filter-actions {
+  display: flex;
+  grid-column: 11 / -1;
+  grid-row: 2;
   justify-content: flex-end;
-  min-width: min(100%, 520px);
+}
+
+.registration-filter-actions .btn {
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
 }
 
 .registration-semester-pill {
@@ -18,12 +98,13 @@
   font-size: var(--font-size-sm);
   font-weight: 800;
   min-height: 42px;
-  max-width: 280px;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   padding: 9px 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
 }
 
 .registration-semester-pill.text-error {
@@ -32,13 +113,33 @@
   color: var(--color-error);
 }
 
-.course-registration-search {
-  flex: 1 1 260px;
-  max-width: 420px;
-}
-
 .course-registration-card {
   container-type: inline-size;
+}
+
+.course-registration-card-header {
+  align-items: center;
+  gap: 12px;
+}
+
+.course-registration-header-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.registration-credit-summary {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  display: inline-flex;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  min-height: 28px;
+  padding: 5px 9px;
 }
 
 .available-course-list {
@@ -141,12 +242,11 @@
   justify-items: stretch;
 }
 
-.available-course-price {
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  text-align: right;
-  white-space: nowrap;
+.available-course-action-meta {
+  align-items: flex-end;
+  display: grid;
+  gap: 6px;
+  justify-items: end;
 }
 
 .available-course-seats {
@@ -174,8 +274,10 @@
     justify-content: space-between;
   }
 
-  .available-course-price,
+  .available-course-action-meta,
   .available-course-seats {
+    align-items: flex-start;
+    justify-items: start;
     text-align: left;
   }
 
@@ -186,14 +288,26 @@
 }
 
 @media (max-width: 768px) {
-  .course-registration-filter {
-    justify-content: stretch;
-    min-width: 100%;
+  .registration-filter-grid {
+    grid-template-columns: 1fr;
   }
 
-  .registration-semester-pill,
-  .course-registration-search {
-    max-width: none;
+  .registration-filter-semester,
+  .registration-filter-scope,
+  .registration-filter-search,
+  .registration-filter-type,
+  .registration-filter-weekday,
+  .registration-filter-period-start,
+  .registration-filter-period-end,
+  .registration-filter-actions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .course-registration-card-header,
+  .course-registration-header-meta {
+    align-items: stretch;
+    justify-content: flex-start;
     width: 100%;
   }
 

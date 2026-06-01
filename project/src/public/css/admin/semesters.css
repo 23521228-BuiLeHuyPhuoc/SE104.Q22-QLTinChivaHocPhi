@@ -53,7 +53,7 @@
 }
 
 .semester-filter-search {
-  grid-column: 1 / span 4;
+  grid-column: 1 / span 5;
   grid-row: 2;
 }
 
@@ -68,7 +68,7 @@
 }
 
 .semester-filter-date-field {
-  grid-column: 5 / span 3;
+  grid-column: 6 / span 2;
   grid-row: 2;
 }
 
@@ -93,6 +93,23 @@
 
 .semester-search-box {
   max-width: none;
+  order: 2;
+  width: 100%;
+}
+
+#semester-search-scope {
+  order: 1;
+}
+
+.semester-search-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(140px, 0.48fr) minmax(0, 1fr);
+}
+
+.semester-search-row .form-control,
+.semester-search-row .search-box input {
+  min-width: 0;
   width: 100%;
 }
 
@@ -279,15 +296,26 @@
 
 .semester-actions {
   align-items: center;
-  display: flex;
-  gap: 8px;
-  justify-content: flex-start;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: stretch;
+  width: 100%;
 }
 
 .semester-actions .btn {
-  min-width: 54px;
-  padding-left: 10px;
-  padding-right: 10px;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 8px;
+  padding-right: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.semester-actions .btn[data-action=finalize] {
+  grid-column: 1 / -1;
 }
 
 .pagination button:disabled {
@@ -361,6 +389,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .semester-search-row {
+    grid-template-columns: 1fr;
+  }
+
   .semester-filter-actions,
   .semester-filter-actions .btn {
     width: 100%;
@@ -382,7 +414,7 @@
   }
 
   .semester-actions {
-    justify-content: flex-start;
+    max-width: 320px;
   }
 }
 

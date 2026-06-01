@@ -216,7 +216,7 @@ const getTuitionStats = async (req, res) => {
 
 const getCreditPrices = async (req, res) => {
   try {
-    const prices = await prisma.DONGIATINCHI.findMany({ where: { DaXoa: false }, orderBy: [{ LoaiMon: 'asc' }, { LoaiHoc: 'asc' }] });
+    const prices = await prisma.DONGIATINCHI.findMany({ where: { DaXoa: false, TrangThai: true }, orderBy: [{ LoaiMon: 'asc' }, { LoaiHoc: 'asc' }] });
     res.json({ success: true, data: prices });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get credit prices error:');
