@@ -41,7 +41,7 @@ const getClasses = async (req, res) => {
     const data = rows.map((row) => ({ ...row, SoLuongDaDangKy: row.CHITIETDANGKY.length }));
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting classes:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting classes:');
   }
 };
 
@@ -51,34 +51,34 @@ const getClassById = async (req, res) => {
       where: { MaLop: req.params.id, DaXoa: false },
       include: { MONHOC: { include: { KHOA: true } }, LOPMO: { include: { HOCKY: true, LICHHOCLOP: true } } }
     });
-    if (!cls) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    if (!cls) return res.status(404).json({ success: false, message: 'Khong tim thay lop hoc' });
     res.json({ success: true, data: cls });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting class:');
   }
 };
 
 const createClass = async (req, res) => {
   try {
     const { MaLop, TenLop, MaMonHoc, GiangVien, LichHoc, PhongHoc, SoLuongToiDa, MoTa } = req.body;
-    if (!MaLop || !TenLop || !MaMonHoc) return res.status(400).json({ success: false, message: 'Vui lòng nhập mã lớp, tên lớp và môn học' });
+    if (!MaLop || !TenLop || !MaMonHoc) return res.status(400).json({ success: false, message: 'Vui long nhap ma lop, ten lop va mon hoc' });
     const existingClass = await prisma.LOP.findUnique({ where: { MaLop } });
-    if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
+    if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma lop da ton tai' });
     const course = await prisma.MONHOC.findFirst({ where: { MaMonHoc, DaXoa: false } });
-    if (!course) return res.status(400).json({ success: false, message: 'Môn học không tồn tại' });
+    if (!course) return res.status(400).json({ success: false, message: 'Mon hoc khong ton tai' });
     const cls = await prisma.LOP.create({
       data: { MaLop, TenLop, MaMonHoc, GiangVien, LichHoc, PhongHoc, SoLuongToiDa: parseInt(SoLuongToiDa, 10) || 50, MoTa, ...updateAudit(req) }
     });
-    res.status(201).json({ success: true, message: 'Tạo lớp học thành công', data: cls });
+    res.status(201).json({ success: true, message: 'Tao lop hoc thanh cong', data: cls });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error creating class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error creating class:');
   }
 };
 
 const updateClass = async (req, res) => {
   try {
     const existing = await prisma.LOP.findFirst({ where: { MaLop: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay lop hoc' });
     const { TenLop, MaMonHoc, GiangVien, LichHoc, PhongHoc, SoLuongToiDa, MoTa, TrangThai } = req.body;
     const data = {};
     if (TenLop) data.TenLop = TenLop;
@@ -91,20 +91,20 @@ const updateClass = async (req, res) => {
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.LOP.update({ where: { MaLop: req.params.id }, data });
-    res.json({ success: true, message: 'Cập nhật lớp học thành công', data: updated });
+    res.json({ success: true, message: 'Cap nhat lop hoc thanh cong', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error updating class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error updating class:');
   }
 };
 
 const deleteClass = async (req, res) => {
   try {
     const existing = await prisma.LOP.findFirst({ where: { MaLop: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay lop hoc' });
     await prisma.LOP.update({ where: { MaLop: req.params.id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Đã chuyển lớp học vào thùng rác' });
+    res.json({ success: true, message: 'Da chuyen lop hoc vao thung rac' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error deleting class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error deleting class:');
   }
 };
 
@@ -119,7 +119,7 @@ const getOpenedClasses = async (req, res) => {
     });
     res.json({ success: true, data: rows.map((row) => ({ ...row, SoLuongDaDangKy: row.LOP.CHITIETDANGKY.length })) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting opened classes:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting opened classes:');
   }
 };
 
@@ -127,20 +127,20 @@ const openClass = async (req, res) => {
   try {
     const { MaHocKy, MaLop, GhiChu } = req.body;
     const existing = await prisma.LOPMO.findFirst({ where: { MaHocKy, MaLop } });
-    if (existing) return res.status(400).json({ success: false, message: 'Lớp đã được mở trong học kỳ này' });
+    if (existing) return res.status(400).json({ success: false, message: 'Lop da duoc mo trong hoc ky nay' });
     const result = await prisma.LOPMO.create({ data: { MaHocKy, MaLop, GhiChu } });
-    res.status(201).json({ success: true, message: 'Mở lớp thành công', data: result });
+    res.status(201).json({ success: true, message: 'Mo lop thanh cong', data: result });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error opening class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error opening class:');
   }
 };
 
 const closeClass = async (req, res) => {
   try {
     await prisma.LOPMO.update({ where: { id: parseInt(req.params.id, 10) }, data: { TrangThai: false } });
-    res.json({ success: true, message: 'Đóng lớp thành công' });
+    res.json({ success: true, message: 'Dong lop thanh cong' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error closing class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error closing class:');
   }
 };
 
@@ -164,7 +164,7 @@ const getClassSchedules = async (req, res) => {
     });
     res.json({ success: true, data: opened });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'getClassSchedules error:');
+        return sendErrorResponse(res, error, 'Loi server', 'getClassSchedules error:');
   }
 };
 
@@ -172,10 +172,10 @@ const upsertClassSchedule = async (req, res) => {
   try {
     const { MaHocKy, ThuTrongTuan, MaTietBatDau, MaTietKetThuc, PhongHoc, GhiChu, id } = req.body;
     if (!MaHocKy || !ThuTrongTuan || !MaTietBatDau || !MaTietKetThuc) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập học kỳ, thứ và tiết học' });
+      return res.status(400).json({ success: false, message: 'Vui long nhap hoc ky, thu va tiet hoc' });
     }
     const opened = await prisma.LOPMO.findFirst({ where: { MaHocKy, MaLop: req.params.id, TrangThai: true } });
-    if (!opened) return res.status(404).json({ success: false, message: 'Lớp chưa được mở trong học kỳ này' });
+    if (!opened) return res.status(404).json({ success: false, message: 'Lop chua duoc mo trong hoc ky nay' });
 
     const data = {
       LopMoId: opened.id,
@@ -190,9 +190,9 @@ const upsertClassSchedule = async (req, res) => {
     const schedule = scheduleId
       ? await prisma.LICHHOCLOP.update({ where: { id: scheduleId }, data })
       : await prisma.LICHHOCLOP.create({ data });
-    res.json({ success: true, message: 'Cập nhật lịch học thành công', data: schedule });
+    res.json({ success: true, message: 'Cap nhat lich hoc thanh cong', data: schedule });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'upsertClassSchedule error:');
+        return sendErrorResponse(res, error, 'Loi server', 'upsertClassSchedule error:');
   }
 };
 
@@ -205,7 +205,7 @@ const getClassStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { total_classes: totalClasses, active_classes: activeClasses, total_opened_classes: totalOpened } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting class stats:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting class stats:');
   }
 };
 

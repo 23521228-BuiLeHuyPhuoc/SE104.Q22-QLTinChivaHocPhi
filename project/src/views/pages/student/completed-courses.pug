@@ -3,41 +3,49 @@ extends ../../layouts/student
 block content
   .page-shell
     .page-heading.compact
-      .page-kicker Học tập
-      h2 Môn đã học
+      .page-kicker Hoc tap
+      h2 Mon da hoc
 
     .stats-grid
       .stat-card
         .stat-icon.blue.material-symbols-rounded history_edu
         .stat-info
           h3#total-attempts 0
-          p Lượt học
+          p Luot hoc
       .stat-card
         .stat-icon.green.material-symbols-rounded check_circle
         .stat-info
           h3#passed-count 0
-          p Qua môn
+          p Qua mon
       .stat-card
         .stat-icon.red.material-symbols-rounded cancel
         .stat-info
           h3#failed-count 0
-          p Rớt
+          p Rot
       .stat-card
         .stat-icon.purple.material-symbols-rounded school
         .stat-info
           h3#passed-credits 0
-          p Tín chỉ đạt
+          p Tin chi dat
 
     .filter-group
-      input#completed-search(type="text" placeholder="Tìm môn học")
+      input#completed-search(type="text" placeholder="Tim ma mon, ten mon, khoa, loai, lop, giang vien")
+      select#completed-loai
+        option(value="") Tat ca loai
+        option(value="LT") Ly thuyet
+        option(value="TH") Thuc hanh
+      select#completed-khoa
+        option(value="") Tat ca khoa
+      select#completed-semester
+        option(value="") Tat ca hoc ky
       select#completed-result
-        option(value="") Tất cả kết quả
-        option(value="qua_mon") Qua môn
-        option(value="rot") Rớt
+        option(value="") Tat ca ket qua
+        option(value="qua_mon") Qua mon
+        option(value="rot") Rot
 
     .card
       .card-header
-        h3 Lịch sử môn đã học
+        h3 Lich su mon da hoc
       .card-body
         .loading-overlay#completed-loading
           .spinner
@@ -45,14 +53,16 @@ block content
           table.data-table#completed-table.hidden
             thead
               tr
-                th Mã môn
-                th Tên môn
-                th Tín chỉ
-                th Học kỳ
-                th Lớp
-                th Lần học
-                th Kết quả
-                th Ghi chú
+                th Ma mon
+                th Ten mon
+                th Khoa
+                th Loai
+                th Tin chi
+                th Hoc ky
+                th Lop
+                th Lan hoc
+                th Ket qua
+                th Ghi chu
             tbody#completed-list
         nav.pagination#completed-pagination(style="display:none")
 
