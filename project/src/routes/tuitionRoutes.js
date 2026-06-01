@@ -18,6 +18,9 @@ router.get('/prices', tuitionController.getCreditPrices);
 // Get student's tuition fees
 router.get('/student/:studentId', tuitionController.getStudentTuition);
 
+// Get tuition detail for admin or the owning student
+router.get('/detail/:id', tuitionController.getTuitionDetail);
+
 // Get tuition fee by ID
 router.get('/:id', adminMiddleware, tuitionController.getTuitionById);
 

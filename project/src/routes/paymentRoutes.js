@@ -16,6 +16,9 @@ router.get('/student/:studentId', paymentController.getStudentPayments);
 // Get payment statistics
 router.get('/stats', adminMiddleware, paymentController.getPaymentStats);
 
+// Export payment list
+router.get('/export', adminMiddleware, paymentController.exportPayments);
+
 // Get payment by ID
 router.get('/:id', adminMiddleware, paymentController.getPaymentById);
 

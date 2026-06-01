@@ -67,5 +67,15 @@ block modals
         button.btn.btn-outline(type="button" onclick="closePaymentModal()") Hủy
         button.btn.btn-primary(type="button" onclick="checkoutPayment()") Tạo thanh toán
 
+  #tuition-detail-modal.modal-overlay(onclick="if(event.target===this)closeTuitionDetailModal()")
+    .modal.modal-wide
+      .modal-header
+        h3#tuition-detail-title Chi tiết học phí
+        button.modal-close(type="button" onclick="closeTuitionDetailModal()" aria-label="Đóng") ×
+      .modal-body#tuition-detail-body
+        .empty-state Đang tải dữ liệu...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeTuitionDetailModal()") Đóng
+
 block scripts
   script(src="/js/student/my-tuition.js")

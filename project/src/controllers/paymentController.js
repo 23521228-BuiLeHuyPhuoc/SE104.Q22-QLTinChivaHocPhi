@@ -42,6 +42,35 @@ const getRemainingAmount = (registration) => {
   return Math.max(amountDue - paid, 0);
 };
 
+const csvCell = (value) => {
+  if (value === null || value === undefined) return '';
+  const text = String(value).replace(/"/g, '""');
+  return /[",\r\n]/.test(text) ? `"${text}"` : text;
+};
+
+const toPaymentDto = (p) => ({
+  SoPhieuThu: p.SoPhieuThu,
+  SoPhieuDangKy: p.SoPhieuDangKy,
+  MaSv: p.MaSv,
+  HoTen: p.SINHVIEN?.HoTen || '',
+  Email: p.SINHVIEN?.Email || '',
+  MaHocKy: p.PHIEUDANGKY?.MaHocKy || '',
+  TenHocKy: p.PHIEUDANGKY?.HOCKY?.TenHocKy || '',
+  TenNamHoc: p.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc || '',
+  SoTienThu: Number(p.SoTienThu || 0),
+  HinhThucThu: p.HinhThucThu,
+  PaymentProvider: p.PaymentProvider,
+  PaymentChannel: p.PaymentChannel,
+  MaGiaoDich: p.MaGiaoDich,
+  NgayLap: p.NgayLap,
+  NguoiThu: p.NguoiThu,
+  GhiChu: p.GhiChu,
+  TrangThai: p.TrangThai,
+  NgayXacNhan: p.NgayXacNhan,
+  CheckoutUrl: p.CheckoutUrl,
+  QrPayload: p.QrPayload
+});
+
 const assertPayableAmount = (registration, amount) => {
   if (!registration) throw { status: 404, message: 'Không tìm thấy học phí cần đóng' };
   const remaining = getRemainingAmount(registration);
@@ -115,23 +144,7 @@ const getAllPayments = async (req, res) => {
       prisma.PHIEUTHUHOCPHI.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } }),
       prisma.PHIEUTHUHOCPHI.count({ where })
     ]);
-    const data = rows.map((p) => ({
-      SoPhieuThu: p.SoPhieuThu,
-      MaSv: p.MaSv,
-      HoTen: p.SINHVIEN.HoTen,
-      Email: p.SINHVIEN.Email,
-      MaHocKy: p.PHIEUDANGKY.MaHocKy,
-      TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy,
-      TenNamHoc: p.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc,
-      SoTienThu: Number(p.SoTienThu),
-      HinhThucThu: p.HinhThucThu,
-      PaymentProvider: p.PaymentProvider,
-      PaymentChannel: p.PaymentChannel,
-      NgayLap: p.NgayLap,
-      NguoiThu: p.NguoiThu,
-      GhiChu: p.GhiChu,
-      TrangThai: p.TrangThai
-    }));
+    const data = rows.map(toPaymentDto);
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get all payments error:');
@@ -142,7 +155,7 @@ const getPaymentById = async (req, res) => {
   try {
     const p = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: parseInt(req.params.id, 10) }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
     if (!p) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
-    res.json({ success: true, data: { ...p, SoTienThu: Number(p.SoTienThu) } });
+    res.json({ success: true, data: toPaymentDto(p) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get payment by ID error:');
   }
@@ -153,6 +166,7 @@ const getStudentPayments = async (req, res) => {
     if (!(await ensureStudentAccess(req, res, req.params.studentId))) return;
     const { page, limit, skip } = getPagination(req.query);
     const where = { MaSv: req.params.studentId };
+    if (req.query.MaHocKy) where.PHIEUDANGKY = { MaHocKy: req.query.MaHocKy };
     const [rows, total] = await Promise.all([
       prisma.PHIEUTHUHOCPHI.findMany({
         where,
@@ -165,7 +179,7 @@ const getStudentPayments = async (req, res) => {
     ]);
     res.json({
       success: true,
-      data: rows.map((p) => ({ ...p, SoTienThu: Number(p.SoTienThu), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })),
+      data: rows.map((p) => ({ ...toPaymentDto(p), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })),
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
@@ -394,6 +408,48 @@ const getPaymentStats = async (req, res) => {
   }
 };
 
+const exportPayments = async (req, res) => {
+  try {
+    const { search = '', MaHocKy, HinhThucThu, TrangThai } = req.query;
+    const where = {};
+    if (HinhThucThu) where.HinhThucThu = HinhThucThu;
+    if (TrangThai) where.TrangThai = TrangThai;
+    if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
+    if (search) where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] };
+
+    const rows = await prisma.PHIEUTHUHOCPHI.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+    });
+
+    const header = ['SoPhieuThu', 'MSSV', 'HoTen', 'HocKy', 'NamHoc', 'SoTienThu', 'HinhThucThu', 'NgayLap', 'NguoiThu', 'MaGiaoDich', 'TrangThai', 'GhiChu'];
+    const lines = [header.join(',')];
+    rows.map(toPaymentDto).forEach((p) => {
+      lines.push([
+        p.SoPhieuThu,
+        p.MaSv,
+        p.HoTen,
+        p.TenHocKy,
+        p.TenNamHoc,
+        p.SoTienThu,
+        p.HinhThucThu,
+        p.NgayLap ? new Date(p.NgayLap).toISOString() : '',
+        p.NguoiThu,
+        p.MaGiaoDich,
+        p.TrangThai,
+        p.GhiChu
+      ].map(csvCell).join(','));
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="phieu-thu-hoc-phi.csv"');
+    res.send('\uFEFF' + lines.join('\n'));
+  } catch (error) {
+        return sendErrorResponse(res, error, 'Không thể xuất phiếu thu', 'Export payments error:');
+  }
+};
+
 module.exports = {
   getAllPayments,
   getPaymentById,
@@ -405,5 +461,6 @@ module.exports = {
   zalopayCallback,
   confirmPayment,
   cancelPayment,
-  getPaymentStats
+  getPaymentStats,
+  exportPayments
 };

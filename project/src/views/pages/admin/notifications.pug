@@ -80,11 +80,28 @@ block modals
                 option(value="tai_chinh") Tài chính
                 option(value="he_thong") Hệ thống
             .form-group
-              label(for="notif-doituong") Đối tượng
-              select.form-control#notif-doituong
-                option(value="Tất cả") Tất cả
-                option(value="Sinh viên") Sinh viên
-                option(value="Quản trị viên") Quản trị viên
+              label(for="notif-target-type") Gửi cho
+              select.form-control#notif-target-type(onchange="syncNotificationTarget()")
+                option(value="all") Tất cả
+                option(value="student") Tất cả sinh viên
+                option(value="faculty") Sinh viên theo khoa
+                option(value="major") Sinh viên theo ngành
+                option(value="admin") Quản trị viên
+          .form-row
+            .form-group#notif-faculty-group.hidden
+              label(for="notif-faculty") Khoa
+              select.form-control#notif-faculty(onchange="filterNotificationMajors()")
+                option(value="") Chọn khoa
+                if faculties && faculties.length
+                  each faculty in faculties
+                    option(value=faculty.MaKhoa)= faculty.TenKhoa || faculty.MaKhoa
+            .form-group#notif-major-group.hidden
+              label(for="notif-major") Ngành
+              select.form-control#notif-major
+                option(value="") Chọn ngành
+                if majors && majors.length
+                  each major in majors
+                    option(value=major.MaNganh data-faculty=major.MaKhoa)= `${major.TenNganh || major.MaNganh}${major.KHOA ? ' - ' + major.KHOA.TenKhoa : ''}`
           .form-row
             .form-group
               label
@@ -93,9 +110,23 @@ block modals
             .form-group
               label(for="notif-hethan") Ngày hết hạn
               input.form-control#notif-hethan(type="date")
+          .form-group
+            label(for="notif-duongdan") Đường dẫn liên quan
+            input.form-control#notif-duongdan(type="text" placeholder="/student/my-tuition hoặc URL liên quan")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-secondary(type="button" onclick="previewNotification()") Xem trước
         button.btn.btn-primary(type="button" onclick="saveNotification()") Gửi thông báo
+
+  #notif-preview-modal.modal-overlay(onclick="if(event.target===this)closePreviewModal()")
+    .modal
+      .modal-header
+        h2 Xem trước thông báo
+        button.modal-close(type="button" onclick="closePreviewModal()" aria-label="Đóng") ×
+      .modal-body#notif-preview-body
+        .empty-state Chưa có nội dung
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closePreviewModal()") Đóng
 
 block scripts
   script(src="/js/admin/notifications.js")

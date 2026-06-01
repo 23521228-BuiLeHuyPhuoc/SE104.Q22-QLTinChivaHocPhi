@@ -5,6 +5,8 @@ const { assertRegistrationOpen, getRegistrationWindowState } = require('../utils
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
+const PAYMENT_SUCCESS_STATUS = 'Thành công';
+const PAID_REGISTRATION_LOCK_MESSAGE = 'Phiếu đăng ký đã có phiếu thu thành công, không thể đăng ký thêm hoặc hủy môn. Vui lòng liên hệ phòng tài chính để xử lý.';
 
 const REGISTRATION_TYPE_LABELS = {
   hoc_moi: 'Học mới',
@@ -18,6 +20,14 @@ const lecturerDisplayName = (lecturer) => {
   if (!lecturer) return '';
   return [lecturer.HocHamHocVi, lecturer.HoTen].filter(Boolean).join(' ').trim();
 };
+
+const openedClassLecturerName = (openedClass) =>
+  lecturerDisplayName(openedClass?.GIANGVIEN) || openedClass?.GiangVien || openedClass?.MaGiangVien || '';
+
+const priceOrder = [{ NgayApDung: 'desc' }, { id: 'desc' }];
+
+const hasSuccessfulPayment = (registration) =>
+  Boolean(registration?.PHIEUTHUHOCPHI?.some((payment) => payment.TrangThai === PAYMENT_SUCCESS_STATUS));
 
 const weekdayLabel = (value) => {
   const day = Number(value);
@@ -70,15 +80,32 @@ const ensureStudentAccess = async (req, res, studentId) => {
   return false;
 };
 
+const getApplicablePriceType = async (tx, loaiHoc, maHocKy) => {
+  if (loaiHoc !== 'hoc_moi' || !maHocKy) return loaiHoc || 'hoc_moi';
+  const semester = await tx.HOCKY.findUnique({
+    where: { MaHocKy: maHocKy },
+    select: { LoaiHocKy: true }
+  });
+  return semester?.LoaiHocKy === 'Hè' ? 'hoc_he' : loaiHoc;
+};
+
+const findCreditPrice = (tx, loaiMon, loaiHoc, maHocKy) => tx.DONGIATINCHI.findFirst({
+  where: {
+    LoaiMon: loaiMon,
+    LoaiHoc: loaiHoc,
+    MaHocKy: maHocKy,
+    DaXoa: false,
+    TrangThai: true
+  },
+  orderBy: priceOrder
+});
+
 const getCreditPrice = async (tx, loaiMon, loaiHoc, maHocKy) => {
-  const semesterPrice = maHocKy ? await tx.DONGIATINCHI.findFirst({
-    where: { LoaiMon: loaiMon, LoaiHoc: loaiHoc, MaHocKy: maHocKy, TrangThai: true }
-  }) : null;
+  const priceType = await getApplicablePriceType(tx, loaiHoc, maHocKy);
+  const semesterPrice = maHocKy ? await findCreditPrice(tx, loaiMon, priceType, maHocKy) : null;
   if (semesterPrice) return Number(semesterPrice.DonGia);
 
-  const defaultPrice = await tx.DONGIATINCHI.findFirst({
-    where: { LoaiMon: loaiMon, LoaiHoc: loaiHoc, MaHocKy: null, TrangThai: true }
-  });
+  const defaultPrice = await findCreditPrice(tx, loaiMon, priceType, null);
   if (defaultPrice) return Number(defaultPrice.DonGia);
 
   return loaiMon === 'TH' ? 37000 : 27000;
@@ -350,7 +377,15 @@ const getStudentCourses = async (req, res) => {
             }
           },
           MONHOC: true,
-          PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } }
+          PHIEUDANGKY: {
+            include: {
+              HOCKY: { include: { NAMHOC: true } },
+              PHIEUTHUHOCPHI: {
+                where: { TrangThai: PAYMENT_SUCCESS_STATUS },
+                select: { SoPhieuThu: true, SoTienThu: true, TrangThai: true }
+              }
+            }
+          }
         }
       }),
       prisma.CHITIETDANGKY.count({ where }),
@@ -364,6 +399,8 @@ const getStudentCourses = async (req, res) => {
       const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
       const openedClasses = (row.LOP?.LOPMO || []).filter((item) => item.MaHocKy === row.PHIEUDANGKY?.MaHocKy);
       const currentOpened = openedClasses[0] || null;
+      const lockedByPayment = hasSuccessfulPayment(row.PHIEUDANGKY);
+      const isActive = row.TrangThai === ACTIVE_REGISTRATION_STATUS;
       return {
         id: row.id,
         SoPhieu: row.SoPhieu,
@@ -376,11 +413,14 @@ const getStudentCourses = async (req, res) => {
         TrangThai: row.TrangThai,
         NgayDangKy: row.NgayDangKy,
         NgayHuy: row.NgayHuy,
+        CanHuy: isActive && !lockedByPayment,
+        KhoaHuyDangKy: lockedByPayment,
+        LyDoKhongTheHuy: lockedByPayment ? PAID_REGISTRATION_LOCK_MESSAGE : '',
         SoTinChi: row.SoTinChi || monHoc.SoTinChi || 0,
         LOP: {
           MaLop: row.MaLop,
           TenLop: row.LOP?.TenLop,
-          GiangVien: lecturerDisplayName(currentOpened?.GIANGVIEN) || currentOpened?.GiangVien || '',
+          GiangVien: openedClassLecturerName(currentOpened),
           LichHoc: openedClassScheduleLabel(currentOpened),
           PhongHoc: openedClassRoomLabel(currentOpened),
           LOPMO: openedClasses.map((item) => ({
@@ -388,7 +428,7 @@ const getStudentCourses = async (req, res) => {
             MaHocKy: item.MaHocKy,
             MaLop: item.MaLop,
             MaGiangVien: item.MaGiangVien,
-            GiangVien: lecturerDisplayName(item.GIANGVIEN) || item.GiangVien || '',
+            GiangVien: openedClassLecturerName(item),
             LICHHOCLOP: item.LICHHOCLOP
           })),
           MONHOC: {
@@ -400,6 +440,7 @@ const getStudentCourses = async (req, res) => {
         },
         PHIEUDANGKY: {
           MaHocKy: row.PHIEUDANGKY?.MaHocKy,
+          DaCoPhieuThuThanhCong: lockedByPayment,
           HOCKY: {
             TenHocKy: row.PHIEUDANGKY?.HOCKY?.TenHocKy,
             NAMHOC: { TenNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc }
@@ -471,7 +512,7 @@ const getAvailableCourses = async (req, res) => {
     }
     if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
 
-    const [rows, total] = await Promise.all([
+    const [rows, total, currentRegistration] = await Promise.all([
       prisma.LOPMO.findMany({
       where,
       skip,
@@ -496,8 +537,18 @@ const getAvailableCourses = async (req, res) => {
         HOCKY: true
       }
     }),
-      prisma.LOPMO.count({ where })
+      prisma.LOPMO.count({ where }),
+      studentId ? prisma.PHIEUDANGKY.findFirst({
+        where: { MaSv: studentId, MaHocKy },
+        include: {
+          PHIEUTHUHOCPHI: {
+            where: { TrangThai: PAYMENT_SUCCESS_STATUS },
+            select: { SoPhieuThu: true, TrangThai: true }
+          }
+        }
+      }) : null
     ]);
+    const lockedByPayment = hasSuccessfulPayment(currentRegistration);
 
     const data = await Promise.all(rows.map(async (r) => {
       const course = r.LOP.MONHOC;
@@ -518,13 +569,15 @@ const getAvailableCourses = async (req, res) => {
         TenKhoa: course.KHOA?.TenKhoa,
         SoLuongToiDa: r.LOP.SoLuongToiDa,
         SoLuongDaDangKy: r.LOP.CHITIETDANGKY.length,
-        GiangVien: lecturerDisplayName(r.GIANGVIEN) || r.GiangVien || '',
+        GiangVien: openedClassLecturerName(r),
         PhongHoc: openedClassRoomLabel(r),
         LichHoc: openedClassScheduleLabel(r),
         LoaiDangKy: registrationType,
         LoaiDangKyLabel: getRegistrationTypeLabel(registrationType),
         DonGiaDuKien: price,
-        ThanhTienDuKien: price * credits
+        ThanhTienDuKien: price * credits,
+        CanDangKy: !lockedByPayment,
+        LyDoKhongTheDangKy: lockedByPayment ? PAID_REGISTRATION_LOCK_MESSAGE : ''
       };
     }));
 
@@ -561,7 +614,18 @@ const registerCourse = async (req, res) => {
         throw { status: 400, message: 'Lớp học đã hết chỗ' };
       }
 
-      let phieu = await tx.PHIEUDANGKY.findFirst({ where: { MaSv, MaHocKy } });
+      let phieu = await tx.PHIEUDANGKY.findFirst({
+        where: { MaSv, MaHocKy },
+        include: {
+          PHIEUTHUHOCPHI: {
+            where: { TrangThai: PAYMENT_SUCCESS_STATUS },
+            select: { SoPhieuThu: true, TrangThai: true }
+          }
+        }
+      });
+      if (hasSuccessfulPayment(phieu)) {
+        throw { status: 400, message: PAID_REGISTRATION_LOCK_MESSAGE };
+      }
       if (!phieu) {
         phieu = await tx.PHIEUDANGKY.create({ data: { MaSv, MaHocKy, TrangThai: ACTIVE_REGISTRATION_STATUS } });
       }
@@ -627,7 +691,11 @@ const cancelRegistration = async (req, res) => {
             MaSv: true,
             MaHocKy: true,
             SoPhieu: true,
-            HOCKY: true
+            HOCKY: true,
+            PHIEUTHUHOCPHI: {
+              where: { TrangThai: PAYMENT_SUCCESS_STATUS },
+              select: { SoPhieuThu: true, TrangThai: true }
+            }
           }
         }
       }
@@ -635,6 +703,9 @@ const cancelRegistration = async (req, res) => {
     if (!reg) return res.status(404).json({ success: false, message: 'Không tìm thấy đăng ký' });
     if (!(await ensureStudentAccess(req, res, reg.PHIEUDANGKY.MaSv))) return;
     assertRegistrationOpen(reg.PHIEUDANGKY.HOCKY);
+    if (hasSuccessfulPayment(reg.PHIEUDANGKY)) {
+      return res.status(400).json({ success: false, message: PAID_REGISTRATION_LOCK_MESSAGE });
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       await tx.CHITIETDANGKY.update({

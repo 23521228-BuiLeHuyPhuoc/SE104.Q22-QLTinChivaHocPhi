@@ -8,6 +8,7 @@ const normalize = (value) => String(value || '').trim();
 const normalizeEmail = (value) => normalize(value).toLowerCase();
 const isStudentGroup = (MaNhom) => normalize(MaNhom).toUpperCase() === 'SINHVIEN';
 const roleFromGroup = (MaNhom) => (isStudentGroup(MaNhom) ? 'student' : 'admin');
+const DEFAULT_ACCOUNT_PASSWORD = process.env.DEFAULT_ACCOUNT_PASSWORD || '123456';
 
 const adminTitleFromGroup = (group) => {
   const MaNhom = normalize(group?.MaNhom).toUpperCase();
@@ -337,6 +338,149 @@ const createAccount = async (req, res) => {
   }
 };
 
+const resetPassword = async (req, res) => {
+  try {
+    const accountId = Number(req.params.id);
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      return res.status(400).json({ success: false, message: 'Tài khoản không hợp lệ' });
+    }
+
+    const account = await prisma.TAIKHOAN.findUnique({
+      where: { MaTaiKhoan: accountId },
+      select: { MaTaiKhoan: true, TenDangNhap: true }
+    });
+    if (!account) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+
+    const password = normalize(req.body.password || req.body.defaultPassword) || DEFAULT_ACCOUNT_PASSWORD;
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mặc định phải có ít nhất 6 ký tự' });
+    }
+
+    await prisma.TAIKHOAN.update({
+      where: { MaTaiKhoan: accountId },
+      data: {
+        MatKhau: await bcrypt.hash(password, 10),
+        RefreshToken: null,
+        NgayCapNhat: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Đã reset mật khẩu cho ${account.TenDangNhap}`,
+      data: { defaultPassword: password }
+    });
+  } catch (error) {
+        return sendErrorResponse(res, error, 'Lỗi server', 'Reset password error:');
+  }
+};
+
+const batchCreateStudentAccounts = async (req, res) => {
+  try {
+    const rawList = req.body.MaSvList || req.body.maSvList || req.body.students || [];
+    const listItems = Array.isArray(rawList) ? rawList : String(rawList).split(/[\s,;]+/);
+    const textItems = String(req.body.MaSvText || req.body.list || '').split(/[\s,;]+/);
+    const maSvList = listItems
+      .concat(textItems)
+      .map(normalize)
+      .filter(Boolean);
+    const MaNganh = normalize(req.body.MaNganh || req.body.major);
+    const MaKhoa = normalize(req.body.MaKhoa || req.body.faculty);
+    const password = normalize(req.body.password || req.body.defaultPassword) || DEFAULT_ACCOUNT_PASSWORD;
+
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mặc định phải có ít nhất 6 ký tự' });
+    }
+    if (!maSvList.length && !MaNganh && !MaKhoa) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập danh sách MSSV hoặc chọn ngành/khoa' });
+    }
+
+    const studentWhere = { DaXoa: false };
+    if (maSvList.length) studentWhere.MaSv = { in: Array.from(new Set(maSvList)) };
+    if (MaNganh) studentWhere.MaNganh = MaNganh;
+    if (MaKhoa) studentWhere.NGANHHOC = { MaKhoa };
+
+    const [studentGroup, students] = await Promise.all([
+      prisma.NHOMNGUOIDUNG.findFirst({ where: { MaNhom: 'SINHVIEN', DaXoa: false }, select: { MaNhom: true } }),
+      prisma.SINHVIEN.findMany({
+        where: studentWhere,
+        orderBy: { MaSv: 'asc' },
+        select: { MaSv: true, MaTaiKhoan: true, HoTen: true, Email: true, Sdt: true, AnhDaiDien: true }
+      })
+    ]);
+
+    if (!studentGroup) return res.status(400).json({ success: false, message: 'Không tìm thấy nhóm SINHVIEN' });
+    if (!students.length) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên phù hợp' });
+
+    const currentUserId = Number(req.user.id || req.user.MaTaiKhoan || 0) || null;
+    const hashed = await bcrypt.hash(password, 10);
+    const result = await prisma.$transaction(async (tx) => {
+      const created = [];
+      const skipped = [];
+
+      for (const student of students) {
+        if (student.MaTaiKhoan) {
+          skipped.push({ MaSv: student.MaSv, reason: 'Sinh viên đã có tài khoản liên kết' });
+          continue;
+        }
+
+        const existing = await tx.TAIKHOAN.findFirst({
+          where: { OR: [{ TenDangNhap: student.MaSv }, { MaSv: student.MaSv }] },
+          select: { MaTaiKhoan: true }
+        });
+        if (existing) {
+          skipped.push({ MaSv: student.MaSv, reason: 'Tài khoản đã tồn tại' });
+          continue;
+        }
+
+        const account = await tx.TAIKHOAN.create({
+          data: {
+            TenDangNhap: student.MaSv,
+            MatKhau: hashed,
+            Role: 'student',
+            MaNhom: studentGroup.MaNhom,
+            MaSv: student.MaSv,
+            HoTen: student.HoTen,
+            Email: student.Email || null,
+            Sdt: student.Sdt || null,
+            AnhDaiDien: student.AnhDaiDien || null,
+            TrangThai: true,
+            TrangThaiDuyet: 'approved',
+            NgayDuyet: new Date(),
+            NguoiDuyet: currentUserId
+          },
+          select: { MaTaiKhoan: true, TenDangNhap: true, MaSv: true }
+        });
+
+        await tx.SINHVIEN.update({
+          where: { MaSv: student.MaSv },
+          data: { MaTaiKhoan: account.MaTaiKhoan, NguoiCapNhat: currentUserId, NgayCapNhat: new Date() }
+        });
+        created.push(account);
+      }
+
+      return { created, skipped };
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Đã tạo ${result.created.length} tài khoản sinh viên`,
+      data: {
+        createdCount: result.created.length,
+        skippedCount: result.skipped.length,
+        created: result.created,
+        skipped: result.skipped,
+        defaultPassword: password
+      }
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ success: false, message: 'Có tài khoản sinh viên bị trùng dữ liệu' });
+    }
+        return sendErrorResponse(res, error, 'Lỗi server', 'Batch create student accounts error:');
+  }
+};
+
 const deleteAccount = async (req, res) => {
   try {
     const accountId = Number(req.params.id);
@@ -476,4 +620,4 @@ const updateUserRole = async (req, res) => {
   }
 };
 
-module.exports = { getAllRoles, getMyRole, getAllAccounts, createAccount, deleteAccount, updateUserRole };
+module.exports = { getAllRoles, getMyRole, getAllAccounts, createAccount, resetPassword, batchCreateStudentAccounts, deleteAccount, updateUserRole };

@@ -39,6 +39,37 @@ function closeAccountModal() {
   document.getElementById('account-modal').classList.remove('active');
 }
 
+function openBatchStudentModal() {
+  var form = document.getElementById('batch-student-form');
+  if (form) form.reset();
+  var result = document.getElementById('batch-result');
+  if (result) {
+    result.classList.add('hidden');
+    result.textContent = '';
+  }
+  filterBatchMajors();
+  document.getElementById('batch-student-modal').classList.add('active');
+}
+
+function closeBatchStudentModal() {
+  document.getElementById('batch-student-modal').classList.remove('active');
+}
+
+function filterBatchMajors() {
+  var faculty = document.getElementById('batch-faculty');
+  var major = document.getElementById('batch-major');
+  if (!faculty || !major) return;
+  var selectedFaculty = faculty.value;
+  Array.prototype.forEach.call(major.options, function(option) {
+    if (!option.value) {
+      option.hidden = false;
+      return;
+    }
+    option.hidden = !!selectedFaculty && option.getAttribute('data-faculty') !== selectedFaculty;
+  });
+  if (major.selectedOptions[0] && major.selectedOptions[0].hidden) major.value = '';
+}
+
 async function saveAccount() {
   var role = getSelectedAccountRole();
   var isStudent = role === 'student';
@@ -184,5 +215,80 @@ async function removeAccount(id, username) {
     }
   } catch (e) {
     showToast('Lỗi kết nối', 'error');
+  }
+}
+
+function resetAccountPassword(el) {
+  var id = parseInt(el.getAttribute('data-id'), 10);
+  var username = el.getAttribute('data-username') || '';
+  resetPassword(id, username);
+}
+
+async function resetPassword(id, username) {
+  if (!id) return;
+  if (!confirm('Reset mật khẩu tài khoản "' + username + '" về mặc định?')) return;
+
+  try {
+    var res = await apiFetch('/api/roles/accounts/' + id + '/reset-password', {
+      method: 'PUT',
+      body: {}
+    });
+    if (res.success) {
+      var password = res.data && res.data.defaultPassword ? ' Mật khẩu: ' + res.data.defaultPassword : '';
+      showToast((res.message || 'Đã reset mật khẩu') + password, 'success');
+    } else {
+      showToast(res.message || 'Không thể reset mật khẩu', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function batchCreateStudentAccounts() {
+  var button = document.getElementById('btn-batch-create');
+  var result = document.getElementById('batch-result');
+  var body = {
+    MaKhoa: document.getElementById('batch-faculty').value,
+    MaNganh: document.getElementById('batch-major').value,
+    MaSvText: document.getElementById('batch-mssv-list').value.trim(),
+    password: document.getElementById('batch-password').value.trim() || '123456'
+  };
+
+  if (!body.MaKhoa && !body.MaNganh && !body.MaSvText) {
+    showToast('Vui lòng chọn khoa/ngành hoặc nhập danh sách MSSV', 'error');
+    return;
+  }
+  if (body.password.length < 6) {
+    showToast('Mật khẩu mặc định phải có ít nhất 6 ký tự', 'error');
+    return;
+  }
+
+  if (button) button.disabled = true;
+  if (result) {
+    result.classList.remove('hidden');
+    result.textContent = 'Đang tạo tài khoản...';
+  }
+
+  try {
+    var res = await apiFetch('/api/roles/accounts/batch-create-student-accounts', {
+      method: 'POST',
+      body: body
+    });
+    if (res.success) {
+      var data = res.data || {};
+      var message = 'Đã tạo ' + (data.createdCount || 0) + ' tài khoản';
+      if (data.skippedCount) message += ', bỏ qua ' + data.skippedCount + ' sinh viên';
+      if (result) result.textContent = message + '. Mật khẩu mặc định: ' + (data.defaultPassword || body.password);
+      showToast(res.message || message, 'success');
+      setTimeout(function() { location.reload(); }, 900);
+    } else {
+      if (result) result.textContent = res.message || 'Không thể tạo tài khoản hàng loạt';
+      showToast(res.message || 'Không thể tạo tài khoản hàng loạt', 'error');
+    }
+  } catch (e) {
+    if (result) result.textContent = 'Lỗi kết nối';
+    showToast('Lỗi kết nối', 'error');
+  } finally {
+    if (button) button.disabled = false;
   }
 }

@@ -173,6 +173,9 @@ async function loadAvailableCourses(page) {
         var max = Number(c.SoLuongToiDa || 0);
         var registered = Number(c.SoLuongDaDangKy || 0);
         var remaining = Math.max(max - registered, 0);
+        var canRegister = remaining > 0 && c.CanDangKy !== false;
+        var blockedLabel = remaining > 0 ? 'Đã thu HP' : 'Hết chỗ';
+        var blockedTitle = c.LyDoKhongTheDangKy ? ' title="' + courseEscapeHtml(c.LyDoKhongTheDangKy) + '"' : '';
         return '<tr>' +
           '<td class="mono">' + courseEscapeHtml(c.MaLop || '-') + '</td>' +
           '<td><strong>' + courseEscapeHtml(c.TenMonHoc || '-') + '</strong><small>' + courseEscapeHtml(c.TenKhoa || '') + '</small></td>' +
@@ -183,9 +186,9 @@ async function loadAvailableCourses(page) {
           '<td><span class="badge ' + registrationBadgeClass(c.LoaiDangKy) + '">' + courseEscapeHtml(c.LoaiDangKyLabel || 'Học mới') + '</span></td>' +
           '<td class="currency">' + formatCurrency(c.ThanhTienDuKien || 0) + '</td>' +
           '<td>' + registered + ' / ' + (max || '-') + '</td>' +
-          '<td>' + (remaining > 0
+          '<td>' + (canRegister
             ? '<button class="btn btn-sm btn-primary" type="button" onclick="registerCourse(\'' + courseEscapeHtml(c.MaLop) + '\', \'' + courseEscapeHtml(c.MaHocKy) + '\')">Đăng ký</button>'
-            : '<span class="badge badge-error">Hết chỗ</span>') + '</td>' +
+            : '<span class="badge badge-error"' + blockedTitle + '>' + blockedLabel + '</span>') + '</td>' +
         '</tr>';
       }).join('');
     } else {

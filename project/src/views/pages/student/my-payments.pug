@@ -6,6 +6,11 @@ block content
       .page-kicker Tài chính
       h2 Lịch sử thanh toán
 
+    .toolbar
+      .filter-group
+        select#payment-semester-filter(onchange="loadMyPayments(1)")
+          option(value="") Tất cả học kỳ
+
     .card
       .card-header
         h3 Phiếu thu đã ghi nhận
@@ -23,6 +28,7 @@ block content
                 th Ngày thanh toán
                 th Trạng thái
                 th Ghi chú
+                th Thao tác
             tbody#payment-list
         nav.pagination#payments-pagination(style="display:none")
 

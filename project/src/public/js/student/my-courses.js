@@ -44,6 +44,13 @@ async function loadMyCourses(page) {
         var lop = c.LOP || {};
         var mon = lop.MONHOC || {};
         var isCancelled = String(c.TrangThai || '').toLowerCase().indexOf('hủy') >= 0;
+        var isPaymentLocked = c.KhoaHuyDangKy || (c.PHIEUDANGKY && c.PHIEUDANGKY.DaCoPhieuThuThanhCong);
+        var actionHtml = '-';
+        if (!isCancelled && c.CanHuy !== false) {
+          actionHtml = '<button class="btn btn-sm btn-danger" type="button" onclick="cancelRegistration(' + c.id + ')">Hủy đăng ký</button>';
+        } else if (!isCancelled && isPaymentLocked) {
+          actionHtml = '<span class="badge badge-warning" title="' + myCoursesEscapeHtml(c.LyDoKhongTheHuy || '') + '">Đã thu HP</span>';
+        }
         return '<tr>' +
           '<td class="mono">' + myCoursesEscapeHtml(lop.MaLop || c.MaLop || '-') + '</td>' +
           '<td><strong>' + myCoursesEscapeHtml(mon.TenMonHoc || '-') + '</strong><small>' + myCoursesEscapeHtml(mon.MaMonHoc || c.MaMonHoc || '') + '</small></td>' +
@@ -53,7 +60,7 @@ async function loadMyCourses(page) {
           '<td>' + myCoursesEscapeHtml(lop.LichHoc || '-') + '</td>' +
           '<td>' + myCoursesEscapeHtml(lop.PhongHoc || '-') + '</td>' +
           '<td>' + (isCancelled ? '<span class="badge badge-error">Đã hủy</span>' : '<span class="badge badge-success">Đã đăng ký</span>') + '</td>' +
-          '<td>' + (!isCancelled ? '<button class="btn btn-sm btn-danger" type="button" onclick="cancelRegistration(' + c.id + ')">Hủy đăng ký</button>' : '-') + '</td>' +
+          '<td>' + actionHtml + '</td>' +
         '</tr>';
       }).join('');
     } else {
