@@ -6,7 +6,7 @@ const getSettings = async (req, res) => {
     const settings = await prisma.THAMSO.findFirst();
     res.json({ success: true, data: settings });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'getSettings error:');
+        return sendErrorResponse(res, error, 'Loi server', 'getSettings error:');
   }
 };
 
@@ -28,10 +28,10 @@ const updateSettings = async (req, res) => {
     const namKiemTra = parseInt(NamKiemTraAnhVan, 10) || 2;
     const gioiHanAnhVan = parseInt(GioiHanTinChiChuaDatAnhVan, 10) || 14;
 
-    if (toiThieu < 1) return res.status(400).json({ success: false, message: 'Số tín chỉ tối thiểu phải >= 1' });
-    if (toiDa <= toiThieu) return res.status(400).json({ success: false, message: 'Số tín chỉ tối đa phải > tối thiểu' });
-    if (toiDaVuot < toiDa) return res.status(400).json({ success: false, message: 'Số tín chỉ tối đa khi vượt phải >= tối đa' });
-    if (!englishList) return res.status(400).json({ success: false, message: 'Danh sách môn Anh văn không được rỗng' });
+    if (toiThieu < 1) return res.status(400).json({ success: false, message: 'So tin chi toi thieu phai >= 1' });
+    if (toiDa <= toiThieu) return res.status(400).json({ success: false, message: 'So tin chi toi da phai > toi thieu' });
+    if (toiDaVuot < toiDa) return res.status(400).json({ success: false, message: 'So tin chi toi da khi vuot phai >= toi da' });
+    if (!englishList) return res.status(400).json({ success: false, message: 'Danh sach mon Anh van khong duoc rong' });
 
     const data = {
       SoTinChiDangKyToiThieu: toiThieu,
@@ -48,9 +48,9 @@ const updateSettings = async (req, res) => {
       ? await prisma.THAMSO.update({ where: { id: existing.id }, data })
       : await prisma.THAMSO.create({ data: { id: 1, ...data } });
 
-    res.json({ success: true, message: 'Cập nhật tham số thành công', data: settings });
+    res.json({ success: true, message: 'Cap nhat tham so thanh cong', data: settings });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'updateSettings error:');
+        return sendErrorResponse(res, error, 'Loi server', 'updateSettings error:');
   }
 };
 

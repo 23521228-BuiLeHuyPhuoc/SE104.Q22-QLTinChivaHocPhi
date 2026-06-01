@@ -24,7 +24,7 @@ const ensureStudentAccess = async (req, res, studentId) => {
   if (req.user?.Role === 'admin') return true;
   const currentStudentId = await getStudentIdFromRequest(req);
   if (currentStudentId && currentStudentId === studentId) return true;
-  res.status(403).json({ success: false, message: 'Không có quyền truy cập dữ liệu sinh viên này' });
+  res.status(403).json({ success: false, message: 'Khong co quyen truy cap du lieu sinh vien nay' });
   return false;
 };
 
@@ -86,7 +86,7 @@ const getAllTuition = async (req, res) => {
     });
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all tuition error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get all tuition error:');
   }
 };
 
@@ -101,7 +101,7 @@ const getTuitionById = async (req, res) => {
         PHIEUTHUHOCPHI: true
       }
     });
-    if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
+    if (!t) return res.status(404).json({ success: false, message: 'Khong tim thay thong tin hoc phi' });
     const daDong = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS).reduce((s, p) => s + Number(p.SoTienThu), 0);
     const phaiDong = Number(t.TongTienPhaiDong || 0);
     const conNo = Math.max(phaiDong - daDong, 0);
@@ -126,7 +126,7 @@ const getTuitionById = async (req, res) => {
       }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition by ID error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get tuition by ID error:');
   }
 };
 
@@ -184,20 +184,20 @@ const getStudentTuition = async (req, res) => {
 
     res.json({ success: true, data, summary, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get student tuition error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get student tuition error:');
   }
 };
 
 const calculateTuition = async (req, res) => {
   try {
     const { MaSv, MaHocKy } = req.body;
-    if (!MaSv || !MaHocKy) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã sinh viên và học kỳ' });
+    if (!MaSv || !MaHocKy) return res.status(400).json({ success: false, message: 'Vui long cung cap ma sinh vien va hoc ky' });
     const phieu = await prisma.PHIEUDANGKY.findFirst({ where: { MaSv, MaHocKy }, include: { CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } } } });
-    if (!phieu) return res.status(404).json({ success: false, message: 'Chưa đăng ký môn học trong học kỳ này' });
+    if (!phieu) return res.status(404).json({ success: false, message: 'Chua dang ky mon hoc trong hoc ky nay' });
     const updated = await prisma.$transaction((tx) => recalculateRegistrationTotals(tx, phieu.SoPhieu));
     res.json({ success: true, data: { SoPhieu: updated.SoPhieu, TongTienPhaiDong: Number(updated.TongTienPhaiDong || 0) } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Calculate tuition error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Calculate tuition error:');
   }
 };
 
@@ -210,7 +210,7 @@ const getTuitionStats = async (req, res) => {
     const paidAmount = rows.reduce((s, r) => s + r.PHIEUTHUHOCPHI.reduce((ss, p) => ss + Number(p.SoTienThu), 0), 0);
     res.json({ success: true, data: { totalAmount, paidAmount, remainingAmount: totalAmount - paidAmount } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition stats error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get tuition stats error:');
   }
 };
 
@@ -219,7 +219,7 @@ const getCreditPrices = async (req, res) => {
     const prices = await prisma.DONGIATINCHI.findMany({ where: { DaXoa: false }, orderBy: [{ LoaiMon: 'asc' }, { LoaiHoc: 'asc' }] });
     res.json({ success: true, data: prices });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get credit prices error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get credit prices error:');
   }
 };
 

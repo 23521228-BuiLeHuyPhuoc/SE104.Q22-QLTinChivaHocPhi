@@ -335,7 +335,7 @@ const getAllSemesters = async (req, res) => {
     const result = await getSemesterPage(req.query);
     res.json({ success: true, ...result });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all semesters error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get all semesters error:');
   }
 };
 
@@ -354,7 +354,7 @@ const getRegistrationOptions = async (req, res) => {
 
     res.json({ success: true, data: semesters.map(registrationSemesterSelect) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get registration options error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get registration options error:');
   }
 };
 
@@ -362,20 +362,20 @@ const getActiveSemester = async (req, res) => {
   try {
     let hk = await prisma.HOCKY.findFirst({ where: { ...notDeleted(), OR: [{ TrangThai: 'Đang diễn ra' }, { TrangThai: 'Đang hoạt động' }] }, include: { NAMHOC: true } });
     if (!hk) hk = await prisma.HOCKY.findFirst({ where: { ...notDeleted(), OR: [{ TrangThai: 'Sắp diễn ra' }, { TrangThai: 'Sắp tới' }] }, include: { NAMHOC: true }, orderBy: { NgayBatDau: 'asc' } });
-    if (!hk) return res.status(404).json({ success: false, message: 'Không có học kỳ nào đang hoạt động' });
+    if (!hk) return res.status(404).json({ success: false, message: 'Khong co hoc ky nao dang hoat dong' });
     res.json({ success: true, data: semesterSelect(hk) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get active semester error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get active semester error:');
   }
 };
 
 const getSemesterById = async (req, res) => {
   try {
     const hk = await prisma.HOCKY.findFirst({ where: { MaHocKy: req.params.id, DaXoa: false }, include: { NAMHOC: true, LOPMO: true, PHIEUDANGKY: true } });
-    if (!hk) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
+    if (!hk) return res.status(404).json({ success: false, message: 'Khong tim thay hoc ky' });
     res.json({ success: true, data: { ...semesterSelect(hk), stats: { openedClasses: hk.LOPMO.length, registrations: hk.PHIEUDANGKY.length } } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get semester by ID error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get semester by ID error:');
   }
 };
 
@@ -534,7 +534,7 @@ const finalizeRegistration = async (req, res) => {
 const createSemester = async (req, res) => {
   try {
     const { MaHocKy, TenHocKy, MaNamHoc, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi, TrangThai } = req.body;
-    if (!MaHocKy || !TenHocKy || !MaNamHoc) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    if (!MaHocKy || !TenHocKy || !MaNamHoc) return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin' });
     const existing = await prisma.HOCKY.findUnique({ where: { MaHocKy } });
     if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã học kỳ đã tồn tại' });
     if (TrangThai === 'Đang diễn ra') await ensureSingleOngoingSemester(MaHocKy);
@@ -562,9 +562,9 @@ const createSemester = async (req, res) => {
         ...updateAudit(req)
       }
     });
-    res.status(201).json({ success: true, message: 'Tạo học kỳ thành công', data: semester });
+    res.status(201).json({ success: true, message: 'Tao hoc ky thanh cong', data: semester });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Create semester error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Create semester error:');
   }
 };
 
@@ -597,20 +597,20 @@ const updateSemester = async (req, res) => {
     if (HanDongHocPhi !== undefined) data.HanDongHocPhi = nextDates.HanDongHocPhi;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data });
-    res.json({ success: true, message: 'Cập nhật học kỳ thành công', data: updated });
+    res.json({ success: true, message: 'Cap nhat hoc ky thanh cong', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Update semester error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Update semester error:');
   }
 };
 
 const deleteSemester = async (req, res) => {
   try {
     const existing = await prisma.HOCKY.findFirst({ where: { MaHocKy: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay hoc ky' });
     await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Đã chuyển học kỳ vào thùng rác' });
+    res.json({ success: true, message: 'Da chuyen hoc ky vao thung rac' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Delete semester error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Delete semester error:');
   }
 };
 
@@ -619,7 +619,7 @@ const getAcademicYears = async (req, res) => {
     const years = await prisma.NAMHOC.findMany({ where: { TrangThai: true }, orderBy: { TenNamHoc: 'desc' } });
     res.json({ success: true, data: years.map(academicYearSelect) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get academic years error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get academic years error:');
   }
 };
 
