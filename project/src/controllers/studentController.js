@@ -45,7 +45,7 @@ const getAllStudents = async (req, res) => {
 
     res.json({ success: true, data: formatStudentList(rows), pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all students error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get all students error:');
   }
 };
 
@@ -55,10 +55,10 @@ const getStudentById = async (req, res) => {
       where: { MaSv: req.params.id, DaXoa: false },
       include: studentInclude
     });
-    if (!sv) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
+    if (!sv) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
     res.json({ success: true, data: formatStudent(sv) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get student by ID error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get student by ID error:');
   }
 };
 
@@ -70,11 +70,11 @@ const createStudent = async (req, res) => {
     } = req.body;
 
     if (!MaSv || !HoTen || !NgaySinh || !GioiTinh || !MaPhuongXa || !MaNganh || !Cccd || !MaDanToc || !DiaChiLienHe) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin bắt buộc, gồm CCCD, dân tộc và địa chỉ' });
+      return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin bat buoc, gom CCCD, dan toc va dia chi' });
     }
 
     const existing = await prisma.SINHVIEN.findUnique({ where: { MaSv } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã sinh viên đã tồn tại' });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma sinh vien da ton tai' });
 
     const result = await prisma.SINHVIEN.create({
       data: {
@@ -93,16 +93,16 @@ const createStudent = async (req, res) => {
       }
     });
 
-    res.status(201).json({ success: true, message: 'Tạo sinh viên thành công', data: result });
+    res.status(201).json({ success: true, message: 'Tao sinh vien thanh cong', data: result });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Create student error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Create student error:');
   }
 };
 
 const updateStudent = async (req, res) => {
   try {
     const existing = await prisma.SINHVIEN.findFirst({ where: { MaSv: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
 
     const {
       HoTen, NgaySinh, GioiTinh, Email, Sdt, DiaChiLienHe,
@@ -125,21 +125,21 @@ const updateStudent = async (req, res) => {
     const nextMaDanToc = MaDanToc !== undefined ? MaDanToc : existing.MaDanToc;
     const nextDiaChi = DiaChiLienHe !== undefined ? DiaChiLienHe : existing.DiaChiLienHe;
     if (!nextCccd || !nextMaDanToc || !nextDiaChi) {
-      return res.status(400).json({ success: false, message: 'CCCD, dân tộc và địa chỉ liên hệ là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'CCCD, dan toc va dia chi lien he la bat buoc' });
     }
     Object.assign(data, updateAudit(req));
 
     const updated = await prisma.SINHVIEN.update({ where: { MaSv: req.params.id }, data });
-    res.json({ success: true, message: 'Cập nhật sinh viên thành công', data: updated });
+    res.json({ success: true, message: 'Cap nhat sinh vien thanh cong', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Update student error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Update student error:');
   }
 };
 
 const deleteStudent = async (req, res) => {
   try {
     const existing = await prisma.SINHVIEN.findFirst({ where: { MaSv: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
 
     await prisma.$transaction(async (tx) => {
       await tx.SINHVIEN.update({ where: { MaSv: req.params.id }, data: softDeleteAudit(req) });
@@ -151,9 +151,9 @@ const deleteStudent = async (req, res) => {
       }
     });
 
-    res.json({ success: true, message: 'Đã chuyển sinh viên vào thùng rác' });
+    res.json({ success: true, message: 'Da chuyen sinh vien vao thung rac' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Delete student error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Delete student error:');
   }
 };
 
@@ -168,7 +168,7 @@ const getStudentStats = async (req, res) => {
       data: { total, byStatus: byStatus.map((s) => ({ TrangThai: s.TrangThai, count: s._count })) }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get student stats error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get student stats error:');
   }
 };
 
@@ -177,7 +177,7 @@ const getMajors = async (req, res) => {
     const majors = await prisma.NGANHHOC.findMany({ where: notDeleted(), include: { KHOA: true }, orderBy: { TenNganh: 'asc' } });
     res.json({ success: true, data: majors.map((m) => ({ MaNganh: m.MaNganh, TenNganh: m.TenNganh, MaKhoa: m.MaKhoa, TenKhoa: m.KHOA.TenKhoa })) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get majors error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get majors error:');
   }
 };
 
@@ -186,7 +186,7 @@ const getProvinces = async (req, res) => {
     const provinces = await prisma.TINH.findMany({ where: { TrangThai: true }, orderBy: { TenTinh: 'asc' } });
     res.json({ success: true, data: provinces });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get provinces error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get provinces error:');
   }
 };
 
@@ -195,7 +195,7 @@ const getDistrictsByProvince = async (req, res) => {
     const wards = await prisma.PHUONGXA.findMany({ where: { MaTinh: req.params.provinceId, TrangThai: true }, orderBy: { TenPhuongXa: 'asc' } });
     res.json({ success: true, data: wards });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get districts error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get districts error:');
   }
 };
 
@@ -204,7 +204,7 @@ const getEthnicities = async (req, res) => {
     const ethnicities = await prisma.DANTOC.findMany({ where: { TrangThai: true }, orderBy: { TenDanToc: 'asc' } });
     res.json({ success: true, data: ethnicities });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get ethnicities error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get ethnicities error:');
   }
 };
 

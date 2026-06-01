@@ -3,21 +3,38 @@ extends ../../layouts/student
 block content
   .page-shell
     .page-heading
-      .page-kicker Học tập
-      h2 Chương trình đào tạo
-      p Theo dõi tiến độ học tập theo ngành
+      .page-kicker Hoc tap
+      h2 Chuong trinh dao tao
+      p Theo doi tien do hoc tap theo nganh
 
     .card.mb-3
       .card-body
         .progress-label
-          span Tiến độ tích lũy
+          span Tien do tich luy
           strong
             span#credits-done 0
             |  / 
             span#credits-total 0
-            |  tín chỉ
+            |  tin chi (
+            span#credits-percent 0%
+            | )
         .progress.progress-lg
           .progress-bar#credits-bar(style="width: 0%")
+        .detail-grid.mt-3
+          div
+            strong Tin chi con no
+            span#debt-credits 0
+          div
+            strong Dieu kien khoa luan
+            span#thesis-status -
+
+    .filter-group.mb-3
+      select#status-filter
+        option(value="") Tat ca trang thai
+        option(value="passed") Da qua
+        option(value="registered") Dang hoc
+        option(value="not_started") Chua hoc
+        option(value="failed") Rot
 
     #curriculum-container.curriculum-grid
       .loading-overlay

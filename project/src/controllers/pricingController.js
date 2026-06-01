@@ -73,7 +73,7 @@ const getAllPricing = async (req, res) => {
     ]);
     res.json({ success: true, data: pricing, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'getAllPricing error:');
+        return sendErrorResponse(res, error, 'Loi server', 'getAllPricing error:');
   }
 };
 
@@ -83,7 +83,7 @@ const createPricing = async (req, res) => {
     const normalizedMaHocKy = normalizeSemester(MaHocKy);
     if (!LoaiMon || !LoaiHoc || !DonGia) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     if (!REQUIRED_PRICE_TYPES.includes(LoaiHoc)) {
-      return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Loai hoc khong hop le' });
     }
     if (await isPricingScopeComplete(LoaiMon, normalizedMaHocKy)) {
       return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ học mới, học lại, cải thiện và học hè' });
@@ -122,8 +122,8 @@ const createPricing = async (req, res) => {
     });
     res.status(reusablePricing ? 200 : 201).json({ success: true, message: 'Tạo đơn giá thành công', data: pricing });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-        return sendErrorResponse(res, error, 'Lỗi server', 'createPricing error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
+        return sendErrorResponse(res, error, 'Loi server', 'createPricing error:');
   }
 };
 
@@ -132,7 +132,7 @@ const updatePricing = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const { LoaiMon, LoaiHoc, DonGia, MaHocKy, GhiChu, TrangThai } = req.body;
     const current = await prisma.DONGIATINCHI.findUnique({ where: { id } });
-    if (!current || current.DaXoa) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn giá' });
+    if (!current || current.DaXoa) return res.status(404).json({ success: false, message: 'Khong tim thay don gia' });
 
     const nextLoaiMon = LoaiMon || current.LoaiMon;
     const nextLoaiHoc = LoaiHoc || current.LoaiHoc;
@@ -146,13 +146,13 @@ const updatePricing = async (req, res) => {
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
 
     if (LoaiHoc && !REQUIRED_PRICE_TYPES.includes(LoaiHoc)) {
-      return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Loai hoc khong hop le' });
     }
     if (await findActivePricing(nextLoaiMon, nextLoaiHoc, nextMaHocKy, id)) {
-      return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
+      return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
     }
     if (!current.TrangThai && data.TrangThai === true && await isPricingScopeComplete(nextLoaiMon, nextMaHocKy, id)) {
-      return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ bốn loại đơn giá' });
+      return res.status(400).json({ success: false, message: 'Pham vi nay da du bon loai don gia' });
     }
 
     const pricing = await prisma.$transaction(async (tx) => {
@@ -162,8 +162,8 @@ const updatePricing = async (req, res) => {
     });
     res.json({ success: true, message: 'Cập nhật đơn giá thành công', data: pricing });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-        return sendErrorResponse(res, error, 'Lỗi server', 'updatePricing error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
+        return sendErrorResponse(res, error, 'Loi server', 'updatePricing error:');
   }
 };
 
@@ -178,7 +178,7 @@ const deletePricing = async (req, res) => {
     });
     res.json({ success: true, message: 'Đã chuyển đơn giá vào thùng rác' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'deletePricing error:');
+        return sendErrorResponse(res, error, 'Loi server', 'deletePricing error:');
   }
 };
 

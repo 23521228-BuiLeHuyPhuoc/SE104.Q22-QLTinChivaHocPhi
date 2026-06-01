@@ -6,6 +6,7 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 router.use(authMiddleware);
 
 router.get('/', prerequisiteController.getPrerequisites);
+router.get('/graph/data', prerequisiteController.getPrerequisiteGraph);
 router.get('/:id', prerequisiteController.getPrerequisiteById);
 router.post('/', adminMiddleware, prerequisiteController.createPrerequisite);
 router.put('/:id', adminMiddleware, prerequisiteController.updatePrerequisite);

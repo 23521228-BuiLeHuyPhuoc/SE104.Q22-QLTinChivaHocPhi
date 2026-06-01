@@ -18,6 +18,9 @@ router.get('/opened', courseController.getOpenedClasses);
 // Get current student's curriculum and completed credits
 router.get('/curriculum/me', courseController.getMyCurriculum);
 
+// Export course list as an Excel-readable file
+router.get('/export', adminMiddleware, courseController.exportCourses);
+
 // Get course by ID
 router.get('/:id', courseController.getCourseById);
 

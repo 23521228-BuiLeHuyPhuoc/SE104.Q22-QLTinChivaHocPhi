@@ -39,7 +39,7 @@ const listEntities = (req, res) => {
 const listTrash = async (req, res) => {
   try {
     const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    if (!config) return res.status(404).json({ success: false, message: 'Khong ho tro loai du lieu nay' });
 
     const { page, limit, skip } = getPagination(req.query);
     const model = prisma[config.model];
@@ -59,17 +59,17 @@ const listTrash = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'listTrash error:');
+        return sendErrorResponse(res, error, 'Loi server', 'listTrash error:');
   }
 };
 
 const restoreTrashItem = async (req, res) => {
   try {
     const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    if (!config) return res.status(404).json({ success: false, message: 'Khong ho tro loai du lieu nay' });
     const id = parseTrashId(config, req.params.id);
     if (config.type === 'int' && !Number.isFinite(id)) {
-      return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'ID khong hop le' });
     }
 
     const row = await prisma.$transaction(async (tx) => {
@@ -92,25 +92,25 @@ const restoreTrashItem = async (req, res) => {
       return restored;
     });
 
-    res.json({ success: true, message: 'Khôi phục thành công', data: row });
+    res.json({ success: true, message: 'Khoi phuc thanh cong', data: row });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể khôi phục dữ liệu', 'restoreTrashItem error:');
+        return sendErrorResponse(res, error, 'Khong the khoi phuc du lieu', 'restoreTrashItem error:');
   }
 };
 
 const purgeTrashItem = async (req, res) => {
   try {
     const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    if (!config) return res.status(404).json({ success: false, message: 'Khong ho tro loai du lieu nay' });
     const id = parseTrashId(config, req.params.id);
     if (config.type === 'int' && !Number.isFinite(id)) {
-      return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'ID khong hop le' });
     }
 
     await prisma[config.model].delete({ where: { [config.pk]: id } });
-    res.json({ success: true, message: 'Đã xóa vĩnh viễn' });
+    res.json({ success: true, message: 'Da xoa vinh vien' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể xóa vĩnh viễn do dữ liệu đang được tham chiếu', 'purgeTrashItem error:');
+        return sendErrorResponse(res, error, 'Khong the xoa vinh vien do du lieu dang duoc tham chieu', 'purgeTrashItem error:');
   }
 };
 

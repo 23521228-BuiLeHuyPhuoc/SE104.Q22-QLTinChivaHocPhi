@@ -92,17 +92,17 @@ const getPeriods = async (req, res) => {
 
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get periods error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get periods error:');
   }
 };
 
 const getPeriodById = async (req, res) => {
   try {
     const period = await prisma.TIETHOC.findFirst({ where: { MaTiet: req.params.id, DaXoa: false } });
-    if (!period) return res.status(404).json({ success: false, message: 'Không tìm thấy tiết học' });
+    if (!period) return res.status(404).json({ success: false, message: 'Khong tim thay tiet hoc' });
     res.json({ success: true, data: period });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get period error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Get period error:');
   }
 };
 
@@ -113,7 +113,7 @@ const createPeriod = async (req, res) => {
 
     const existing = await prisma.TIETHOC.findUnique({ where: { MaTiet: data.MaTiet } });
     if (existing && existing.DaXoa === false) {
-      return res.status(400).json({ success: false, message: 'Mã tiết học đã tồn tại' });
+      return res.status(400).json({ success: false, message: 'Ma tiet hoc da ton tai' });
     }
 
     const payload = { ...data, ...updateAudit(req) };
@@ -124,16 +124,16 @@ const createPeriod = async (req, res) => {
       })
       : await prisma.TIETHOC.create({ data: payload });
 
-    res.status(201).json({ success: true, message: 'Lưu tiết học thành công', data: period });
+    res.status(201).json({ success: true, message: 'Luu tiet hoc thanh cong', data: period });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể tạo tiết học', 'Create period error:');
+        return sendErrorResponse(res, error, 'Khong the tao tiet hoc', 'Create period error:');
   }
 };
 
 const updatePeriod = async (req, res) => {
   try {
     const existing = await prisma.TIETHOC.findFirst({ where: { MaTiet: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy tiết học' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay tiet hoc' });
 
     const { data, errors } = normalizePeriodPayload(req.body, true);
     delete data.MaTiet;
@@ -142,27 +142,27 @@ const updatePeriod = async (req, res) => {
     const startRaw = req.body.GioBatDau !== undefined ? req.body.GioBatDau : existing.GioBatDau.toISOString().slice(11, 16);
     const endRaw = req.body.GioKetThuc !== undefined ? req.body.GioKetThuc : existing.GioKetThuc.toISOString().slice(11, 16);
     if (timeToMinutes(endRaw) <= timeToMinutes(startRaw)) {
-      return res.status(400).json({ success: false, message: 'Giờ kết thúc phải sau giờ bắt đầu' });
+      return res.status(400).json({ success: false, message: 'Gio ket thuc phai sau gio bat dau' });
     }
 
     const updated = await prisma.TIETHOC.update({
       where: { MaTiet: req.params.id },
       data: { ...data, ...updateAudit(req) }
     });
-    res.json({ success: true, message: 'Cập nhật tiết học thành công', data: updated });
+    res.json({ success: true, message: 'Cap nhat tiet hoc thanh cong', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể cập nhật tiết học', 'Update period error:');
+        return sendErrorResponse(res, error, 'Khong the cap nhat tiet hoc', 'Update period error:');
   }
 };
 
 const deletePeriod = async (req, res) => {
   try {
     const existing = await prisma.TIETHOC.findFirst({ where: { MaTiet: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy tiết học' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay tiet hoc' });
     await prisma.TIETHOC.update({ where: { MaTiet: req.params.id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Đã chuyển tiết học vào thùng rác' });
+    res.json({ success: true, message: 'Da chuyen tiet hoc vao thung rac' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể xóa tiết học', 'Delete period error:');
+        return sendErrorResponse(res, error, 'Khong the xoa tiet hoc', 'Delete period error:');
   }
 };
 
