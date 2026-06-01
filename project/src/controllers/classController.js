@@ -453,7 +453,7 @@ const getClasses = async (req, res) => {
     });
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting classes:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting classes:');
   }
 };
 
@@ -470,10 +470,10 @@ const getClassById = async (req, res) => {
         LOPMO: { include: { HOCKY: true, GIANGVIEN: true, LICHHOCLOP: { include: { PHONGHOC: true } } } }
       }
     });
-    if (!cls) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    if (!cls) return res.status(404).json({ success: false, message: 'Khong tim thay lop hoc' });
     res.json({ success: true, data: cls });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting class:');
   }
 };
 
@@ -564,7 +564,7 @@ const createClass = async (req, res) => {
     const { MaLop, TenLop, MaMonHoc } = req.body;
     if (!MaLop || !TenLop || !MaMonHoc) return res.status(400).json({ success: false, message: 'Vui lòng nhập mã lớp, tên lớp và môn học' });
     const existingClass = await prisma.LOP.findUnique({ where: { MaLop } });
-    if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
+    if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma lop da ton tai' });
     const course = await prisma.MONHOC.findFirst({ where: { MaMonHoc, DaXoa: false } });
     if (!course) return res.status(400).json({ success: false, message: 'Môn học không tồn tại' });
     const assignment = await resolveClassAssignmentData(req.body);
@@ -580,9 +580,9 @@ const createClass = async (req, res) => {
         ...updateAudit(req)
       }
     });
-    res.status(201).json({ success: true, message: 'Tạo lớp học thành công', data: cls });
+    res.status(201).json({ success: true, message: 'Tao lop hoc thanh cong', data: cls });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error creating class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error creating class:');
   }
 };
 
@@ -606,20 +606,20 @@ const updateClass = async (req, res) => {
     Object.assign(data, assignment.data);
     Object.assign(data, updateAudit(req));
     const updated = await prisma.LOP.update({ where: { MaLop: req.params.id }, data });
-    res.json({ success: true, message: 'Cập nhật lớp học thành công', data: updated });
+    res.json({ success: true, message: 'Cap nhat lop hoc thanh cong', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error updating class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error updating class:');
   }
 };
 
 const deleteClass = async (req, res) => {
   try {
     const existing = await prisma.LOP.findFirst({ where: { MaLop: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay lop hoc' });
     await prisma.LOP.update({ where: { MaLop: req.params.id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Đã chuyển lớp học vào thùng rác' });
+    res.json({ success: true, message: 'Da chuyen lop hoc vao thung rac' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error deleting class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error deleting class:');
   }
 };
 
@@ -644,7 +644,7 @@ const getOpenedClasses = async (req, res) => {
     });
     res.json({ success: true, data: rows.map((row) => ({ ...row, SoLuongDaDangKy: Number(row.SoLuongDaDangKy || 0) })) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting opened classes:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting opened classes:');
   }
 };
 
@@ -721,7 +721,7 @@ const openClass = async (req, res) => {
     if (existing) return res.json({ success: true, message: 'Mở lại lớp thành công', data: result });
     res.status(201).json({ success: true, message: 'Mở lớp thành công', data: result });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error opening class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error opening class:');
   }
 };
 
@@ -740,7 +740,7 @@ const closeClass = async (req, res) => {
     });
     res.json({ success: true, message: 'Đóng lớp thành công' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error closing class:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error closing class:');
   }
 };
 
@@ -765,7 +765,7 @@ const getClassSchedules = async (req, res) => {
     });
     res.json({ success: true, data: opened });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'getClassSchedules error:');
+        return sendErrorResponse(res, error, 'Loi server', 'getClassSchedules error:');
   }
 };
 
@@ -790,7 +790,7 @@ const upsertClassSchedule = async (req, res) => {
     }
 
     const opened = await prisma.LOPMO.findFirst({ where: { MaHocKy, MaLop: req.params.id, TrangThai: true } });
-    if (!opened) return res.status(404).json({ success: false, message: 'Lớp chưa được mở trong học kỳ này' });
+    if (!opened) return res.status(404).json({ success: false, message: 'Lop chua duoc mo trong hoc ky nay' });
 
     if (!cleanOptionalText(opened.MaGiangVien || opened.GiangVien)) {
       return res.status(400).json({ success: false, message: 'Lop mo chua co giang vien phu trach' });
@@ -831,9 +831,9 @@ const upsertClassSchedule = async (req, res) => {
     const schedule = scheduleId
       ? await prisma.LICHHOCLOP.update({ where: { id: scheduleId }, data })
       : await prisma.LICHHOCLOP.create({ data });
-    res.json({ success: true, message: 'Cập nhật lịch học thành công', data: schedule });
+    res.json({ success: true, message: 'Cap nhat lich hoc thanh cong', data: schedule });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'upsertClassSchedule error:');
+        return sendErrorResponse(res, error, 'Loi server', 'upsertClassSchedule error:');
   }
 };
 
@@ -905,7 +905,7 @@ const getClassStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { total_classes: totalClasses, active_classes: activeClasses, total_opened_classes: totalOpened } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Error getting class stats:');
+        return sendErrorResponse(res, error, 'Loi server', 'Error getting class stats:');
   }
 };
 

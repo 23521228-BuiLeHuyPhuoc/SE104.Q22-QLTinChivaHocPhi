@@ -107,25 +107,25 @@ const verifyResetOtp = async (accountId, otp) => {
   const payload = await redisClient.getJson(key);
   if (!payload || !payload.otpHash || Number(payload.expiresAt || 0) <= Date.now()) {
     await redisClient.deleteKey(key).catch(() => null);
-    return { success: false, message: 'Mã OTP không hợp lệ hoặc đã hết hạn' };
+    return { success: false, message: 'Ma OTP khong hop le hoac da het han' };
   }
 
   const attempts = Number(payload.attempts || 0);
   if (attempts >= RESET_OTP_MAX_ATTEMPTS) {
     await redisClient.deleteKey(key).catch(() => null);
-    return { success: false, message: 'Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.' };
+    return { success: false, message: 'Ma OTP da bi khoa do nhap sai qua nhieu lan. Vui long yeu cau ma moi.' };
   }
 
   if (payload.otpHash !== hashResetOtp(accountId, otp)) {
     const nextAttempts = attempts + 1;
     if (nextAttempts >= RESET_OTP_MAX_ATTEMPTS) {
       await redisClient.deleteKey(key).catch(() => null);
-      return { success: false, message: 'Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới.' };
+      return { success: false, message: 'Ma OTP da bi khoa do nhap sai qua nhieu lan. Vui long yeu cau ma moi.' };
     }
 
     const ttlSeconds = Math.max(1, Math.ceil((Number(payload.expiresAt) - Date.now()) / 1000));
     await redisClient.setJson(key, { ...payload, attempts: nextAttempts }, ttlSeconds);
-    return { success: false, message: 'Mã OTP không đúng' };
+    return { success: false, message: 'Ma OTP khong dung' };
   }
 
   return { success: true };
@@ -285,7 +285,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập tên đăng nhập và mật khẩu'
+        message: 'Vui long nhap ten dang nhap va mat khau'
       });
     }
 
@@ -308,28 +308,28 @@ const loginWithRole = (expectedRole) => async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Tên đăng nhập hoặc mật khẩu không đúng'
+        message: 'Ten dang nhap hoac mat khau khong dung'
       });
     }
 
     if (expectedRole && user.Role !== expectedRole) {
       return res.status(403).json({
         success: false,
-        message: 'Tài khoản không phù hợp với cổng đăng nhập này'
+        message: 'Tai khoan khong phu hop voi cong dang nhap nay'
       });
     }
 
     if (user.TrangThai === false) {
       return res.status(403).json({
         success: false,
-        message: 'Tài khoản đã bị khóa'
+        message: 'Tai khoan da bi khoa'
       });
     }
 
     if (user.TrangThaiDuyet !== 'approved') {
       return res.status(403).json({
         success: false,
-        message: 'Tài khoản chưa được phép đăng nhập'
+        message: 'Tai khoan chua duoc phep dang nhap'
       });
     }
 
@@ -337,7 +337,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
     if (!isValid) {
       return res.status(401).json({
         success: false,
-        message: 'Tên đăng nhập hoặc mật khẩu không đúng'
+        message: 'Ten dang nhap hoac mat khau khong dung'
       });
     }
 
@@ -355,7 +355,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
       if (!linkedStudent) {
         return res.status(403).json({
           success: false,
-          message: 'Tài khoản sinh viên chưa được liên kết hồ sơ sinh viên'
+          message: 'Tai khoan sinh vien chua duoc lien ket ho so sinh vien'
         });
       }
     }
@@ -368,7 +368,7 @@ const loginWithRole = (expectedRole) => async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Đăng nhập thành công',
+      message: 'Dang nhap thanh cong',
       data: await buildLoginResponse(user)
     });
   } catch (error) {
@@ -385,21 +385,21 @@ const forgotPassword = async (req, res) => {
     const identifier = normalize(req.body.identifier || req.body.username || req.body.email);
     const role = normalize(req.body.role);
     if (!identifier) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập hoặc email' });
+      return res.status(400).json({ success: false, message: 'Vui long nhap ten dang nhap hoac email' });
     }
 
     const account = await findResetAccount(identifier, role);
     if (!account) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản phù hợp' });
+      return res.status(404).json({ success: false, message: 'Khong tim thay tai khoan phu hop' });
     }
     if (account.TrangThai === false || account.TrangThaiDuyet !== 'approved') {
-      return res.status(403).json({ success: false, message: 'Tài khoản chưa được phép đặt lại mật khẩu' });
+      return res.status(403).json({ success: false, message: 'Tai khoan chua duoc phep dat lai mat khau' });
     }
     if (!account.Email) {
-      return res.status(400).json({ success: false, message: 'Tài khoản chưa có email để đặt lại mật khẩu' });
+      return res.status(400).json({ success: false, message: 'Tai khoan chua co email de dat lai mat khau' });
     }
     if (!process.env.SMTP_HOST) {
-      return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
+      return res.status(500).json({ success: false, message: 'Chua cau hinh SMTP de gui email dat lai mat khau' });
     }
 
     const otp = generateOtp();
@@ -413,7 +413,7 @@ const forgotPassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Đã gửi mã OTP đặt lại mật khẩu. Mã có hiệu lực trong ${RESET_OTP_TTL_MINUTES} phút.`,
+      message: `Da gui ma OTP dat lai mat khau. Ma co hieu luc trong ${RESET_OTP_TTL_MINUTES} phut.`,
       data: {
         resetPath: getResetPath(account)
       }
@@ -421,12 +421,12 @@ const forgotPassword = async (req, res) => {
   } catch (error) {
     console.error('Forgot password error:', error);
     if (error.message === 'SMTP_NOT_CONFIGURED') {
-      return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
+      return res.status(500).json({ success: false, message: 'Chua cau hinh SMTP de gui email dat lai mat khau' });
     }
     if (isRedisConnectionError(error)) {
       return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
     }
-    return sendErrorResponse(res, error, 'Lỗi server');
+    return sendErrorResponse(res, error, 'Loi server');
   }
 };
 
@@ -438,15 +438,15 @@ const resetPassword = async (req, res) => {
     const { newPassword } = req.body;
 
     if (!identifier || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập tài khoản, mã OTP và mật khẩu mới' });
+      return res.status(400).json({ success: false, message: 'Vui long nhap tai khoan, ma OTP va mat khau moi' });
     }
     if (!/^\d+$/.test(otp) || otp.length !== RESET_OTP_LENGTH) {
-      return res.status(400).json({ success: false, message: `Mã OTP phải gồm ${RESET_OTP_LENGTH} chữ số` });
+      return res.status(400).json({ success: false, message: `Ma OTP phai gom ${RESET_OTP_LENGTH} chu so` });
     }
 
     const account = await findResetAccount(identifier, role);
     if (!account || account.TrangThai === false || account.TrangThaiDuyet !== 'approved') {
-      return res.status(400).json({ success: false, message: 'Mã OTP không hợp lệ hoặc đã hết hạn' });
+      return res.status(400).json({ success: false, message: 'Ma OTP khong hop le hoac da het han' });
     }
 
     const verification = await verifyResetOtp(account.MaTaiKhoan, otp);
@@ -462,13 +462,13 @@ const resetPassword = async (req, res) => {
     });
     await clearResetOtp(account.MaTaiKhoan).catch(() => null);
 
-    res.json({ success: true, message: 'Đặt lại mật khẩu thành công' });
+    res.json({ success: true, message: 'Dat lai mat khau thanh cong' });
   } catch (error) {
     console.error('Reset password error:', error);
     if (isRedisConnectionError(error)) {
       return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
     }
-    return sendErrorResponse(res, error, 'Lỗi server');
+    return sendErrorResponse(res, error, 'Loi server');
   }
 };
 
@@ -490,7 +490,7 @@ const getMe = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: 'Khong tim thay nguoi dung'
       });
     }
 
@@ -525,14 +525,14 @@ const getMe = async (req, res) => {
       }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'GetMe error:');
+        return sendErrorResponse(res, error, 'Loi server', 'GetMe error:');
   }
 };
 
 const updateStudentProfile = async (req, res) => {
   try {
     if ((req.user.Role || req.user.role) !== 'student') {
-      return res.status(403).json({ success: false, message: 'Chỉ sinh viên mới được cập nhật hồ sơ cá nhân' });
+      return res.status(403).json({ success: false, message: 'Chi sinh vien moi duoc cap nhat ho so ca nhan' });
     }
 
     const forbiddenFields = {
@@ -573,7 +573,7 @@ const updateStudentProfile = async (req, res) => {
     if (blocked) {
       return res.status(400).json({
         success: false,
-        message: `${forbiddenFields[blocked]} không được phép chỉnh sửa`
+        message: `${forbiddenFields[blocked]} khong duoc phep chinh sua`
       });
     }
 
@@ -583,7 +583,7 @@ const updateStudentProfile = async (req, res) => {
       select: { MaTaiKhoan: true, MaSv: true }
     });
     if (!account) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+      return res.status(404).json({ success: false, message: 'Khong tim thay tai khoan' });
     }
 
     const student = await prisma.SINHVIEN.findFirst({
@@ -597,7 +597,7 @@ const updateStudentProfile = async (req, res) => {
       select: { MaSv: true }
     });
     if (!student) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ sinh viên' });
+      return res.status(404).json({ success: false, message: 'Khong tim thay ho so sinh vien' });
     }
 
     const data = {};
@@ -606,20 +606,20 @@ const updateStudentProfile = async (req, res) => {
       const gender = normalize(req.body.GioiTinh);
       const validGenders = ['', 'Nam', 'Nữ', 'Nu', 'Khác', 'Khac'];
       if (!validGenders.includes(gender)) {
-        return res.status(400).json({ success: false, message: 'Giới tính không hợp lệ' });
+        return res.status(400).json({ success: false, message: 'Gioi tinh khong hop le' });
       }
       data.GioiTinh = gender === 'Nu' ? 'Nữ' : gender === 'Khac' ? 'Khác' : gender;
     }
     if (req.body.DiaChiLienHe !== undefined) {
       const address = normalize(req.body.DiaChiLienHe);
       if (!address) {
-        return res.status(400).json({ success: false, message: 'Địa chỉ liên hệ không được để trống' });
+        return res.status(400).json({ success: false, message: 'Dia chi lien he khong duoc de trong' });
       }
       data.DiaChiLienHe = address;
     }
 
     if (!Object.keys(data).length) {
-      return res.status(400).json({ success: false, message: 'Không có thông tin hợp lệ để cập nhật' });
+      return res.status(400).json({ success: false, message: 'Khong co thong tin hop le de cap nhat' });
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -646,18 +646,18 @@ const updateStudentProfile = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cập nhật hồ sơ cá nhân thành công',
+      message: 'Cap nhat ho so ca nhan thanh cong',
       data: { student: updated }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể cập nhật hồ sơ cá nhân', 'Update student profile error:');
+        return sendErrorResponse(res, error, 'Khong the cap nhat ho so ca nhan', 'Update student profile error:');
   }
 };
 
 const uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ảnh đại diện' });
+      return res.status(400).json({ success: false, message: 'Vui long chon anh dai dien' });
     }
 
     const userId = Number(req.user.id || req.user.MaTaiKhoan || 0);
@@ -671,7 +671,7 @@ const uploadAvatar = async (req, res) => {
     });
 
     if (!account) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+      return res.status(404).json({ success: false, message: 'Khong tim thay tai khoan' });
     }
 
     const uploadResult = await uploadAvatarBuffer(req.file.buffer, {
@@ -710,7 +710,7 @@ const uploadAvatar = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cập nhật ảnh đại diện thành công',
+      message: 'Cap nhat anh dai dien thanh cong',
       data: {
         avatarUrl,
         publicId: uploadResult.public_id
@@ -724,7 +724,7 @@ const uploadAvatar = async (req, res) => {
         : '';
       return res.status(500).json({
         success: false,
-        message: `Chưa cấu hình đủ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET.${missing}`
+        message: `Chua cau hinh du CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY va CLOUDINARY_API_SECRET.${missing}`
       });
     }
     return sendErrorResponse(res, error, getCloudinaryUploadErrorMessage(error));
@@ -738,7 +738,7 @@ const changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập đầy đủ thông tin'
+        message: 'Vui long nhap day du thong tin'
       });
     }
 
@@ -749,7 +749,7 @@ const changePassword = async (req, res) => {
     if (!account) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy người dùng'
+        message: 'Khong tim thay nguoi dung'
       });
     }
 
@@ -757,7 +757,7 @@ const changePassword = async (req, res) => {
     if (!isValid) {
       return res.status(400).json({
         success: false,
-        message: 'Mật khẩu hiện tại không đúng'
+        message: 'Mat khau hien tai khong dung'
       });
     }
 
@@ -767,9 +767,9 @@ const changePassword = async (req, res) => {
       select: { MaTaiKhoan: true }
     });
 
-    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+    res.json({ success: true, message: 'Doi mat khau thanh cong' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Change password error:');
+        return sendErrorResponse(res, error, 'Loi server', 'Change password error:');
   }
 };
 

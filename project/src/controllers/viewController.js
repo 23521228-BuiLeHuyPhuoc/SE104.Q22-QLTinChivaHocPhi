@@ -361,6 +361,8 @@ const adminCourses = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const filterKhoa = req.query.MaKhoa || '';
+  const filterLoaiMon = req.query.LoaiMon || '';
   const where = { DaXoa: false };
 
   if (search) {
@@ -369,9 +371,11 @@ const adminCourses = async (req, res) => {
       { TenMonHoc: { contains: search, mode: 'insensitive' } }
     ];
   }
+  if (filterKhoa) where.MaKhoa = filterKhoa;
+  if (filterLoaiMon) where.LoaiMon = filterLoaiMon;
 
   try {
-    const [courses, total] = await Promise.all([
+    const [courses, total, faculties] = await Promise.all([
       prisma.MONHOC.findMany({
         where,
         skip: (page - 1) * limit,
@@ -379,7 +383,8 @@ const adminCourses = async (req, res) => {
         orderBy: { MaMonHoc: 'asc' },
         include: { KHOA: true }
       }),
-      prisma.MONHOC.count({ where })
+      prisma.MONHOC.count({ where }),
+      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' }, select: { MaKhoa: true, TenKhoa: true } })
     ]);
     const displayCourses = await attachUpdaterNames(courses);
 
@@ -388,18 +393,24 @@ const adminCourses = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/courses',
-      queryParams: { search, limit },
-      search
+      queryParams: { search, MaKhoa: filterKhoa, LoaiMon: filterLoaiMon, limit },
+      search,
+      faculties,
+      filterKhoa,
+      filterLoaiMon
     });
   } catch (err) {
     console.error('Error:', err);
     renderAdmin(res, 'courses', 'courses', 'Quản lý môn học', req, {
       courses: [],
+      faculties: [],
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/courses',
       queryParams: {},
-      search: ''
+      search: '',
+      filterKhoa: '',
+      filterLoaiMon: ''
     });
   }
 };
@@ -1380,22 +1391,40 @@ const adminCompletedCourses = async (req, res) => {
   const search = req.query.search || '';
   const filterHocKy = req.query.MaHocKy || '';
   const filterResult = req.query.KetQua || '';
+  const filterKhoa = req.query.MaKhoa || '';
+  const filterLoaiMon = req.query.LoaiMon || '';
+  const filterTinChi = req.query.SoTinChi || '';
   const where = { DaXoa: false };
   if (filterHocKy) where.MaHocKy = filterHocKy;
   if (filterResult) where.KetQua = filterResult;
-  if (search) { where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] }; }
+  if (filterKhoa || filterLoaiMon || filterTinChi) where.MONHOC = { ...(filterKhoa ? { MaKhoa: filterKhoa } : {}), ...(filterLoaiMon ? { LoaiMon: filterLoaiMon } : {}), ...(filterTinChi ? { SoTinChi: parseInt(filterTinChi, 10) } : {}) };
+  if (search) {
+    where.OR = [
+      { MaSv: { contains: search, mode: 'insensitive' } },
+      { SINHVIEN: { HoTen: { contains: search, mode: 'insensitive' } } },
+      { MaMonHoc: { contains: search, mode: 'insensitive' } },
+      { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
+      { MONHOC: { KHOA: { TenKhoa: { contains: search, mode: 'insensitive' } } } },
+      { MaLop: { contains: search, mode: 'insensitive' } },
+      { LOP: { GiangVien: { contains: search, mode: 'insensitive' } } }
+    ];
+  }
   try {
-    const [completedRows, semesters] = await Promise.all([
+    const [completedRows, semesters, faculties, courses, classes] = await Promise.all([
       prisma.MONDAHOC.findMany({
         where,
         orderBy: [{ NgayCapNhat: 'desc' }, { NgayTao: 'desc' }, { id: 'desc' }],
         include: {
           SINHVIEN: { select: { MaSv: true, HoTen: true } },
-          MONHOC: { select: { MaMonHoc: true, SoTinChi: true } },
+          MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true, KHOA: true } },
+          LOP: { select: { MaLop: true, TenLop: true, GiangVien: true } },
           TAIKHOAN: { select: { HoTen: true, TenDangNhap: true } }
         }
       }),
-      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' } })
+      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' } }),
+      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' }, select: { MaKhoa: true, TenKhoa: true } }),
+      prisma.MONHOC.findMany({ where: { DaXoa: false }, orderBy: { MaMonHoc: 'asc' }, select: { MaMonHoc: true, TenMonHoc: true } }),
+      prisma.LOP.findMany({ where: { DaXoa: false }, orderBy: { MaLop: 'asc' }, select: { MaLop: true, TenLop: true, MaMonHoc: true } })
     ]);
 
     const studentMap = new Map();
@@ -1442,10 +1471,10 @@ const adminCompletedCourses = async (req, res) => {
     const total = completedStudentRows.length;
     const completedStudents = completedStudentRows.slice((page - 1) * limit, page * limit);
 
-    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents, semesters, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/completed-courses', queryParams: { search, MaHocKy: filterHocKy, KetQua: filterResult, limit }, search, filterHocKy, filterResult });
+    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents, semesters, faculties, courses, classes, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/completed-courses', queryParams: { search, MaHocKy: filterHocKy, KetQua: filterResult, MaKhoa: filterKhoa, LoaiMon: filterLoaiMon, SoTinChi: filterTinChi, limit }, search, filterHocKy, filterResult, filterKhoa, filterLoaiMon, filterTinChi });
   } catch (err) {
     console.error('Error:', err);
-    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents: [], semesters: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/completed-courses', queryParams: {}, search: '', filterHocKy: '', filterResult: '' });
+    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents: [], semesters: [], faculties: [], courses: [], classes: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/completed-courses', queryParams: {}, search: '', filterHocKy: '', filterResult: '', filterKhoa: '', filterLoaiMon: '', filterTinChi: '' });
   }
 };
 
