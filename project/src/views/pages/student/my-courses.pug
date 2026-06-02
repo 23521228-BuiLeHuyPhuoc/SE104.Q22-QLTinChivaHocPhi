@@ -1,14 +1,33 @@
 extends ../../layouts/student
 
+block styles
+  link(rel="stylesheet" href="/css/student/my-courses.css")
+
 block content
   .page-shell
     .page-heading.compact
       .page-kicker Học tập
-      h2 Môn học đã đăng ký
+      h2 Phiếu đăng ký học phần
+
+    form.my-courses-filter-panel#my-courses-filter
+      .my-courses-filter-grid
+        .my-courses-filter-field
+          label(for="filter-academic-year") Năm học
+          select.form-control#filter-academic-year
+            option(value="") Tất cả năm học
+        .my-courses-filter-field
+          label(for="filter-semester") Học kỳ
+          select.form-control#filter-semester
+            option(value="") Tất cả học kỳ
+        .my-courses-filter-actions
+          button.btn.btn-outline#reset-my-courses-filter(type="button")
+            span.material-symbols-rounded restart_alt
+            span Xóa lọc
 
     .card
       .card-header
-        h3 Danh sách lớp đã đăng ký
+        h3 Chi tiết phiếu đăng ký học phần
+        span.card-count#my-courses-count
       .card-body
         .loading-overlay#loading
           .spinner
@@ -16,8 +35,9 @@ block content
           table.data-table#courses-table.hidden
             thead
               tr
+                th Phiếu ĐK
                 th Mã lớp
-                th Tên môn
+                th Học phần
                 th Tín chỉ
                 th Loại đăng ký
                 th Giảng viên
@@ -26,6 +46,13 @@ block content
                 th Trạng thái
                 th Thao tác
             tbody#my-courses
+        .my-courses-summary#my-courses-summary.hidden
+          .my-courses-summary-main
+            span.material-symbols-rounded.my-courses-summary-icon fact_check
+            div
+              strong#my-courses-total-credits Tổng tín chỉ đã đăng ký: --
+              small#my-courses-total-courses -- học phần đang đăng ký
+          span.my-courses-summary-fee.text-muted#my-courses-total-fee Học phí trước miễn/giảm tạm tính: --
         nav.pagination#my-courses-pagination(style="display:none")
 
 block scripts

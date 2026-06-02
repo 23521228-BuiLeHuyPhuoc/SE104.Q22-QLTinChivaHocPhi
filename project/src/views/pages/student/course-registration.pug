@@ -6,26 +6,26 @@ block styles
 block content
   .toolbar.course-registration-toolbar
     .toolbar-title
-      h2.page-title Đăng ký môn học
-      p Tìm lớp đang mở đăng ký trong học kỳ hiện hành.
+      h2.page-title Đăng ký học phần
+      p Tìm lớp học phần đang mở đăng ký trong học kỳ hiện hành.
   form.course-registration-filter-panel#course-registration-filter
     input#semester-input(type="hidden")
     .registration-filter-grid
       .registration-filter-field.registration-filter-semester
-        label Học kỳ đăng ký
+        label Học kỳ đăng ký học phần
         span.registration-semester-pill#semester-label Đang tải học kỳ
       .registration-filter-field.registration-filter-scope
         label(for="course-search-scope") Tìm theo
         select.form-control#course-search-scope
-          option(value="course") Môn học
+          option(value="course") Học phần
           option(value="lecturer") Giảng viên
           option(value="class") Lớp
       .registration-filter-field.registration-filter-search
         label(for="course-search") Từ khóa tìm kiếm
         .search-box.course-registration-search
-          input#course-search(type="text" placeholder="Nhập mã hoặc tên môn học" autocomplete="off")
+          input#course-search(type="text" placeholder="Nhập mã hoặc tên học phần" autocomplete="off")
       .registration-filter-field.registration-filter-type
-        label(for="filter-course-type") Loại môn
+        label(for="filter-course-type") Loại học phần
         select.form-control#filter-course-type
           option(value="") Tất cả
           option(value="LT") Lý thuyết
@@ -57,7 +57,7 @@ block content
 
   .card.course-registration-card
     .card-header.course-registration-card-header
-      h3 Môn học có thể đăng ký
+      h3 Học phần có thể đăng ký
       .course-registration-header-meta
         span.registration-credit-summary#registered-credit-summary Đã đăng ký: -- tín chỉ / Max -- tín chỉ
         span.card-count#available-count

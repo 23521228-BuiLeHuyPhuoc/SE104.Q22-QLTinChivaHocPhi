@@ -672,10 +672,23 @@ const openClass = async (req, res) => {
 
     const [semester, cls] = await Promise.all([
       prisma.HOCKY.findFirst({ where: { MaHocKy, DaXoa: false }, select: { MaHocKy: true } }),
-      prisma.LOP.findFirst({ where: { MaLop, DaXoa: false, TrangThai: true }, select: { MaLop: true } })
+      prisma.LOP.findFirst({ where: { MaLop, DaXoa: false, TrangThai: true }, select: { MaLop: true, MaMonHoc: true } })
     ]);
     if (!semester) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
     if (!cls) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học đang hoạt động' });
+
+    const openedCourse = await prisma.$queryRaw`
+      SELECT id
+      FROM "MONHOCMO"
+      WHERE "MaHocKy" = ${MaHocKy}
+        AND "MaMonHoc" = ${cls.MaMonHoc}
+        AND COALESCE("DaXoa", FALSE) = FALSE
+        AND COALESCE("TrangThai", TRUE) = TRUE
+      LIMIT 1
+    `;
+    if (!openedCourse.length) {
+      return res.status(400).json({ success: false, message: 'Mon hoc cua lop chua duoc mo trong hoc ky nay. Vui long mo mon hoc truoc khi mo lop.' });
+    }
 
     const existing = await prisma.LOPMO.findFirst({ where: { MaHocKy, MaLop } });
     if (existing && existing.TrangThai !== false) return res.status(400).json({ success: false, message: 'Lớp đã được mở trong học kỳ này' });

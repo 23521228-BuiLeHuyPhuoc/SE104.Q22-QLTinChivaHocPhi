@@ -18,12 +18,12 @@ nav.sidebar.sidebar-student(id="sidebar")
 
     .sidebar-section
       .sidebar-section-title Học tập
-      a.sidebar-link(href="/student/course-registration" title="Đăng ký môn" class=(active === 'course-registration' ? 'active' : ''))
+      a.sidebar-link(href="/student/course-registration" title="Đăng ký học phần" class=(active === 'course-registration' ? 'active' : ''))
         span.sidebar-icon.material-symbols-rounded add_task
-        span.link-label Đăng ký môn
-      a.sidebar-link(href="/student/my-courses" title="Môn đã đăng ký" class=(active === 'my-courses' ? 'active' : ''))
+        span.link-label Đăng ký học phần
+      a.sidebar-link(href="/student/my-courses" title="Phiếu đăng ký học phần" class=(active === 'my-courses' ? 'active' : ''))
         span.sidebar-icon.material-symbols-rounded checklist
-        span.link-label Môn đã đăng ký
+        span.link-label Phiếu đăng ký học phần
       a.sidebar-link(href="/student/completed-courses" title="Môn đã học" class=(active === 'completed-courses' ? 'active' : ''))
         span.sidebar-icon.material-symbols-rounded history_edu
         span.link-label Môn đã học

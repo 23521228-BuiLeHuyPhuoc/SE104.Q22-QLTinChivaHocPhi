@@ -10,6 +10,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const courseRoutes = require('./routes/courseRoutes');
+const openCourseRoutes = require('./routes/openCourseRoutes');
 const classRoutes = require('./routes/classRoutes');
 const registrationRoutes = require('./routes/registrationRoutes');
 const tuitionRoutes = require('./routes/tuitionRoutes');
@@ -116,6 +117,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/open-courses', openCourseRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/tuition', tuitionRoutes);

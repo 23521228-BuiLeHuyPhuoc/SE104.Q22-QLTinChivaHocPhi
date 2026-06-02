@@ -1,0 +1,143 @@
+extends ../../layouts/admin
+
+block styles
+  link(rel="stylesheet" href="/css/admin/open-courses.css")
+
+block content
+  .toolbar.open-courses-toolbar
+    .toolbar-title
+      h2.page-title Môn học mở
+      p Chọn môn học được phép mở lớp trong từng học kỳ.
+    .open-courses-toolbar-actions
+      button.btn.btn-primary(type="button" onclick="openCourseModal('add')")
+        span.material-symbols-rounded add
+        span Thêm môn mở
+
+  form.open-courses-filter-panel(method="get" action="/admin/open-courses")
+    .open-courses-filter-grid
+      .open-courses-filter-field.open-courses-search-field
+        label(for="oc-search") Từ khóa
+        .search-box.open-courses-search-box
+          input#oc-search(type="text" name="search" value=(search || '') placeholder="Nhập mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceOpenCourseSearch()")
+      .open-courses-filter-field
+        label(for="oc-filter-hocky") Học kỳ
+        select.form-control#oc-filter-hocky(name="MaHocKy" onchange="applyOpenCourseFilters()")
+          option(value="") Tất cả học kỳ
+          each semester in semesters || []
+            option(value=semester.MaHocKy selected=(filterHocKy === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+      .open-courses-filter-field
+        label(for="oc-filter-khoa") Khoa
+        select.form-control#oc-filter-khoa(name="MaKhoa" onchange="applyOpenCourseFilters()")
+          option(value="") Tất cả khoa
+          each faculty in faculties || []
+            option(value=faculty.MaKhoa selected=(filterKhoa === faculty.MaKhoa))= faculty.TenKhoa
+      .open-courses-filter-field
+        label(for="oc-filter-trangthai") Trạng thái
+        select.form-control#oc-filter-trangthai(name="TrangThai" onchange="applyOpenCourseFilters()")
+          option(value="" selected=(!filterTrangThai)) Tất cả
+          option(value="active" selected=(filterTrangThai === 'active')) Đang mở
+          option(value="inactive" selected=(filterTrangThai === 'inactive')) Tạm dừng
+      .open-courses-filter-actions
+        a.btn.btn-outline(href="/admin/open-courses")
+          span.material-symbols-rounded filter_alt_off
+          span Xóa lọc
+
+  .card.open-courses-list-card
+    .card-header.open-courses-list-header
+      h3 Danh sách môn học mở
+      span.card-count= openCourses ? `${openCourses.length} bản ghi` : '0 bản ghi'
+    .table-container.open-courses-table-container
+      table.data-table.open-courses-table
+        thead
+          tr
+            th Học kỳ
+            th Môn học
+            th Khoa
+            th Tín chỉ
+            th Lớp mở
+            th Trạng thái
+            th Cập nhật
+            th Thao tác
+        tbody
+          if openCourses && openCourses.length > 0
+            each item in openCourses
+              tr
+                td.open-course-semester-cell
+                  span.open-course-semester= item.TenHocKy || item.MaHocKy
+                  small= item.TenNamHoc || item.MaHocKy
+                td.open-course-course-cell
+                  span.open-course-title= item.TenMonHoc || item.MaMonHoc
+                  .open-course-course-meta
+                    span.open-course-code.mono= item.MaMonHoc
+                    if item.LoaiMon
+                      span.open-course-type= item.LoaiMon
+                td.open-course-faculty-cell
+                  span= item.TenKhoa || item.MaKhoa || '-'
+                td.open-course-credit-cell
+                  span.open-course-credit= item.SoTinChi || 0
+                td.open-course-count-cell
+                  span.open-course-count= item.SoLopMo || 0
+                td.open-course-status-cell
+                  if item.TrangThai === false
+                    span.badge.badge-warning Tạm dừng
+                  else
+                    span.badge.badge-success Đang mở
+                td.open-course-update-cell
+                  span= item.NguoiCapNhatTen || item.NguoiCapNhat || '-'
+                  small= item.NgayCapNhat ? new Date(item.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
+                td.open-course-actions-cell
+                  .open-course-actions
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(item) onclick="openCourseModal('edit', JSON.parse(this.dataset.record))")
+                      span.material-symbols-rounded edit
+                      span Sửa
+                    button.btn.btn-sm.btn-danger(type="button" data-id=item.id onclick="deleteOpenCourse(this.dataset.id)")
+                      span.material-symbols-rounded delete
+                      span Xóa
+          else
+            tr
+              td(colspan="8")
+                .empty-state.open-courses-empty
+                  span.material-symbols-rounded event_busy
+                  p Chưa có môn học mở phù hợp
+
+  include ../../partials/pagination
+
+block modals
+  #open-course-modal.modal-overlay(onclick="if(event.target===this)closeOpenCourseModal()")
+    .modal.open-course-modal
+      .modal-header
+        h2#open-course-modal-title Thêm môn học mở
+        button.modal-close(type="button" onclick="closeOpenCourseModal()" aria-label="Đóng") ×
+      .modal-body
+        form#open-course-form.open-course-form
+          .open-course-form-grid
+            .form-group
+              label(for="oc-hocky") Học kỳ
+              select.form-control#oc-hocky(required)
+                option(value="") Chọn học kỳ
+                each semester in semesters || []
+                  option(value=semester.MaHocKy) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+            .form-group
+              label(for="oc-trangthai") Trạng thái
+              select.form-control#oc-trangthai
+                option(value="true") Đang mở
+                option(value="false") Tạm dừng
+            .form-group.form-group-wide
+              label(for="oc-mamonhoc") Môn học
+              select.form-control#oc-mamonhoc(required)
+                option(value="") Chọn môn học đang hoạt động
+                each course in courses || []
+                  option(value=course.MaMonHoc) #{course.MaMonHoc} - #{course.TenMonHoc}
+            .form-group.form-group-wide
+              label(for="oc-ghichu") Ghi chú
+              textarea.form-control#oc-ghichu(rows="3" placeholder="Ghi chú nội bộ")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeOpenCourseModal()")
+          span.material-symbols-rounded close
+          span Hủy
+        button#open-course-save-btn.btn.btn-primary(type="button" onclick="saveOpenCourse()")
+          span.material-symbols-rounded save
+          span.open-course-save-label Lưu
+
+block scripts
+  script(src="/js/admin/open-courses.js")

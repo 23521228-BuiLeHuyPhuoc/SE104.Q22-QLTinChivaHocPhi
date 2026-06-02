@@ -387,6 +387,7 @@ async function openClass(classData) {
 
   var body = {
     MaLop: classData.MaLop,
+    MaHocKy: getSelectedClassSemester() || null,
     MaGiangVien: classData.MaGiangVien,
     ThuTrongTuan: classData.ThuTrongTuan,
     MaTietBatDau: classData.MaTietBatDau,

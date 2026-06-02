@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { Prisma } = require('@prisma/client');
 const prisma = require('../config/database');
 const { isSystemAdminUser } = require('../middleware/auth');
 const { DEFAULT_PAGE_SIZE } = require('../utils/pagination');
@@ -239,7 +240,7 @@ const renderLoginPage = async (req, res, loginRole) => {
     loginTitle: isAdminLogin ? 'Đăng nhập Admin' : 'Đăng nhập Sinh viên',
     loginSubtitle: isAdminLogin
       ? 'Khu vực quản trị việc đăng ký môn học và thu học phí'
-      : 'Cổng sinh viên quản lý việc đăng ký môn học và theo dõi học phí',
+      : 'Cổng sinh viên quản lý việc đăng ký học phần và theo dõi học phí',
     brandMark: isAdminLogin ? 'AD' : 'SV'
   });
 };
@@ -415,6 +416,115 @@ const adminCourses = async (req, res) => {
   }
 };
 
+const adminOpenCourses = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = String(req.query.search || '').trim();
+  const filterHocKy = req.query.MaHocKy || '';
+  const filterKhoa = req.query.MaKhoa || '';
+  const filterTrangThai = req.query.TrangThai || '';
+  const conditions = [
+    Prisma.sql`COALESCE(mhm."DaXoa", FALSE) = FALSE`,
+    Prisma.sql`COALESCE(hk."DaXoa", FALSE) = FALSE`,
+    Prisma.sql`COALESCE(mh."DaXoa", FALSE) = FALSE`
+  ];
+
+  if (filterHocKy) conditions.push(Prisma.sql`mhm."MaHocKy" = ${filterHocKy}`);
+  if (filterKhoa) conditions.push(Prisma.sql`mh."MaKhoa" = ${filterKhoa}`);
+  if (filterTrangThai === 'active') conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = TRUE`);
+  if (filterTrangThai === 'inactive') conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = FALSE`);
+  if (search) {
+    const term = `%${search}%`;
+    conditions.push(Prisma.sql`(mhm."MaMonHoc" ILIKE ${term} OR mh."TenMonHoc" ILIKE ${term})`);
+  }
+  const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
+
+  try {
+    const [openCourses, totalRows, semesters, courses, faculties] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT
+          mhm.id,
+          mhm."MaHocKy",
+          hk."TenHocKy",
+          nh."TenNamHoc",
+          mhm."MaMonHoc",
+          mh."TenMonHoc",
+          mh."LoaiMon",
+          mh."SoTinChi",
+          mh."SoTiet",
+          mh."MaKhoa",
+          k."TenKhoa",
+          mhm."GhiChu",
+          mhm."TrangThai",
+          mhm."NgayTao",
+          mhm."NguoiCapNhat",
+          mhm."NgayCapNhat",
+          COALESCE(active_lopmo."SoLopMo", 0)::int AS "SoLopMo"
+        FROM "MONHOCMO" mhm
+        JOIN "HOCKY" hk ON hk."MaHocKy" = mhm."MaHocKy"
+        LEFT JOIN "NAMHOC" nh ON nh."MaNamHoc" = hk."MaNamHoc"
+        JOIN "MONHOC" mh ON mh."MaMonHoc" = mhm."MaMonHoc"
+        LEFT JOIN "KHOA" k ON k."MaKhoa" = mh."MaKhoa"
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS "SoLopMo"
+          FROM "LOPMO" lm
+          JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+          WHERE lm."MaHocKy" = mhm."MaHocKy"
+            AND l."MaMonHoc" = mhm."MaMonHoc"
+            AND COALESCE(lm."TrangThai", TRUE) = TRUE
+        ) active_lopmo ON TRUE
+        ${whereSql}
+        ORDER BY hk."NgayBatDau" DESC NULLS LAST, mhm."MaHocKy" DESC, mh."MaMonHoc" ASC
+        OFFSET ${(page - 1) * limit}
+        LIMIT ${limit}
+      `,
+      prisma.$queryRaw`
+        SELECT COUNT(*)::int AS count
+        FROM "MONHOCMO" mhm
+        JOIN "HOCKY" hk ON hk."MaHocKy" = mhm."MaHocKy"
+        JOIN "MONHOC" mh ON mh."MaMonHoc" = mhm."MaMonHoc"
+        ${whereSql}
+      `,
+      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }], include: { NAMHOC: true } }),
+      prisma.MONHOC.findMany({ where: { DaXoa: false, TrangThai: true }, orderBy: { MaMonHoc: 'asc' }, select: { MaMonHoc: true, TenMonHoc: true, LoaiMon: true, SoTinChi: true, MaKhoa: true } }),
+      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' }, select: { MaKhoa: true, TenKhoa: true } })
+    ]);
+    const displayOpenCourses = await attachUpdaterNames(openCourses);
+    const total = Number(totalRows[0]?.count || 0);
+
+    renderAdmin(res, 'open-courses', 'open-courses', 'Quản lý môn học mở', req, {
+      openCourses: displayOpenCourses,
+      semesters,
+      courses,
+      faculties,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/open-courses',
+      queryParams: { search, MaHocKy: filterHocKy, MaKhoa: filterKhoa, TrangThai: filterTrangThai, limit },
+      search,
+      filterHocKy,
+      filterKhoa,
+      filterTrangThai
+    });
+  } catch (err) {
+    console.error('adminOpenCourses error:', err);
+    renderAdmin(res, 'open-courses', 'open-courses', 'Quản lý môn học mở', req, {
+      openCourses: [],
+      semesters: [],
+      courses: [],
+      faculties: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/open-courses',
+      queryParams: {},
+      search: '',
+      filterHocKy: '',
+      filterKhoa: '',
+      filterTrangThai: ''
+    });
+  }
+};
+
 const adminClasses = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
@@ -472,7 +582,7 @@ const adminClasses = async (req, res) => {
   }
 
   try {
-    const [classes, total, courses, semesters, periods, lecturers, rooms] = await Promise.all([
+    const [classes, total, courses, semesters, periods, lecturers, rooms, openCourseRows] = await Promise.all([
       prisma.LOP.findMany({
         where,
         skip: (page - 1) * limit,
@@ -526,8 +636,16 @@ const adminClasses = async (req, res) => {
       prisma.PHONGHOC.findMany({
         where: { DaXoa: false, TrangThai: true },
         orderBy: { MaPhong: 'asc' }
-      })
+      }),
+      selectedSemester ? prisma.$queryRaw`
+        SELECT "MaMonHoc"
+        FROM "MONHOCMO"
+        WHERE "MaHocKy" = ${selectedSemester}
+          AND COALESCE("DaXoa", FALSE) = FALSE
+          AND COALESCE("TrangThai", TRUE) = TRUE
+      ` : Promise.resolve([])
     ]);
+    const openCourseSet = new Set(openCourseRows.map((row) => row.MaMonHoc));
     const displayClasses = (await attachUpdaterNames(classes)).map((cls) => {
       const openedForSemester = selectedSemester
         ? cls.LOPMO.find((item) => item.MaHocKy === selectedSemester)
@@ -559,6 +677,7 @@ const adminClasses = async (req, res) => {
         LichHocDisplay: openedScheduleLabel && openedScheduleLabel !== '-' ? openedScheduleLabel : catalogSchedule,
         SoLuongDaDangKy: registeredCount,
         LopMoHienTaiId: currentOpened && currentOpened.TrangThai !== false ? currentOpened.id : null,
+        MonHocDaMoTrongHocKy: !selectedSemester || openCourseSet.has(cls.MaMonHoc),
         MaHocKyDangMo: currentOpened ? currentOpened.MaHocKy : '',
         TenHocKyDangMo: currentOpened ? currentOpened.HOCKY?.TenHocKy : '',
         TrangThaiMoLabel: statusLabel,
@@ -1729,11 +1848,11 @@ const studentDashboard = (req, res) => {
 };
 
 const studentCourseReg = (req, res) => {
-  renderStudent(res, 'course-registration', 'course-registration', 'Đăng ký môn học', req);
+  renderStudent(res, 'course-registration', 'course-registration', 'Đăng ký học phần', req);
 };
 
 const studentMyCourses = (req, res) => {
-  renderStudent(res, 'my-courses', 'my-courses', 'Môn học đã đăng ký', req);
+  renderStudent(res, 'my-courses', 'my-courses', 'Phiếu đăng ký học phần', req);
 };
 
 const studentCompletedCourses = (req, res) => {
@@ -1860,6 +1979,7 @@ module.exports = {
   adminDashboard,
   adminStudents,
   adminCourses,
+  adminOpenCourses,
   adminClasses,
   adminRooms,
   adminLecturers,

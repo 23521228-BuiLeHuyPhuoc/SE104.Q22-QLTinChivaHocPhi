@@ -4,7 +4,7 @@ var semesterOptionsById = {};
 var searchTimer = null;
 
 var COURSE_SEARCH_PLACEHOLDERS = {
-  course: 'Nhập mã hoặc tên môn học',
+  course: 'Nhập mã hoặc tên học phần',
   lecturer: 'Nhập mã hoặc tên giảng viên',
   class: 'Nhập mã hoặc tên lớp'
 };
