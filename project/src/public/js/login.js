@@ -145,6 +145,11 @@ async function handleResetPassword(e) {
     return false;
   }
 
+  if (newPassword.length < 6) {
+    setAuthMessage('reset-error', 'Mat khau phai co it nhat 6 ky tu');
+    return false;
+  }
+
   var resetButton = setButtonLoading(btn, 'Đang cập nhật...');
   try {
     var data = await postJson(form.dataset.api || '/api/auth/reset-password', {

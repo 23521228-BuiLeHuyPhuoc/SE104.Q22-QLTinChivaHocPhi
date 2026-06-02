@@ -13,6 +13,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const RESET_OTP_TTL_MINUTES = Number(process.env.RESET_OTP_TTL_MINUTES || 10);
 const RESET_OTP_LENGTH = Math.min(8, Math.max(4, Number(process.env.RESET_OTP_LENGTH || 6)));
 const RESET_OTP_MAX_ATTEMPTS = Math.max(1, Number(process.env.RESET_OTP_MAX_ATTEMPTS || 5));
+const MIN_PASSWORD_LENGTH = 6;
 
 const normalize = (value) => String(value || '').trim();
 const normalizeEmail = (value) => normalize(value).toLowerCase();
@@ -443,6 +444,9 @@ const resetPassword = async (req, res) => {
     if (!/^\d+$/.test(otp) || otp.length !== RESET_OTP_LENGTH) {
       return res.status(400).json({ success: false, message: `Mã OTP phải gồm ${RESET_OTP_LENGTH} chữ số` });
     }
+    if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ success: false, message: `Mat khau phai co it nhat ${MIN_PASSWORD_LENGTH} ky tu` });
+    }
 
     const account = await findResetAccount(identifier, role);
     if (!account || account.TrangThai === false || account.TrangThaiDuyet !== 'approved') {
@@ -739,6 +743,12 @@ const changePassword = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng nhập đầy đủ thông tin'
+      });
+    }
+    if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `Mat khau moi phai co it nhat ${MIN_PASSWORD_LENGTH} ky tu`
       });
     }
 
