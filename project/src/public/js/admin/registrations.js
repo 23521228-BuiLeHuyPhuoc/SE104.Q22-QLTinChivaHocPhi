@@ -207,9 +207,11 @@ function renderStudentRegistrationDetail(maSv, courses) {
 
   var grouped = courses.reduce(function(acc, item) {
     var registration = item.PHIEUDANGKY || {};
-    var semester = item.PHIEUDANGKY && item.PHIEUDANGKY.HOCKY
-      ? item.PHIEUDANGKY.HOCKY.TenHocKy + (item.PHIEUDANGKY.HOCKY.NAMHOC && item.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc ? ' - ' + item.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc : '')
-      : 'Chưa rõ học kỳ';
+    var semester = item.PHIEUDANGKY && item.PHIEUDANGKY.HocKyDisplay
+      ? item.PHIEUDANGKY.HocKyDisplay
+      : item.PHIEUDANGKY && item.PHIEUDANGKY.HOCKY
+        ? item.PHIEUDANGKY.HOCKY.TenHocKy + (item.PHIEUDANGKY.HOCKY.NAMHOC && item.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc ? ' - ' + item.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc : '')
+        : 'Chưa rõ học kỳ';
     var key = registration.SoPhieu || item.SoPhieu || semester;
     if (!acc[key]) acc[key] = { semester: semester, registration: registration, courses: [] };
     acc[key].courses.push(item);

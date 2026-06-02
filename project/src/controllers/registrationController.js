@@ -3,7 +3,7 @@ const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { assertRegistrationOpen, getRegistrationWindowState, getAppealWindowState } = require('../utils/registrationWindow');
 const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
-const { buildRegistrationStudentRows, buildRegistrationDistribution } = require('../utils/registrationStats');
+const { buildRegistrationStudentRows, buildRegistrationDistribution, getRegistrationSemesterName } = require('../utils/registrationStats');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../utils/businessConstants');
 
 const ACTIVE_REGISTRATION_STATUS = REGISTRATION_STATUS.ACTIVE;
@@ -440,8 +440,9 @@ const getAllRegistrations = async (req, res) => {
       MaSv: r.MaSv,
       HoTen: r.SINHVIEN.HoTen,
       MaHocKy: r.MaHocKy,
-      TenHocKy: r.HOCKY.TenHocKy,
+      TenHocKy: getRegistrationSemesterName(r).replace(/ - .+$/, ''),
       TenNamHoc: r.HOCKY.NAMHOC.TenNamHoc,
+      HocKyDisplay: getRegistrationSemesterName(r),
       soMon: r.CHITIETDANGKY.filter((c) => c.TrangThai === ACTIVE_REGISTRATION_STATUS).length,
       TongTinChi: r.TongTinChi,
       TongTienPhaiDong: r.TongTienPhaiDong,
@@ -590,6 +591,7 @@ const getStudentCourses = async (req, res) => {
 
     const courses = rows.map((row) => {
       const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
+      const semesterDisplay = getRegistrationSemesterName(row.PHIEUDANGKY);
       const openedClasses = (row.LOP?.LOPMO || []).filter((item) => item.MaHocKy === row.PHIEUDANGKY?.MaHocKy);
       const currentOpened = openedClasses[0] || null;
       const lockedByPayment = hasSuccessfulPayment(row.PHIEUDANGKY);
@@ -658,6 +660,7 @@ const getStudentCourses = async (req, res) => {
         PHIEUDANGKY: {
           SoPhieu: row.PHIEUDANGKY?.SoPhieu,
           MaHocKy: row.PHIEUDANGKY?.MaHocKy,
+          HocKyDisplay: semesterDisplay,
           TongTinChi: row.PHIEUDANGKY?.TongTinChi,
           TrangThai: row.PHIEUDANGKY?.TrangThai,
           DaCoPhieuThuThanhCong: lockedByPayment,
@@ -665,8 +668,11 @@ const getStudentCourses = async (req, res) => {
           AppealWindow: appealWindow,
           HOCKY: {
             MaHocKy: row.PHIEUDANGKY?.HOCKY?.MaHocKy,
-            TenHocKy: row.PHIEUDANGKY?.HOCKY?.TenHocKy,
+            TenHocKy: semesterDisplay.replace(/ - .+$/, ''),
+            HocKyDisplay: semesterDisplay,
             MaNamHoc: row.PHIEUDANGKY?.HOCKY?.MaNamHoc,
+            LoaiHocKy: row.PHIEUDANGKY?.HOCKY?.LoaiHocKy,
+            ThuTu: row.PHIEUDANGKY?.HOCKY?.ThuTu,
             NAMHOC: {
               MaNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.MaNamHoc,
               TenNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc

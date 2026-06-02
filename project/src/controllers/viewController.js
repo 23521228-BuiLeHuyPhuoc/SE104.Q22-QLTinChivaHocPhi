@@ -9,7 +9,7 @@ const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('.
 const { buildRegistrationStudentRows, buildRegistrationDistribution } = require('../utils/registrationStats');
 const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
 const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
-const { APPEAL_STATUS } = require('../utils/businessConstants');
+const { APPEAL_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
 require('dotenv').config();
 
 function getTokenFromCookie(req) {
@@ -88,10 +88,52 @@ const semesterActivityInclude = {
 };
 
 const getSemesterActivityRows = () => prisma.HOCKY.findMany({
-  where: { DaXoa: false },
+  where: { DaXoa: false, NOT: { MaHocKy: { startsWith: 'HK-DEMO-' } } },
   orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }, { MaHocKy: 'desc' }],
   include: semesterActivityInclude
 });
+
+const getSemesterKindLabel = (semester) => {
+  const order = Number(semester?.ThuTu || 1);
+  const type = String(semester?.LoaiHocKy || '').toLowerCase();
+  if (order === 3 || type.startsWith('h')) return 'Học kỳ Hè';
+  if (order === 2) return 'Học kỳ II';
+  return 'Học kỳ I';
+};
+
+const getSemesterActivityLabel = (semester) => {
+  const yearName = semester?.NAMHOC?.TenNamHoc || semester?.MaNamHoc || '';
+  return `${getSemesterKindLabel(semester)}${yearName ? ` - ${yearName}` : ''}`;
+};
+
+const getUtcDayStart = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+};
+
+const isCurrentSemester = (semester, now = new Date()) => {
+  if (semester?.TrangThai === SEMESTER_STATUS.ONGOING) return true;
+  const start = semester?.NgayBatDau ? getUtcDayStart(semester.NgayBatDau) : null;
+  const end = semester?.NgayKetThuc ? getUtcDayStart(semester.NgayKetThuc) : null;
+  const current = getUtcDayStart(now);
+  if (start === null || end === null || current === null) return false;
+  return current >= start && current <= end;
+};
+
+const getDefaultSemesterCode = (semesters = []) => {
+  const current = semesters.find((semester) => isCurrentSemester(semester));
+  if (current) return current.MaHocKy;
+
+  const nowTime = Date.now();
+  const withDistance = semesters
+    .map((semester) => {
+      const start = semester.NgayBatDau ? new Date(semester.NgayBatDau).getTime() : NaN;
+      return { semester, distance: Number.isFinite(start) ? Math.abs(start - nowTime) : Number.MAX_SAFE_INTEGER };
+    })
+    .sort((a, b) => a.distance - b.distance);
+  return withDistance[0]?.semester?.MaHocKy || '';
+};
 
 const toSemesterActivityOption = (semester) => {
   const pendingAppeals = semester._count?.DONCUUXETDANGKY || 0;
@@ -99,7 +141,7 @@ const toSemesterActivityOption = (semester) => {
   const appealWindow = getAppealWindowState(semester);
   const tuitionPaymentWindow = getTuitionPaymentWindowState(semester);
   const workflow = getSemesterWorkflowState(semester, { pendingAppeals });
-  const label = `${semester.TenHocKy}${semester.NAMHOC?.TenNamHoc ? ` - ${semester.NAMHOC.TenNamHoc}` : ''}`;
+  const label = getSemesterActivityLabel(semester);
 
   return {
     MaHocKy: semester.MaHocKy,
@@ -115,6 +157,7 @@ const toSemesterActivityOption = (semester) => {
     NgayMoThuHocPhi: toIsoOrNull(semester.NgayMoThuHocPhi),
     HanDongHocPhi: toIsoOrNull(semester.HanDongHocPhi),
     pendingAppeals,
+    isCurrent: isCurrentSemester(semester),
     registrationWindow: serializeWindowState(registrationWindow),
     appealWindow: serializeWindowState(appealWindow),
     tuitionPaymentWindow: serializeWindowState(tuitionPaymentWindow),
@@ -251,6 +294,7 @@ const renderAdmin = (res, view, page, title, req, locals = {}) => {
     headerTitle: title,
     user: req.user,
     chucVu: req.user?.ChucVu || 'Quản trị viên hệ thống',
+    ...res.locals,
     ...locals
   });
 };
@@ -1249,14 +1293,16 @@ const adminRegistrations = async (req, res) => {
   const search = req.query.search || '';
   const status = req.query.status || '';
   const registrationSearchScope = normalizeRegistrationSearchScope(req.query.searchScope);
-  const selectedSemester = req.query.MaHocKy || '';
+  let selectedSemester = req.query.MaHocKy || '';
   const where = {};
 
-  if (status) where.TrangThai = status;
-  if (selectedSemester) where.MaHocKy = selectedSemester;
-  applyRegistrationSearch(where, registrationSearchScope, search);
-
   try {
+    const semesters = await getSemesterActivityRows();
+    selectedSemester = selectedSemester || getDefaultSemesterCode(semesters);
+    if (status) where.TrangThai = status;
+    if (selectedSemester) where.MaHocKy = selectedSemester;
+    applyRegistrationSearch(where, registrationSearchScope, search);
+
     const registrations = await prisma.PHIEUDANGKY.findMany({
       where,
       orderBy: { NgayLap: 'desc' },
@@ -1274,8 +1320,6 @@ const adminRegistrations = async (req, res) => {
       }
     });
 
-    const semesters = await getSemesterActivityRows();
-    res.locals.semesterActivityOptions = semesters.map(toSemesterActivityOption);
     const grouped = buildRegistrationStudentRows(registrations);
 
     const total = grouped.length;
@@ -1323,7 +1367,7 @@ const adminTuition = async (req, res) => {
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
   const status = req.query.status || '';
-  const MaHocKy = req.query.MaHocKy || '';
+  let MaHocKy = req.query.MaHocKy || '';
   const where = {};
 
   if (search) {
@@ -1415,7 +1459,7 @@ const adminPayments = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
-  const MaHocKy = req.query.MaHocKy || '';
+  let MaHocKy = req.query.MaHocKy || '';
   const HinhThucThu = req.query.HinhThucThu || '';
   const TrangThai = req.query.TrangThai || '';
   const where = {};
@@ -1428,12 +1472,15 @@ const adminPayments = async (req, res) => {
       ]
     };
   }
-  if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
   if (HinhThucThu) where.HinhThucThu = HinhThucThu;
   if (TrangThai) where.TrangThai = TrangThai;
 
   try {
-    const [payments, total, semesters] = await Promise.all([
+    const semesters = await getSemesterActivityRows();
+    MaHocKy = MaHocKy || getDefaultSemesterCode(semesters);
+    if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
+
+    const [payments, total] = await Promise.all([
       prisma.PHIEUTHUHOCPHI.findMany({
         where,
         skip: (page - 1) * limit,
@@ -1441,12 +1488,16 @@ const adminPayments = async (req, res) => {
         orderBy: { NgayLap: 'desc' },
         include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
       }),
-      prisma.PHIEUTHUHOCPHI.count({ where }),
-      getSemesterActivityRows()
+      prisma.PHIEUTHUHOCPHI.count({ where })
     ]);
 
+    const paymentsWithSemesterLabel = payments.map((payment) => ({
+      ...payment,
+      HocKyDisplay: payment.PHIEUDANGKY?.HOCKY ? getSemesterActivityLabel(payment.PHIEUDANGKY.HOCKY) : ''
+    }));
+
     renderAdmin(res, 'payments', 'payments', 'Thu học phí', req, {
-      payments,
+      payments: paymentsWithSemesterLabel,
       semesters,
       semesterActivityOptions: semesters.map(toSemesterActivityOption),
       currentPage: page,
@@ -1480,10 +1531,12 @@ const adminAppeals = async (req, res) => {
   try {
     const semesters = await getSemesterActivityRows();
     res.locals.semesterActivityOptions = semesters.map(toSemesterActivityOption);
+    res.locals.selectedAppealSemester = req.query.MaHocKy || getDefaultSemesterCode(semesters);
     renderAdmin(res, 'appeals', 'appeals', 'Đơn cứu xét đăng ký', req, { semesters });
   } catch (err) {
     console.error('adminAppeals error:', err);
     res.locals.semesterActivityOptions = [];
+    res.locals.selectedAppealSemester = '';
     renderAdmin(res, 'appeals', 'appeals', 'Đơn cứu xét đăng ký', req, { semesters: [] });
   }
 };

@@ -69,7 +69,7 @@ function renderAppealRows(rows) {
     return '<tr>' +
       '<td class="mono">#' + appealSafe(row.id) + '</td>' +
       '<td><strong>' + appealSafe(row.MaSv) + '</strong><small>' + appealSafe(row.HoTen || '') + '</small></td>' +
-      '<td>' + appealSafe(row.TenHocKy || row.MaHocKy || '-') + (row.TenNamHoc ? '<small>' + appealSafe(row.TenNamHoc) + '</small>' : '') + '</td>' +
+      '<td>' + appealSafe(row.HocKyDisplay || row.TenHocKy || row.MaHocKy || '-') + '</td>' +
       '<td>' + appealSafe(row.LoaiDonLabel || row.LoaiDon || '-') + '</td>' +
       '<td>' + appealSafe(appealContent(row)) + '</td>' +
       '<td>' + appealSafe(row.TrangThai === 'tu_choi' ? (row.LyDoTuChoi || row.LyDo) : row.LyDo || '-') + '</td>' +

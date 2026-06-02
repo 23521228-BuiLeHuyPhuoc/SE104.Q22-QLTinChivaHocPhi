@@ -464,6 +464,7 @@ const ensureAuthSchema = async () => {
     JOIN "LOP" l ON l."MaLop" = lm."MaLop"
     JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
     WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+      AND lm."MaHocKy" NOT LIKE 'HK-DEMO-%'
       AND COALESCE(l."DaXoa", FALSE) = FALSE
       AND COALESCE(mh."DaXoa", FALSE) = FALSE
     ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
@@ -1180,8 +1181,10 @@ const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     WITH phong_lich AS (
       SELECT DISTINCT TRIM("PhongHoc") AS "MaPhong"
-      FROM "LICHHOCLOP"
-      WHERE "PhongHoc" IS NOT NULL AND TRIM("PhongHoc") <> ''
+      FROM "LICHHOCLOP" lh
+      JOIN "LOPMO" lm ON lm.id = lh."LopMoId"
+      WHERE lh."PhongHoc" IS NOT NULL AND TRIM(lh."PhongHoc") <> ''
+        AND lm."MaHocKy" NOT LIKE 'HK-DEMO-%'
     )
     INSERT INTO "PHONGHOC" ("MaPhong", "TenPhong", "ToaNha", "SucChua", "LoaiPhong", "TrangThai")
     SELECT
@@ -1196,13 +1199,16 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
-    UPDATE "LICHHOCLOP"
-    SET "MaPhong" = TRIM("PhongHoc")
-    WHERE "MaPhong" IS NULL
-      AND "PhongHoc" IS NOT NULL
-      AND TRIM("PhongHoc") <> ''
+    UPDATE "LICHHOCLOP" lh
+    SET "MaPhong" = TRIM(lh."PhongHoc")
+    FROM "LOPMO" lm
+    WHERE lm.id = lh."LopMoId"
+      AND lm."MaHocKy" NOT LIKE 'HK-DEMO-%'
+      AND lh."MaPhong" IS NULL
+      AND lh."PhongHoc" IS NOT NULL
+      AND TRIM(lh."PhongHoc") <> ''
       AND EXISTS (
-        SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM("LICHHOCLOP"."PhongHoc")
+        SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM(lh."PhongHoc")
       )
   `);
 

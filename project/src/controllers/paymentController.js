@@ -14,6 +14,21 @@ const PAYMENT_CANCELLED = PAYMENT_STATUS.CANCELLED;
 const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
 const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_SUCCESS];
 
+const getSemesterKindLabel = (semester) => {
+  if (!semester) return '';
+  const order = Number(semester.ThuTu || 1);
+  const type = String(semester.LoaiHocKy || '').toLowerCase();
+  if (order === 3 || type.startsWith('h')) return 'Học kỳ Hè';
+  if (order === 2) return 'Học kỳ II';
+  return 'Học kỳ I';
+};
+
+const getSemesterDisplayLabel = (semester) => {
+  if (!semester) return '';
+  const yearName = semester.NAMHOC?.TenNamHoc || semester.MaNamHoc || '';
+  return `${getSemesterKindLabel(semester)}${yearName ? ` - ${yearName}` : ''}`;
+};
+
 const getStudentIdFromRequest = async (req) => {
   if (req.user?.Role === 'admin') return null;
   if (req.user?.MaSv) return req.user.MaSv;
@@ -89,8 +104,10 @@ const toPaymentDto = (p) => ({
   HoTen: p.SINHVIEN?.HoTen || '',
   Email: p.SINHVIEN?.Email || '',
   MaHocKy: p.PHIEUDANGKY?.MaHocKy || '',
-  TenHocKy: p.PHIEUDANGKY?.HOCKY?.TenHocKy || '',
+  TenHocKy: getSemesterKindLabel(p.PHIEUDANGKY?.HOCKY),
   TenNamHoc: p.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc || '',
+  HocKyLabel: getSemesterKindLabel(p.PHIEUDANGKY?.HOCKY),
+  HocKyDisplay: getSemesterDisplayLabel(p.PHIEUDANGKY?.HOCKY),
   SoTienThu: Number(p.SoTienThu || 0),
   HinhThucThu: p.HinhThucThu,
   PaymentProvider: p.PaymentProvider,
@@ -213,7 +230,7 @@ const getStudentPayments = async (req, res) => {
     ]);
     res.json({
       success: true,
-      data: rows.map((p) => ({ ...toPaymentDto(p), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })),
+      data: rows.map(toPaymentDto),
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {

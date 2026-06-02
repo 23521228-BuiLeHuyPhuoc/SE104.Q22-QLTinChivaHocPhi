@@ -11,6 +11,10 @@ function paymentSafe(value) {
     .replace(/'/g, '&#039;');
 }
 
+function paymentSemesterText(payment) {
+  return payment.HocKyDisplay || [payment.TenHocKy, payment.TenNamHoc].filter(Boolean).join(' - ') || payment.MaHocKy || '-';
+}
+
 function getSelectedPaymentActivity() {
   var select = document.getElementById('filter-semester');
   if (!select || !select.value) return null;
@@ -112,7 +116,7 @@ async function closeSelectedTuitionPayment() {
     res.data.forEach(function(s) {
       var opt = document.createElement('option');
       opt.value = s.MaHocKy;
-      opt.textContent = s.TenHocKy + (s.TenNamHoc ? ' - ' + s.TenNamHoc : '');
+      opt.textContent = s.DisplayLabel || ((s.HocKyLabel || s.TenHocKy || s.MaHocKy) + (s.TenNamHoc ? ' - ' + s.TenNamHoc : ''));
       sel.appendChild(opt);
     });
   } catch (e) {}
@@ -211,7 +215,7 @@ async function loadStudentDebtInfo() {
       return;
     }
     var debt = Number(debtRow.conNo || debtRow.ConNo || 0);
-    info.textContent = (debtRow.HoTen || mssv) + ' - ' + (debtRow.TenHocKy || debtRow.MaHocKy || '') + ' - Còn nợ: ' + formatCurrency(debt);
+    info.textContent = (debtRow.HoTen || mssv) + ' - ' + (debtRow.HocKyDisplay || debtRow.TenHocKy || debtRow.MaHocKy || '') + ' - Còn nợ: ' + formatCurrency(debt);
     if (amountInput && debt > 0) amountInput.value = debt;
   } catch (e) {
     info.textContent = 'Không kiểm tra được công nợ';
@@ -321,7 +325,7 @@ function renderPaymentDetail(p) {
     '</div>' +
     '<div class="info-list">' +
       '<div><span class="label">Sinh viên</span><span>' + paymentSafe(p.MaSv) + ' - ' + paymentSafe(p.HoTen) + '</span></div>' +
-      '<div><span class="label">Học kỳ</span><span>' + paymentSafe([p.TenHocKy, p.TenNamHoc].filter(Boolean).join(' - ')) + '</span></div>' +
+      '<div><span class="label">Học kỳ</span><span>' + paymentSafe(paymentSemesterText(p)) + '</span></div>' +
       '<div><span class="label">Phương thức</span><span>' + paymentSafe(p.HinhThucThu || p.PaymentProvider || '-') + '</span></div>' +
       '<div><span class="label">Người thu</span><span>' + paymentSafe(p.NguoiThu || '-') + '</span></div>' +
       '<div><span class="label">Ngày lập</span><span>' + (p.NgayLap ? formatDate(p.NgayLap) : '-') + '</span></div>' +
@@ -399,7 +403,7 @@ function buildPrintHtml(p) {
     '<div class="box">' +
     '<div class="row"><span>MSSV:</span><strong>' + paymentSafe(p.MaSv) + '</strong></div>' +
     '<div class="row"><span>Họ tên:</span><strong>' + paymentSafe(p.HoTen) + '</strong></div>' +
-    '<div class="row"><span>Học kỳ:</span><strong>' + paymentSafe([p.TenHocKy, p.TenNamHoc].filter(Boolean).join(' - ')) + '</strong></div>' +
+    '<div class="row"><span>Học kỳ:</span><strong>' + paymentSafe(paymentSemesterText(p)) + '</strong></div>' +
     '<div class="row"><span>Số tiền:</span><span class="money">' + formatCurrency(p.SoTienThu || 0) + '</span></div>' +
     '<div class="row"><span>Bằng chữ:</span><strong>' + paymentSafe(numberToVietnamese(p.SoTienThu)) + '</strong></div>' +
     '<div class="row"><span>Phương thức:</span><span>' + paymentSafe(p.HinhThucThu || '-') + '</span></div>' +

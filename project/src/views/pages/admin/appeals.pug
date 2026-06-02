@@ -10,7 +10,7 @@ block content
         option(value="") Tất cả học kỳ
         if semesterActivityOptions && semesterActivityOptions.length
           each semester in semesterActivityOptions
-            option(value=semester.MaHocKy data-activity=JSON.stringify(semester))= semester.label
+            option(value=semester.MaHocKy selected=(selectedAppealSemester === semester.MaHocKy) data-activity=JSON.stringify(semester))= semester.label
       select#appeal-type(onchange="loadAppeals(1)")
         option(value="") Tất cả loại đơn
         option(value="them") Thêm

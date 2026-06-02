@@ -112,7 +112,8 @@ function renderSemesterOptions(semesters) {
     var suffix = windowState
       ? (windowState.isOpen ? ' - đang mở ĐK' : (appealState && appealState.isOpen ? ' - đang cứu xét' : ' - ' + (windowState.message || 'chưa mở ĐK')))
       : '';
-    item.DisplayLabel = item.TenHocKy + (yearName ? ' - ' + yearName : '') + suffix;
+    var semesterLabel = item.HocKyLabel || item.label || item.TenHocKy || item.MaHocKy;
+    item.DisplayLabel = semesterLabel + (yearName ? ' - ' + yearName : '') + suffix;
     semesterOptionsById[item.MaHocKy] = item;
   });
 
@@ -123,7 +124,8 @@ function renderSemesterOptions(semesters) {
       var appealState = item.AppealWindow || null;
       return (state && state.isOpen) || (appealState && appealState.isOpen);
     });
-    selected = fromUrl || firstOpen || semesters[0];
+    var current = semesters.find(function(item) { return item.isCurrent; });
+    selected = fromUrl || current || firstOpen || semesters[0];
     semesterInput.value = selected.MaHocKy;
   } else {
     semesterInput.value = '';

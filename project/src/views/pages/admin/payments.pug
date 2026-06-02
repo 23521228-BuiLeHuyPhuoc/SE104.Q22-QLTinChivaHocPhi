@@ -88,9 +88,7 @@ block content
                 td.mono= p.MaSv || '-'
                 td= p.SINHVIEN ? p.SINHVIEN.HoTen : '-'
                 td
-                  strong= p.PHIEUDANGKY && p.PHIEUDANGKY.HOCKY ? p.PHIEUDANGKY.HOCKY.TenHocKy : '-'
-                  if p.PHIEUDANGKY && p.PHIEUDANGKY.HOCKY && p.PHIEUDANGKY.HOCKY.NAMHOC
-                    small= p.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc
+                  strong= p.HocKyDisplay || '-'
                 td.currency= money(p.SoTienThu)
                 td= p.HinhThucThu || '-'
                 td= p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-'
@@ -161,9 +159,9 @@ block modals
           label(for="bulk-hocky") Học kỳ
           select.form-control#bulk-hocky(required)
             option(value="") Chọn học kỳ
-            if semesters && semesters.length
-              each semester in semesters
-                option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+            if semesterActivityOptions && semesterActivityOptions.length
+              each semester in semesterActivityOptions
+                option(value=semester.MaHocKy)= semester.label
         p.text-muted Hệ thống sẽ tạo phiếu cho các phiếu đăng ký còn nợ và chưa có phiếu thu đang hiệu lực.
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeBulkModal()") Hủy

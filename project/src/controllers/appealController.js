@@ -35,6 +35,21 @@ const APPEAL_STATUS_LABELS = {
 
 const getActorId = (req) => Number(req.user?.MaTaiKhoan || req.user?.id || 0) || null;
 
+const getSemesterKindLabel = (semester) => {
+  if (!semester) return '';
+  const order = Number(semester.ThuTu || 1);
+  const type = String(semester.LoaiHocKy || '').toLowerCase();
+  if (order === 3 || type.startsWith('h')) return 'Học kỳ Hè';
+  if (order === 2) return 'Học kỳ II';
+  return 'Học kỳ I';
+};
+
+const getSemesterDisplayLabel = (semester) => {
+  if (!semester) return '';
+  const yearName = semester.NAMHOC?.TenNamHoc || semester.MaNamHoc || '';
+  return `${getSemesterKindLabel(semester)}${yearName ? ` - ${yearName}` : ''}`;
+};
+
 const normalizeAppealType = (value) => {
   const type = String(value || '').trim();
   return Object.values(APPEAL_TYPE).includes(type) ? type : '';
@@ -59,8 +74,10 @@ const toAppealDto = (row) => ({
   MaSv: row.MaSv,
   HoTen: row.SINHVIEN?.HoTen || '',
   MaHocKy: row.MaHocKy,
-  TenHocKy: row.HOCKY?.TenHocKy || row.MaHocKy,
+  TenHocKy: getSemesterKindLabel(row.HOCKY) || row.MaHocKy,
   TenNamHoc: row.HOCKY?.NAMHOC?.TenNamHoc || '',
+  HocKyLabel: getSemesterKindLabel(row.HOCKY) || row.MaHocKy,
+  HocKyDisplay: getSemesterDisplayLabel(row.HOCKY) || row.MaHocKy,
   SoPhieu: row.SoPhieu,
   LoaiDon: row.LoaiDon,
   LoaiDonLabel: APPEAL_TYPE_LABELS[row.LoaiDon] || row.LoaiDon,

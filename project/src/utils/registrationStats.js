@@ -9,10 +9,19 @@ const getRegistrationStudentAcademicInfo = (student) => {
   };
 };
 
+const getSemesterKindLabel = (semester) => {
+  if (!semester) return '';
+  const order = Number(semester.ThuTu || 1);
+  const type = String(semester.LoaiHocKy || '').toLowerCase();
+  if (order === 3 || type.startsWith('h')) return 'Học kỳ Hè';
+  if (order === 2) return 'Học kỳ II';
+  return 'Học kỳ I';
+};
+
 const getRegistrationSemesterName = (registration) => {
   if (!registration) return '';
   if (!registration.HOCKY) return registration.MaHocKy || '';
-  return `${registration.HOCKY.TenHocKy}${registration.HOCKY.NAMHOC ? ' - ' + registration.HOCKY.NAMHOC.TenNamHoc : ''}`;
+  return `${getSemesterKindLabel(registration.HOCKY)}${registration.HOCKY.NAMHOC ? ' - ' + registration.HOCKY.NAMHOC.TenNamHoc : ''}`;
 };
 
 const buildRegistrationStudentRows = (registrations = []) => Array.from(registrations.reduce((map, registration) => {
@@ -92,5 +101,6 @@ const buildRegistrationDistribution = (rows, dimension) => {
 module.exports = {
   buildRegistrationStudentRows,
   buildRegistrationDistribution,
-  getRegistrationStudentAcademicInfo
+  getRegistrationStudentAcademicInfo,
+  getRegistrationSemesterName
 };

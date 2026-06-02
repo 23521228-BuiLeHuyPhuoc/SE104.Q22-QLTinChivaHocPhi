@@ -1,5 +1,5 @@
 const prisma = require('../config/database');
-const { getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { getPaginationMeta } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const {
@@ -18,6 +18,35 @@ const CANCELLED_REGISTRATION_STATUS = REGISTRATION_STATUS.CANCELLED;
 const ONGOING_SEMESTER_STATUS = SEMESTER_STATUS.ONGOING;
 const MIN_OPEN_CLASS_RATIO = 0.75;
 const FINALIZE_CANCEL_REASON = 'Hủy do không đủ sinh viên đăng ký';
+const VISIBLE_SEMESTER_WHERE = { DaXoa: false, NOT: { MaHocKy: { startsWith: 'HK-DEMO-' } } };
+
+const getSemesterKindLabel = (hk) => {
+  const order = Number(hk?.ThuTu || 1);
+  const type = String(hk?.LoaiHocKy || '').toLowerCase();
+  if (order === 3 || type.startsWith('h')) return 'Học kỳ Hè';
+  if (order === 2) return 'Học kỳ II';
+  return 'Học kỳ I';
+};
+
+const getSemesterDisplayLabel = (hk) => {
+  const yearName = hk?.NAMHOC?.TenNamHoc || hk?.MaNamHoc || '';
+  return `${getSemesterKindLabel(hk)}${yearName ? ` - ${yearName}` : ''}`;
+};
+
+const getUtcDayStart = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+};
+
+const isCurrentSemester = (hk, now = new Date()) => {
+  if (hk?.TrangThai === ONGOING_SEMESTER_STATUS) return true;
+  const start = hk?.NgayBatDau ? getUtcDayStart(hk.NgayBatDau) : null;
+  const end = hk?.NgayKetThuc ? getUtcDayStart(hk.NgayKetThuc) : null;
+  const current = getUtcDayStart(now);
+  if (start === null || end === null || current === null) return false;
+  return current >= start && current <= end;
+};
 
 const semesterSelect = (hk) => {
   const pendingAppeals = hk.SoDonCuuXetChoDuyet ?? hk._count?.DONCUUXETDANGKY ?? 0;
@@ -29,6 +58,8 @@ const semesterSelect = (hk) => {
   return {
     MaHocKy: hk.MaHocKy,
     TenHocKy: hk.TenHocKy,
+    HocKyLabel: getSemesterKindLabel(hk),
+    DisplayLabel: getSemesterDisplayLabel(hk),
     MaNamHoc: hk.MaNamHoc,
     TenNamHoc: hk.NAMHOC?.TenNamHoc,
     NAMHOC: hk.NAMHOC ? {
@@ -60,6 +91,7 @@ const semesterSelect = (hk) => {
     AppealWindow: appealWindow,
     TuitionPaymentWindow: tuitionPaymentWindow,
     Workflow: workflow,
+    isCurrent: isCurrentSemester(hk),
     CoTheDangKy: registrationWindow.isOpen,
     CoTheCuuXet: appealWindow.isOpen,
     LyDoKhongTheDangKy: registrationWindow.message
@@ -209,7 +241,7 @@ const normalizeSemesterKind = (value) => {
 };
 
 const buildSemesterWhere = (query = {}) => {
-  const where = { DaXoa: false };
+  const where = { ...VISIBLE_SEMESTER_WHERE };
   const and = [];
   const q = String(query.q || query.search || '').trim();
   const searchScope = ['semesterCode', 'semesterName', 'academicYear'].includes(query.searchScope) ? query.searchScope : 'semesterCode';
@@ -407,7 +439,7 @@ const getRegistrationOptions = async (req, res) => {
   try {
     const semesters = await prisma.HOCKY.findMany({
       where: {
-        DaXoa: false,
+        ...VISIBLE_SEMESTER_WHERE,
         NgayBatDauDangKy: { not: null },
         NgayKetThucDangKy: { not: null }
       },
@@ -427,8 +459,8 @@ const getRegistrationOptions = async (req, res) => {
 
 const getActiveSemester = async (req, res) => {
   try {
-    let hk = await prisma.HOCKY.findFirst({ where: { ...notDeleted(), OR: [{ TrangThai: 'Đang diễn ra' }, { TrangThai: 'Đang hoạt động' }] }, include: { NAMHOC: true } });
-    if (!hk) hk = await prisma.HOCKY.findFirst({ where: { ...notDeleted(), OR: [{ TrangThai: 'Sắp diễn ra' }, { TrangThai: 'Sắp tới' }] }, include: { NAMHOC: true }, orderBy: { NgayBatDau: 'asc' } });
+    let hk = await prisma.HOCKY.findFirst({ where: { ...VISIBLE_SEMESTER_WHERE, OR: [{ TrangThai: 'Đang diễn ra' }, { TrangThai: 'Đang hoạt động' }] }, include: { NAMHOC: true } });
+    if (!hk) hk = await prisma.HOCKY.findFirst({ where: { ...VISIBLE_SEMESTER_WHERE, OR: [{ TrangThai: 'Sắp diễn ra' }, { TrangThai: 'Sắp tới' }] }, include: { NAMHOC: true }, orderBy: { NgayBatDau: 'asc' } });
     if (!hk) return res.status(404).json({ success: false, message: 'Không có học kỳ nào đang hoạt động' });
     res.json({ success: true, data: semesterSelect(hk) });
   } catch (error) {

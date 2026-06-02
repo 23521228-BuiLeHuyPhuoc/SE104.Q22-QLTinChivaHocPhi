@@ -263,18 +263,12 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Thời điểm sửa</span><span class="semester-field-value">' + escapeHtml(formatSemesterDateTime(s.NgayCapNhat)) + '</span></div>',
         '</div>',
         '<div class="semester-actions">',
-          '<button class="btn btn-sm btn-outline" type="button" data-action="open-tuition" data-id="' + escapeHtml(s.MaHocKy || '') + '">Mở thu</button>',
-          '<button class="btn btn-sm btn-outline" type="button" data-action="close-tuition" data-id="' + escapeHtml(s.MaHocKy || '') + '">Khóa thu</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="edit" data-index="' + index + '">Sửa</button>',
           '<button class="btn btn-sm btn-danger" type="button" data-action="delete" data-id="' + escapeHtml(s.MaHocKy || '') + '">Xóa</button>',
         '</div>',
       '</div>'
     ].join('');
   }).join('');
-
-  body.querySelectorAll('[data-action=finalize], [data-action=open-tuition], [data-action=close-tuition]').forEach(function(button) {
-    button.remove();
-  });
 }
 
 function renderSemesterPagination(meta) {
@@ -641,57 +635,6 @@ async function deleteSemester(id) {
     }
   } catch (e) {
     showToast('Lỗi kết nối', 'error');
-  }
-}
-
-async function finalizeSemesterRegistration(id) {
-  if (!confirm('Chốt đăng ký học phần cho học kỳ này? Các lớp dưới 75% sức chứa sẽ bị đóng và đăng ký của các lớp đó sẽ bị hủy.')) return;
-  try {
-    var res = await apiFetch('/api/semesters/' + encodeURIComponent(id) + '/finalize-registration', { method: 'POST' });
-    if (res.success) {
-      var summary = res.data || {};
-      showToast(
-        'Đã chốt đăng ký: ' + (summary.SoLopDatNguong || 0) + ' lớp mở, ' +
-          (summary.SoLopBiDong || 0) + ' lớp đóng, ' +
-          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy',
-        'success'
-      );
-      loadSemesters(semesterPage);
-    } else {
-      showToast(res.message || 'Không thể chốt đăng ký học phần', 'error');
-    }
-  } catch (e) {
-    showToast('Lỗi kết nối khi chốt đăng ký học phần', 'error');
-  }
-}
-
-async function openTuitionPayment(id) {
-  if (!confirm('Mở thu học phí cho học kỳ này?')) return;
-  try {
-    var res = await apiFetch('/api/semesters/' + encodeURIComponent(id) + '/open-tuition-payment', { method: 'POST' });
-    if (res.success) {
-      showToast('Đã mở thu học phí', 'success');
-      loadSemesters(semesterPage);
-    } else {
-      showToast(res.message || 'Không thể mở thu học phí', 'error');
-    }
-  } catch (e) {
-    showToast('Lỗi kết nối khi mở thu học phí', 'error');
-  }
-}
-
-async function closeTuitionPayment(id) {
-  if (!confirm('Khóa thu học phí cho học kỳ này?')) return;
-  try {
-    var res = await apiFetch('/api/semesters/' + encodeURIComponent(id) + '/close-tuition-payment', { method: 'POST' });
-    if (res.success) {
-      showToast('Đã khóa thu học phí', 'success');
-      loadSemesters(semesterPage);
-    } else {
-      showToast(res.message || 'Không thể khóa thu học phí', 'error');
-    }
-  } catch (e) {
-    showToast('Lỗi kết nối khi khóa thu học phí', 'error');
   }
 }
 

@@ -13223,11 +13223,11 @@ INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", 
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), 6, true);
 
 -- =====================================================
--- INSERT DATA - Demo luồng cứu xét đăng ký và thu học phí
--- Các học kỳ demo dùng dữ liệu gần ngày 02/06/2026 để test nhanh:
---   HK-DEMO-CUUXET: đã hết đăng ký, đang trong hạn cứu xét, có đơn chờ duyệt
---   HK-DEMO-CHOT: đã hết cứu xét, đã chốt đăng ký, chưa mở thu học phí
---   HK-DEMO-THU: đã chốt đăng ký, đã mở thu học phí, có đủ trạng thái phiếu thu mới
+-- INSERT DATA - Dữ liệu mẫu luồng cứu xét đăng ký và thu học phí
+-- Các học kỳ mẫu dùng dữ liệu gần ngày 02/06/2026 để test nhanh:
+--   HK1-2627: đã hết đăng ký, đang trong hạn cứu xét, có đơn chờ duyệt
+--   HK2-2627: đã hết cứu xét, đã chốt đăng ký, chưa mở thu học phí
+--   HKH-2627: đã chốt đăng ký, đã mở thu học phí, có đủ trạng thái phiếu thu mới
 -- =====================================================
 INSERT INTO "NAMHOC" ("MaNamHoc", "TenNamHoc", "NamBatDau", "NamKetThuc") VALUES
 ('2026-2027', 'Năm học 2026-2027', 2026, 2027)
@@ -13241,50 +13241,54 @@ INSERT INTO "HOCKY" (
   "NgayChotDangKy", "MoThuHocPhi", "NgayMoThuHocPhi",
   "HanDongHocPhi", "TrangThai"
 ) VALUES
-('HK-DEMO-CUUXET', 'Demo cứu xét đăng ký', '2026-2027', 'Chính', 1, '2026-06-20', '2026-10-01', '2026-05-01 00:00:00', '2026-05-20 23:59:59', '2026-05-21 00:00:00', '2026-06-10 23:59:59', NULL, FALSE, NULL, '2026-08-15', 'Sắp diễn ra'),
-('HK-DEMO-CHOT', 'Demo đã chốt đăng ký', '2026-2027', 'Chính', 2, '2026-07-01', '2026-11-15', '2026-04-01 00:00:00', '2026-04-10 23:59:59', '2026-04-11 00:00:00', '2026-04-20 23:59:59', '2026-04-21 09:00:00', FALSE, NULL, '2026-08-01', 'Sắp diễn ra'),
-('HK-DEMO-THU', 'Demo đã mở thu học phí', '2026-2027', 'Hè', 3, '2026-07-15', '2026-08-31', '2026-03-01 00:00:00', '2026-03-10 23:59:59', '2026-03-11 00:00:00', '2026-03-20 23:59:59', '2026-03-21 09:00:00', TRUE, '2026-03-22 09:00:00', '2026-07-20', 'Sắp diễn ra')
+('HK1-2627', 'Học kỳ I', '2026-2027', 'Chính', 1, '2026-06-20', '2026-10-01', '2026-05-01 00:00:00', '2026-05-20 23:59:59', '2026-05-21 00:00:00', '2026-06-10 23:59:59', NULL, FALSE, NULL, '2026-08-15', 'Sắp diễn ra'),
+('HK2-2627', 'Học kỳ II', '2026-2027', 'Chính', 2, '2026-07-01', '2026-11-15', '2026-04-01 00:00:00', '2026-04-10 23:59:59', '2026-04-11 00:00:00', '2026-04-20 23:59:59', '2026-04-21 09:00:00', FALSE, NULL, '2026-08-01', 'Sắp diễn ra'),
+('HKH-2627', 'Học kỳ Hè', '2026-2027', 'Hè', 3, '2026-07-15', '2026-08-31', '2026-03-01 00:00:00', '2026-03-10 23:59:59', '2026-03-11 00:00:00', '2026-03-20 23:59:59', '2026-03-21 09:00:00', TRUE, '2026-03-22 09:00:00', '2026-07-20', 'Sắp diễn ra')
 ON CONFLICT ("MaHocKy") DO UPDATE SET
+  "TenHocKy" = EXCLUDED."TenHocKy",
+  "MaNamHoc" = EXCLUDED."MaNamHoc",
+  "LoaiHocKy" = EXCLUDED."LoaiHocKy",
+  "ThuTu" = EXCLUDED."ThuTu",
+  "NgayBatDau" = EXCLUDED."NgayBatDau",
+  "NgayKetThuc" = EXCLUDED."NgayKetThuc",
+  "NgayBatDauDangKy" = EXCLUDED."NgayBatDauDangKy",
+  "NgayKetThucDangKy" = EXCLUDED."NgayKetThucDangKy",
   "NgayBatDauCuuXet" = EXCLUDED."NgayBatDauCuuXet",
   "NgayKetThucCuuXet" = EXCLUDED."NgayKetThucCuuXet",
   "NgayChotDangKy" = EXCLUDED."NgayChotDangKy",
   "MoThuHocPhi" = EXCLUDED."MoThuHocPhi",
   "NgayMoThuHocPhi" = EXCLUDED."NgayMoThuHocPhi",
-  "HanDongHocPhi" = EXCLUDED."HanDongHocPhi";
+  "HanDongHocPhi" = EXCLUDED."HanDongHocPhi",
+  "TrangThai" = EXCLUDED."TrangThai",
+  "DaXoa" = FALSE;
 
 INSERT INTO "LOP" ("MaLop", "TenLop", "MaMonHoc", "GiangVien", "LichHoc", "PhongHoc", "SoLuongToiDa") VALUES
-('IT002.DEMO1', 'Demo - Lập trình hướng đối tượng', 'IT002', 'ThS. Demo Đào tạo', 'Thứ 2, Tiết 1-3', 'DEMO.A101', 4),
-('IT003.DEMO1', 'Demo - Cấu trúc dữ liệu và giải thuật', 'IT003', 'ThS. Demo Đào tạo', 'Thứ 3, Tiết 1-3', 'DEMO.A102', 4),
-('MA004.DEMO1', 'Demo - Cấu trúc rời rạc', 'MA004', 'ThS. Demo Đào tạo', 'Thứ 4, Tiết 1-4', 'DEMO.A103', 4),
-('IT005.DEMO1', 'Demo - Nhập môn mạng máy tính', 'IT005', 'ThS. Demo Đào tạo', 'Thứ 5, Tiết 1-3', 'DEMO.A104', 4),
-('IT006.DEMO1', 'Demo - Kiến trúc máy tính', 'IT006', 'ThS. Demo Đào tạo', 'Thứ 6, Tiết 1', 'DEMO.A105', 4),
-('ENG02.DEMO1', 'Demo - Anh văn 2', 'ENG02', 'ThS. Demo Đào tạo', 'Thứ 7, Tiết 1', 'DEMO.A106', 4)
-ON CONFLICT ("MaLop") DO UPDATE SET
-  "TenLop" = EXCLUDED."TenLop",
-  "MaMonHoc" = EXCLUDED."MaMonHoc",
-  "GiangVien" = EXCLUDED."GiangVien",
-  "LichHoc" = EXCLUDED."LichHoc",
-  "PhongHoc" = EXCLUDED."PhongHoc",
-  "SoLuongToiDa" = EXCLUDED."SoLuongToiDa";
+('IT002.2627A', 'Lập trình hướng đối tượng', 'IT002', 'ThS. Đào tạo', 'Thứ 2, Tiết 1-3', 'A101', 4),
+('IT003.2627A', 'Cấu trúc dữ liệu và giải thuật', 'IT003', 'ThS. Đào tạo', 'Thứ 3, Tiết 1-3', 'A102', 4),
+('MA004.2627A', 'Cấu trúc rời rạc', 'MA004', 'ThS. Đào tạo', 'Thứ 4, Tiết 1-4', 'A103', 4),
+('IT005.2627B', 'Nhập môn mạng máy tính', 'IT005', 'ThS. Đào tạo', 'Thứ 5, Tiết 1-3', 'A104', 4),
+('IT006.2627B', 'Kiến trúc máy tính', 'IT006', 'ThS. Đào tạo', 'Thứ 6, Tiết 1', 'A105', 4),
+('ENG02.2627H', 'Anh văn 2', 'ENG02', 'ThS. Đào tạo', 'Thứ 7, Tiết 1', 'A106', 4)
+ON CONFLICT ("MaLop") DO NOTHING;
 
 INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "SoLuongDaDangKy", "TrangThai", "GhiChu") VALUES
-('HK-DEMO-CUUXET', 'IT002.DEMO1', 3, TRUE, 'Demo: lớp đang có đăng ký trước khi cứu xét'),
-('HK-DEMO-CUUXET', 'IT003.DEMO1', 0, TRUE, 'Demo: lớp đích cho đơn đổi'),
-('HK-DEMO-CUUXET', 'MA004.DEMO1', 0, TRUE, 'Demo: lớp đích cho đơn thêm'),
-('HK-DEMO-CHOT', 'IT005.DEMO1', 0, FALSE, 'Demo: lớp bị đóng vì dưới 75%'),
-('HK-DEMO-CHOT', 'IT006.DEMO1', 3, TRUE, 'Demo: lớp đủ đúng 75% nên vẫn mở'),
-('HK-DEMO-THU', 'ENG02.DEMO1', 4, TRUE, 'Demo: lớp đã chốt và mở thu học phí')
+('HK1-2627', 'IT002.2627A', 3, TRUE, 'Lớp đang có đăng ký trước khi cứu xét'),
+('HK1-2627', 'IT003.2627A', 0, TRUE, 'Lớp đích cho đơn đổi'),
+('HK1-2627', 'MA004.2627A', 0, TRUE, 'Lớp đích cho đơn thêm'),
+('HK2-2627', 'IT005.2627B', 0, FALSE, 'Lớp bị đóng vì dưới 75%'),
+('HK2-2627', 'IT006.2627B', 3, TRUE, 'Lớp đủ đúng 75% nên vẫn mở'),
+('HKH-2627', 'ENG02.2627H', 4, TRUE, 'Lớp đã chốt và mở thu học phí')
 ON CONFLICT ("MaHocKy", "MaLop") DO NOTHING;
 
 INSERT INTO "LICHHOCLOP" ("LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu", "TrangThai")
 SELECT lm.id, v."ThuTrongTuan", v."MaTietBatDau", v."MaTietKetThuc", v."PhongHoc", v."GhiChu", v."TrangThai"
 FROM (VALUES
-  ('HK-DEMO-CUUXET', 'IT002.DEMO1', 2, 'T1', 'T3', 'DEMO.A101', 'Demo IT002 - cứu xét', TRUE),
-  ('HK-DEMO-CUUXET', 'IT003.DEMO1', 3, 'T1', 'T3', 'DEMO.A102', 'Demo IT003 - lớp đổi', TRUE),
-  ('HK-DEMO-CUUXET', 'MA004.DEMO1', 4, 'T1', 'T4', 'DEMO.A103', 'Demo MA004 - lớp thêm', TRUE),
-  ('HK-DEMO-CHOT', 'IT005.DEMO1', 5, 'T1', 'T3', 'DEMO.A104', 'Demo IT005 - lớp đóng', FALSE),
-  ('HK-DEMO-CHOT', 'IT006.DEMO1', 6, 'T1', 'T1', 'DEMO.A105', 'Demo IT006 - đúng 75%', TRUE),
-  ('HK-DEMO-THU', 'ENG02.DEMO1', 7, 'T1', 'T1', 'DEMO.A106', 'Demo ENG02 - mở thu', TRUE)
+  ('HK1-2627', 'IT002.2627A', 2, 'T1', 'T3', 'A101', 'IT002 - cứu xét', TRUE),
+  ('HK1-2627', 'IT003.2627A', 3, 'T1', 'T3', 'A102', 'IT003 - lớp đổi', TRUE),
+  ('HK1-2627', 'MA004.2627A', 4, 'T1', 'T4', 'A103', 'MA004 - lớp thêm', TRUE),
+  ('HK2-2627', 'IT005.2627B', 5, 'T1', 'T3', 'A104', 'IT005 - lớp đóng', FALSE),
+  ('HK2-2627', 'IT006.2627B', 6, 'T1', 'T1', 'A105', 'IT006 - đúng 75%', TRUE),
+  ('HKH-2627', 'ENG02.2627H', 7, 'T1', 'T1', 'A106', 'ENG02 - mở thu', TRUE)
 ) AS v("MaHocKy", "MaLop", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu", "TrangThai")
 JOIN "LOPMO" lm ON lm."MaHocKy" = v."MaHocKy" AND lm."MaLop" = v."MaLop"
 WHERE NOT EXISTS (
@@ -13298,31 +13302,31 @@ WHERE NOT EXISTS (
 SET app.finalize_registration = '1';
 
 INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TrangThai", "GhiChu") VALUES
-(101, '22520001', 'HK-DEMO-CUUXET', '2026-05-20 08:00:00', 'Đã đăng ký', 'Demo: có thể gửi đơn thêm trong hạn cứu xét'),
-(102, '22520002', 'HK-DEMO-CUUXET', '2026-05-20 08:10:00', 'Đã đăng ký', 'Demo: có thể gửi đơn hủy trong hạn cứu xét'),
-(103, '22520003', 'HK-DEMO-CUUXET', '2026-05-20 08:20:00', 'Đã đăng ký', 'Demo: có thể gửi đơn đổi trong hạn cứu xét'),
-(104, '22520004', 'HK-DEMO-CHOT', '2026-04-10 08:00:00', 'Đã đăng ký', 'Demo: đơn thêm đã duyệt'),
-(105, '22520005', 'HK-DEMO-CHOT', '2026-04-10 08:10:00', 'Đã đăng ký', 'Demo: lớp đúng 75% vẫn mở'),
-(106, '22520006', 'HK-DEMO-CHOT', '2026-04-10 08:20:00', 'Đã đăng ký', 'Demo: đơn đã hủy'),
-(107, '22520001', 'HK-DEMO-CHOT', '2026-04-10 08:30:00', 'Đã đăng ký', 'Demo: đăng ký bị hủy do lớp dưới 75%'),
-(201, '22520001', 'HK-DEMO-THU', '2026-03-10 08:00:00', 'Đã đăng ký', 'Demo: phiếu thu chưa thanh toán'),
-(202, '22520002', 'HK-DEMO-THU', '2026-03-10 08:10:00', 'Đã đăng ký', 'Demo: phiếu tiền mặt chờ xác nhận'),
-(203, '22520003', 'HK-DEMO-THU', '2026-03-10 08:20:00', 'Đã đăng ký', 'Demo: phiếu đã thanh toán thành công'),
-(204, '22520004', 'HK-DEMO-THU', '2026-03-10 08:30:00', 'Đã đăng ký', 'Demo: phiếu thanh toán thất bại')
+(101, '22520001', 'HK1-2627', '2026-05-20 08:00:00', 'Đã đăng ký', 'Demo: có thể gửi đơn thêm trong hạn cứu xét'),
+(102, '22520002', 'HK1-2627', '2026-05-20 08:10:00', 'Đã đăng ký', 'Demo: có thể gửi đơn hủy trong hạn cứu xét'),
+(103, '22520003', 'HK1-2627', '2026-05-20 08:20:00', 'Đã đăng ký', 'Demo: có thể gửi đơn đổi trong hạn cứu xét'),
+(104, '22520004', 'HK2-2627', '2026-04-10 08:00:00', 'Đã đăng ký', 'Demo: đơn thêm đã duyệt'),
+(105, '22520005', 'HK2-2627', '2026-04-10 08:10:00', 'Đã đăng ký', 'Demo: lớp đúng 75% vẫn mở'),
+(106, '22520006', 'HK2-2627', '2026-04-10 08:20:00', 'Đã đăng ký', 'Demo: đơn đã hủy'),
+(107, '22520001', 'HK2-2627', '2026-04-10 08:30:00', 'Đã đăng ký', 'Demo: đăng ký bị hủy do lớp dưới 75%'),
+(201, '22520001', 'HKH-2627', '2026-03-10 08:00:00', 'Đã đăng ký', 'Demo: phiếu thu chưa thanh toán'),
+(202, '22520002', 'HKH-2627', '2026-03-10 08:10:00', 'Đã đăng ký', 'Demo: phiếu tiền mặt chờ xác nhận'),
+(203, '22520003', 'HKH-2627', '2026-03-10 08:20:00', 'Đã đăng ký', 'Demo: phiếu đã thanh toán thành công'),
+(204, '22520004', 'HKH-2627', '2026-03-10 08:30:00', 'Đã đăng ký', 'Demo: phiếu thanh toán thất bại')
 ON CONFLICT ("SoPhieu") DO NOTHING;
 
 INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai", "NgayDangKy", "NgayHuy", "LyDoHuy") VALUES
-(101, 'IT002.DEMO1', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:00:00', NULL, NULL),
-(102, 'IT002.DEMO1', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:10:00', NULL, NULL),
-(103, 'IT002.DEMO1', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:20:00', NULL, NULL),
-(104, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-21 09:05:00', NULL, NULL),
-(105, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:10:00', NULL, NULL),
-(106, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:20:00', NULL, NULL),
-(107, 'IT005.DEMO1', 'IT005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã hủy', '2026-04-10 08:30:00', '2026-04-21 09:10:00', 'Hủy do không đủ sinh viên đăng ký'),
-(201, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:00:00', NULL, NULL),
-(202, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:10:00', NULL, NULL),
-(203, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:20:00', NULL, NULL),
-(204, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:30:00', NULL, NULL)
+(101, 'IT002.2627A', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:00:00', NULL, NULL),
+(102, 'IT002.2627A', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:10:00', NULL, NULL),
+(103, 'IT002.2627A', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:20:00', NULL, NULL),
+(104, 'IT006.2627B', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-21 09:05:00', NULL, NULL),
+(105, 'IT006.2627B', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:10:00', NULL, NULL),
+(106, 'IT006.2627B', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:20:00', NULL, NULL),
+(107, 'IT005.2627B', 'IT005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã hủy', '2026-04-10 08:30:00', '2026-04-21 09:10:00', 'Hủy do không đủ sinh viên đăng ký'),
+(201, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:00:00', NULL, NULL),
+(202, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:10:00', NULL, NULL),
+(203, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:20:00', NULL, NULL),
+(204, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:30:00', NULL, NULL)
 ON CONFLICT ("SoPhieu", "MaMonHoc") DO NOTHING;
 
 RESET app.finalize_registration;
@@ -13335,12 +13339,12 @@ SELECT v."MaSv", v."MaHocKy", v."SoPhieu", v."LoaiDon", v."TrangThai", v."MaLopH
        v."LyDo", v."LyDoTuChoi", v."NguoiDuyet", v."NgayTao", v."NgayCapNhat", v."NgayDuyet"
 FROM (
   VALUES
-  ('22520001', 'HK-DEMO-CUUXET', 101, 'them', 'cho_duyet', NULL, 'MA004.DEMO1', 'Muốn học thêm môn Cấu trúc rời rạc sau khi đã cân đối lịch cá nhân.', NULL, NULL, '2026-06-02 09:00:00'::timestamp, NULL, NULL),
-  ('22520002', 'HK-DEMO-CUUXET', 102, 'huy', 'cho_duyet', 'IT002.DEMO1', NULL, 'Xin hủy vì trùng kế hoạch thực tập ngắn hạn.', NULL, NULL, '2026-06-02 09:10:00'::timestamp, NULL, NULL),
-  ('22520003', 'HK-DEMO-CUUXET', 103, 'doi', 'cho_duyet', 'IT002.DEMO1', 'IT003.DEMO1', 'Xin đổi lớp để phù hợp thời khóa biểu cá nhân.', NULL, NULL, '2026-06-02 09:20:00'::timestamp, NULL, NULL),
-  ('22520004', 'HK-DEMO-CHOT', 104, 'them', 'da_duyet', NULL, 'IT006.DEMO1', 'Đã bổ sung lớp theo quyết định cứu xét.', NULL, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '2026-04-12 08:00:00'::timestamp, '2026-04-21 09:05:00'::timestamp, '2026-04-21 09:05:00'::timestamp),
-  ('22520005', 'HK-DEMO-CHOT', 105, 'them', 'tu_choi', NULL, 'MA004.DEMO1', 'Xin thêm lớp sau hạn.', 'Lớp không còn phù hợp kế hoạch mở lớp sau khi chốt đăng ký.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '2026-04-12 08:10:00'::timestamp, '2026-04-21 09:15:00'::timestamp, '2026-04-21 09:15:00'::timestamp),
-  ('22520006', 'HK-DEMO-CHOT', 106, 'huy', 'da_huy', 'IT006.DEMO1', NULL, 'Sinh viên tự hủy đơn trước khi admin xử lý.', NULL, NULL, '2026-04-12 08:20:00'::timestamp, '2026-04-13 10:00:00'::timestamp, NULL)
+  ('22520001', 'HK1-2627', 101, 'them', 'cho_duyet', NULL, 'MA004.2627A', 'Muốn học thêm môn Cấu trúc rời rạc sau khi đã cân đối lịch cá nhân.', NULL, NULL, '2026-06-02 09:00:00'::timestamp, NULL, NULL),
+  ('22520002', 'HK1-2627', 102, 'huy', 'cho_duyet', 'IT002.2627A', NULL, 'Xin hủy vì trùng kế hoạch thực tập ngắn hạn.', NULL, NULL, '2026-06-02 09:10:00'::timestamp, NULL, NULL),
+  ('22520003', 'HK1-2627', 103, 'doi', 'cho_duyet', 'IT002.2627A', 'IT003.2627A', 'Xin đổi lớp để phù hợp thời khóa biểu cá nhân.', NULL, NULL, '2026-06-02 09:20:00'::timestamp, NULL, NULL),
+  ('22520004', 'HK2-2627', 104, 'them', 'da_duyet', NULL, 'IT006.2627B', 'Đã bổ sung lớp theo quyết định cứu xét.', NULL, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '2026-04-12 08:00:00'::timestamp, '2026-04-21 09:05:00'::timestamp, '2026-04-21 09:05:00'::timestamp),
+  ('22520005', 'HK2-2627', 105, 'them', 'tu_choi', NULL, 'MA004.2627A', 'Xin thêm lớp sau hạn.', 'Lớp không còn phù hợp kế hoạch mở lớp sau khi chốt đăng ký.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '2026-04-12 08:10:00'::timestamp, '2026-04-21 09:15:00'::timestamp, '2026-04-21 09:15:00'::timestamp),
+  ('22520006', 'HK2-2627', 106, 'huy', 'da_huy', 'IT006.2627B', NULL, 'Sinh viên tự hủy đơn trước khi admin xử lý.', NULL, NULL, '2026-04-12 08:20:00'::timestamp, '2026-04-13 10:00:00'::timestamp, NULL)
 ) AS v("MaSv", "MaHocKy", "SoPhieu", "LoaiDon", "TrangThai", "MaLopHuy", "MaLopThem", "LyDo", "LyDoTuChoi", "NguoiDuyet", "NgayTao", "NgayCapNhat", "NgayDuyet")
 WHERE NOT EXISTS (
   SELECT 1 FROM "DONCUUXETDANGKY" d
