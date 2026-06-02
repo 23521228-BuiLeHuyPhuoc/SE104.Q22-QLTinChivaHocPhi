@@ -1,13 +1,14 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
-const { assertRegistrationOpen, getRegistrationWindowState } = require('../utils/registrationWindow');
+const { assertRegistrationOpen, getRegistrationWindowState, getAppealWindowState } = require('../utils/registrationWindow');
 const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { buildRegistrationStudentRows, buildRegistrationDistribution } = require('../utils/registrationStats');
+const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../utils/businessConstants');
 
-const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
-const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
-const PAYMENT_SUCCESS_STATUS = 'Thành công';
+const ACTIVE_REGISTRATION_STATUS = REGISTRATION_STATUS.ACTIVE;
+const CANCELLED_REGISTRATION_STATUS = REGISTRATION_STATUS.CANCELLED;
+const PAYMENT_SUCCESS_STATUS = PAYMENT_STATUS.SUCCESS;
 const PAID_REGISTRATION_LOCK_MESSAGE = 'Phiếu đăng ký đã có phiếu thu thành công, không thể đăng ký thêm hoặc hủy môn. Vui lòng liên hệ phòng tài chính để xử lý.';
 
 const REGISTRATION_TYPE_LABELS = {
@@ -593,16 +594,20 @@ const getStudentCourses = async (req, res) => {
       const currentOpened = openedClasses[0] || null;
       const lockedByPayment = hasSuccessfulPayment(row.PHIEUDANGKY);
       const registrationWindow = getRegistrationWindowState(row.PHIEUDANGKY?.HOCKY);
+      const appealWindow = getAppealWindowState(row.PHIEUDANGKY?.HOCKY);
       const lockedByWindow = !registrationWindow.isOpen;
       const isActive = row.TrangThai === ACTIVE_REGISTRATION_STATUS;
+      const canAppeal = appealWindow.isOpen && isActive && !lockedByPayment;
       const cancelLockMessage = lockedByPayment
         ? PAID_REGISTRATION_LOCK_MESSAGE
         : lockedByWindow
-          ? registrationWindow.message
+          ? (canAppeal ? 'Ngoài hạn đăng ký trực tiếp, sinh viên cần gửi đơn cứu xét' : (appealWindow.message || registrationWindow.message))
           : '';
       const cancelActionLabel = lockedByPayment
         ? 'Đã thu HP'
-        : lockedByWindow
+        : canAppeal
+          ? 'Gửi đơn hủy'
+          : lockedByWindow
           ? 'Đã chốt đăng ký'
           : 'Hủy ĐK';
       return {
@@ -620,11 +625,14 @@ const getStudentCourses = async (req, res) => {
         LyDoHuy: row.LyDoHuy,
         CanHuy: isActive && !lockedByPayment && !lockedByWindow,
         CanCancelRegistration: isActive && !lockedByPayment && !lockedByWindow,
+        CanAppealCancel: canAppeal,
+        CanAppealChange: canAppeal,
         KhoaHuyDangKy: lockedByPayment || lockedByWindow,
         LyDoKhongTheHuy: cancelLockMessage,
         CancelActionLabel: cancelActionLabel,
         CancelActionMessage: cancelLockMessage,
         RegistrationWindow: registrationWindow,
+        AppealWindow: appealWindow,
         SoTinChi: row.SoTinChi || monHoc.SoTinChi || 0,
         LOP: {
           MaLop: row.MaLop,
@@ -654,6 +662,7 @@ const getStudentCourses = async (req, res) => {
           TrangThai: row.PHIEUDANGKY?.TrangThai,
           DaCoPhieuThuThanhCong: lockedByPayment,
           RegistrationWindow: registrationWindow,
+          AppealWindow: appealWindow,
           HOCKY: {
             MaHocKy: row.PHIEUDANGKY?.HOCKY?.MaHocKy,
             TenHocKy: row.PHIEUDANGKY?.HOCKY?.TenHocKy,
@@ -712,17 +721,23 @@ const getAvailableCourses = async (req, res) => {
         MaHocKy: true,
         NgayBatDauDangKy: true,
         NgayKetThucDangKy: true,
+        NgayBatDauCuuXet: true,
+        NgayKetThucCuuXet: true,
+        NgayChotDangKy: true,
+        MoThuHocPhi: true,
         TrangThai: true
       }
     });
     if (!semester) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
     const windowState = getRegistrationWindowState(semester);
-    if (!windowState.isOpen) {
+    const appealWindow = getAppealWindowState(semester);
+    if (!windowState.isOpen && !appealWindow.isOpen) {
       return res.status(400).json({
         success: false,
         code: 'REGISTRATION_WINDOW_CLOSED',
-        message: windowState.message || 'Đợt đăng ký học phần chưa mở',
-        registrationWindow: windowState
+        message: appealWindow.message || windowState.message || 'Đợt đăng ký học phần chưa mở',
+        registrationWindow: windowState,
+        appealWindow
       });
     }
 
@@ -879,8 +894,16 @@ const getAvailableCourses = async (req, res) => {
         LoaiDangKyLabel: getRegistrationTypeLabel(registrationType),
         DonGiaDuKien: price,
         ThanhTienDuKien: price * credits,
-        CanDangKy: !lockedByPayment,
-        LyDoKhongTheDangKy: lockedByPayment ? PAID_REGISTRATION_LOCK_MESSAGE : ''
+        CanDangKy: windowState.isOpen && !lockedByPayment,
+        CanAppealAdd: appealWindow.isOpen && !lockedByPayment,
+        RegistrationWindow: windowState,
+        AppealWindow: appealWindow,
+        ActionMode: windowState.isOpen ? 'register' : appealWindow.isOpen ? 'appeal' : 'closed',
+        LyDoKhongTheDangKy: lockedByPayment
+          ? PAID_REGISTRATION_LOCK_MESSAGE
+          : windowState.isOpen
+            ? ''
+            : (appealWindow.isOpen ? 'Ngoài hạn đăng ký trực tiếp, sinh viên cần gửi đơn cứu xét' : (appealWindow.message || windowState.message || 'Đợt đăng ký chưa mở'))
       };
     }));
 
@@ -1064,5 +1087,12 @@ module.exports = {
   recalculateRegistrationTotals,
   recalculateRegistrationPricingForScope,
   getCreditPrice,
-  getRegistrationTypeLabel
+  getRegistrationTypeLabel,
+  determineRegistrationType,
+  ensureNoScheduleConflict,
+  ensureCreditLimit,
+  getStudentIdFromRequest,
+  ensureStudentAccess,
+  ACTIVE_REGISTRATION_STATUS,
+  CANCELLED_REGISTRATION_STATUS
 };

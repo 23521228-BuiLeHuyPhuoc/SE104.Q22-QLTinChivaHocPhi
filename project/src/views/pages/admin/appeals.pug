@@ -1,0 +1,49 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .toolbar-title
+      h2.page-title Đơn cứu xét đăng ký
+      p Duyệt hoặc từ chối yêu cầu thêm, hủy, đổi học phần sau hạn đăng ký.
+    .filter-group
+      select#appeal-semester(onchange="loadAppeals(1)")
+        option(value="") Tất cả học kỳ
+        if semesters && semesters.length
+          each semester in semesters
+            option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+      select#appeal-type(onchange="loadAppeals(1)")
+        option(value="") Tất cả loại đơn
+        option(value="them") Thêm
+        option(value="huy") Hủy
+        option(value="doi") Đổi
+      select#appeal-status(onchange="loadAppeals(1)")
+        option(value="") Tất cả trạng thái
+        option(value="cho_duyet") Chờ duyệt
+        option(value="da_duyet") Đã duyệt
+        option(value="tu_choi") Từ chối
+        option(value="da_huy") Đã hủy
+
+  .card
+    .card-header
+      h3 Danh sách đơn cứu xét
+      span.card-count#appeal-count 0 bản ghi
+    .table-container
+      table.data-table
+        thead
+          tr
+            th Mã đơn
+            th Sinh viên
+            th Học kỳ
+            th Loại đơn
+            th Nội dung
+            th Lý do
+            th Trạng thái
+            th Thao tác
+        tbody#appeal-table-body
+          tr
+            td(colspan="8")
+              .empty-state Đang tải đơn cứu xét...
+  nav.pagination#appeal-pagination(style="display:none")
+
+block scripts
+  script(src="/js/admin/appeals.js")

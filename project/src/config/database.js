@@ -185,7 +185,97 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "ThuTu" INTEGER DEFAULT 1,
       ADD COLUMN IF NOT EXISTS "NgayBatDauDangKy" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "NgayKetThucDangKy" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayBatDauCuuXet" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayKetThucCuuXet" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayChotDangKy" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "MoThuHocPhi" BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS "NgayMoThuHocPhi" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "DONCUUXETDANGKY" (
+      id SERIAL NOT NULL,
+      "MaSv" VARCHAR(15) NOT NULL,
+      "MaHocKy" VARCHAR(15) NOT NULL,
+      "SoPhieu" INTEGER,
+      "LoaiDon" VARCHAR(10) NOT NULL DEFAULT 'them',
+      "TrangThai" VARCHAR(20) NOT NULL DEFAULT 'cho_duyet',
+      "MaLopHuy" VARCHAR(20),
+      "MaLopThem" VARCHAR(20),
+      "LyDo" VARCHAR(500) NOT NULL,
+      "LyDoTuChoi" VARCHAR(500),
+      "NguoiDuyet" INTEGER,
+      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "NgayCapNhat" TIMESTAMP,
+      "NgayDuyet" TIMESTAMP,
+      CONSTRAINT don_cuu_xet_dang_ky_pkey PRIMARY KEY (id)
+    )
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "DONCUUXETDANGKY"
+      ADD COLUMN IF NOT EXISTS "MaSv" VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS "MaHocKy" VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS "SoPhieu" INTEGER,
+      ADD COLUMN IF NOT EXISTS "LoaiDon" VARCHAR(10) NOT NULL DEFAULT 'them',
+      ADD COLUMN IF NOT EXISTS "TrangThai" VARCHAR(20) NOT NULL DEFAULT 'cho_duyet',
+      ADD COLUMN IF NOT EXISTS "MaLopHuy" VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS "MaLopThem" VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS "LyDo" VARCHAR(500) NOT NULL DEFAULT '',
+      ADD COLUMN IF NOT EXISTS "LyDoTuChoi" VARCHAR(500),
+      ADD COLUMN IF NOT EXISTS "NguoiDuyet" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayDuyet" TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dcx_loai_don') THEN
+        ALTER TABLE "DONCUUXETDANGKY"
+          ADD CONSTRAINT chk_dcx_loai_don CHECK ("LoaiDon" IN ('them', 'huy', 'doi'));
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dcx_trang_thai') THEN
+        ALTER TABLE "DONCUUXETDANGKY"
+          ADD CONSTRAINT chk_dcx_trang_thai CHECK ("TrangThai" IN ('cho_duyet', 'da_duyet', 'tu_choi', 'da_huy'));
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_dcx_lop_theo_loai') THEN
+        ALTER TABLE "DONCUUXETDANGKY"
+          ADD CONSTRAINT chk_dcx_lop_theo_loai CHECK (
+            ("LoaiDon" = 'them' AND "MaLopThem" IS NOT NULL AND "MaLopHuy" IS NULL)
+            OR ("LoaiDon" = 'huy' AND "MaLopHuy" IS NOT NULL AND "MaLopThem" IS NULL)
+            OR ("LoaiDon" = 'doi' AND "MaLopHuy" IS NOT NULL AND "MaLopThem" IS NOT NULL)
+          );
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dcx_sinhvien') THEN
+        ALTER TABLE "DONCUUXETDANGKY" ADD CONSTRAINT fk_dcx_sinhvien FOREIGN KEY ("MaSv") REFERENCES "SINHVIEN"("MaSv") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dcx_hocky') THEN
+        ALTER TABLE "DONCUUXETDANGKY" ADD CONSTRAINT fk_dcx_hocky FOREIGN KEY ("MaHocKy") REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dcx_phieudangky') THEN
+        ALTER TABLE "DONCUUXETDANGKY" ADD CONSTRAINT fk_dcx_phieudangky FOREIGN KEY ("SoPhieu") REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE SET NULL ON UPDATE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dcx_lop_huy') THEN
+        ALTER TABLE "DONCUUXETDANGKY" ADD CONSTRAINT fk_dcx_lop_huy FOREIGN KEY ("MaLopHuy") REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dcx_lop_them') THEN
+        ALTER TABLE "DONCUUXETDANGKY" ADD CONSTRAINT fk_dcx_lop_them FOREIGN KEY ("MaLopThem") REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_dcx_nguoi_duyet') THEN
+        ALTER TABLE "DONCUUXETDANGKY" ADD CONSTRAINT fk_dcx_nguoi_duyet FOREIGN KEY ("NguoiDuyet") REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_dcx_sv_hk ON "DONCUUXETDANGKY" ("MaSv", "MaHocKy")');
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_dcx_hk_trangthai ON "DONCUUXETDANGKY" ("MaHocKy", "TrangThai")');
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_dcx_pending
+    ON "DONCUUXETDANGKY" ("MaSv", "MaHocKy", "LoaiDon", COALESCE("MaLopHuy", ''), COALESCE("MaLopThem", ''))
+    WHERE "TrangThai" = 'cho_duyet'
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -1366,6 +1456,58 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF to_regclass('"MONDAHOC"') IS NOT NULL THEN
+        WITH history AS (
+          SELECT
+            "MaSv",
+            "MaMonHoc",
+            BOOL_OR("KetQua" = 'qua_mon') AS has_pass,
+            BOOL_OR("KetQua" = 'rot') AS has_fail
+          FROM "MONDAHOC"
+          WHERE COALESCE("DaXoa", FALSE) = FALSE
+          GROUP BY "MaSv", "MaMonHoc"
+        ), candidates AS (
+          SELECT
+            c.id,
+            p."MaHocKy",
+            hk."LoaiHocKy",
+            CASE
+              WHEN h.has_pass THEN 'hoc_cai_thien'
+              WHEN h.has_fail THEN 'hoc_lai'
+              ELSE c."LoaiDangKy"
+            END AS next_type
+          FROM "CHITIETDANGKY" c
+          JOIN "PHIEUDANGKY" p ON p."SoPhieu" = c."SoPhieu"
+          JOIN "HOCKY" hk ON hk."MaHocKy" = p."MaHocKy"
+          JOIN history h ON h."MaSv" = p."MaSv" AND h."MaMonHoc" = c."MaMonHoc"
+          WHERE c."MaMonHoc" IS NOT NULL
+            AND c."TrangThai" = 'Đã đăng ký'
+            AND c."LoaiDangKy" = 'hoc_moi'
+            AND (h.has_pass OR h.has_fail)
+        )
+        UPDATE "CHITIETDANGKY" c
+        SET
+          "LoaiDangKy" = candidates.next_type,
+          "DonGia" = fn_lay_don_gia(
+            c."LoaiMon",
+            CASE WHEN candidates."LoaiHocKy" = U&'H\\00E8' AND candidates.next_type = 'hoc_moi' THEN 'hoc_he' ELSE candidates.next_type END,
+            candidates."MaHocKy"
+          ),
+          "ThanhTien" = COALESCE(c."SoTinChi", 0) * fn_lay_don_gia(
+            c."LoaiMon",
+            CASE WHEN candidates."LoaiHocKy" = U&'H\\00E8' AND candidates.next_type = 'hoc_moi' THEN 'hoc_he' ELSE candidates.next_type END,
+            candidates."MaHocKy"
+          )
+        FROM candidates
+        WHERE c.id = candidates.id
+          AND candidates.next_type <> c."LoaiDangKy";
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
     UPDATE "CHITIETDANGKY" ctdk
     SET
       "SoTinChi" = COALESCE(ctdk."SoTinChi", mh."SoTinChi", 0),
@@ -1376,11 +1518,36 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    WITH history AS (
+      SELECT
+        "MaSv",
+        "MaMonHoc",
+        BOOL_OR("KetQua" = 'qua_mon') AS has_pass,
+        BOOL_OR("KetQua" = 'rot') AS has_fail
+      FROM "MONDAHOC"
+      WHERE COALESCE("DaXoa", FALSE) = FALSE
+      GROUP BY "MaSv", "MaMonHoc"
+    ), candidates AS (
+      SELECT
+        c.id,
+        l."MaMonHoc",
+        CASE
+          WHEN c."LoaiDangKy" = 'hoc_moi' AND h.has_pass THEN 'hoc_cai_thien'
+          WHEN c."LoaiDangKy" = 'hoc_moi' AND h.has_fail THEN 'hoc_lai'
+          ELSE c."LoaiDangKy"
+        END AS next_type
+      FROM "CHITIETDANGKY" c
+      JOIN "LOP" l ON l."MaLop" = c."MaLop"
+      JOIN "PHIEUDANGKY" p ON p."SoPhieu" = c."SoPhieu"
+      LEFT JOIN history h ON h."MaSv" = p."MaSv" AND h."MaMonHoc" = l."MaMonHoc"
+      WHERE c."MaMonHoc" IS NULL
+    )
     UPDATE "CHITIETDANGKY" ctdk
-    SET "MaMonHoc" = l."MaMonHoc"
-    FROM "LOP" l
-    WHERE l."MaLop" = ctdk."MaLop"
-      AND ctdk."MaMonHoc" IS NULL
+    SET
+      "MaMonHoc" = candidates."MaMonHoc",
+      "LoaiDangKy" = candidates.next_type
+    FROM candidates
+    WHERE ctdk.id = candidates.id
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -1467,6 +1634,16 @@ const ensureAuthSchema = async () => {
     DO $$
     BEGIN
       IF to_regclass('"DIEMSINHVIEN"') IS NOT NULL THEN
+        IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_rbtv22_mondahoc_insert' AND tgrelid = '"MONDAHOC"'::regclass) THEN
+          ALTER TABLE "MONDAHOC" DISABLE TRIGGER trg_rbtv22_mondahoc_insert;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_rbtv22_mondahoc_update' AND tgrelid = '"MONDAHOC"'::regclass) THEN
+          ALTER TABLE "MONDAHOC" DISABLE TRIGGER trg_rbtv22_mondahoc_update;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_rbtv22_mondahoc_delete' AND tgrelid = '"MONDAHOC"'::regclass) THEN
+          ALTER TABLE "MONDAHOC" DISABLE TRIGGER trg_rbtv22_mondahoc_delete;
+        END IF;
+
         INSERT INTO "MONDAHOC" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "LanHoc", "KetQua", "GhiChu", "NguoiCapNhat", "NgayTao", "NgayCapNhat")
         SELECT
           d."MaSv",
@@ -1486,6 +1663,61 @@ const ensureAuthSchema = async () => {
           d."NgayCapNhat"
         FROM "DIEMSINHVIEN" d
         ON CONFLICT ("MaSv", "MaMonHoc", "MaHocKy", "LanHoc") DO NOTHING;
+
+        WITH history AS (
+          SELECT
+            "MaSv",
+            "MaMonHoc",
+            BOOL_OR("KetQua" = 'qua_mon') AS has_pass,
+            BOOL_OR("KetQua" = 'rot') AS has_fail
+          FROM "MONDAHOC"
+          WHERE COALESCE("DaXoa", FALSE) = FALSE
+          GROUP BY "MaSv", "MaMonHoc"
+        ), candidates AS (
+          SELECT
+            c.id,
+            p."MaHocKy",
+            hk."LoaiHocKy",
+            CASE
+              WHEN h.has_pass THEN 'hoc_cai_thien'
+              WHEN h.has_fail THEN 'hoc_lai'
+              ELSE c."LoaiDangKy"
+            END AS next_type
+          FROM "CHITIETDANGKY" c
+          JOIN "PHIEUDANGKY" p ON p."SoPhieu" = c."SoPhieu"
+          JOIN "LOP" l ON l."MaLop" = c."MaLop"
+          JOIN "HOCKY" hk ON hk."MaHocKy" = p."MaHocKy"
+          JOIN history h ON h."MaSv" = p."MaSv" AND h."MaMonHoc" = COALESCE(c."MaMonHoc", l."MaMonHoc")
+          WHERE c."TrangThai" = 'Đã đăng ký'
+            AND c."LoaiDangKy" = 'hoc_moi'
+            AND (h.has_pass OR h.has_fail)
+        )
+        UPDATE "CHITIETDANGKY" c
+        SET
+          "LoaiDangKy" = candidates.next_type,
+          "DonGia" = fn_lay_don_gia(
+            c."LoaiMon",
+            CASE WHEN candidates."LoaiHocKy" = U&'H\\00E8' AND candidates.next_type = 'hoc_moi' THEN 'hoc_he' ELSE candidates.next_type END,
+            candidates."MaHocKy"
+          ),
+          "ThanhTien" = COALESCE(c."SoTinChi", 0) * fn_lay_don_gia(
+            c."LoaiMon",
+            CASE WHEN candidates."LoaiHocKy" = U&'H\\00E8' AND candidates.next_type = 'hoc_moi' THEN 'hoc_he' ELSE candidates.next_type END,
+            candidates."MaHocKy"
+          )
+        FROM candidates
+        WHERE c.id = candidates.id
+          AND candidates.next_type <> c."LoaiDangKy";
+
+        IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_rbtv22_mondahoc_insert' AND tgrelid = '"MONDAHOC"'::regclass) THEN
+          ALTER TABLE "MONDAHOC" ENABLE TRIGGER trg_rbtv22_mondahoc_insert;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_rbtv22_mondahoc_update' AND tgrelid = '"MONDAHOC"'::regclass) THEN
+          ALTER TABLE "MONDAHOC" ENABLE TRIGGER trg_rbtv22_mondahoc_update;
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_rbtv22_mondahoc_delete' AND tgrelid = '"MONDAHOC"'::regclass) THEN
+          ALTER TABLE "MONDAHOC" ENABLE TRIGGER trg_rbtv22_mondahoc_delete;
+        END IF;
 
         DROP TABLE "DIEMSINHVIEN" CASCADE;
       END IF;
@@ -1678,7 +1910,8 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "CheckoutUrl" VARCHAR(1000),
       ADD COLUMN IF NOT EXISTS "QrPayload" TEXT,
       ADD COLUMN IF NOT EXISTS "NgayXacNhan" TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP
+      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP,
+      ALTER COLUMN "TrangThai" SET DEFAULT 'Chưa thanh toán'
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -1692,7 +1925,7 @@ const ensureAuthSchema = async () => {
       END IF;
       ALTER TABLE "PHIEUTHUHOCPHI"
         ADD CONSTRAINT chk_hinh_thuc_thu CHECK ("HinhThucThu" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
-        ADD CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy'));
+        ADD CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chưa thanh toán', 'Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy', 'Hoàn tiền'));
     END $$;
   `);
 
@@ -1766,6 +1999,11 @@ const ensureAuthSchema = async () => {
       v_deadline TIMESTAMP;
       v_trangthai VARCHAR(20);
     BEGIN
+      IF current_setting('app.appeal_approval', true) = '1'
+         OR current_setting('app.finalize_registration', true) = '1' THEN
+        RETURN NEW;
+      END IF;
+
       SELECT "NgayBatDauDangKy", "NgayKetThucDangKy", "TrangThai"
       INTO v_ngaybatdau, v_ngayketthuc, v_trangthai
       FROM "HOCKY"
@@ -1808,6 +2046,11 @@ const ensureAuthSchema = async () => {
       v_trangthai VARCHAR(20);
       v_is_finalize_cancel BOOLEAN;
     BEGIN
+      IF current_setting('app.appeal_approval', true) = '1'
+         OR current_setting('app.finalize_registration', true) = '1' THEN
+        RETURN NEW;
+      END IF;
+
       SELECT hk."NgayBatDauDangKy", hk."NgayKetThucDangKy", hk."TrangThai"
       INTO v_ngaybatdau, v_ngayketthuc, v_trangthai
       FROM "PHIEUDANGKY" pdk
@@ -1820,7 +2063,7 @@ const ensureAuthSchema = async () => {
         ELSE v_ngayketthuc
       END;
       v_is_finalize_cancel := NEW."TrangThai" = 'Đã hủy'
-        AND COALESCE(NEW."LyDoHuy", '') = 'Lớp không đủ 75% sức chứa khi chốt đăng ký';
+        AND COALESCE(NEW."LyDoHuy", '') IN ('Lớp không đủ 75% sức chứa khi chốt đăng ký', 'Hủy do không đủ sinh viên đăng ký');
 
       IF NEW."TrangThai" = 'Đã đăng ký' THEN
         IF v_ngaybatdau IS NULL

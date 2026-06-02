@@ -49,6 +49,10 @@ block content
           option(value="NgayKetThuc") Kết thúc học kỳ
           option(value="NgayBatDauDangKy") Bắt đầu đăng ký
           option(value="NgayKetThucDangKy") Hạn đăng ký
+          option(value="NgayBatDauCuuXet") Bắt đầu cứu xét
+          option(value="NgayKetThucCuuXet") Hạn cứu xét
+          option(value="NgayChotDangKy") Ngày chốt đăng ký
+          option(value="NgayMoThuHocPhi") Ngày mở thu học phí
           option(value="HanDongHocPhi") Hạn đóng học phí
       .semester-filter-field.semester-filter-date-exact
         label(for="semester-date-exact") Ngày cần tìm
@@ -126,6 +130,14 @@ block modals
               label(for="hk-ketthucdk") Hạn kết thúc đăng ký
               input.form-control#hk-ketthucdk(type="date" aria-describedby="hk-registration-date-error")
               small.field-error#hk-registration-date-error(aria-live="polite")
+          .form-row
+            .form-group
+              label(for="hk-batdaucx") Bắt đầu cứu xét
+              input.form-control#hk-batdaucx(type="date" aria-describedby="hk-appeal-date-error")
+            .form-group
+              label(for="hk-ketthuccx") Hạn kết thúc cứu xét
+              input.form-control#hk-ketthuccx(type="date" aria-describedby="hk-appeal-date-error")
+              small.field-error#hk-appeal-date-error(aria-live="polite")
           .form-group
             label(for="hk-hanhocphi") Hạn đóng học phí
             input.form-control#hk-hanhocphi(type="date" aria-describedby="hk-tuition-date-error")

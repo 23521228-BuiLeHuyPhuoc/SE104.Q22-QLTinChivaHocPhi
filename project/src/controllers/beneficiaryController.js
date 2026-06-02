@@ -68,7 +68,7 @@ const getBeneficiaryStudents = async (req, res) => {
     const { id } = req.params;
     const students = await prisma.DOITUONGSINHVIEN.findMany({
       where: { MaDoiTuong: id, SINHVIEN: { DaXoa: false } },
-      include: { SINHVIEN: { select: { MaSv: true, HoTen: true, Email: true, MaNgành: true, TrangThai: true } } },
+      include: { SINHVIEN: { select: { MaSv: true, HoTen: true, Email: true, MaNganh: true, TrangThai: true } } },
       orderBy: { NgayTao: 'desc' }
     });
     res.json({ success: true, data: students });

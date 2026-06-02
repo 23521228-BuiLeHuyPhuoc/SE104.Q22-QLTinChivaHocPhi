@@ -62,7 +62,7 @@ const getCourseById = async (req, res) => {
         },
         CHUONGTRINHHOC: {
           include: { NGANHHOC: true },
-          orderBy: [{ MaNgành: 'asc' }, { HocKyDuKien: 'asc' }]
+          orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }]
         }
       }
     });
@@ -82,8 +82,8 @@ const getCourseById = async (req, res) => {
       TrangThai: opened.TrangThai
     })));
     const curricula = (mh.CHUONGTRINHHOC || []).map((row) => ({
-      MaNgành: row.MaNgành,
-      TenNgành: row.NGANHHOC?.TenNgành,
+      MaNganh: row.MaNganh,
+      TenNganh: row.NGANHHOC?.TenNganh,
       HocKyDuKien: row.HocKyDuKien,
       BatBuoc: row.BatBuoc !== false,
       TrangThai: row.TrangThai !== false
@@ -222,12 +222,12 @@ const getMyCurriculum = async (req, res) => {
 
     const student = await prisma.SINHVIEN.findFirst({
       where: { MaSv: studentId, DaXoa: false },
-      select: { MaSv: true, HoTen: true, MaNgành: true, NGANHHOC: { select: { MaNgành: true, TenNgành: true, MaKhoa: true, SoTinChiToiThieu: true } } }
+      select: { MaSv: true, HoTen: true, MaNganh: true, NGANHHOC: { select: { MaNganh: true, TenNganh: true, MaKhoa: true, SoTinChiToiThieu: true } } }
     });
     if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
 
     let curriculumRows = await prisma.CHUONGTRINHHOC.findMany({
-      where: { MaNgành: student.MaNgành, TrangThai: true, MONHOC: { DaXoa: false, TrangThai: true } },
+      where: { MaNganh: student.MaNganh, TrangThai: true, MONHOC: { DaXoa: false, TrangThai: true } },
       orderBy: [{ HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
       include: { MONHOC: { include: { KHOA: true } } }
     });
@@ -239,7 +239,7 @@ const getMyCurriculum = async (req, res) => {
         include: { KHOA: true }
       });
       curriculumRows = fallbackCourses.map((course, index) => ({
-        MaNgành: student.MaNgành,
+        MaNganh: student.MaNganh,
         MaMonHoc: course.MaMonHoc,
         HocKyDuKien: Math.min(Math.floor(index / 6) + 1, 8),
         BatBuoc: true,
@@ -289,7 +289,7 @@ const getMyCurriculum = async (req, res) => {
       const latestHistory = histories[0] || null;
       const status = passed ? 'passed' : registered ? 'registered' : failed ? 'failed' : 'not_started';
       return {
-        MaNgành: row.MaNgành,
+        MaNganh: row.MaNganh,
         MaMonHoc: row.MaMonHoc,
         TenMonHoc: course.TenMonHoc,
         LoaiMon: course.LoaiMon,
@@ -314,7 +314,7 @@ const getMyCurriculum = async (req, res) => {
     res.json({
       success: true,
       data: {
-        student: { MaSv: student.MaSv, HoTen: student.HoTen, MaNgành: student.MaNgành, TenNgành: student.NGANHHOC?.TenNgành },
+        student: { MaSv: student.MaSv, HoTen: student.HoTen, MaNganh: student.MaNganh, TenNganh: student.NGANHHOC?.TenNganh },
         summary: {
           totalCourses: courses.length,
           totalCredits,

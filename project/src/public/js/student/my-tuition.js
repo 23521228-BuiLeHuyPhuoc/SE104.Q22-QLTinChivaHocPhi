@@ -28,10 +28,10 @@ function closeTuitionDetailModal() {
   if (modal) modal.classList.remove('active');
 }
 
-function openPaymentModal(soPhieu, amount) {
+function openPaymentModal(receiptId, amount) {
   var modal = document.getElementById('payment-modal');
-  document.getElementById('payment-so-phieu').value = soPhieu;
-  document.getElementById('payment-amount').value = Math.max(Number(amount || 0), 0);
+  document.getElementById('payment-receipt-id').value = receiptId;
+  document.getElementById('payment-amount-label').textContent = formatCurrency(Math.max(Number(amount || 0), 0));
   document.getElementById('payment-result').innerHTML = '';
   if (modal) modal.classList.add('active');
 }
@@ -60,21 +60,20 @@ function openFirstPayableTuition() {
     showToast('Bạn không còn khoản học phí cần đóng', 'success');
     return;
   }
-  openPaymentModal(item.SoPhieu, item.remaining);
+  openPaymentModal(item.SoPhieuThu, item.remaining);
 }
 
 async function checkoutPayment() {
-  var soPhieu = Number(document.getElementById('payment-so-phieu').value);
-  var amount = Number(document.getElementById('payment-amount').value);
+  var receiptId = Number(document.getElementById('payment-receipt-id').value);
   var method = document.getElementById('payment-method').value;
   var result = document.getElementById('payment-result');
-  if (!soPhieu || amount <= 0) {
-    showToast('Số tiền thanh toán không hợp lệ', 'error');
+  if (!receiptId) {
+    showToast('Không tìm thấy phiếu thu cần thanh toán', 'error');
     return;
   }
-  var res = await apiFetch('/api/payments/checkout', {
+  var res = await apiFetch('/api/payments/' + encodeURIComponent(receiptId) + '/checkout', {
     method: 'POST',
-    body: { SoPhieu: soPhieu, SoTienThu: amount, method: method }
+    body: { method: method }
   });
   if (!res || res.success === false) {
     showToast((res && res.message) || 'Không tạo được thanh toán', 'error');
@@ -203,13 +202,14 @@ async function loadMyTuition(page) {
         var canPay = remaining > 0 && t.CoTheThanhToan !== false;
         var unavailableReason = tuitionEscapeHtml(t.LyDoChuaTheThanhToan || 'Chỉ có thể thanh toán sau khi kết thúc hạn đăng ký.');
         var badgeClass = remaining <= 0 ? 'badge-success' : t.TrangThai === 'Quá hạn' ? 'badge-error' : paid > 0 ? 'badge-warning' : 'badge-error';
+        var receipt = t.PayableReceipt || null;
         var actionHtml = remaining <= 0
           ? '<button class="btn btn-sm btn-outline" type="button" onclick="viewTuitionDetail(' + t.SoPhieu + ')">Chi tiết</button>'
-          : canPay
-            ? '<button class="btn btn-sm btn-outline" type="button" onclick="viewTuitionDetail(' + t.SoPhieu + ')">Chi tiết</button> <button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + t.SoPhieu + ', ' + remaining + ')">Đóng học phí</button>'
+          : canPay && receipt
+            ? '<button class="btn btn-sm btn-outline" type="button" onclick="viewTuitionDetail(' + t.SoPhieu + ')">Chi tiết</button> <button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + receipt.SoPhieuThu + ', ' + Number(receipt.SoTienThu || remaining) + ')">Đóng học phí</button>'
             : '<button class="btn btn-sm btn-outline" type="button" onclick="viewTuitionDetail(' + t.SoPhieu + ')">Chi tiết</button> <button class="btn btn-sm btn-outline" type="button" title="' + unavailableReason + '" disabled>Chưa mở thanh toán</button>';
-        if (canPay) {
-          payableTuitionRows.push({ SoPhieu: t.SoPhieu, remaining: remaining });
+        if (canPay && receipt) {
+          payableTuitionRows.push({ SoPhieu: t.SoPhieu, SoPhieuThu: receipt.SoPhieuThu, remaining: Number(receipt.SoTienThu || remaining) });
         } else if (remaining > 0) {
           blockedTuitionRows.push({ SoPhieu: t.SoPhieu, remaining: remaining, reason: t.LyDoChuaTheThanhToan });
         }

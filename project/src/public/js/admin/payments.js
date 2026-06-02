@@ -42,6 +42,16 @@ function closeModal() {
   document.getElementById('payment-modal').classList.remove('active');
 }
 
+function openBulkModal() {
+  var modal = document.getElementById('payment-bulk-modal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeBulkModal() {
+  var modal = document.getElementById('payment-bulk-modal');
+  if (modal) modal.classList.remove('active');
+}
+
 function closePaymentDetail() {
   var modal = document.getElementById('payment-detail-modal');
   if (modal) modal.classList.remove('active');
@@ -145,6 +155,26 @@ async function savePayment() {
   }
 }
 
+async function saveBulkPayments() {
+  var semester = document.getElementById('bulk-hocky').value;
+  if (!semester) {
+    showToast('Vui lòng chọn học kỳ', 'error');
+    return;
+  }
+  try {
+    var res = await apiFetch('/api/payments/bulk', { method: 'POST', body: { MaHocKy: semester } });
+    if (res.success) {
+      showToast(res.message || 'Đã tạo phiếu thu hàng loạt', 'success');
+      closeBulkModal();
+      setTimeout(function() { location.reload(); }, 500);
+    } else {
+      showToast(res.message || 'Không thể tạo phiếu thu hàng loạt', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
 async function confirmPayment(id) {
   if (!confirm('Xác nhận phiếu thu này đã thanh toán?')) return;
   try {
@@ -169,6 +199,21 @@ async function cancelPayment(id) {
       setTimeout(function() { location.reload(); }, 500);
     } else {
       showToast(res.message || 'Không thể hủy phiếu thu', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function failPayment(id) {
+  if (!confirm('Đánh dấu phiếu thu này là thất bại/từ chối?')) return;
+  try {
+    var res = await apiFetch('/api/payments/' + id + '/fail', { method: 'PUT', body: { LyDo: 'Admin từ chối xác nhận thanh toán' } });
+    if (res.success) {
+      showToast(res.message || 'Đã đánh dấu thất bại', 'success');
+      setTimeout(function() { location.reload(); }, 500);
+    } else {
+      showToast(res.message || 'Không thể cập nhật phiếu thu', 'error');
     }
   } catch (e) {
     showToast('Lỗi kết nối', 'error');

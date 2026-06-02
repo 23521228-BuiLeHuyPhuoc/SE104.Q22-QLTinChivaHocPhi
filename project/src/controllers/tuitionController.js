@@ -3,12 +3,16 @@ const { recalculateRegistrationTotals, getRegistrationTypeLabel } = require('./r
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const {
   PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE,
+  PAYMENT_BLOCKED_NOT_OPEN_MESSAGE,
   getPaymentRegistrationBlock
 } = require('../utils/paymentRules');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { PAYMENT_STATUS, APPEAL_STATUS } = require('../utils/businessConstants');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
-const PAYMENT_SUCCESS = 'Thành công';
+const PAYMENT_SUCCESS = PAYMENT_STATUS.SUCCESS;
+const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
+const PAYABLE_RECEIPT_STATUSES = [PAYMENT_STATUS.UNPAID, PAYMENT_STATUS.FAILED];
 
 const getStudentIdFromRequest = async (req) => {
   if (req.user?.Role === 'admin') return null;
@@ -28,12 +32,41 @@ const ensureStudentAccess = async (req, res, studentId) => {
   return false;
 };
 
+const addMonths = (value, months) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setMonth(date.getMonth() + months);
+  return date;
+};
+
+const hasExtendedTuitionDueDate = (registration) => (registration?.CHITIETDANGKY || [])
+  .some((detail) => ['hoc_lai', 'hoc_cai_thien'].includes(detail.LoaiDangKy));
+
+const getEffectiveTuitionDueDate = (registration) => {
+  const baseDue = registration?.HOCKY?.HanDongHocPhi || null;
+  return hasExtendedTuitionDueDate(registration) ? addMonths(baseDue, 2) : baseDue;
+};
+
+const getPayableReceipt = (registration) => (registration?.PHIEUTHUHOCPHI || [])
+  .find((receipt) => PAYABLE_RECEIPT_STATUSES.includes(receipt.TrangThai));
+
+const getPendingAppealCountMap = async (semesterIds = []) => {
+  const ids = Array.from(new Set(semesterIds.filter(Boolean)));
+  if (!ids.length) return new Map();
+  const rows = await prisma.DONCUUXETDANGKY.groupBy({
+    by: ['MaHocKy'],
+    where: { MaHocKy: { in: ids }, TrangThai: APPEAL_STATUS.PENDING },
+    _count: { _all: true }
+  });
+  return new Map(rows.map((row) => [row.MaHocKy, row._count._all]));
+};
+
 const tuitionStatus = (amountDue, amountPaid, dueDate) => {
   const remaining = Math.max(amountDue - amountPaid, 0);
   if (amountDue <= 0) return 'Chưa phát sinh';
   if (remaining <= 0) return 'Đã đóng đủ';
   if (dueDate && new Date(dueDate) < new Date()) return 'Quá hạn';
-  if (amountPaid > 0) return 'Đóng một phần';
   return 'Còn nợ';
 };
 
@@ -47,12 +80,15 @@ const matchesTuitionStatus = (row, status) => {
   return row.TrangThai === status;
 };
 
-const buildTuitionDetail = (registration) => {
+const buildTuitionDetail = (registration, pendingAppeals = 0) => {
   const successPayments = registration.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
-  const daDong = successPayments.reduce((s, p) => s + Number(p.SoTienThu), 0);
+  const refunds = registration.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_REFUND);
+  const daDong = successPayments.reduce((s, p) => s + Number(p.SoTienThu), 0) - refunds.reduce((s, p) => s + Number(p.SoTienThu), 0);
   const phaiDong = Number(registration.TongTienPhaiDong || 0);
   const conNo = Math.max(phaiDong - daDong, 0);
-  const paymentBlock = getPaymentRegistrationBlock(registration.HOCKY);
+  const paymentBlock = getPaymentRegistrationBlock(registration.HOCKY, new Date(), { pendingAppeals });
+  const payableReceipt = getPayableReceipt(registration);
+  const effectiveDueDate = getEffectiveTuitionDueDate(registration);
   const discounts = (registration.SINHVIEN?.DOITUONGSINHVIEN || [])
     .map((row) => row.DOITUONG)
     .filter(Boolean)
@@ -70,7 +106,9 @@ const buildTuitionDetail = (registration) => {
     MaHocKy: registration.MaHocKy,
     TenHocKy: registration.HOCKY.TenHocKy,
     TenNamHoc: registration.HOCKY.NAMHOC?.TenNamHoc,
-    HanDongHocPhi: registration.HOCKY.HanDongHocPhi,
+    HanDongHocPhiGoc: registration.HOCKY.HanDongHocPhi,
+    HanDongHocPhi: effectiveDueDate,
+    GiaHanNoHocPhi: hasExtendedTuitionDueDate(registration),
     NgayKetThucDangKy: registration.HOCKY.NgayKetThucDangKy,
     TongTienDangKy: Number(registration.TongTienDangKy || 0),
     TiLeGiam: Number(registration.TiLeGiam || 0),
@@ -79,10 +117,17 @@ const buildTuitionDetail = (registration) => {
     TongTienDaDong: daDong,
     conNo,
     ConNo: conNo,
-    CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
-    LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
-    QuaHan: conNo > 0 && registration.HOCKY.HanDongHocPhi && new Date(registration.HOCKY.HanDongHocPhi) < new Date(),
-    TrangThai: tuitionStatus(phaiDong, daDong, registration.HOCKY.HanDongHocPhi),
+    CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
+    LyDoChuaTheThanhToan: paymentBlock.blocked
+      ? paymentBlock.message
+      : (!payableReceipt && conNo > 0 ? 'Chưa có phiếu thu học phí do admin tạo' : null),
+    QuaHan: conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date(),
+    TrangThai: tuitionStatus(phaiDong, daDong, effectiveDueDate),
+    PayableReceipt: payableReceipt ? {
+      SoPhieuThu: payableReceipt.SoPhieuThu,
+      SoTienThu: Number(payableReceipt.SoTienThu || 0),
+      TrangThai: payableReceipt.TrangThai
+    } : null,
     discounts,
     courses: registration.CHITIETDANGKY.map((c) => ({
       MaMonHoc: c.MaMonHoc || c.LOP.MaMonHoc,
@@ -111,19 +156,24 @@ const getAllTuition = async (req, res) => {
     const include = {
       SINHVIEN: true,
       HOCKY: { include: { NAMHOC: true } },
-      PHIEUTHUHOCPHI: { where: { TrangThai: { in: [PAYMENT_SUCCESS, 'Hoàn tiền'] } } },
+      PHIEUTHUHOCPHI: true,
       CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } }
     };
 
+    let pendingAppealCountBySemester = new Map();
+
     const mapRow = (t) => {
       const successPayments = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
-      const refunds = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === 'Hoàn tiền');
+      const refunds = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_REFUND);
       const daDong = successPayments.reduce((s, p) => s + Number(p.SoTienThu), 0);
       const hoantien = refunds.reduce((s, p) => s + Number(p.SoTienThu), 0);
       const effectivePaid = daDong - hoantien;
       const phaiDong = Number(t.TongTienPhaiDong) || 0;
       const conNo = Math.max(phaiDong - effectivePaid, 0);
-      const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
+      const pendingAppeals = pendingAppealCountBySemester.get(t.MaHocKy) || 0;
+      const paymentBlock = getPaymentRegistrationBlock(t.HOCKY, new Date(), { pendingAppeals });
+      const payableReceipt = getPayableReceipt(t);
+      const effectiveDueDate = getEffectiveTuitionDueDate(t);
       return {
         SoPhieu: t.SoPhieu,
         MaSv: t.MaSv,
@@ -132,21 +182,27 @@ const getAllTuition = async (req, res) => {
         MaHocKy: t.MaHocKy,
         TenHocKy: t.HOCKY.TenHocKy,
         TenNamHoc: t.HOCKY.NAMHOC.TenNamHoc,
-        HanDongHocPhi: t.HOCKY.HanDongHocPhi,
+        HanDongHocPhiGoc: t.HOCKY.HanDongHocPhi,
+        HanDongHocPhi: effectiveDueDate,
+        GiaHanNoHocPhi: hasExtendedTuitionDueDate(t),
         soMon: t.CHITIETDANGKY.length,
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: effectivePaid,
         conNo,
-        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
-        LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
-        QuaHan: conNo > 0 && t.HOCKY.HanDongHocPhi && new Date(t.HOCKY.HanDongHocPhi) < new Date(),
-        TrangThai: tuitionStatus(phaiDong, effectivePaid, t.HOCKY.HanDongHocPhi)
+        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
+        LyDoChuaTheThanhToan: paymentBlock.blocked
+          ? paymentBlock.message
+          : (!payableReceipt && conNo > 0 ? 'Chưa có phiếu thu học phí do admin tạo' : null),
+        PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: Number(payableReceipt.SoTienThu || 0), TrangThai: payableReceipt.TrangThai } : null,
+        QuaHan: conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date(),
+        TrangThai: tuitionStatus(phaiDong, effectivePaid, effectiveDueDate)
       };
     };
 
     if (status) {
       // When filtering by status, we must compute status for all rows first
       const allRows = await prisma.PHIEUDANGKY.findMany({ where, orderBy: { NgayLap: 'desc' }, include });
+      pendingAppealCountBySemester = await getPendingAppealCountMap(allRows.map((row) => row.MaHocKy));
       const allMapped = allRows.map(mapRow).filter((row) => matchesTuitionStatus(row, status));
       const total = allMapped.length;
       const data = allMapped.slice(skip, skip + limit);
@@ -157,6 +213,7 @@ const getAllTuition = async (req, res) => {
         prisma.PHIEUDANGKY.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include }),
         prisma.PHIEUDANGKY.count({ where })
       ]);
+      pendingAppealCountBySemester = await getPendingAppealCountMap(rows.map((row) => row.MaHocKy));
       const data = rows.map(mapRow);
       res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
     }
@@ -177,7 +234,8 @@ const getTuitionById = async (req, res) => {
       }
     });
     if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
-    res.json({ success: true, data: buildTuitionDetail(t) });
+    const pendingAppeals = await prisma.DONCUUXETDANGKY.count({ where: { MaHocKy: t.MaHocKy, TrangThai: APPEAL_STATUS.PENDING } });
+    res.json({ success: true, data: buildTuitionDetail(t, pendingAppeals) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition by ID error:');
   }
@@ -196,7 +254,8 @@ const getTuitionDetail = async (req, res) => {
     });
     if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
     if (!(await ensureStudentAccess(req, res, t.MaSv))) return;
-    res.json({ success: true, data: buildTuitionDetail(t) });
+    const pendingAppeals = await prisma.DONCUUXETDANGKY.count({ where: { MaHocKy: t.MaHocKy, TrangThai: APPEAL_STATUS.PENDING } });
+    res.json({ success: true, data: buildTuitionDetail(t, pendingAppeals) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition detail error:');
   }
@@ -217,7 +276,8 @@ const getStudentTuition = async (req, res) => {
     const include = {
       SINHVIEN: { select: { HoTen: true, Email: true } },
       HOCKY: { include: { NAMHOC: true } },
-      PHIEUTHUHOCPHI: { where: { TrangThai: { in: [PAYMENT_SUCCESS, 'Hoàn tiền'] } }, select: { SoTienThu: true, TrangThai: true } }
+      CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, select: { LoaiDangKy: true } },
+      PHIEUTHUHOCPHI: true
     };
     const [rows, total, summaryAgg] = await Promise.all([
       prisma.PHIEUDANGKY.findMany({
@@ -238,25 +298,28 @@ const getStudentTuition = async (req, res) => {
     const allPayments = await prisma.PHIEUTHUHOCPHI.findMany({
       where: {
         MaSv: studentId,
-        TrangThai: { in: [PAYMENT_SUCCESS, 'Hoàn tiền'] },
+        TrangThai: { in: [PAYMENT_SUCCESS, PAYMENT_REFUND] },
         PHIEUDANGKY: { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false }, ...(semesterId ? { MaHocKy: semesterId } : {}) }
       },
       select: { SoTienThu: true, TrangThai: true }
     });
     const totalPaid = allPayments.filter((p) => p.TrangThai === PAYMENT_SUCCESS).reduce((s, p) => s + Number(p.SoTienThu || 0), 0);
-    const totalRefunded = allPayments.filter((p) => p.TrangThai === 'Hoàn tiền').reduce((s, p) => s + Number(p.SoTienThu || 0), 0);
+    const totalRefunded = allPayments.filter((p) => p.TrangThai === PAYMENT_REFUND).reduce((s, p) => s + Number(p.SoTienThu || 0), 0);
     const totalFee = Number(summaryAgg._sum.TongTienPhaiDong || 0);
     const effectivePaid = totalPaid - totalRefunded;
 
+    const pendingAppealCountBySemester = await getPendingAppealCountMap(rows.map((row) => row.MaHocKy));
     const data = rows.map((t) => {
       const successPayments = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
-      const refunds = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === 'Hoàn tiền');
+      const refunds = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_REFUND);
       const daDong = successPayments.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
       const hoantien = refunds.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
       const effectiveRowPaid = daDong - hoantien;
       const phaiDong = Number(t.TongTienPhaiDong || 0);
       const conNo = Math.max(phaiDong - effectiveRowPaid, 0);
-      const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
+      const paymentBlock = getPaymentRegistrationBlock(t.HOCKY, new Date(), { pendingAppeals: pendingAppealCountBySemester.get(t.MaHocKy) || 0 });
+      const payableReceipt = getPayableReceipt(t);
+      const effectiveDueDate = getEffectiveTuitionDueDate(t);
       return {
         SoPhieu: t.SoPhieu,
         HoTen: t.SINHVIEN?.HoTen,
@@ -264,7 +327,9 @@ const getStudentTuition = async (req, res) => {
         MaHocKy: t.MaHocKy,
         TenHocKy: t.HOCKY?.TenHocKy,
         TenNamHoc: t.HOCKY?.NAMHOC?.TenNamHoc,
-        HanDongHocPhi: t.HOCKY?.HanDongHocPhi,
+        HanDongHocPhiGoc: t.HOCKY?.HanDongHocPhi,
+        HanDongHocPhi: effectiveDueDate,
+        GiaHanNoHocPhi: hasExtendedTuitionDueDate(t),
         NgayKetThucDangKy: t.HOCKY?.NgayKetThucDangKy,
         TongTienDangKy: Number(t.TongTienDangKy || 0),
         TiLeGiam: Number(t.TiLeGiam || 0),
@@ -272,9 +337,12 @@ const getStudentTuition = async (req, res) => {
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: effectiveRowPaid,
         conNo,
-        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
-        LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
-        TrangThai: tuitionStatus(phaiDong, effectiveRowPaid, t.HOCKY?.HanDongHocPhi)
+        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
+        LyDoChuaTheThanhToan: paymentBlock.blocked
+          ? paymentBlock.message
+          : (!payableReceipt && conNo > 0 ? 'Chưa có phiếu thu học phí do admin tạo' : null),
+        PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: Number(payableReceipt.SoTienThu || 0), TrangThai: payableReceipt.TrangThai } : null,
+        TrangThai: tuitionStatus(phaiDong, effectiveRowPaid, effectiveDueDate)
       };
     });
 

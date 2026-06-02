@@ -2,13 +2,22 @@ const prisma = require('../config/database');
 const { getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
-const { assertRegistrationClosed, getRegistrationWindowState } = require('../utils/registrationWindow');
+const {
+  getRegistrationWindowState,
+  getAppealWindowState,
+  getSemesterWorkflowState,
+  assertCanFinalizeRegistration,
+  assertCanOpenTuitionPayment
+} = require('../utils/registrationWindow');
+const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
 const { recalculateRegistrationTotals } = require('./registrationController');
+const { REGISTRATION_STATUS, APPEAL_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
 
-const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
-const CANCELLED_REGISTRATION_STATUS = 'Đã hủy';
-const ONGOING_SEMESTER_STATUS = 'Đang diễn ra';
+const ACTIVE_REGISTRATION_STATUS = REGISTRATION_STATUS.ACTIVE;
+const CANCELLED_REGISTRATION_STATUS = REGISTRATION_STATUS.CANCELLED;
+const ONGOING_SEMESTER_STATUS = SEMESTER_STATUS.ONGOING;
 const MIN_OPEN_CLASS_RATIO = 0.75;
+const FINALIZE_CANCEL_REASON = 'Hủy do không đủ sinh viên đăng ký';
 
 const semesterSelect = (hk) => ({
   MaHocKy: hk.MaHocKy,
@@ -27,6 +36,11 @@ const semesterSelect = (hk) => ({
   NgayKetThuc: hk.NgayKetThuc,
   NgayBatDauDangKy: hk.NgayBatDauDangKy,
   NgayKetThucDangKy: hk.NgayKetThucDangKy,
+  NgayBatDauCuuXet: hk.NgayBatDauCuuXet,
+  NgayKetThucCuuXet: hk.NgayKetThucCuuXet,
+  NgayChotDangKy: hk.NgayChotDangKy,
+  MoThuHocPhi: hk.MoThuHocPhi,
+  NgayMoThuHocPhi: hk.NgayMoThuHocPhi,
   HanDongHocPhi: hk.HanDongHocPhi,
   TrangThai: hk.TrangThai,
   NgayCapNhat: hk.NgayCapNhat,
@@ -38,6 +52,8 @@ const semesterSelect = (hk) => ({
 
 const registrationSemesterSelect = (semester) => {
   const windowState = getRegistrationWindowState(semester);
+  const appealWindow = getAppealWindowState(semester);
+  const workflow = getSemesterWorkflowState(semester);
   return {
     ...semesterSelect(semester),
     RegistrationWindow: {
@@ -48,7 +64,17 @@ const registrationSemesterSelect = (semester) => {
       registrationStart: windowState.registrationStart,
       registrationDeadline: windowState.registrationDeadline
     },
+    AppealWindow: {
+      isOpen: appealWindow.isOpen,
+      isClosed: appealWindow.isClosed,
+      reason: appealWindow.reason,
+      message: appealWindow.message,
+      appealStart: appealWindow.appealStart,
+      appealDeadline: appealWindow.appealDeadline
+    },
+    Workflow: workflow,
     CoTheDangKy: windowState.isOpen,
+    CoTheCuuXet: appealWindow.isOpen,
     LyDoKhongTheDangKy: windowState.message
   };
 };
@@ -81,7 +107,17 @@ const parseAcademicYearStatus = (value) => (
 
 const SEMESTER_DEFAULT_PAGE_SIZE = 15;
 const SEMESTER_PAGE_SIZES = new Set([5, 10, 15]);
-const SEMESTER_DATE_FIELDS = new Set(['NgayBatDau', 'NgayKetThuc', 'NgayBatDauDangKy', 'NgayKetThucDangKy', 'HanDongHocPhi']);
+const SEMESTER_DATE_FIELDS = new Set([
+  'NgayBatDau',
+  'NgayKetThuc',
+  'NgayBatDauDangKy',
+  'NgayKetThucDangKy',
+  'NgayBatDauCuuXet',
+  'NgayKetThucCuuXet',
+  'NgayChotDangKy',
+  'NgayMoThuHocPhi',
+  'HanDongHocPhi'
+]);
 
 const toPositiveInt = (value, fallback) => {
   const parsed = parseInt(value, 10);
@@ -276,11 +312,21 @@ const getSemesterPage = async (query = {}) => {
   };
 };
 
-const validateSemesterDateRange = ({ NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi }) => {
+const validateSemesterDateRange = ({
+  NgayBatDau,
+  NgayKetThuc,
+  NgayBatDauDangKy,
+  NgayKetThucDangKy,
+  NgayBatDauCuuXet,
+  NgayKetThucCuuXet,
+  HanDongHocPhi
+}) => {
   const start = NgayBatDau ? toDateOnly(NgayBatDau) : null;
   const end = NgayKetThuc ? toDateOnly(NgayKetThuc) : null;
   const registrationStart = NgayBatDauDangKy ? toDateOnly(NgayBatDauDangKy) : null;
   const registrationEnd = NgayKetThucDangKy ? toDateOnly(NgayKetThucDangKy) : null;
+  const appealStart = NgayBatDauCuuXet ? toDateOnly(NgayBatDauCuuXet) : null;
+  const appealEnd = NgayKetThucCuuXet ? toDateOnly(NgayKetThucCuuXet) : null;
   const tuitionDue = HanDongHocPhi ? toDateOnly(HanDongHocPhi) : null;
 
   if ((start === null) !== (end === null)) {
@@ -289,6 +335,10 @@ const validateSemesterDateRange = ({ NgayBatDau, NgayKetThuc, NgayBatDauDangKy, 
 
   if ((registrationStart === null) !== (registrationEnd === null)) {
     throw makeSemesterDateError('Cần nhập đủ ngày bắt đầu và ngày kết thúc đăng ký');
+  }
+
+  if ((appealStart === null) !== (appealEnd === null)) {
+    throw makeSemesterDateError('Cần nhập đủ ngày bắt đầu và ngày kết thúc cứu xét đăng ký');
   }
 
   if (start !== null && end !== null && start >= end) {
@@ -309,6 +359,22 @@ const validateSemesterDateRange = ({ NgayBatDau, NgayKetThuc, NgayBatDauDangKy, 
 
   if (start !== null && registrationEnd !== null && registrationEnd >= start) {
     throw makeSemesterDateError('Ngày kết thúc đăng ký phải trước ngày bắt đầu học kỳ');
+  }
+
+  if ((appealStart !== null || appealEnd !== null) && registrationEnd === null) {
+    throw makeSemesterDateError('Cần cấu hình hạn đăng ký trước khi nhập thời gian cứu xét');
+  }
+
+  if (appealStart !== null && appealEnd !== null && appealStart > appealEnd) {
+    throw makeSemesterDateError('Ngày bắt đầu cứu xét phải trước hoặc bằng ngày kết thúc cứu xét');
+  }
+
+  if (registrationEnd !== null && appealStart !== null && appealStart <= registrationEnd) {
+    throw makeSemesterDateError('Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký');
+  }
+
+  if (start !== null && appealEnd !== null && appealEnd >= start) {
+    throw makeSemesterDateError('Ngày kết thúc cứu xét phải trước ngày bắt đầu học kỳ');
   }
 
   if (tuitionDue !== null && (start === null || end === null)) {
@@ -391,11 +457,15 @@ const finalizeRegistration = async (req, res) => {
   try {
     const maHocKy = req.params.id;
     const result = await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.finalize_registration = '1'");
       const semester = await tx.HOCKY.findFirst({
         where: { MaHocKy: maHocKy, DaXoa: false }
       });
       if (!semester) throw { status: 404, message: 'Không tìm thấy học kỳ' };
-      assertRegistrationClosed(semester);
+      const pendingAppeals = await tx.DONCUUXETDANGKY.count({
+        where: { MaHocKy: maHocKy, TrangThai: APPEAL_STATUS.PENDING }
+      });
+      assertCanFinalizeRegistration(semester, { pendingAppeals });
 
       const otherOngoing = await tx.HOCKY.findFirst({
         where: {
@@ -437,9 +507,9 @@ const finalizeRegistration = async (req, res) => {
 
       const classSummaries = openedClasses.map((openedClass) => {
         const capacity = Math.max(0, Number(openedClass.LOP?.SoLuongToiDa || 0));
-        const threshold = Math.ceil(capacity * MIN_OPEN_CLASS_RATIO);
+        const threshold = capacity * MIN_OPEN_CLASS_RATIO;
         const registeredCount = registrationCountByClass.get(openedClass.MaLop) || 0;
-        const willOpen = capacity > 0 && registeredCount >= threshold;
+        const willOpen = capacity > 0 && (registeredCount / capacity) >= MIN_OPEN_CLASS_RATIO;
 
         return {
           id: openedClass.id,
@@ -447,7 +517,7 @@ const finalizeRegistration = async (req, res) => {
           TenLop: openedClass.LOP?.TenLop || null,
           SoLuongToiDa: capacity,
           SoLuongDaDangKy: registeredCount,
-          NguongMoLop: threshold,
+          NguongMoLop: Math.ceil(threshold),
           TrangThaiSauChot: willOpen
         };
       });
@@ -481,7 +551,7 @@ const finalizeRegistration = async (req, res) => {
           data: {
             TrangThai: CANCELLED_REGISTRATION_STATUS,
             NgayHuy: new Date(),
-            LyDoHuy: 'Lớp không đủ 75% sức chứa khi chốt đăng ký'
+            LyDoHuy: FINALIZE_CANCEL_REASON
           }
         })
         : { count: 0 };
@@ -518,6 +588,9 @@ const finalizeRegistration = async (req, res) => {
         where: { MaHocKy: maHocKy },
         data: {
           TrangThai: ONGOING_SEMESTER_STATUS,
+          NgayChotDangKy: new Date(),
+          MoThuHocPhi: false,
+          NgayMoThuHocPhi: null,
           ...updateAudit(req)
         }
       });
@@ -543,9 +616,69 @@ const finalizeRegistration = async (req, res) => {
   }
 };
 
+const openTuitionPayment = async (req, res) => {
+  try {
+    const maHocKy = req.params.id;
+    const result = await prisma.$transaction(async (tx) => {
+      const semester = await tx.HOCKY.findFirst({ where: { MaHocKy: maHocKy, DaXoa: false } });
+      if (!semester) throw { status: 404, message: 'Không tìm thấy học kỳ' };
+      const pendingAppeals = await tx.DONCUUXETDANGKY.count({
+        where: { MaHocKy: maHocKy, TrangThai: APPEAL_STATUS.PENDING }
+      });
+      assertCanOpenTuitionPayment(semester, { pendingAppeals });
+
+      return tx.HOCKY.update({
+        where: { MaHocKy: maHocKy },
+        data: {
+          MoThuHocPhi: true,
+          NgayMoThuHocPhi: new Date(),
+          ...updateAudit(req)
+        }
+      });
+    });
+    res.json({ success: true, message: 'Đã mở thu học phí cho học kỳ', data: semesterSelect(result) });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message, code: error.code });
+    return sendErrorResponse(res, error, 'Không thể mở thu học phí', 'Open tuition payment error:');
+  }
+};
+
+const closeTuitionPayment = async (req, res) => {
+  try {
+    const maHocKy = req.params.id;
+    const semester = await prisma.HOCKY.findFirst({ where: { MaHocKy: maHocKy, DaXoa: false } });
+    if (!semester) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
+
+    const updated = await prisma.HOCKY.update({
+      where: { MaHocKy: maHocKy },
+      data: {
+        MoThuHocPhi: false,
+        ...updateAudit(req)
+      }
+    });
+    res.json({ success: true, message: 'Đã khóa thu học phí cho học kỳ', data: semesterSelect(updated) });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Không thể khóa thu học phí', 'Close tuition payment error:');
+  }
+};
+
 const createSemester = async (req, res) => {
   try {
-    const { MaHocKy, TenHocKy, MaNamHoc, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi, TrangThai } = req.body;
+    const {
+      MaHocKy,
+      TenHocKy,
+      MaNamHoc,
+      LoaiHocKy,
+      ThuTu,
+      NgayBatDau,
+      NgayKetThuc,
+      NgayBatDauDangKy,
+      NgayKetThucDangKy,
+      NgayBatDauCuuXet,
+      NgayKetThucCuuXet,
+      HanDongHocPhi,
+      TrangThai
+    } = req.body;
     if (!MaHocKy || !TenHocKy || !MaNamHoc) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     const existing = await prisma.HOCKY.findUnique({ where: { MaHocKy } });
     if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã học kỳ đã tồn tại' });
@@ -555,6 +688,8 @@ const createSemester = async (req, res) => {
       NgayKetThuc: parseNullableDate(NgayKetThuc, 'Ngày kết thúc học kỳ'),
       NgayBatDauDangKy: parseNullableDate(NgayBatDauDangKy, 'Ngày bắt đầu đăng ký'),
       NgayKetThucDangKy: parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký', { endOfDayForDateOnly: true }),
+      NgayBatDauCuuXet: parseNullableDate(NgayBatDauCuuXet, 'Ngày bắt đầu cứu xét'),
+      NgayKetThucCuuXet: parseNullableDate(NgayKetThucCuuXet, 'Ngày kết thúc cứu xét', { endOfDayForDateOnly: true }),
       HanDongHocPhi: parseNullableDate(HanDongHocPhi, 'Hạn đóng học phí')
     };
     validateSemesterDateRange(dates);
@@ -569,6 +704,8 @@ const createSemester = async (req, res) => {
         NgayKetThuc: dates.NgayKetThuc,
         NgayBatDauDangKy: dates.NgayBatDauDangKy,
         NgayKetThucDangKy: dates.NgayKetThucDangKy,
+        NgayBatDauCuuXet: dates.NgayBatDauCuuXet,
+        NgayKetThucCuuXet: dates.NgayKetThucCuuXet,
         HanDongHocPhi: dates.HanDongHocPhi,
         TrangThai: TrangThai || 'Sắp diễn ra',
         ...updateAudit(req)
@@ -584,7 +721,20 @@ const updateSemester = async (req, res) => {
   try {
     const existing = await prisma.HOCKY.findFirst({ where: { MaHocKy: req.params.id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy học kỳ' });
-    const { TenHocKy, MaNamHoc, LoaiHocKy, ThuTu, NgayBatDau, NgayKetThuc, NgayBatDauDangKy, NgayKetThucDangKy, HanDongHocPhi, TrangThai } = req.body;
+    const {
+      TenHocKy,
+      MaNamHoc,
+      LoaiHocKy,
+      ThuTu,
+      NgayBatDau,
+      NgayKetThuc,
+      NgayBatDauDangKy,
+      NgayKetThucDangKy,
+      NgayBatDauCuuXet,
+      NgayKetThucCuuXet,
+      HanDongHocPhi,
+      TrangThai
+    } = req.body;
     const data = {};
     if (TenHocKy) data.TenHocKy = TenHocKy;
     if (MaNamHoc) data.MaNamHoc = MaNamHoc;
@@ -599,6 +749,8 @@ const updateSemester = async (req, res) => {
       NgayKetThuc: NgayKetThuc !== undefined ? parseNullableDate(NgayKetThuc, 'Ngày kết thúc học kỳ') : existing.NgayKetThuc,
       NgayBatDauDangKy: NgayBatDauDangKy !== undefined ? parseNullableDate(NgayBatDauDangKy, 'Ngày bắt đầu đăng ký') : existing.NgayBatDauDangKy,
       NgayKetThucDangKy: NgayKetThucDangKy !== undefined ? parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký', { endOfDayForDateOnly: true }) : existing.NgayKetThucDangKy,
+      NgayBatDauCuuXet: NgayBatDauCuuXet !== undefined ? parseNullableDate(NgayBatDauCuuXet, 'Ngày bắt đầu cứu xét') : existing.NgayBatDauCuuXet,
+      NgayKetThucCuuXet: NgayKetThucCuuXet !== undefined ? parseNullableDate(NgayKetThucCuuXet, 'Ngày kết thúc cứu xét', { endOfDayForDateOnly: true }) : existing.NgayKetThucCuuXet,
       HanDongHocPhi: HanDongHocPhi !== undefined ? parseNullableDate(HanDongHocPhi, 'Hạn đóng học phí') : existing.HanDongHocPhi
     };
     validateSemesterDateRange(nextDates);
@@ -606,6 +758,8 @@ const updateSemester = async (req, res) => {
     if (NgayKetThuc !== undefined) data.NgayKetThuc = nextDates.NgayKetThuc;
     if (NgayBatDauDangKy !== undefined) data.NgayBatDauDangKy = nextDates.NgayBatDauDangKy;
     if (NgayKetThucDangKy !== undefined) data.NgayKetThucDangKy = nextDates.NgayKetThucDangKy;
+    if (NgayBatDauCuuXet !== undefined) data.NgayBatDauCuuXet = nextDates.NgayBatDauCuuXet;
+    if (NgayKetThucCuuXet !== undefined) data.NgayKetThucCuuXet = nextDates.NgayKetThucCuuXet;
     if (HanDongHocPhi !== undefined) data.HanDongHocPhi = nextDates.HanDongHocPhi;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data });
@@ -727,6 +881,8 @@ module.exports = {
   getActiveSemester,
   getSemesterById,
   finalizeRegistration,
+  openTuitionPayment,
+  closeTuitionPayment,
   createSemester,
   updateSemester,
   deleteSemester,

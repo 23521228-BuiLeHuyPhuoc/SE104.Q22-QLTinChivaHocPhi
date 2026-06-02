@@ -24,6 +24,7 @@ router.get('/admin/academic-years', vc.requireViewAuth, vc.requireViewAdmin, vc.
 router.get('/admin/periods', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPeriods);
 router.get('/admin/prerequisites', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPrerequisites);
 router.get('/admin/registrations', vc.requireViewAuth, vc.requireViewAdmin, vc.adminRegistrations);
+router.get('/admin/appeals', vc.requireViewAuth, vc.requireViewAdmin, vc.adminAppeals);
 router.get('/admin/tuition', vc.requireViewAuth, vc.requireViewAdmin, vc.adminTuition);
 router.get('/admin/payments', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPayments);
 router.get('/admin/reports', vc.requireViewAuth, vc.requireViewAdmin, vc.adminReports);

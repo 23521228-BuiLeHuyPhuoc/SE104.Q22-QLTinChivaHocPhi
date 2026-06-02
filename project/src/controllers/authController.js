@@ -26,7 +26,7 @@ const studentInfoSelect = {
   DiaChiLienHe: true,
   MaPhuongXa: true,
   MaDanToc: true,
-  MaNgành: true,
+  MaNganh: true,
   Sdt: true,
   Email: true,
   AnhDaiDien: true,
@@ -40,8 +40,8 @@ const studentInfoSelect = {
   },
   NGANHHOC: {
     select: {
-      MaNgành: true,
-      TenNgành: true,
+      MaNganh: true,
+      TenNganh: true,
       MaKhoa: true,
       KHOA: {
         select: {
@@ -555,9 +555,9 @@ const updateStudentProfile = async (req, res) => {
       maDanToc: 'dân tộc',
       DanToc: 'dân tộc',
       danToc: 'dân tộc',
-      MaNgành: 'ngành',
-      maNgành: 'ngành',
-      Ngành: 'ngành',
+      MaNganh: 'ngành',
+      maNganh: 'ngành',
+      Nganh: 'ngành',
       nganh: 'ngành',
       Khoa: 'khoa',
       khoa: 'khoa',

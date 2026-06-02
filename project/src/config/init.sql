@@ -45,6 +45,7 @@
 
 -- Drop tables if exist (in correct order due to foreign keys)
 DROP TABLE IF EXISTS "THONGBAO" CASCADE;
+DROP TABLE IF EXISTS "DONCUUXETDANGKY" CASCADE;
 DROP TABLE IF EXISTS "PHIEUTHUHOCPHI" CASCADE;
 DROP TABLE IF EXISTS "CHITIETDANGKY" CASCADE;
 DROP TABLE IF EXISTS "PHIEUDANGKY" CASCADE;
@@ -586,6 +587,11 @@ CREATE TABLE "HOCKY" (
     "NgayKetThuc" DATE,
     "NgayBatDauDangKy" TIMESTAMP,
     "NgayKetThucDangKy" TIMESTAMP,
+    "NgayBatDauCuuXet" TIMESTAMP,
+    "NgayKetThucCuuXet" TIMESTAMP,
+    "NgayChotDangKy" TIMESTAMP,
+    "MoThuHocPhi" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NgayMoThuHocPhi" TIMESTAMP,
     "HanDongHocPhi" DATE,
     "TrangThai" VARCHAR(20) DEFAULT 'Sắp diễn ra',
     "GhiChu" VARCHAR(300),
@@ -764,6 +770,52 @@ CREATE TABLE "CHITIETDANGKY" (
 );
 
 -- =====================================================
+-- 18.5. BẢNG "DONCUUXETDANGKY" - Đơn cứu xét đăng ký sau hạn
+-- =====================================================
+CREATE TABLE "DONCUUXETDANGKY" (
+    id SERIAL NOT NULL,
+    "MaSv" VARCHAR(15) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "SoPhieu" INTEGER,
+    "LoaiDon" VARCHAR(10) NOT NULL DEFAULT 'them',
+    "TrangThai" VARCHAR(20) NOT NULL DEFAULT 'cho_duyet',
+    "MaLopHuy" VARCHAR(20),
+    "MaLopThem" VARCHAR(20),
+    "LyDo" VARCHAR(500) NOT NULL,
+    "LyDoTuChoi" VARCHAR(500),
+    "NguoiDuyet" INTEGER,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NgayCapNhat" TIMESTAMP,
+    "NgayDuyet" TIMESTAMP,
+    CONSTRAINT don_cuu_xet_dang_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT chk_dcx_loai_don CHECK ("LoaiDon" IN ('them', 'huy', 'doi')),
+    CONSTRAINT chk_dcx_trang_thai CHECK ("TrangThai" IN ('cho_duyet', 'da_duyet', 'tu_choi', 'da_huy')),
+    CONSTRAINT chk_dcx_lop_theo_loai CHECK (
+        ("LoaiDon" = 'them' AND "MaLopThem" IS NOT NULL AND "MaLopHuy" IS NULL)
+        OR ("LoaiDon" = 'huy' AND "MaLopHuy" IS NOT NULL AND "MaLopThem" IS NULL)
+        OR ("LoaiDon" = 'doi' AND "MaLopHuy" IS NOT NULL AND "MaLopThem" IS NOT NULL)
+    ),
+    CONSTRAINT fk_dcx_sinhvien FOREIGN KEY ("MaSv")
+        REFERENCES "SINHVIEN"("MaSv") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_dcx_hocky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_dcx_phieudangky FOREIGN KEY ("SoPhieu")
+        REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_dcx_lop_huy FOREIGN KEY ("MaLopHuy")
+        REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_dcx_lop_them FOREIGN KEY ("MaLopThem")
+        REFERENCES "LOP"("MaLop") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT fk_dcx_nguoi_duyet FOREIGN KEY ("NguoiDuyet")
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_dcx_sv_hk ON "DONCUUXETDANGKY" ("MaSv", "MaHocKy");
+CREATE INDEX idx_dcx_hk_trangthai ON "DONCUUXETDANGKY" ("MaHocKy", "TrangThai");
+CREATE UNIQUE INDEX uq_dcx_pending
+    ON "DONCUUXETDANGKY" ("MaSv", "MaHocKy", "LoaiDon", COALESCE("MaLopHuy", ''), COALESCE("MaLopThem", ''))
+    WHERE "TrangThai" = 'cho_duyet';
+
+-- =====================================================
 -- 22. BẢNG "MONDAHOC" - Lịch sử môn đã học
 -- Lưu kết quả qua/rớt, không lưu điểm số hay điểm chữ
 -- =====================================================
@@ -816,13 +868,13 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
     "CheckoutUrl" VARCHAR(1000),
     "QrPayload" TEXT,
     "GhiChu" VARCHAR(300),
-    "TrangThai" VARCHAR(20) DEFAULT 'Thành công',
+    "TrangThai" VARCHAR(20) DEFAULT 'Chưa thanh toán',
     "NgayXacNhan" TIMESTAMP,
     "NgayCapNhat" TIMESTAMP,
     CONSTRAINT phieu_thu_hoc_phi_pkey PRIMARY KEY ("SoPhieuThu"),
     CONSTRAINT chk_so_tien_thu CHECK ("SoTienThu" > 0),
     CONSTRAINT chk_hinh_thuc_thu CHECK ("HinhThucThu" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
-    CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy')),
+    CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chưa thanh toán', 'Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy', 'Hoàn tiền')),
     CONSTRAINT fk_pthp_pdk FOREIGN KEY ("SoPhieuDangKy")
         REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_pthp_sv FOREIGN KEY ("MaSv")
@@ -2170,6 +2222,24 @@ BEGIN
         END IF;
     END IF;
 
+    IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
+        IF NEW."NgayBatDauCuuXet" > NEW."NgayKetThucCuuXet" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauCuuXet phải nhỏ hơn hoặc bằng NgayKetThucCuuXet.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
+        IF NEW."NgayBatDauCuuXet" <= NEW."NgayKetThucDangKy" THEN
+            RAISE EXCEPTION 'RBTV09: Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayKetThucCuuXet" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        IF NEW."NgayKetThucCuuXet"::DATE > NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucCuuXet không được lớn hơn NgayBatDau học kỳ.';
+        END IF;
+    END IF;
+
     IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
         IF NEW."HanDongHocPhi" < NEW."NgayBatDau" THEN
             RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải lớn hơn hoặc bằng NgayBatDau.';
@@ -2742,6 +2812,11 @@ DECLARE
     v_deadline TIMESTAMP;
     v_trangthai VARCHAR(20);
 BEGIN
+    IF current_setting('app.appeal_approval', true) = '1'
+       OR current_setting('app.finalize_registration', true) = '1' THEN
+        RETURN NEW;
+    END IF;
+
     /* Lấy thông tin thời gian và trạng thái của học kỳ */
     SELECT "NgayBatDauDangKy", "NgayKetThucDangKy", "TrangThai"
     INTO v_ngaybatdau, v_ngayketthuc, v_trangthai
@@ -2781,6 +2856,11 @@ DECLARE
     v_trangthai VARCHAR(20);
     v_is_finalize_cancel BOOLEAN;
 BEGIN
+    IF current_setting('app.appeal_approval', true) = '1'
+       OR current_setting('app.finalize_registration', true) = '1' THEN
+        RETURN NEW;
+    END IF;
+
     /* Lấy thông tin thời gian của học kỳ thông qua PhieuDangKy */
     SELECT hk."NgayBatDauDangKy", hk."NgayKetThucDangKy", hk."TrangThai"
     INTO v_ngaybatdau, v_ngayketthuc, v_trangthai
@@ -2794,7 +2874,7 @@ BEGIN
         ELSE v_ngayketthuc
     END;
     v_is_finalize_cancel := NEW."TrangThai" = 'Đã hủy'
-        AND COALESCE(NEW."LyDoHuy", '') = 'Lớp không đủ 75% sức chứa khi chốt đăng ký';
+        AND COALESCE(NEW."LyDoHuy", '') IN ('Lớp không đủ 75% sức chứa khi chốt đăng ký', 'Hủy do không đủ sinh viên đăng ký');
 
     /* TH 1: Thêm mới hoặc chuyển sang 'Đã đăng ký' */
     IF NEW."TrangThai" = 'Đã đăng ký' THEN
@@ -2825,6 +2905,11 @@ EXECUTE FUNCTION fn_check_rbtv17_chitietdangky();
 CREATE OR REPLACE FUNCTION fn_check_rbtv17_hocky()
 RETURNS TRIGGER AS $$
 BEGIN
+    IF current_setting('app.appeal_approval', true) = '1'
+       OR current_setting('app.finalize_registration', true) = '1' THEN
+        RETURN NEW;
+    END IF;
+
     /* Chỉ kiểm tra khi có sự thay đổi thực sự về các cột thời gian hoặc trạng thái */
     IF NEW."NgayBatDauDangKy" IS DISTINCT FROM OLD."NgayBatDauDangKy"
        OR NEW."NgayKetThucDangKy" IS DISTINCT FROM OLD."NgayKetThucDangKy"
@@ -13133,6 +13218,146 @@ INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", 
 
 -- Cập nhật sequence cho "PHIEUTHUHOCPHI" để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), 6, true);
+
+-- =====================================================
+-- INSERT DATA - Demo luồng cứu xét đăng ký và thu học phí
+-- Các học kỳ demo dùng dữ liệu gần ngày 02/06/2026 để test nhanh:
+--   HK-DEMO-CUUXET: đã hết đăng ký, đang trong hạn cứu xét, có đơn chờ duyệt
+--   HK-DEMO-CHOT: đã hết cứu xét, đã chốt đăng ký, chưa mở thu học phí
+--   HK-DEMO-THU: đã chốt đăng ký, đã mở thu học phí, có đủ trạng thái phiếu thu mới
+-- =====================================================
+INSERT INTO "HOCKY" (
+  "MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "ThuTu",
+  "NgayBatDau", "NgayKetThuc",
+  "NgayBatDauDangKy", "NgayKetThucDangKy",
+  "NgayBatDauCuuXet", "NgayKetThucCuuXet",
+  "NgayChotDangKy", "MoThuHocPhi", "NgayMoThuHocPhi",
+  "HanDongHocPhi", "TrangThai"
+) VALUES
+('HK-DEMO-CUUXET', 'Demo cứu xét đăng ký', '2026-2027', 'Chính', 1, '2026-06-20', '2026-10-01', '2026-05-01 00:00:00', '2026-05-20 23:59:59', '2026-05-21 00:00:00', '2026-06-10 23:59:59', NULL, FALSE, NULL, '2026-08-15', 'Sắp diễn ra'),
+('HK-DEMO-CHOT', 'Demo đã chốt đăng ký', '2026-2027', 'Chính', 2, '2026-07-01', '2026-11-15', '2026-04-01 00:00:00', '2026-04-10 23:59:59', '2026-04-11 00:00:00', '2026-04-20 23:59:59', '2026-04-21 09:00:00', FALSE, NULL, '2026-08-01', 'Sắp diễn ra'),
+('HK-DEMO-THU', 'Demo đã mở thu học phí', '2026-2027', 'Hè', 3, '2026-07-15', '2026-08-31', '2026-03-01 00:00:00', '2026-03-10 23:59:59', '2026-03-11 00:00:00', '2026-03-20 23:59:59', '2026-03-21 09:00:00', TRUE, '2026-03-22 09:00:00', '2026-07-20', 'Sắp diễn ra')
+ON CONFLICT ("MaHocKy") DO UPDATE SET
+  "NgayBatDauCuuXet" = EXCLUDED."NgayBatDauCuuXet",
+  "NgayKetThucCuuXet" = EXCLUDED."NgayKetThucCuuXet",
+  "NgayChotDangKy" = EXCLUDED."NgayChotDangKy",
+  "MoThuHocPhi" = EXCLUDED."MoThuHocPhi",
+  "NgayMoThuHocPhi" = EXCLUDED."NgayMoThuHocPhi",
+  "HanDongHocPhi" = EXCLUDED."HanDongHocPhi";
+
+INSERT INTO "LOP" ("MaLop", "TenLop", "MaMonHoc", "GiangVien", "LichHoc", "PhongHoc", "SoLuongToiDa") VALUES
+('IT002.DEMO1', 'Demo - Lập trình hướng đối tượng', 'IT002', 'ThS. Demo Đào tạo', 'Thứ 2, Tiết 1-3', 'DEMO.A101', 4),
+('IT003.DEMO1', 'Demo - Cấu trúc dữ liệu và giải thuật', 'IT003', 'ThS. Demo Đào tạo', 'Thứ 3, Tiết 1-3', 'DEMO.A102', 4),
+('MA004.DEMO1', 'Demo - Cấu trúc rời rạc', 'MA004', 'ThS. Demo Đào tạo', 'Thứ 4, Tiết 1-4', 'DEMO.A103', 4),
+('IT005.DEMO1', 'Demo - Nhập môn mạng máy tính', 'IT005', 'ThS. Demo Đào tạo', 'Thứ 5, Tiết 1-3', 'DEMO.A104', 4),
+('IT006.DEMO1', 'Demo - Kiến trúc máy tính', 'IT006', 'ThS. Demo Đào tạo', 'Thứ 6, Tiết 1', 'DEMO.A105', 4),
+('ENG02.DEMO1', 'Demo - Anh văn 2', 'ENG02', 'ThS. Demo Đào tạo', 'Thứ 7, Tiết 1', 'DEMO.A106', 4)
+ON CONFLICT ("MaLop") DO UPDATE SET
+  "TenLop" = EXCLUDED."TenLop",
+  "MaMonHoc" = EXCLUDED."MaMonHoc",
+  "GiangVien" = EXCLUDED."GiangVien",
+  "LichHoc" = EXCLUDED."LichHoc",
+  "PhongHoc" = EXCLUDED."PhongHoc",
+  "SoLuongToiDa" = EXCLUDED."SoLuongToiDa";
+
+INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "SoLuongDaDangKy", "TrangThai", "GhiChu") VALUES
+('HK-DEMO-CUUXET', 'IT002.DEMO1', 3, TRUE, 'Demo: lớp đang có đăng ký trước khi cứu xét'),
+('HK-DEMO-CUUXET', 'IT003.DEMO1', 0, TRUE, 'Demo: lớp đích cho đơn đổi'),
+('HK-DEMO-CUUXET', 'MA004.DEMO1', 0, TRUE, 'Demo: lớp đích cho đơn thêm'),
+('HK-DEMO-CHOT', 'IT005.DEMO1', 0, FALSE, 'Demo: lớp bị đóng vì dưới 75%'),
+('HK-DEMO-CHOT', 'IT006.DEMO1', 3, TRUE, 'Demo: lớp đủ đúng 75% nên vẫn mở'),
+('HK-DEMO-THU', 'ENG02.DEMO1', 4, TRUE, 'Demo: lớp đã chốt và mở thu học phí')
+ON CONFLICT ("MaHocKy", "MaLop") DO NOTHING;
+
+INSERT INTO "LICHHOCLOP" ("LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu")
+SELECT lm.id, v."ThuTrongTuan", v."MaTietBatDau", v."MaTietKetThuc", v."PhongHoc", v."GhiChu"
+FROM (VALUES
+  ('HK-DEMO-CUUXET', 'IT002.DEMO1', 2, 'T1', 'T3', 'DEMO.A101', 'Demo IT002 - cứu xét'),
+  ('HK-DEMO-CUUXET', 'IT003.DEMO1', 3, 'T1', 'T3', 'DEMO.A102', 'Demo IT003 - lớp đổi'),
+  ('HK-DEMO-CUUXET', 'MA004.DEMO1', 4, 'T1', 'T4', 'DEMO.A103', 'Demo MA004 - lớp thêm'),
+  ('HK-DEMO-CHOT', 'IT005.DEMO1', 5, 'T1', 'T3', 'DEMO.A104', 'Demo IT005 - lớp đóng'),
+  ('HK-DEMO-CHOT', 'IT006.DEMO1', 6, 'T1', 'T1', 'DEMO.A105', 'Demo IT006 - đúng 75%'),
+  ('HK-DEMO-THU', 'ENG02.DEMO1', 7, 'T1', 'T1', 'DEMO.A106', 'Demo ENG02 - mở thu')
+) AS v("MaHocKy", "MaLop", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu")
+JOIN "LOPMO" lm ON lm."MaHocKy" = v."MaHocKy" AND lm."MaLop" = v."MaLop"
+WHERE NOT EXISTS (
+  SELECT 1 FROM "LICHHOCLOP" lh
+  WHERE lh."LopMoId" = lm.id
+    AND lh."ThuTrongTuan" = v."ThuTrongTuan"
+    AND lh."MaTietBatDau" = v."MaTietBatDau"
+    AND lh."MaTietKetThuc" = v."MaTietKetThuc"
+);
+
+SET app.finalize_registration = '1';
+
+INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TrangThai", "GhiChu") VALUES
+(101, '22520001', 'HK-DEMO-CUUXET', '2026-05-20 08:00:00', 'Đã đăng ký', 'Demo: có thể gửi đơn thêm trong hạn cứu xét'),
+(102, '22520002', 'HK-DEMO-CUUXET', '2026-05-20 08:10:00', 'Đã đăng ký', 'Demo: có thể gửi đơn hủy trong hạn cứu xét'),
+(103, '22520003', 'HK-DEMO-CUUXET', '2026-05-20 08:20:00', 'Đã đăng ký', 'Demo: có thể gửi đơn đổi trong hạn cứu xét'),
+(104, '22520004', 'HK-DEMO-CHOT', '2026-04-10 08:00:00', 'Đã đăng ký', 'Demo: đơn thêm đã duyệt'),
+(105, '22520005', 'HK-DEMO-CHOT', '2026-04-10 08:10:00', 'Đã đăng ký', 'Demo: lớp đúng 75% vẫn mở'),
+(106, '22520006', 'HK-DEMO-CHOT', '2026-04-10 08:20:00', 'Đã đăng ký', 'Demo: đơn đã hủy'),
+(107, '22520001', 'HK-DEMO-CHOT', '2026-04-10 08:30:00', 'Đã đăng ký', 'Demo: đăng ký bị hủy do lớp dưới 75%'),
+(201, '22520001', 'HK-DEMO-THU', '2026-03-10 08:00:00', 'Đã đăng ký', 'Demo: phiếu thu chưa thanh toán'),
+(202, '22520002', 'HK-DEMO-THU', '2026-03-10 08:10:00', 'Đã đăng ký', 'Demo: phiếu tiền mặt chờ xác nhận'),
+(203, '22520003', 'HK-DEMO-THU', '2026-03-10 08:20:00', 'Đã đăng ký', 'Demo: phiếu đã thanh toán thành công'),
+(204, '22520004', 'HK-DEMO-THU', '2026-03-10 08:30:00', 'Đã đăng ký', 'Demo: phiếu thanh toán thất bại')
+ON CONFLICT ("SoPhieu") DO NOTHING;
+
+INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai", "NgayDangKy", "NgayHuy", "LyDoHuy") VALUES
+(101, 'IT002.DEMO1', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:00:00', NULL, NULL),
+(102, 'IT002.DEMO1', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:10:00', NULL, NULL),
+(103, 'IT002.DEMO1', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:20:00', NULL, NULL),
+(104, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-21 09:05:00', NULL, NULL),
+(105, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:10:00', NULL, NULL),
+(106, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:20:00', NULL, NULL),
+(107, 'IT005.DEMO1', 'IT005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã hủy', '2026-04-10 08:30:00', '2026-04-21 09:10:00', 'Hủy do không đủ sinh viên đăng ký'),
+(201, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:00:00', NULL, NULL),
+(202, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:10:00', NULL, NULL),
+(203, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:20:00', NULL, NULL),
+(204, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:30:00', NULL, NULL)
+ON CONFLICT ("SoPhieu", "MaMonHoc") DO NOTHING;
+
+RESET app.finalize_registration;
+
+INSERT INTO "DONCUUXETDANGKY" (
+  "MaSv", "MaHocKy", "SoPhieu", "LoaiDon", "TrangThai", "MaLopHuy", "MaLopThem",
+  "LyDo", "LyDoTuChoi", "NguoiDuyet", "NgayTao", "NgayCapNhat", "NgayDuyet"
+)
+SELECT v."MaSv", v."MaHocKy", v."SoPhieu", v."LoaiDon", v."TrangThai", v."MaLopHuy", v."MaLopThem",
+       v."LyDo", v."LyDoTuChoi", v."NguoiDuyet", v."NgayTao", v."NgayCapNhat", v."NgayDuyet"
+FROM (
+  VALUES
+  ('22520001', 'HK-DEMO-CUUXET', 101, 'them', 'cho_duyet', NULL, 'MA004.DEMO1', 'Muốn học thêm môn Cấu trúc rời rạc sau khi đã cân đối lịch cá nhân.', NULL, NULL, '2026-06-02 09:00:00'::timestamp, NULL, NULL),
+  ('22520002', 'HK-DEMO-CUUXET', 102, 'huy', 'cho_duyet', 'IT002.DEMO1', NULL, 'Xin hủy vì trùng kế hoạch thực tập ngắn hạn.', NULL, NULL, '2026-06-02 09:10:00'::timestamp, NULL, NULL),
+  ('22520003', 'HK-DEMO-CUUXET', 103, 'doi', 'cho_duyet', 'IT002.DEMO1', 'IT003.DEMO1', 'Xin đổi lớp để phù hợp thời khóa biểu cá nhân.', NULL, NULL, '2026-06-02 09:20:00'::timestamp, NULL, NULL),
+  ('22520004', 'HK-DEMO-CHOT', 104, 'them', 'da_duyet', NULL, 'IT006.DEMO1', 'Đã bổ sung lớp theo quyết định cứu xét.', NULL, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '2026-04-12 08:00:00'::timestamp, '2026-04-21 09:05:00'::timestamp, '2026-04-21 09:05:00'::timestamp),
+  ('22520005', 'HK-DEMO-CHOT', 105, 'them', 'tu_choi', NULL, 'MA004.DEMO1', 'Xin thêm lớp sau hạn.', 'Lớp không còn phù hợp kế hoạch mở lớp sau khi chốt đăng ký.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '2026-04-12 08:10:00'::timestamp, '2026-04-21 09:15:00'::timestamp, '2026-04-21 09:15:00'::timestamp),
+  ('22520006', 'HK-DEMO-CHOT', 106, 'huy', 'da_huy', 'IT006.DEMO1', NULL, 'Sinh viên tự hủy đơn trước khi admin xử lý.', NULL, NULL, '2026-04-12 08:20:00'::timestamp, '2026-04-13 10:00:00'::timestamp, NULL)
+) AS v("MaSv", "MaHocKy", "SoPhieu", "LoaiDon", "TrangThai", "MaLopHuy", "MaLopThem", "LyDo", "LyDoTuChoi", "NguoiDuyet", "NgayTao", "NgayCapNhat", "NgayDuyet")
+WHERE NOT EXISTS (
+  SELECT 1 FROM "DONCUUXETDANGKY" d
+  WHERE d."MaSv" = v."MaSv"
+    AND d."MaHocKy" = v."MaHocKy"
+    AND d."LoaiDon" = v."LoaiDon"
+    AND COALESCE(d."MaLopHuy", '') = COALESCE(v."MaLopHuy", '')
+    AND COALESCE(d."MaLopThem", '') = COALESCE(v."MaLopThem", '')
+    AND d."TrangThai" = v."TrangThai"
+);
+
+INSERT INTO "PHIEUTHUHOCPHI" (
+  "SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", "SoTienThu", "HinhThucThu",
+  "MaGiaoDich", "NguoiThu", "PaymentProvider", "PaymentChannel", "GhiChu",
+  "TrangThai", "NgayXacNhan", "NgayCapNhat", "CheckoutUrl", "QrPayload"
+) VALUES
+(101, 201, '22520001', '2026-03-22 09:00:00', 27000, 'Tiền mặt', NULL, 'Phòng tài chính', 'invoice', 'admin', 'Demo: admin đã tạo phiếu, sinh viên chưa checkout', 'Chưa thanh toán', NULL, '2026-03-22 09:00:00', NULL, NULL),
+(102, 202, '22520002', '2026-03-22 09:10:00', 13500, 'Tiền mặt', 'CASH-DEMO-102', NULL, 'cash', 'student', 'Demo: sinh viên chọn đóng tiền mặt, chờ admin xác nhận', 'Chờ xác nhận', NULL, '2026-03-22 09:10:00', NULL, NULL),
+(103, 203, '22520003', '2026-03-22 09:20:00', 13500, 'Chuyển khoản', 'BANK-DEMO-103', 'Cổng thanh toán demo', 'bank_qr', 'student', 'Demo: thanh toán sandbox thành công', 'Thành công', '2026-03-22 09:25:00', '2026-03-22 09:25:00', NULL, NULL),
+(104, 204, '22520004', '2026-03-22 09:30:00', 18900, 'Ví điện tử', 'ZALO-DEMO-104', NULL, 'zalopay', 'student', 'Demo: thanh toán sandbox thất bại', 'Thất bại', NULL, '2026-03-22 09:35:00', NULL, NULL)
+ON CONFLICT ("SoPhieuThu") DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), GREATEST((SELECT MAX("SoPhieu") FROM "PHIEUDANGKY"), 204), true);
+SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), GREATEST((SELECT MAX("SoPhieuThu") FROM "PHIEUTHUHOCPHI"), 104), true);
 
 -- =====================================================
 -- INSERT DATA - Thông báo cá nhân (Personal Notifications)

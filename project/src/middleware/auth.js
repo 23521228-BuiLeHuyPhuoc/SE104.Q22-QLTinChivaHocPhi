@@ -134,18 +134,18 @@ const ROLE_PERMISSIONS = {
   system: ['*'],
   training: [
     '/admin/dashboard', '/admin/students', '/admin/courses',
-    '/admin/classes', '/admin/rooms', '/admin/lecturers', '/admin/semesters', '/admin/registrations',
+    '/admin/classes', '/admin/rooms', '/admin/lecturers', '/admin/semesters', '/admin/registrations', '/admin/appeals',
     '/admin/faculties', '/admin/majors', '/admin/completed-courses',
     '/admin/periods', '/admin/prerequisites', '/admin/profile',
     '/api/students', '/api/courses', '/api/classes', '/api/rooms', '/api/lecturers',
-    '/api/semesters', '/api/registrations',
+    '/api/semesters', '/api/registrations', '/api/appeals',
     '/api/faculties', '/api/majors', '/api/completed-courses',
     '/api/periods', '/api/prerequisites', '/api/auth/me', '/api/auth/avatar'
   ],
   finance: [
     '/admin/dashboard', '/admin/tuition', '/admin/payments',
     '/admin/reports', '/admin/pricing', '/admin/beneficiaries',
-    '/api/tuition', '/api/payments',
+    '/api/tuition', '/api/payments', '/api/semesters',
     '/api/pricing', '/api/beneficiaries'
   ]
 };

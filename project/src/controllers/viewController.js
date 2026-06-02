@@ -1398,6 +1398,20 @@ const adminPayments = async (req, res) => {
   }
 };
 
+const adminAppeals = async (req, res) => {
+  try {
+    const semesters = await prisma.HOCKY.findMany({
+      where: { DaXoa: false },
+      orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }],
+      include: { NAMHOC: true }
+    });
+    renderAdmin(res, 'appeals', 'appeals', 'Đơn cứu xét đăng ký', req, { semesters });
+  } catch (err) {
+    console.error('adminAppeals error:', err);
+    renderAdmin(res, 'appeals', 'appeals', 'Đơn cứu xét đăng ký', req, { semesters: [] });
+  }
+};
+
 const adminReports = async (req, res) => {
   try {
     const [semesters, faculties, majors] = await Promise.all([
@@ -1884,8 +1898,6 @@ const studentCurriculum = (req, res) => {
 };
 
 const adminCurriculumPrograms = async (req, res) => {
-  const page = parseInt(req.query.page, 10) || 1;
-  const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
   const major = req.query.major || '';
   const status = req.query.status || '';
@@ -1910,8 +1922,6 @@ const adminCurriculumPrograms = async (req, res) => {
     const [rows, total, majors] = await Promise.all([
       prisma.CHUONGTRINHHOC.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
         orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
         include: {
           NGANHHOC: { include: { KHOA: true } },
@@ -1922,28 +1932,106 @@ const adminCurriculumPrograms = async (req, res) => {
       prisma.NGANHHOC.findMany({
         where: { DaXoa: false },
         orderBy: { TenNganh: 'asc' },
-        select: { MaNganh: true, TenNganh: true }
+        include: { KHOA: true }
       })
     ]);
 
+    const curriculumPrograms = rows.map((row) => ({
+      id: row.id,
+      MaNganh: row.MaNganh,
+      TenNganh: row.NGANHHOC?.TenNganh || row.MaNganh,
+      MaKhoa: row.NGANHHOC?.MaKhoa || row.MONHOC?.MaKhoa || '',
+      TenKhoa: row.NGANHHOC?.KHOA?.TenKhoa || row.MONHOC?.KHOA?.TenKhoa || '-',
+      MaMonHoc: row.MaMonHoc,
+      TenMonHoc: row.MONHOC?.TenMonHoc || row.MaMonHoc,
+      SoTinChi: Number(row.MONHOC?.SoTinChi || 0),
+      LoaiMon: row.MONHOC?.LoaiMon || '-',
+      HocKyDuKien: Number(row.HocKyDuKien || 1),
+      BatBuoc: row.BatBuoc !== false,
+      BatBuocLabel: row.BatBuoc === false ? 'Tự chọn' : 'Bắt buộc',
+      TrangThai: row.TrangThai !== false,
+      TrangThaiLabel: row.TrangThai === false ? 'Tạm ngưng' : 'Đang áp dụng',
+      TrangThaiClass: row.TrangThai === false ? 'badge-secondary' : 'badge-success',
+      GhiChu: row.GhiChu || ''
+    }));
+
+    const groupMap = new Map();
+    curriculumPrograms.forEach((row) => {
+      if (!groupMap.has(row.MaNganh)) {
+        groupMap.set(row.MaNganh, {
+          MaNganh: row.MaNganh,
+          TenNganh: row.TenNganh,
+          MaKhoa: row.MaKhoa,
+          TenKhoa: row.TenKhoa,
+          totalCourses: 0,
+          totalCredits: 0,
+          activeCourses: 0,
+          inactiveCourses: 0,
+          requiredCourses: 0,
+          electiveCourses: 0,
+          semesters: []
+        });
+      }
+
+      const group = groupMap.get(row.MaNganh);
+      let semester = group.semesters.find((item) => item.HocKyDuKien === row.HocKyDuKien);
+      if (!semester) {
+        semester = { HocKyDuKien: row.HocKyDuKien, courses: [], totalCredits: 0 };
+        group.semesters.push(semester);
+      }
+
+      semester.courses.push(row);
+      semester.totalCredits += row.SoTinChi;
+      group.totalCourses += 1;
+      group.totalCredits += row.SoTinChi;
+      if (row.TrangThai) group.activeCourses += 1;
+      else group.inactiveCourses += 1;
+      if (row.BatBuoc) group.requiredCourses += 1;
+      else group.electiveCourses += 1;
+    });
+
+    if (major && !groupMap.has(major)) {
+      const selectedMajor = majors.find((item) => item.MaNganh === major);
+      if (selectedMajor) {
+        groupMap.set(major, {
+          MaNganh: selectedMajor.MaNganh,
+          TenNganh: selectedMajor.TenNganh,
+          MaKhoa: selectedMajor.MaKhoa,
+          TenKhoa: selectedMajor.KHOA?.TenKhoa || '-',
+          totalCourses: 0,
+          totalCredits: 0,
+          activeCourses: 0,
+          inactiveCourses: 0,
+          requiredCourses: 0,
+          electiveCourses: 0,
+          semesters: []
+        });
+      }
+    }
+
+    const curriculumGroups = Array.from(groupMap.values()).map((group) => ({
+      ...group,
+      semesterCount: group.semesters.length,
+      semesters: group.semesters.sort((a, b) => a.HocKyDuKien - b.HocKyDuKien)
+    }));
+
+    const summaryStats = {
+      majorCount: curriculumGroups.length,
+      semesterCount: curriculumGroups.reduce((sum, group) => sum + group.semesterCount, 0),
+      totalCourses: curriculumPrograms.length,
+      totalCredits: curriculumPrograms.reduce((sum, row) => sum + row.SoTinChi, 0)
+    };
+
     renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req, {
-      curriculumPrograms: rows.map((row) => ({
-        ...row,
-        TenNganh: row.NGANHHOC?.TenNganh || row.MaNganh,
-        TenKhoa: row.NGANHHOC?.KHOA?.TenKhoa || '-',
-        TenMonHoc: row.MONHOC?.TenMonHoc || row.MaMonHoc,
-        SoTinChi: row.MONHOC?.SoTinChi || 0,
-        LoaiMon: row.MONHOC?.LoaiMon || '-',
-        BatBuocLabel: row.BatBuoc === false ? 'Tự chọn' : 'Bắt buộc',
-        TrangThaiLabel: row.TrangThai === false ? 'Tạm ngưng' : 'Đang áp dụng',
-        TrangThaiClass: row.TrangThai === false ? 'badge-secondary' : 'badge-success'
-      })),
+      curriculumPrograms,
+      curriculumGroups,
+      summaryStats,
       majors,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
+      currentPage: 1,
+      totalPages: 1,
       totalRecords: total,
       baseUrl: '/admin/curriculum-programs',
-      queryParams: { search, major, status, limit },
+      queryParams: { search, major, status },
       search,
       major,
       status
@@ -1952,6 +2040,8 @@ const adminCurriculumPrograms = async (req, res) => {
     console.error('adminCurriculumPrograms error:', err);
     renderAdmin(res, 'curriculum-programs', 'curriculum-programs', 'Quản lý chương trình học', req, {
       curriculumPrograms: [],
+      curriculumGroups: [],
+      summaryStats: { majorCount: 0, semesterCount: 0, totalCourses: 0, totalCredits: 0 },
       majors: [],
       currentPage: 1,
       totalPages: 0,
@@ -1988,6 +2078,7 @@ module.exports = {
   adminPeriods,
   adminPrerequisites,
   adminRegistrations,
+  adminAppeals,
   adminTuition,
   adminPayments,
   adminReports,

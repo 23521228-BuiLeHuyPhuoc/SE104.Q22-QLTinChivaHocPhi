@@ -24,13 +24,16 @@ router.get('/:id', adminMiddleware, paymentController.getPaymentById);
 
 // Create payment (admin only)
 router.post('/', adminMiddleware, paymentController.createPayment);
+router.post('/bulk', adminMiddleware, paymentController.createBulkPayments);
 router.post('/checkout', paymentController.checkoutPayment);
+router.post('/:id/checkout', paymentController.checkoutPayment);
 
 // Get all payments
 router.get('/', adminMiddleware, paymentController.getAllPayments);
 
 // Confirm pending payment (admin only)
 router.put('/:id/confirm', adminMiddleware, paymentController.confirmPayment);
+router.put('/:id/fail', adminMiddleware, paymentController.failPayment);
 
 // Cancel payment (admin only)
 router.put('/:id/cancel', adminMiddleware, paymentController.cancelPayment);

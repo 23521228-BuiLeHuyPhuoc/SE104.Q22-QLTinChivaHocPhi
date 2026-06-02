@@ -74,6 +74,9 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/registrations" title="Đăng ký môn học" class=(active === 'registrations' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded app_registration
           span.link-label Đăng ký môn học
+        a.sidebar-link(href="/admin/appeals" title="Đơn cứu xét" class=(active === 'appeals' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded fact_check
+          span.link-label Đơn cứu xét
 
     if isSystem || isFinance
       .sidebar-section

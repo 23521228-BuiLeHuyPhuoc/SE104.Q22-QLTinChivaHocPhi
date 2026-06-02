@@ -55,5 +55,27 @@ block content
           span.my-courses-summary-fee.text-muted#my-courses-total-fee Học phí trước miễn/giảm tạm tính: --
         nav.pagination#my-courses-pagination(style="display:none")
 
+    .card
+      .card-header
+        h3 Đơn cứu xét của tôi
+        span.card-count#my-appeals-count
+      .card-body
+        .table-container
+          table.data-table
+            thead
+              tr
+                th Mã đơn
+                th Học kỳ
+                th Loại đơn
+                th Nội dung
+                th Trạng thái
+                th Lý do
+                th Thao tác
+            tbody#my-appeals
+              tr
+                td(colspan="7")
+                  .empty-state Đang tải đơn cứu xét...
+        nav.pagination#my-appeals-pagination(style="display:none")
+
 block scripts
   script(src="/js/student/my-courses.js")

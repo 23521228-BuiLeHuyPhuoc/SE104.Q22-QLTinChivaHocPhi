@@ -1,5 +1,6 @@
 var currentStudent = null;
 var currentMyCoursesPage = 1;
+var currentAppealsPage = 1;
 var myCoursesSemesters = [];
 var myCoursesAcademicYears = [];
 
@@ -10,6 +11,14 @@ function myCoursesEscapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function myCoursesJsStringArg(value) {
+  return '\'' + myCoursesEscapeHtml(String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')) + '\'';
 }
 
 function registrationBadgeClass(type) {
@@ -173,13 +182,23 @@ function renderMyCoursesSummary(summary) {
 }
 
 function renderCancelAction(course) {
+  var registration = course.PHIEUDANGKY || {};
+  var detailId = Number(course.id || 0);
+  var detailIdArg = Number.isFinite(detailId) ? String(detailId) : '0';
+  var semesterArg = myCoursesJsStringArg(registration.MaHocKy || course.MaHocKy || '');
+  var classArg = myCoursesJsStringArg(course.MaLop || (course.LOP && course.LOP.MaLop) || '');
   var isCancelled = isCancelledRegistration(course.TrangThai);
   var canCancel = !isCancelled && course.CanHuy !== false && course.CanCancelRegistration !== false;
   var label = course.CancelActionLabel || (canCancel ? 'Hủy ĐK' : 'Đã chốt đăng ký');
   var message = course.CancelActionMessage || course.LyDoKhongTheHuy || 'Đợt đăng ký học phần đã kết thúc';
 
   if (canCancel) {
-    return '<button class="btn btn-sm btn-danger" type="button" onclick="cancelRegistration(' + course.id + ')">Hủy ĐK</button>';
+    return '<button class="btn btn-sm btn-danger" type="button" onclick="cancelRegistration(' + detailIdArg + ')">Hủy ĐK</button>';
+  }
+
+  if (!isCancelled && course.CanAppealCancel) {
+    return '<button class="btn btn-sm btn-outline" type="button" onclick="createCancelAppeal(' + detailIdArg + ', ' + semesterArg + ', ' + classArg + ')">Gửi đơn hủy</button> ' +
+      '<button class="btn btn-sm btn-outline" type="button" onclick="createChangeAppeal(' + detailIdArg + ', ' + semesterArg + ', ' + classArg + ')">Đổi lớp</button>';
   }
 
   return '<button class="btn btn-sm btn-outline my-courses-locked-action" type="button" title="' + myCoursesEscapeHtml(message) + '" disabled>' + myCoursesEscapeHtml(label) + '</button>';
@@ -285,6 +304,111 @@ async function cancelRegistration(id) {
   }
 }
 
+async function createCancelAppeal(id, maHocKy, maLop) {
+  var student = await ensureCurrentStudent();
+  if (!student) return;
+  var reason = prompt('Nhập lý do xin cứu xét hủy học phần');
+  if (!reason) return;
+  try {
+    var res = await apiFetch('/api/appeals', {
+      method: 'POST',
+      body: { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: 'huy', MaLopHuy: maLop, LyDo: reason }
+    });
+    if (res && res.success) {
+      showToast('Đã gửi đơn cứu xét hủy học phần', 'success');
+      loadMyAppeals(1);
+    } else {
+      showToast((res && res.message) || 'Không thể gửi đơn cứu xét', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+async function createChangeAppeal(id, maHocKy, maLopHuy) {
+  var student = await ensureCurrentStudent();
+  if (!student) return;
+  var maLopThem = prompt('Nhập mã lớp muốn đổi sang');
+  if (!maLopThem) return;
+  var reason = prompt('Nhập lý do xin cứu xét đổi lớp');
+  if (!reason) return;
+  try {
+    var res = await apiFetch('/api/appeals', {
+      method: 'POST',
+      body: { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: 'doi', MaLopHuy: maLopHuy, MaLopThem: maLopThem.trim(), LyDo: reason }
+    });
+    if (res && res.success) {
+      showToast('Đã gửi đơn cứu xét đổi lớp', 'success');
+      loadMyAppeals(1);
+    } else {
+      showToast((res && res.message) || 'Không thể gửi đơn cứu xét', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
+function appealStatusBadge(status) {
+  if (status === 'cho_duyet') return 'badge-warning';
+  if (status === 'da_duyet') return 'badge-success';
+  if (status === 'tu_choi') return 'badge-error';
+  return 'badge-secondary';
+}
+
+function appealContent(row) {
+  if (row.LoaiDon === 'them') return 'Thêm ' + (row.MaLopThem || '-');
+  if (row.LoaiDon === 'huy') return 'Hủy ' + (row.MaLopHuy || '-');
+  return 'Đổi ' + (row.MaLopHuy || '-') + ' -> ' + (row.MaLopThem || '-');
+}
+
+async function cancelAppeal(id) {
+  if (!confirm('Hủy đơn cứu xét đang chờ duyệt?')) return;
+  var res = await apiFetch('/api/appeals/' + encodeURIComponent(id) + '/cancel', { method: 'PUT' });
+  if (res && res.success) {
+    showToast('Đã hủy đơn cứu xét', 'success');
+    loadMyAppeals(currentAppealsPage);
+  } else {
+    showToast((res && res.message) || 'Không thể hủy đơn cứu xét', 'error');
+  }
+}
+
+async function loadMyAppeals(page) {
+  currentAppealsPage = page || 1;
+  var tbody = document.getElementById('my-appeals');
+  var count = document.getElementById('my-appeals-count');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Đang tải đơn cứu xét...</div></td></tr>';
+  try {
+    var student = await ensureCurrentStudent();
+    if (!student) return;
+    var res = await apiFetch('/api/appeals/student/' + encodeURIComponent(student.MaSv) + '?page=' + currentAppealsPage);
+    var rows = res && res.success ? (res.data || []) : [];
+    if (count) count.textContent = rows.length ? rows.length + ' đơn' : '';
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Chưa có đơn cứu xét</div></td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(function(row) {
+        var action = row.TrangThai === 'cho_duyet'
+          ? '<button class="btn btn-sm btn-outline" type="button" onclick="cancelAppeal(' + row.id + ')">Hủy đơn</button>'
+          : '<span class="text-muted">-</span>';
+        return '<tr>' +
+          '<td class="mono">#' + myCoursesEscapeHtml(row.id) + '</td>' +
+          '<td>' + myCoursesEscapeHtml(row.TenHocKy || row.MaHocKy || '-') + '</td>' +
+          '<td>' + myCoursesEscapeHtml(row.LoaiDonLabel || row.LoaiDon || '-') + '</td>' +
+          '<td>' + myCoursesEscapeHtml(appealContent(row)) + '</td>' +
+          '<td><span class="badge ' + appealStatusBadge(row.TrangThai) + '">' + myCoursesEscapeHtml(row.TrangThaiLabel || row.TrangThai || '-') + '</span></td>' +
+          '<td>' + myCoursesEscapeHtml(row.LyDoTuChoi || row.LyDo || '-') + '</td>' +
+          '<td>' + action + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+    renderClientPagination('my-appeals-pagination', res ? res.pagination : null, 'loadMyAppeals');
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state text-error">Lỗi tải đơn cứu xét</div></td></tr>';
+    renderClientPagination('my-appeals-pagination', null, 'loadMyAppeals');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   var form = document.getElementById('my-courses-filter');
   var year = document.getElementById('filter-academic-year');
@@ -325,5 +449,6 @@ document.addEventListener('DOMContentLoaded', function() {
     applyFiltersFromUrl();
     var initialPage = parseInt(new URLSearchParams(window.location.search).get('page') || '1', 10);
     loadMyCourses(Number.isFinite(initialPage) ? initialPage : 1);
+    loadMyAppeals(1);
   });
 });

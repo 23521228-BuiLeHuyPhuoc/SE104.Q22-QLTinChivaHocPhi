@@ -1,60 +1,171 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/curriculum-programs.css")
+
 block content
-  form.toolbar(method="get" action="/admin/curriculum-programs")
-    .search-box
-      input(type="text" name="search" placeholder="Tìm ngành, mã môn hoặc tên môn..." value=(search || ''))
-    .filter-group
-      select.form-control(name="major")
-        option(value="") Tất cả ngành
-        each item in majors || []
-          option(value=item.MaNganh selected=(major === item.MaNganh)) #{item.TenNganh} (#{item.MaNganh})
-      select.form-control(name="status")
-        option(value="") Tất cả trạng thái
-        option(value="active" selected=(status === 'active')) Đang áp dụng
-        option(value="inactive" selected=(status === 'inactive')) Tạm ngưng
-      button.btn.btn-primary(type="submit") Lọc
-      a.btn.btn-outline(href="/admin/curriculum-programs") Xóa lọc
+  .toolbar.curriculum-programs-toolbar
+    .toolbar-title
+      h2.page-title Chương trình học
+      p Xem chương trình theo từng ngành, từng học kỳ và quản lý môn học trong chương trình.
+    .curriculum-programs-toolbar-actions
+      button.btn.btn-primary(type="button" onclick="openCurriculumProgramModal('add')")
+        span.material-symbols-rounded add
+        span Thêm môn
 
-  .card
-    .card-header
-      h3 Chương trình học
-      span.card-count= typeof totalRecords !== 'undefined' ? `${totalRecords} bản ghi` : `${curriculumPrograms ? curriculumPrograms.length : 0} bản ghi`
-    .table-container
-      table.data-table
-        thead
-          tr
-            th Ngành
-            th Khoa
-            th Học kỳ
-            th Môn học
-            th Tín chỉ
-            th Loại
-            th Tính chất
-            th Trạng thái
-            th Ghi chú
-        tbody
-          if curriculumPrograms && curriculumPrograms.length > 0
-            each row in curriculumPrograms
-              tr
-                td
-                  strong= row.TenNganh
-                  small= row.MaNganh
-                td= row.TenKhoa
-                td
-                  span.badge.badge-primary HK #{row.HocKyDuKien}
-                td
-                  strong= row.TenMonHoc
-                  small= row.MaMonHoc
-                td= row.SoTinChi
-                td= row.LoaiMon
-                td= row.BatBuocLabel
-                td
-                  span.badge(class=row.TrangThaiClass)= row.TrangThaiLabel
-                td= row.GhiChu || '-'
+  form.curriculum-filter-panel(method="get" action="/admin/curriculum-programs")
+    .curriculum-filter-grid
+      .curriculum-filter-field.curriculum-filter-search-field
+        label(for="cp-search") Từ khóa
+        .search-box.curriculum-search-box
+          input#cp-search(type="text" name="search" value=(search || '') placeholder="Tìm mã ngành, tên ngành, mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceCurriculumProgramSearch()")
+      .curriculum-filter-field
+        label(for="cp-major") Ngành
+        select.form-control#cp-major(name="major" onchange="applyCurriculumProgramFilters()")
+          option(value="") Tất cả ngành
+          each item in majors || []
+            option(value=item.MaNganh selected=(major === item.MaNganh)) #{item.MaNganh} - #{item.TenNganh}
+      .curriculum-filter-field
+        label(for="cp-status") Trạng thái
+        select.form-control#cp-status(name="status" onchange="applyCurriculumProgramFilters()")
+          option(value="") Tất cả trạng thái
+          option(value="active" selected=(status === 'active')) Đang áp dụng
+          option(value="inactive" selected=(status === 'inactive')) Tạm ngưng
+      .curriculum-filter-actions
+        button.btn.btn-primary(type="submit")
+          span.material-symbols-rounded filter_alt
+          span Lọc
+        a.btn.btn-outline(href="/admin/curriculum-programs")
+          span.material-symbols-rounded filter_alt_off
+          span Xóa lọc
+
+  .curriculum-summary-grid
+    .curriculum-summary-item
+      span.material-symbols-rounded account_tree
+      div
+        strong= summaryStats ? summaryStats.majorCount : 0
+        small Ngành có chương trình
+    .curriculum-summary-item
+      span.material-symbols-rounded view_week
+      div
+        strong= summaryStats ? summaryStats.semesterCount : 0
+        small Học kỳ đang hiển thị
+    .curriculum-summary-item
+      span.material-symbols-rounded menu_book
+      div
+        strong= summaryStats ? summaryStats.totalCourses : 0
+        small Môn trong chương trình
+    .curriculum-summary-item
+      span.material-symbols-rounded functions
+      div
+        strong= summaryStats ? summaryStats.totalCredits : 0
+        small Tổng tín chỉ
+
+  .curriculum-program-list
+    if curriculumGroups && curriculumGroups.length > 0
+      each group in curriculumGroups
+        section.curriculum-major-panel(data-major=group.MaNganh)
+          .curriculum-major-header
+            .curriculum-major-title
+              span.curriculum-major-code.mono= group.MaNganh
+              div
+                h3= group.TenNganh
+                p= group.TenKhoa || '-'
+            .curriculum-major-meta
+              span.badge.badge-primary #{group.totalCourses} môn
+              span.badge.badge-info #{group.totalCredits} tín chỉ
+              span.badge.badge-secondary #{group.semesterCount} học kỳ
+              if group.inactiveCourses
+                span.badge.badge-warning #{group.inactiveCourses} tạm ngưng
+            .curriculum-major-actions
+              button.btn.btn-sm.btn-primary(type="button" onclick=`openCurriculumProgramModal('add', { MaNganh: '${group.MaNganh}' })`)
+                span.material-symbols-rounded add
+                span Thêm môn
+
+          if group.semesters && group.semesters.length > 0
+            .curriculum-semester-grid
+              each semester in group.semesters
+                .curriculum-semester-block
+                  .curriculum-semester-header
+                    div
+                      h4 HK #{semester.HocKyDuKien}
+                      small #{semester.courses.length} môn · #{semester.totalCredits} tín chỉ
+                  .curriculum-course-list
+                    each row in semester.courses
+                      article.curriculum-course-row(class=(row.TrangThai ? '' : 'is-inactive'))
+                        .curriculum-course-main
+                          .curriculum-course-title-row
+                            strong= row.TenMonHoc
+                            span.curriculum-course-code.mono= row.MaMonHoc
+                          .curriculum-course-meta
+                            span.curriculum-chip= row.LoaiMon || '-'
+                            span.curriculum-chip #{row.SoTinChi} TC
+                            span.curriculum-chip(class=(row.BatBuoc ? 'curriculum-chip-required' : 'curriculum-chip-elective'))= row.BatBuocLabel
+                            span.curriculum-chip(class=(row.TrangThai ? 'curriculum-chip-active' : 'curriculum-chip-paused'))= row.TrangThaiLabel
+                          if row.GhiChu
+                            p.curriculum-course-note= row.GhiChu
+                        .curriculum-course-actions
+                          button.btn.btn-sm.btn-outline(type="button" title="Sửa môn trong chương trình" aria-label="Sửa môn trong chương trình" data-record=JSON.stringify(row) onclick="openCurriculumProgramModal('edit', JSON.parse(this.dataset.record))")
+                            span.material-symbols-rounded edit
+                            span Sửa
+                          button.btn.btn-sm.btn-danger(type="button" title="Gỡ môn khỏi chương trình" aria-label="Gỡ môn khỏi chương trình" data-id=row.id onclick="deleteCurriculumProgramItem(this.dataset.id)")
+                            span.material-symbols-rounded delete
+                            span Gỡ
           else
-            tr
-              td(colspan="9")
-                .empty-state Không có dữ liệu chương trình học phù hợp
+            .curriculum-major-empty
+              span.material-symbols-rounded playlist_add
+              p Ngành này chưa có môn nào trong chương trình học.
+              button.btn.btn-primary(type="button" onclick=`openCurriculumProgramModal('add', { MaNganh: '${group.MaNganh}' })`)
+                span.material-symbols-rounded add
+                span Thêm môn đầu tiên
+    else
+      .card.curriculum-empty-card
+        .empty-state.curriculum-empty-state
+          span.material-symbols-rounded travel_explore
+          p Không có dữ liệu chương trình học phù hợp
 
-  include ../../partials/pagination
+block modals
+  #curriculum-program-modal.modal-overlay(onclick="if(event.target===this)closeCurriculumProgramModal()")
+    .modal.curriculum-program-modal
+      .modal-header
+        h2#curriculum-program-modal-title Thêm môn vào chương trình
+        button.modal-close(type="button" onclick="closeCurriculumProgramModal()" aria-label="Đóng") ×
+      .modal-body
+        form#curriculum-program-form
+          .curriculum-program-form-grid
+            .form-group
+              label(for="cp-item-major") Ngành
+              select.form-control#cp-item-major(required)
+                option(value="") Chọn ngành
+                each item in majors || []
+                  option(value=item.MaNganh)= `${item.MaNganh} - ${item.TenNganh}`
+            .form-group
+              label(for="cp-item-semester") Học kỳ dự kiến
+              input.form-control#cp-item-semester(type="number" min="1" max="20" value="1" required)
+            .form-group.form-group-wide
+              label(for="cp-item-course") Môn học
+              input.form-control#cp-item-course(type="text" list="cp-course-options" required placeholder="Nhập mã môn hoặc tên môn để tìm" autocomplete="off")
+              datalist#cp-course-options
+            .form-group
+              label(for="cp-item-required") Tính chất
+              select.form-control#cp-item-required
+                option(value="true") Bắt buộc
+                option(value="false") Tự chọn
+            .form-group
+              label(for="cp-item-active") Hiệu lực
+              select.form-control#cp-item-active
+                option(value="true") Đang áp dụng
+                option(value="false") Tạm ngưng
+            .form-group.form-group-wide
+              label(for="cp-item-note") Ghi chú
+              textarea.form-control#cp-item-note(rows="3" placeholder="Ghi chú nội bộ hoặc nhóm tự chọn")
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeCurriculumProgramModal()")
+          span.material-symbols-rounded close
+          span Hủy
+        button#curriculum-program-save-btn.btn.btn-primary(type="button" onclick="saveCurriculumProgramItem()")
+          span.material-symbols-rounded save
+          span.curriculum-program-save-label Lưu
+
+block scripts
+  script(src="/js/admin/curriculum-programs.js")

@@ -43,9 +43,11 @@ function getSelectedSemesterOption() {
 
 function getSemesterWindowMessage(item) {
   var state = getSemesterWindow(item);
-  if (!state) return '';
-  if (state.isOpen) return 'Đợt đăng ký học phần đang mở';
-  return state.message || item.LyDoKhongTheDangKy || 'Học kỳ này hiện chưa cho phép đăng ký học phần';
+  var appealState = item && item.AppealWindow ? item.AppealWindow : null;
+  if (!state && !appealState) return '';
+  if (state && state.isOpen) return 'Đợt đăng ký học phần đang mở';
+  if (appealState && appealState.isOpen) return 'Đợt đăng ký trực tiếp đã kết thúc. Bạn có thể gửi đơn cứu xét đăng ký.';
+  return (state && state.message) || item.LyDoKhongTheDangKy || 'Học kỳ này hiện chưa cho phép đăng ký học phần';
 }
 
 function renderRegistrationWindowMessage() {
@@ -61,7 +63,8 @@ function renderRegistrationWindowMessage() {
   }
 
   messageBox.textContent = message;
-  messageBox.classList.toggle('text-error', !(getSemesterWindow(selected) || {}).isOpen);
+  var appealState = selected && selected.AppealWindow ? selected.AppealWindow : null;
+  messageBox.classList.toggle('text-error', !((getSemesterWindow(selected) || {}).isOpen || (appealState && appealState.isOpen)));
   messageBox.classList.remove('hidden');
 }
 
@@ -78,8 +81,9 @@ function renderSemesterOptions(semesters) {
   (semesters || []).forEach(function(item) {
     var yearName = item.NAMHOC ? item.NAMHOC.TenNamHoc : (item.TenNamHoc || '');
     var windowState = getSemesterWindow(item);
+    var appealState = item.AppealWindow || null;
     var suffix = windowState
-      ? (windowState.isOpen ? ' - đang mở ĐK' : ' - ' + (windowState.message || 'chưa mở ĐK'))
+      ? (windowState.isOpen ? ' - đang mở ĐK' : (appealState && appealState.isOpen ? ' - đang cứu xét' : ' - ' + (windowState.message || 'chưa mở ĐK')))
       : '';
     item.DisplayLabel = item.TenHocKy + (yearName ? ' - ' + yearName : '') + suffix;
     semesterOptionsById[item.MaHocKy] = item;
@@ -89,7 +93,8 @@ function renderSemesterOptions(semesters) {
     var fromUrl = semesters.find(function(item) { return item.MaHocKy === requestedSemester; });
     var firstOpen = semesters.find(function(item) {
       var state = getSemesterWindow(item);
-      return state && state.isOpen;
+      var appealState = item.AppealWindow || null;
+      return (state && state.isOpen) || (appealState && appealState.isOpen);
     });
     selected = fromUrl || firstOpen || semesters[0];
     semesterInput.value = selected.MaHocKy;
@@ -99,7 +104,8 @@ function renderSemesterOptions(semesters) {
 
   if (label) {
     label.textContent = selected ? selected.DisplayLabel : 'Chưa có học kỳ đăng ký';
-    label.classList.toggle('text-error', Boolean(selected && getSemesterWindow(selected) && !getSemesterWindow(selected).isOpen));
+    var selectedAppealState = selected && selected.AppealWindow ? selected.AppealWindow : null;
+    label.classList.toggle('text-error', Boolean(selected && getSemesterWindow(selected) && !getSemesterWindow(selected).isOpen && !(selectedAppealState && selectedAppealState.isOpen)));
   }
   renderRegistrationWindowMessage();
 }
@@ -122,7 +128,8 @@ function renderAvailableCourseCard(c) {
   var registered = Number(c.SoLuongDaDangKy || 0);
   var remaining = max ? Math.max(max - registered, 0) : 0;
   var canRegister = max > 0 && remaining > 0 && c.CanDangKy !== false;
-  var blockedLabel = remaining > 0 && c.CanDangKy === false ? 'Đã thu HP' : 'Hết chỗ';
+  var canAppeal = max > 0 && remaining > 0 && c.CanAppealAdd === true;
+  var blockedLabel = remaining > 0 && c.CanDangKy === false ? (canAppeal ? 'Gửi cứu xét' : 'Đã thu HP') : 'Hết chỗ';
   var blockedTitle = c.LyDoKhongTheDangKy ? ' title="' + courseEscapeHtml(c.LyDoKhongTheDangKy) + '"' : '';
   var seatStatus = renderSeatStatus(max, registered, remaining);
   var seatsText = max
@@ -154,6 +161,8 @@ function renderAvailableCourseCard(c) {
       '</div>' +
       (canRegister
         ? '<button class="btn btn-sm btn-primary" type="button" data-register-course data-malop="' + courseEscapeHtml(c.MaLop || '') + '" data-mahocky="' + courseEscapeHtml(c.MaHocKy || '') + '">Đăng ký</button>'
+        : canAppeal
+          ? '<button class="btn btn-sm btn-primary" type="button" data-appeal-add-course data-malop="' + courseEscapeHtml(c.MaLop || '') + '" data-mahocky="' + courseEscapeHtml(c.MaHocKy || '') + '">Gửi đơn thêm</button>'
         : '<span class="badge badge-error"' + blockedTitle + '>' + blockedLabel + '</span>') +
     '</div>' +
   '</article>';
@@ -356,7 +365,8 @@ async function loadAvailableCourses(page) {
   renderRegistrationWindowMessage();
   var selectedSemester = getSelectedSemesterOption();
   var selectedWindow = getSemesterWindow(selectedSemester);
-  if (selectedWindow && !selectedWindow.isOpen) {
+  var selectedAppealWindow = selectedSemester && selectedSemester.AppealWindow ? selectedSemester.AppealWindow : null;
+  if (selectedWindow && !selectedWindow.isOpen && !(selectedAppealWindow && selectedAppealWindow.isOpen)) {
     loading.classList.add('hidden');
     list.classList.add('hidden');
     empty.classList.remove('hidden');
@@ -433,6 +443,29 @@ async function registerCourse(maLop, maHocKy) {
   }
 }
 
+async function createAddAppeal(maLop, maHocKy) {
+  var student = await ensureStudent();
+  if (!student) {
+    showToast('Không xác định được sinh viên', 'error');
+    return;
+  }
+  var reason = prompt('Nhập lý do xin cứu xét thêm học phần');
+  if (!reason) return;
+  try {
+    var res = await apiFetch('/api/appeals', {
+      method: 'POST',
+      body: { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: 'them', MaLopThem: maLop, LyDo: reason }
+    });
+    if (res && res.success) {
+      showToast('Đã gửi đơn cứu xét', 'success');
+    } else {
+      showToast((res && res.message) || 'Không thể gửi đơn cứu xét', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối', 'error');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   var form = document.getElementById('course-registration-filter');
   var search = document.getElementById('course-search');
@@ -488,8 +521,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (list) {
     list.addEventListener('click', function(event) {
       var button = event.target.closest('[data-register-course]');
-      if (!button) return;
-      registerCourse(button.dataset.malop, button.dataset.mahocky);
+      if (button) {
+        registerCourse(button.dataset.malop, button.dataset.mahocky);
+        return;
+      }
+      var appealButton = event.target.closest('[data-appeal-add-course]');
+      if (appealButton) createAddAppeal(appealButton.dataset.malop, appealButton.dataset.mahocky);
     });
   }
   initializeRegistrationPage();

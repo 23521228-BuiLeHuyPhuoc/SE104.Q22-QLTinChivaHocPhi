@@ -245,10 +245,14 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Kết thúc kỳ</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayKetThuc)) + '</span></div>',
           '<div class="semester-field"><span class="semester-field-label">Bắt đầu đăng ký</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayBatDauDangKy)) + '</span></div>',
           '<div class="semester-field"><span class="semester-field-label">Hạn đăng ký</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayKetThucDangKy)) + '</span></div>',
+          '<div class="semester-field"><span class="semester-field-label">Bắt đầu cứu xét</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayBatDauCuuXet)) + '</span></div>',
+          '<div class="semester-field"><span class="semester-field-label">Hạn cứu xét</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayKetThucCuuXet)) + '</span></div>',
           '<div class="semester-field semester-field-wide"><span class="semester-field-label">Hạn học phí</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.HanDongHocPhi)) + '</span></div>',
         '</div>',
         '<div class="semester-state">',
           '<span class="badge ' + getSemesterStatusBadge(status) + '">' + escapeHtml(status) + '</span>',
+          '<span class="badge ' + (s.NgayChotDangKy ? 'badge-success' : 'badge-secondary') + '">' + (s.NgayChotDangKy ? 'Đã chốt ĐK' : 'Chưa chốt ĐK') + '</span>',
+          '<span class="badge ' + (s.MoThuHocPhi ? 'badge-success' : 'badge-secondary') + '">' + (s.MoThuHocPhi ? 'Đang mở thu' : 'Chưa mở thu') + '</span>',
           '<div class="semester-metrics">',
             '<div class="semester-metric"><span class="semester-metric-value">' + escapeHtml(s.SoLopMo || 0) + '</span><span class="semester-metric-label">Lớp mở</span></div>',
             '<div class="semester-metric"><span class="semester-metric-value">' + escapeHtml(s.SoSinhVienDangKy || 0) + '</span><span class="semester-metric-label">SV đăng ký</span></div>',
@@ -260,6 +264,8 @@ function renderSemesterRows(rows) {
         '</div>',
         '<div class="semester-actions">',
           '<button class="btn btn-sm btn-outline" type="button" data-action="finalize" data-id="' + escapeHtml(s.MaHocKy || '') + '">Ch\u1ed1t \u0111\u0103ng k\u00fd</button>',
+          '<button class="btn btn-sm btn-outline" type="button" data-action="open-tuition" data-id="' + escapeHtml(s.MaHocKy || '') + '">Mở thu</button>',
+          '<button class="btn btn-sm btn-outline" type="button" data-action="close-tuition" data-id="' + escapeHtml(s.MaHocKy || '') + '">Khóa thu</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="edit" data-index="' + index + '">Sửa</button>',
           '<button class="btn btn-sm btn-danger" type="button" data-action="delete" data-id="' + escapeHtml(s.MaHocKy || '') + '">Xóa</button>',
         '</div>',
@@ -455,6 +461,24 @@ function getRegistrationDateRangeError() {
   return '';
 }
 
+function getAppealDateRangeError() {
+  var termStart = document.getElementById('hk-batdau').value;
+  var registrationEnd = document.getElementById('hk-ketthucdk').value;
+  var appealStart = document.getElementById('hk-batdaucx').value;
+  var appealEnd = document.getElementById('hk-ketthuccx').value;
+
+  if ((appealStart || appealEnd) && !registrationEnd) {
+    return 'Cần nhập hạn đăng ký trước khi nhập thời gian cứu xét';
+  }
+  if (registrationEnd && appealStart && appealStart <= registrationEnd) {
+    return 'Thời gian cứu xét phải bắt đầu sau hạn đăng ký';
+  }
+  if (termStart && appealEnd && appealEnd >= termStart) {
+    return 'Hạn cứu xét phải trước ngày bắt đầu học kỳ';
+  }
+  return '';
+}
+
 function getTuitionDueDateRangeError() {
   var termStart = document.getElementById('hk-batdau').value;
   var termEnd = document.getElementById('hk-ketthuc').value;
@@ -488,6 +512,14 @@ function validateSemesterDates() {
     'Ngày bắt đầu đăng ký',
     'Ngày kết thúc đăng ký'
   );
+  var appealValid = validateDatePair(
+    'hk-batdaucx',
+    'hk-ketthuccx',
+    'hk-appeal-date-error',
+    'Ngày bắt đầu cứu xét phải trước hoặc bằng ngày kết thúc cứu xét',
+    'Ngày bắt đầu cứu xét',
+    'Ngày kết thúc cứu xét'
+  );
   if (termValid && registrationValid) {
     var rangeError = getRegistrationDateRangeError();
     if (rangeError) {
@@ -495,14 +527,21 @@ function validateSemesterDates() {
       registrationValid = false;
     }
   }
+  if (termValid && registrationValid && appealValid) {
+    var appealRangeError = getAppealDateRangeError();
+    if (appealRangeError) {
+      setDatePairError('hk-batdaucx', 'hk-ketthuccx', 'hk-appeal-date-error', appealRangeError);
+      appealValid = false;
+    }
+  }
   var tuitionDateError = getStrictDateInputError('hk-hanhocphi', 'Hạn đóng học phí');
   var tuitionError = tuitionDateError || (termValid ? getTuitionDueDateRangeError() : '');
   setSingleDateError('hk-hanhocphi', 'hk-tuition-date-error', tuitionError);
-  return termValid && registrationValid && !tuitionError;
+  return termValid && registrationValid && appealValid && !tuitionError;
 }
 
 function bindSemesterDateValidation() {
-  ['hk-batdau', 'hk-ketthuc', 'hk-batdaudk', 'hk-ketthucdk', 'hk-hanhocphi'].forEach(function(id) {
+  ['hk-batdau', 'hk-ketthuc', 'hk-batdaudk', 'hk-ketthucdk', 'hk-batdaucx', 'hk-ketthuccx', 'hk-hanhocphi'].forEach(function(id) {
     var input = document.getElementById(id);
     if (!input) return;
     input.addEventListener('input', validateSemesterDates);
@@ -526,6 +565,8 @@ function openModal(mode, s) {
     document.getElementById('hk-ketthuc').value = asDateInput(s.NgayKetThuc);
     document.getElementById('hk-batdaudk').value = asDateInput(s.NgayBatDauDangKy);
     document.getElementById('hk-ketthucdk').value = asDateInput(s.NgayKetThucDangKy);
+    document.getElementById('hk-batdaucx').value = asDateInput(s.NgayBatDauCuuXet);
+    document.getElementById('hk-ketthuccx').value = asDateInput(s.NgayKetThucCuuXet);
     document.getElementById('hk-hanhocphi').value = asDateInput(s.HanDongHocPhi);
     document.getElementById('hk-trangthai').value = s.TrangThai || 'Sắp diễn ra';
   } else {
@@ -557,6 +598,8 @@ async function saveSemester() {
     NgayKetThuc: document.getElementById('hk-ketthuc').value || null,
     NgayBatDauDangKy: document.getElementById('hk-batdaudk').value || null,
     NgayKetThucDangKy: document.getElementById('hk-ketthucdk').value || null,
+    NgayBatDauCuuXet: document.getElementById('hk-batdaucx').value || null,
+    NgayKetThucCuuXet: document.getElementById('hk-ketthuccx').value || null,
     HanDongHocPhi: document.getElementById('hk-hanhocphi').value || null,
     TrangThai: document.getElementById('hk-trangthai').value
   };
@@ -623,6 +666,36 @@ async function finalizeSemesterRegistration(id) {
   }
 }
 
+async function openTuitionPayment(id) {
+  if (!confirm('Mở thu học phí cho học kỳ này?')) return;
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(id) + '/open-tuition-payment', { method: 'POST' });
+    if (res.success) {
+      showToast('Đã mở thu học phí', 'success');
+      loadSemesters(semesterPage);
+    } else {
+      showToast(res.message || 'Không thể mở thu học phí', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối khi mở thu học phí', 'error');
+  }
+}
+
+async function closeTuitionPayment(id) {
+  if (!confirm('Khóa thu học phí cho học kỳ này?')) return;
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(id) + '/close-tuition-payment', { method: 'POST' });
+    if (res.success) {
+      showToast('Đã khóa thu học phí', 'success');
+      loadSemesters(semesterPage);
+    } else {
+      showToast(res.message || 'Không thể khóa thu học phí', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối khi khóa thu học phí', 'error');
+  }
+}
+
 function bindSemesterFilters() {
   var keyword = document.getElementById('semester-keyword');
   var searchScope = document.getElementById('semester-search-scope');
@@ -670,6 +743,10 @@ function bindSemesterFilters() {
         deleteSemester(button.dataset.id);
       } else if (button.dataset.action === 'finalize') {
         finalizeSemesterRegistration(button.dataset.id);
+      } else if (button.dataset.action === 'open-tuition') {
+        openTuitionPayment(button.dataset.id);
+      } else if (button.dataset.action === 'close-tuition') {
+        closeTuitionPayment(button.dataset.id);
       }
     });
   }

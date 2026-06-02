@@ -51,10 +51,10 @@ block modals
         h3 Đóng học phí
         button.modal-close(type="button" onclick="closePaymentModal()") ×
       .modal-body
-        input#payment-so-phieu(type="hidden")
+        input#payment-receipt-id(type="hidden")
         .form-group
-          label(for="payment-amount") Số tiền
-          input.form-control#payment-amount(type="number" min="1")
+          label Số tiền
+          .form-control-static#payment-amount-label --
         .form-group
           label(for="payment-method") Phương thức
           select.form-control#payment-method
