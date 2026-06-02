@@ -30,7 +30,7 @@ function applyFilters() {
 function openModal(mode, data) {
   editMode = mode === 'edit';
   editId = editMode ? data.MaNganh : null;
-  document.getElementById('modal-title').textContent = editMode ? 'Sua nganh' : 'Them nganh';
+  document.getElementById('modal-title').textContent = editMode ? 'Sửa ngành' : 'Thêm ngành';
   document.getElementById('maj-ma').value = editMode ? data.MaNganh : '';
   document.getElementById('maj-ma').disabled = editMode;
   document.getElementById('maj-ten').value = editMode ? data.TenNganh : '';
@@ -52,18 +52,18 @@ async function saveMajor() {
     ThoiGianDaoTao: document.getElementById('maj-thoigian').value,
     MoTa: document.getElementById('maj-mota').value.trim()
   };
-  if (!body.MaNganh || !body.TenNganh || !body.MaKhoa) { showToast('Vui long nhap day du', 'error'); return; }
+  if (!body.MaNganh || !body.TenNganh || !body.MaKhoa) { showToast('Vui lòng nhập đầy đủ', 'error'); return; }
   var url = editMode ? '/api/majors/' + editId : '/api/majors';
   var res = await apiFetch(url, { method: editMode ? 'PUT' : 'POST', body: body });
   if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 500); }
-  else { showToast(res.message || 'Loi', 'error'); }
+  else { showToast(res.message || 'Lỗi', 'error'); }
 }
 
 async function deleteMajor(id) {
-  if (!confirm('Xoa nganh "' + id + '"?')) return;
+  if (!confirm('Xóa ngành "' + id + '"?')) return;
   var res = await apiFetch('/api/majors/' + id, { method: 'DELETE' });
   if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 500); }
-  else { showToast(res.message || 'Loi', 'error'); }
+  else { showToast(res.message || 'Lỗi', 'error'); }
 }
 
 function selectCurriculumMajor(id) {
@@ -80,7 +80,7 @@ async function loadCurriculum() {
   var tbody = document.getElementById('curriculum-list');
   var major = document.getElementById('curriculum-major').value;
   if (!major) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">Chon nganh de quan ly chuong trinh</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">Chọn ngành để quản lý chương trình</div></td></tr>';
     return;
   }
   var params = new URLSearchParams();
@@ -89,7 +89,7 @@ async function loadCurriculum() {
     var el = document.getElementById(pair[1]);
     if (el && el.value) params.set(pair[0], el.value);
   });
-  tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">Dang tai...</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">Đang tải...</div></td></tr>';
   var res = await apiFetch('/api/majors/curriculum/items?' + params.toString());
   var rows = res.data || [];
   tbody.innerHTML = rows.map(function(row) {
@@ -102,12 +102,12 @@ async function loadCurriculum() {
       '<td>' + escapeMajorHtml(row.LoaiMon || '-') + '</td>' +
       '<td>' + Number(row.SoTinChi || 0) + '</td>' +
       '<td>' + Number(row.HocKyDuKien || 1) + '</td>' +
-      '<td><span class="badge ' + (row.BatBuoc ? 'badge-primary' : 'badge-secondary') + '">' + (row.BatBuoc ? 'Bat buoc' : 'Tu chon') + '</span></td>' +
+      '<td><span class="badge ' + (row.BatBuoc ? 'badge-primary' : 'badge-secondary') + '">' + (row.BatBuoc ? 'Bắt buộc' : 'Tự chọn') + '</span></td>' +
       '<td>' + escapeMajorHtml(conds) + '</td>' +
-      '<td><span class="badge ' + (row.isValid ? 'badge-success' : 'badge-error') + '">' + (row.isValid ? 'Hop le' : 'Co loi') + '</span></td>' +
-      '<td class="table-actions"><button class="btn btn-sm btn-outline" type="button" data-record="' + record + '" onclick="openCurriculumModal(\'edit\', JSON.parse(this.dataset.record))">Sua</button><button class="btn btn-sm btn-danger" type="button" onclick="deleteCurriculumItem(' + row.id + ')">Go</button></td>' +
+      '<td><span class="badge ' + (row.isValid ? 'badge-success' : 'badge-error') + '">' + (row.isValid ? 'Hợp lệ' : 'Có lỗi') + '</span></td>' +
+      '<td class="table-actions"><button class="btn btn-sm btn-outline" type="button" data-record="' + record + '" onclick="openCurriculumModal(\'edit\', JSON.parse(this.dataset.record))">Sửa</button><button class="btn btn-sm btn-danger" type="button" onclick="deleteCurriculumItem(' + row.id + ')">Gỡ</button></td>' +
     '</tr>';
-  }).join('') || '<tr><td colspan="9"><div class="empty-state">Chua co mon trong chuong trinh</div></td></tr>';
+  }).join('') || '<tr><td colspan="9"><div class="empty-state">Chưa có môn trong chương trình</div></td></tr>';
 }
 
 async function loadCourseOptions(search) {
@@ -120,7 +120,7 @@ async function loadCourseOptions(search) {
 
 function openCurriculumModal(mode, row) {
   editingCurriculumId = mode === 'edit' && row ? row.id : null;
-  document.getElementById('curriculum-modal-title').textContent = editingCurriculumId ? 'Sua mon trong chuong trinh' : 'Them mon vao chuong trinh';
+  document.getElementById('curriculum-modal-title').textContent = editingCurriculumId ? 'Sửa môn trong chương trình' : 'Thêm môn vào chương trình';
   document.getElementById('ctdt-major').value = row ? row.MaNganh : (document.getElementById('curriculum-major').value || '');
   document.getElementById('ctdt-course').value = row ? row.MaMonHoc : '';
   document.getElementById('ctdt-course').disabled = !!editingCurriculumId;
@@ -148,23 +148,23 @@ async function saveCurriculumItem() {
   var url = editingCurriculumId ? '/api/majors/curriculum/items/' + editingCurriculumId : '/api/majors/curriculum/items';
   var res = await apiFetch(url, { method: editingCurriculumId ? 'PUT' : 'POST', body: body });
   if (res.success) {
-    showToast(res.message || 'Da luu chuong trinh', 'success');
+    showToast(res.message || 'Đã lưu chương trình', 'success');
     closeCurriculumModal();
     document.getElementById('curriculum-major').value = body.MaNganh;
     loadCurriculum();
   } else {
-    showToast(res.message || 'Khong the luu chuong trinh', 'error');
+    showToast(res.message || 'Không thể lưu chương trình', 'error');
   }
 }
 
 async function deleteCurriculumItem(id) {
-  if (!confirm('Go mon nay khoi chuong trinh?')) return;
+  if (!confirm('Gỡ môn này khỏi chương trình?')) return;
   var res = await apiFetch('/api/majors/curriculum/items/' + id, { method: 'DELETE' });
   if (res.success) {
-    showToast(res.message || 'Da go mon', 'success');
+    showToast(res.message || 'Đã gỡ môn', 'success');
     loadCurriculum();
   } else {
-    showToast(res.message || 'Khong the go mon', 'error');
+    showToast(res.message || 'Không thể gỡ môn', 'error');
   }
 }
 

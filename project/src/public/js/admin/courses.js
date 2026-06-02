@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function openModal(mode, c) {
   editingId = null;
-  document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sua mon hoc' : 'Them mon hoc';
+  document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa môn học' : 'Thêm môn học';
   document.getElementById('mh-ma').disabled = mode === 'edit';
 
   if (mode === 'edit' && c) {
@@ -68,29 +68,29 @@ async function saveCourse() {
       : await apiFetch('/api/courses', { method: 'POST', body: data });
 
     if (res.success) {
-      showToast(editingId ? 'Cap nhat mon hoc thanh cong' : 'Them mon hoc thanh cong', 'success');
+      showToast(editingId ? 'Cập nhật môn học thành công' : 'Thêm môn học thành công', 'success');
       closeModal();
       setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Khong the luu mon hoc', 'error');
+      showToast(res.message || 'Không thể lưu môn học', 'error');
     }
   } catch (e) {
-    showToast('Loi ket noi', 'error');
+    showToast('Lỗi kết nối', 'error');
   }
 }
 
 async function deleteCourse(id) {
-  if (!confirm('Ban co chac muon xoa mon hoc nay?')) return;
+  if (!confirm('Bạn có chắc muốn xóa môn học này?')) return;
   try {
     var res = await apiFetch('/api/courses/' + id, { method: 'DELETE' });
     if (res.success) {
-      showToast('Da xoa mon hoc', 'success');
+      showToast('Đã xóa môn học', 'success');
       setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Khong the xoa mon hoc', 'error');
+      showToast(res.message || 'Không thể xóa môn học', 'error');
     }
   } catch (e) {
-    showToast('Loi ket noi', 'error');
+    showToast('Lỗi kết nối', 'error');
   }
 }
 
@@ -124,7 +124,7 @@ async function exportCourses() {
   if (token) headers.Authorization = 'Bearer ' + token;
   var response = await fetch('/api/courses/export?' + params.toString(), { headers: headers });
   if (!response.ok) {
-    showToast('Khong the xuat Excel', 'error');
+    showToast('Không thể xuất Excel', 'error');
     return;
   }
   var blob = await response.blob();
@@ -146,10 +146,10 @@ async function openCourseDetail(id) {
   var modal = document.getElementById('course-detail-modal');
   var content = document.getElementById('course-detail-content');
   modal.classList.add('active');
-  content.textContent = 'Dang tai...';
+  content.textContent = 'Đang tải...';
   try {
     var res = await apiFetch('/api/courses/' + encodeURIComponent(id));
-    if (!res.success) throw new Error(res.message || 'Khong tai duoc chi tiet');
+    if (!res.success) throw new Error(res.message || 'Không tải được chi tiết');
     var c = res.data || {};
     var prereqs = (c.prerequisites || []).map(function(item) {
       return '<li><span class="mono">' + courseEscapeHtml(item.MaMonDieuKien) + '</span> - ' + courseEscapeHtml(item.TenMonDieuKien) + ' (' + courseEscapeHtml(item.LoaiDieuKien) + ')</li>';
@@ -158,19 +158,19 @@ async function openCourseDetail(id) {
       return '<tr><td class="mono">' + courseEscapeHtml(item.MaLop) + '</td><td>' + courseEscapeHtml(item.TenLop) + '</td><td>' + courseEscapeHtml(item.GiangVien || '-') + '</td><td>' + courseEscapeHtml((item.TenHocKy || item.MaHocKy || '-') + (item.TenNamHoc ? ' - ' + item.TenNamHoc : '')) + '</td></tr>';
     }).join('');
     var curricula = (c.curricula || []).map(function(item) {
-      return '<li>' + courseEscapeHtml(item.TenNganh || item.MaNganh) + ' - HK ' + courseEscapeHtml(item.HocKyDuKien) + ' - ' + (item.BatBuoc ? 'Bat buoc' : 'Tu chon') + '</li>';
+      return '<li>' + courseEscapeHtml(item.TenNganh || item.MaNganh) + ' - HK ' + courseEscapeHtml(item.HocKyDuKien) + ' - ' + (item.BatBuoc ? 'Bắt buộc' : 'Tự chọn') + '</li>';
     }).join('');
     content.innerHTML =
       '<div class="detail-grid">' +
-        '<div><strong>Ma mon</strong><span>' + courseEscapeHtml(c.MaMonHoc) + '</span></div>' +
-        '<div><strong>Ten mon</strong><span>' + courseEscapeHtml(c.TenMonHoc) + '</span></div>' +
+        '<div><strong>Mã môn</strong><span>' + courseEscapeHtml(c.MaMonHoc) + '</span></div>' +
+        '<div><strong>Tên môn</strong><span>' + courseEscapeHtml(c.TenMonHoc) + '</span></div>' +
         '<div><strong>Khoa</strong><span>' + courseEscapeHtml(c.TenKhoa || c.MaKhoa) + '</span></div>' +
-        '<div><strong>Tin chi</strong><span>' + Number(c.SoTinChi || 0) + '</span></div>' +
+        '<div><strong>Tín chỉ</strong><span>' + Number(c.SoTinChi || 0) + '</span></div>' +
       '</div>' +
-      '<h4>Mon dieu kien</h4><ul>' + (prereqs || '<li>Khong co</li>') + '</ul>' +
-      '<h4>Chuong trinh dao tao</h4><ul>' + (curricula || '<li>Chua gan vao chuong trinh</li>') + '</ul>' +
-      '<h4>Lop da mo</h4><div class="table-container"><table class="data-table"><thead><tr><th>Ma lop</th><th>Ten lop</th><th>Giang vien</th><th>Hoc ky</th></tr></thead><tbody>' + (classes || '<tr><td colspan="4"><div class="empty-state">Chua mo lop</div></td></tr>') + '</tbody></table></div>';
+      '<h4>Môn điều kiện</h4><ul>' + (prereqs || '<li>Không có</li>') + '</ul>' +
+      '<h4>Chương trình đào tạo</h4><ul>' + (curricula || '<li>Chưa gắn vào chương trình</li>') + '</ul>' +
+      '<h4>Lớp đã mở</h4><div class="table-container"><table class="data-table"><thead><tr><th>Mã lớp</th><th>Tên lớp</th><th>Giảng viên</th><th>Học kỳ</th></tr></thead><tbody>' + (classes || '<tr><td colspan="4"><div class="empty-state">Chưa mở lớp</div></td></tr>') + '</tbody></table></div>';
   } catch (error) {
-    content.textContent = error.message || 'Khong tai duoc chi tiet';
+    content.textContent = error.message || 'Không tải được chi tiết';
   }
 }

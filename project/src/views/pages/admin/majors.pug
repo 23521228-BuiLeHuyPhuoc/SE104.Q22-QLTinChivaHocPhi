@@ -3,33 +3,33 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tim ma nganh, ten nganh..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm mã ngành, tên ngành..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-khoa(onchange="applyFilters()")
-        option(value="" selected=(!filterKhoa)) Tat ca khoa
+        option(value="" selected=(!filterKhoa)) Tất cả khoa
         if faculties && faculties.length > 0
           each k in faculties
             option(value=k.MaKhoa selected=(filterKhoa === k.MaKhoa))= k.TenKhoa
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Them nganh
-      a.btn.btn-outline(href="/admin/trash?entity=majors") Thung rac
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm ngành
+      a.btn.btn-outline(href="/admin/trash?entity=majors") Thùng rác
 
   .card.mb-3
     .card-header
-      h3 Danh sach nganh hoc
-      span.card-count= majors ? `${majors.length} ban ghi` : '0 ban ghi'
+      h3 Danh sách ngành học
+      span.card-count= majors ? `${majors.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
-            th Ma nganh
-            th Ten nganh
+            th Mã ngành
+            th Tên ngành
             th Khoa
-            th So TC toi thieu
-            th Thoi gian DT
-            th So SV
-            th Sua boi
-            th Sua luc
-            th Thao tac
+            th Số TC tối thiểu
+            th Thời gian ĐT
+            th Số SV
+            th Sửa bởi
+            th Sửa lúc
+            th Thao tác
         tbody
           if majors && majors.length > 0
             each m in majors
@@ -39,141 +39,141 @@ block content
                   strong= m.TenNganh
                 td= m.KHOA ? m.KHOA.TenKhoa : m.MaKhoa
                 td= m.SoTinChiToiThieu || 120
-                td= m.ThoiGianDaoTao ? `${m.ThoiGianDaoTao} nam` : '4 nam'
+                td= m.ThoiGianDaoTao ? `${m.ThoiGianDaoTao} năm` : '4 năm'
                 td= m._count ? m._count.SINHVIEN : 0
                 td= m.NguoiCapNhatTen || m.NguoiCapNhat || '-'
                 td= m.NgayCapNhat ? new Date(m.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(m) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sua
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(m) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-primary(type="button" onclick=`selectCurriculumMajor('${m.MaNganh}')`) CTDT
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteMajor('${m.MaNganh}')`) Xoa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteMajor('${m.MaNganh}')`) Xóa
           else
             tr
               td(colspan="9")
-                .empty-state Khong co nganh phu hop
+                .empty-state Không có ngành phù hợp
 
   include ../../partials/pagination
 
   .card
     .card-header
-      h3 Chuong trinh dao tao
+      h3 Chương trình đào tạo
       .filter-group
         select#curriculum-major(onchange="loadCurriculum()")
-          option(value="") Chon nganh
+          option(value="") Chọn ngành
           if majors && majors.length > 0
             each m in majors
               option(value=m.MaNganh)= `${m.MaNganh} - ${m.TenNganh}`
         select#curriculum-semester(onchange="loadCurriculum()")
-          option(value="") Tat ca HK
+          option(value="") Tất cả HK
           each hk in [1,2,3,4,5,6,7,8,9,10]
             option(value=hk)= `HK ${hk}`
         select#curriculum-type(onchange="loadCurriculum()")
-          option(value="") Tat ca loai
+          option(value="") Tất cả loại
           option(value="LT") LT
           option(value="TH") TH
         select#curriculum-valid(onchange="loadCurriculum()")
-          option(value="") Tat ca trang thai
-          option(value="true") Hop le
-          option(value="false") Co loi
-        input#curriculum-search.form-control(type="text" placeholder="Tim ma/ten mon" onkeyup="debounceCurriculumSearch()")
-        button.btn.btn-primary(type="button" onclick="openCurriculumModal('add')") Them mon
+          option(value="") Tất cả trạng thái
+          option(value="true") Hợp lệ
+          option(value="false") Có lỗi
+        input#curriculum-search.form-control(type="text" placeholder="Tìm mã/tên môn" onkeyup="debounceCurriculumSearch()")
+        button.btn.btn-primary(type="button" onclick="openCurriculumModal('add')") Thêm môn
     .table-container
       table.data-table
         thead
           tr
-            th Ma mon
-            th Ten mon
-            th Loai
+            th Mã môn
+            th Tên môn
+            th Loại
             th TC
-            th HK du kien
-            th Bat buoc
-            th Dieu kien
-            th Hop le
-            th Thao tac
+            th HK dự kiến
+            th Bắt buộc
+            th Điều kiện
+            th Hợp lệ
+            th Thao tác
         tbody#curriculum-list
           tr
             td(colspan="9")
-              .empty-state Chon nganh de quan ly chuong trinh
+              .empty-state Chọn ngành để quản lý chương trình
 
 block modals
   #major-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
     .modal
       .modal-header
-        h2#modal-title Them nganh hoc
+        h2#modal-title Thêm ngành học
         button.modal-close(type="button" onclick="closeModal()") x
       .modal-body
         form#major-form
           .form-row
             .form-group
-              label(for="maj-ma") Ma nganh
+              label(for="maj-ma") Mã ngành
               input.form-control#maj-ma(type="text" required placeholder="VD: KTPM")
             .form-group
-              label(for="maj-ten") Ten nganh
+              label(for="maj-ten") Tên ngành
               input.form-control#maj-ten(type="text" required)
           .form-row
             .form-group
               label(for="maj-khoa") Khoa
               select.form-control#maj-khoa(required)
-                option(value="") Chon khoa
+                option(value="") Chọn khoa
                 if faculties && faculties.length > 0
                   each k in faculties
                     option(value=k.MaKhoa)= k.TenKhoa
             .form-group
-              label(for="maj-tinchi") So tin chi toi thieu
+              label(for="maj-tinchi") Số tín chỉ tối thiểu
               input.form-control#maj-tinchi(type="number" min="1" value="120")
           .form-row
             .form-group
-              label(for="maj-thoigian") Thoi gian dao tao (nam)
+              label(for="maj-thoigian") Thời gian đào tạo (năm)
               input.form-control#maj-thoigian(type="number" min="1" max="10" step="0.5" value="4")
             .form-group
           .form-group
-            label(for="maj-mota") Mo ta
+            label(for="maj-mota") Mô tả
             textarea.form-control#maj-mota(rows="3")
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closeModal()") Huy
-        button.btn.btn-primary(type="button" onclick="saveMajor()") Luu
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveMajor()") Lưu
 
   #curriculum-modal.modal-overlay(onclick="if(event.target===this)closeCurriculumModal()")
     .modal
       .modal-header
-        h2#curriculum-modal-title Them mon vao chuong trinh
+        h2#curriculum-modal-title Thêm môn vào chương trình
         button.modal-close(type="button" onclick="closeCurriculumModal()") x
       .modal-body
         form#curriculum-form
           .form-row
             .form-group
-              label(for="ctdt-major") Nganh
+              label(for="ctdt-major") Ngành
               select.form-control#ctdt-major(required)
-                option(value="") Chon nganh
+                option(value="") Chọn ngành
                 if majors && majors.length > 0
                   each m in majors
                     option(value=m.MaNganh)= `${m.MaNganh} - ${m.TenNganh}`
             .form-group
-              label(for="ctdt-course") Mon hoc
-              input.form-control#ctdt-course(type="text" list="ctdt-course-options" required placeholder="Nhap ma/ten de tim")
+              label(for="ctdt-course") Môn học
+              input.form-control#ctdt-course(type="text" list="ctdt-course-options" required placeholder="Nhập mã/tên để tìm")
               datalist#ctdt-course-options
           .form-row
             .form-group
-              label(for="ctdt-semester") Hoc ky du kien
+              label(for="ctdt-semester") Học kỳ dự kiến
               input.form-control#ctdt-semester(type="number" min="1" value="1")
             .form-group
-              label(for="ctdt-required") Trang thai
+              label(for="ctdt-required") Trạng thái
               select.form-control#ctdt-required
-                option(value="true") Bat buoc
-                option(value="false") Tu chon
+                option(value="true") Bắt buộc
+                option(value="false") Tự chọn
           .form-row
             .form-group
-              label(for="ctdt-active") Hieu luc
+              label(for="ctdt-active") Hiệu lực
               select.form-control#ctdt-active
-                option(value="true") Bat
-                option(value="false") Tat
+                option(value="true") Bật
+                option(value="false") Tắt
             .form-group
           .form-group
-            label(for="ctdt-note") Ghi chu
+            label(for="ctdt-note") Ghi chú
             textarea.form-control#ctdt-note(rows="2")
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closeCurriculumModal()") Huy
-        button.btn.btn-primary(type="button" onclick="saveCurriculumItem()") Luu
+        button.btn.btn-outline(type="button" onclick="closeCurriculumModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveCurriculumItem()") Lưu
 
 block scripts
   script(src="/js/admin/majors.js")

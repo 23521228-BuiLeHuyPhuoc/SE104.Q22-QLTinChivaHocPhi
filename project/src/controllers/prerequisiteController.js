@@ -55,19 +55,19 @@ const getPrerequisites = async (req, res) => {
 
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get prerequisites error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get prerequisites error:');
   }
 };
 
 const getPrerequisiteById = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const row = await prisma.DIEUKIENMONHOC.findFirst({ where: { id, DaXoa: false }, include: includeCourses });
-    if (!row) return res.status(404).json({ success: false, message: 'Khong tim thay rang buoc mon hoc' });
+    if (!row) return res.status(404).json({ success: false, message: 'Không tìm thấy ràng buộc môn học' });
     res.json({ success: true, data: row });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get prerequisite error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get prerequisite error:');
   }
 };
 
@@ -131,22 +131,22 @@ const createPrerequisite = async (req, res) => {
       })
       : await prisma.DIEUKIENMONHOC.create({ data, include: includeCourses });
 
-    res.status(201).json({ success: true, message: 'Luu rang buoc mon hoc thanh cong', data: row });
+    res.status(201).json({ success: true, message: 'Lưu ràng buộc môn học thành công', data: row });
   } catch (error) {
     console.error('Create prerequisite error:', error);
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: 'Rang buoc mon hoc nay da ton tai' });
+      return res.status(400).json({ success: false, message: 'Ràng buộc môn học này đã tồn tại' });
     }
-    return sendErrorResponse(res, error, 'Khong the tao rang buoc mon hoc');
+    return sendErrorResponse(res, error, 'Không thể tạo ràng buộc môn học');
   }
 };
 
 const updatePrerequisite = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const existing = await prisma.DIEUKIENMONHOC.findFirst({ where: { id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay rang buoc mon hoc' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy ràng buộc môn học' });
 
     const validated = await validatePayload({
       MaMonHoc: req.body.MaMonHoc ?? existing.MaMonHoc,
@@ -157,7 +157,7 @@ const updatePrerequisite = async (req, res) => {
     }, id);
     if (validated.error) return res.status(400).json({ success: false, message: validated.error });
     if (validated.duplicate && validated.duplicate.id !== id) {
-      return res.status(400).json({ success: false, message: 'Rang buoc mon hoc nay da ton tai' });
+      return res.status(400).json({ success: false, message: 'Ràng buộc môn học này đã tồn tại' });
     }
 
     const updated = await prisma.DIEUKIENMONHOC.update({
@@ -165,26 +165,26 @@ const updatePrerequisite = async (req, res) => {
       data: { ...validated.data, ...updateAudit(req) },
       include: includeCourses
     });
-    res.json({ success: true, message: 'Cap nhat rang buoc mon hoc thanh cong', data: updated });
+    res.json({ success: true, message: 'Cập nhật ràng buộc môn học thành công', data: updated });
   } catch (error) {
     console.error('Update prerequisite error:', error);
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: 'Rang buoc mon hoc nay da ton tai' });
+      return res.status(400).json({ success: false, message: 'Ràng buộc môn học này đã tồn tại' });
     }
-    return sendErrorResponse(res, error, 'Khong the cap nhat rang buoc mon hoc');
+    return sendErrorResponse(res, error, 'Không thể cập nhật ràng buộc môn học');
   }
 };
 
 const deletePrerequisite = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const existing = await prisma.DIEUKIENMONHOC.findFirst({ where: { id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay rang buoc mon hoc' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy ràng buộc môn học' });
     await prisma.DIEUKIENMONHOC.update({ where: { id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Da chuyen rang buoc mon hoc vao thung rac' });
+    res.json({ success: true, message: 'Đã chuyển ràng buộc môn học vào thùng rác' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Khong the xoa rang buoc mon hoc', 'Delete prerequisite error:');
+        return sendErrorResponse(res, error, 'Không thể xóa ràng buộc môn học', 'Delete prerequisite error:');
   }
 };
 

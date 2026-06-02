@@ -10,10 +10,10 @@ function escapeHtml(value) {
 }
 
 function statusMeta(status) {
-  if (status === 'passed') return { text: 'Da qua', cls: 'badge-success' };
-  if (status === 'registered') return { text: 'Dang hoc', cls: 'badge-info' };
-  if (status === 'failed') return { text: 'Rot', cls: 'badge-error' };
-  return { text: 'Chua hoc', cls: 'badge-secondary' };
+  if (status === 'passed') return { text: 'Đã qua', cls: 'badge-success' };
+  if (status === 'registered') return { text: 'Đang học', cls: 'badge-info' };
+  if (status === 'failed') return { text: 'Rớt', cls: 'badge-error' };
+  return { text: 'Chưa học', cls: 'badge-secondary' };
 }
 
 function renderCurriculum() {
@@ -30,22 +30,22 @@ function renderCurriculum() {
   });
   var html = '';
   groups.forEach(function(group) {
-    html += '<div class="curriculum-semester"><div class="curriculum-semester-header"><span class="badge badge-primary">HK ' + escapeHtml(group.HocKyDuKien) + '</span>' + escapeHtml(group.courses.length + ' mon') + '</div><div class="curriculum-courses">';
+    html += '<div class="curriculum-semester"><div class="curriculum-semester-header"><span class="badge badge-primary">HK ' + escapeHtml(group.HocKyDuKien) + '</span>' + escapeHtml(group.courses.length + ' môn') + '</div><div class="curriculum-courses">';
     group.courses.forEach(function(course) {
       var meta = statusMeta(course.status);
       var prereqText = (course.prerequisites || []).map(function(item) {
         return (item.MaMonDieuKien || '') + ' - ' + (item.TenMonDieuKien || '');
-      }).join('\n') || 'Khong co mon dieu kien';
+      }).join('\n') || 'Không có môn điều kiện';
       html += '<div class="curriculum-course" title="' + escapeHtml(prereqText) + '">' +
         '<div class="course-info"><div class="course-name">' + escapeHtml(course.TenMonHoc || 'N/A') + '</div><div class="course-code">' + escapeHtml(course.MaMonHoc || '') + '</div></div>' +
         '<div class="course-credits">' + Number(course.SoTinChi || 0) + ' TC</div>' +
         '<span class="badge ' + meta.cls + '">' + meta.text + '</span>' +
       '</div>';
     });
-    if (!group.courses.length) html += '<div class="empty-state">Khong co mon phu hop</div>';
+    if (!group.courses.length) html += '<div class="empty-state">Không có môn phù hợp</div>';
     html += '</div></div>';
   });
-  container.innerHTML = html || '<div class="empty-state">Chua co du lieu chuong trinh dao tao</div>';
+  container.innerHTML = html || '<div class="empty-state">Chưa có dữ liệu chương trình đào tạo</div>';
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   try {
     var res = await apiFetch('/api/courses/curriculum/me');
     if (!res || !res.success || !res.data) {
-      container.innerHTML = '<div class="empty-state">Khong the tai chuong trinh dao tao</div>';
+      container.innerHTML = '<div class="empty-state">Không thể tải chương trình đào tạo</div>';
       return;
     }
 
@@ -82,17 +82,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (creditsBar) creditsBar.style.width = Math.min(pct, 100) + '%';
     if (debtCredits) debtCredits.textContent = Number(summary.debtCredits || summary.remainingCredits || 0) + ' TC';
     if (thesisStatus) {
-      thesisStatus.textContent = summary.thesisEligible ? 'Du dieu kien dang ky khoa luan' : 'Chua du dieu kien dang ky khoa luan';
+      thesisStatus.textContent = summary.thesisEligible ? 'Đủ điều kiện đăng ký khóa luận' : 'Chưa đủ điều kiện đăng ký khóa luận';
       thesisStatus.className = summary.thesisEligible ? 'badge badge-success' : 'badge badge-error';
     }
 
     if (!curriculumState.courses.length && !curriculumState.semesters.length) {
-      container.innerHTML = '<div class="empty-state">Chua co du lieu chuong trinh dao tao cho nganh cua ban</div>';
+      container.innerHTML = '<div class="empty-state">Chưa có dữ liệu chương trình đào tạo cho ngành của bạn</div>';
       return;
     }
     renderCurriculum();
   } catch (err) {
     console.error('Curriculum error:', err);
-    container.innerHTML = '<div class="empty-state text-error">Da xay ra loi khi tai chuong trinh dao tao</div>';
+    container.innerHTML = '<div class="empty-state text-error">Đã xảy ra lỗi khi tải chương trình đào tạo</div>';
   }
 });

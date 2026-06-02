@@ -14,7 +14,7 @@ function completedEscapeHtml(value) {
 }
 
 function resultLabel(value) {
-  return value === 'qua_mon' ? 'Qua mon' : 'Rot';
+  return value === 'qua_mon' ? 'Qua môn' : 'Rớt';
 }
 
 function debounceSearch() {
@@ -35,7 +35,7 @@ function applyFilters() {
 function openModal(mode, data) {
   editMode = mode === 'edit';
   editId = editMode ? data.id : null;
-  document.getElementById('modal-title').textContent = editMode ? 'Sua mon da hoc' : 'Them mon da hoc';
+  document.getElementById('modal-title').textContent = editMode ? 'Sửa môn đã học' : 'Thêm môn đã học';
   document.getElementById('cc-masv').value = editMode ? (data.MaSv || (data.SINHVIEN ? data.SINHVIEN.MaSv : '')) : '';
   document.getElementById('cc-mamonhoc').value = editMode ? (data.MaMonHoc || (data.MONHOC ? data.MONHOC.MaMonHoc : '')) : '';
   document.getElementById('cc-mahocky').value = editMode ? (data.MaHocKy || (data.HOCKY ? data.HOCKY.MaHocKy : '')) : '';
@@ -85,13 +85,13 @@ function renderCompletedCourseDetail(maSv, rows) {
       '<td>' + completedEscapeHtml(semester || '-') + '</td>' +
       '<td><span class="badge ' + (c.KetQua === 'qua_mon' ? 'badge-success' : 'badge-error') + '">' + resultLabel(c.KetQua) + '</span></td>' +
       '<td>' + completedEscapeHtml(updater) + '</td>' +
-      '<td class="table-actions"><button class="btn btn-sm btn-outline" type="button" data-record="' + record + '" onclick="closeCompletedCourseDetail(); openModal(\'edit\', JSON.parse(this.dataset.record))">Sua</button><button class="btn btn-sm btn-danger" type="button" onclick="deleteCompletedCourse(' + c.id + ')">Xoa</button></td>' +
+      '<td class="table-actions"><button class="btn btn-sm btn-outline" type="button" data-record="' + record + '" onclick="closeCompletedCourseDetail(); openModal(\'edit\', JSON.parse(this.dataset.record))">Sửa</button><button class="btn btn-sm btn-danger" type="button" onclick="deleteCompletedCourse(' + c.id + ')">Xóa</button></td>' +
     '</tr>';
   }).join('');
 
   content.innerHTML =
-    '<div class="detail-grid"><div><strong>MSSV</strong><span>' + completedEscapeHtml(maSv) + '</span></div><div><strong>Ho ten</strong><span>' + completedEscapeHtml(studentName) + '</span></div><div><strong>So luot hoc</strong><span>' + rows.length + '</span></div><div><strong>Qua mon</strong><span>' + passedCount + '</span></div><div><strong>Rot</strong><span>' + failedCount + '</span></div><div><strong>Tin chi tich luy</strong><span>' + passedCredits + '</span></div></div>' +
-    '<div class="table-container mt-3"><table class="data-table"><thead><tr><th>Ma mon</th><th>Ten mon</th><th>Loai</th><th>TC</th><th>Lop</th><th>Hoc ky</th><th>Ket qua</th><th>Sua boi</th><th>Thao tac</th></tr></thead><tbody>' + (courseRows || '<tr><td colspan="9"><div class="empty-state">Sinh vien chua co mon da hoc</div></td></tr>') + '</tbody></table></div>';
+    '<div class="detail-grid"><div><strong>MSSV</strong><span>' + completedEscapeHtml(maSv) + '</span></div><div><strong>Họ tên</strong><span>' + completedEscapeHtml(studentName) + '</span></div><div><strong>Số lượt học</strong><span>' + rows.length + '</span></div><div><strong>Qua môn</strong><span>' + passedCount + '</span></div><div><strong>Rớt</strong><span>' + failedCount + '</span></div><div><strong>Tín chỉ tích lũy</strong><span>' + passedCredits + '</span></div></div>' +
+    '<div class="table-container mt-3"><table class="data-table"><thead><tr><th>Mã môn</th><th>Tên môn</th><th>Loại</th><th>TC</th><th>Lớp</th><th>Học kỳ</th><th>Kết quả</th><th>Sửa bởi</th><th>Thao tác</th></tr></thead><tbody>' + (courseRows || '<tr><td colspan="9"><div class="empty-state">Sinh viên chưa có môn đã học</div></td></tr>') + '</tbody></table></div>';
 }
 
 async function openCompletedCourseDetail(maSv) {
@@ -99,13 +99,13 @@ async function openCompletedCourseDetail(maSv) {
   var content = document.getElementById('completed-course-detail-content');
   if (!modal || !content) return;
   modal.classList.add('active');
-  content.textContent = 'Dang tai...';
+  content.textContent = 'Đang tải...';
   try {
     var res = await apiFetch('/api/completed-courses?MaSv=' + encodeURIComponent(maSv) + '&all=true');
-    if (!res || res.success === false) throw new Error((res && res.message) || 'Khong tai duoc mon da hoc');
+    if (!res || res.success === false) throw new Error((res && res.message) || 'Không tải được môn đã học');
     renderCompletedCourseDetail(maSv, res.data || []);
   } catch (error) {
-    content.textContent = error.message || 'Khong tai duoc mon da hoc';
+    content.textContent = error.message || 'Không tải được môn đã học';
   }
 }
 
@@ -120,7 +120,7 @@ async function saveCompletedCourse() {
     GhiChu: document.getElementById('cc-ghichu').value.trim()
   };
   if (!body.MaSv || !body.MaMonHoc || !body.MaHocKy || !body.KetQua) {
-    showToast('Vui long nhap MSSV, ma mon, hoc ky va ket qua', 'error');
+    showToast('Vui lòng nhập MSSV, mã môn, học kỳ và kết quả', 'error');
     return;
   }
   var url = editMode ? '/api/completed-courses/' + editId : '/api/completed-courses';
@@ -129,24 +129,24 @@ async function saveCompletedCourse() {
     showToast(res.message, 'success');
     setTimeout(function() { location.reload(); }, 500);
   } else {
-    showToast(res.message || 'Loi', 'error');
+    showToast(res.message || 'Lỗi', 'error');
   }
 }
 
 async function deleteCompletedCourse(id) {
-  if (!confirm('Xoa mon da hoc nay?')) return;
+  if (!confirm('Xóa môn đã học này?')) return;
   var res = await apiFetch('/api/completed-courses/' + id, { method: 'DELETE' });
   if (res.success) {
     showToast(res.message, 'success');
     setTimeout(function() { location.reload(); }, 500);
   } else {
-    showToast(res.message || 'Loi', 'error');
+    showToast(res.message || 'Lỗi', 'error');
   }
 }
 
 function openImportModal() {
   importRows = [];
-  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chon file CSV/TSV tu Excel de xem truoc</div></td></tr>';
+  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chọn file CSV/TSV từ Excel để xem trước</div></td></tr>';
   document.getElementById('import-modal').classList.add('active');
 }
 
@@ -177,8 +177,8 @@ document.addEventListener('DOMContentLoaded', function() {
       selected.text().then(function(text) {
         importRows = parseDelimitedText(text);
         document.getElementById('import-preview').innerHTML = importRows.slice(0, 20).map(function(row) {
-          return '<tr><td>' + completedEscapeHtml(row.MSSV || row.MaSv) + '</td><td>' + completedEscapeHtml(row.MaMonHoc) + '</td><td>' + completedEscapeHtml(row.Hocky || row.HocKy || row.MaHocKy) + '</td><td>' + completedEscapeHtml(row.KetQua) + '</td><td>Cho xac nhan</td></tr>';
-        }).join('') || '<tr><td colspan="5"><div class="empty-state">File khong co du lieu</div></td></tr>';
+          return '<tr><td>' + completedEscapeHtml(row.MSSV || row.MaSv) + '</td><td>' + completedEscapeHtml(row.MaMonHoc) + '</td><td>' + completedEscapeHtml(row.Hocky || row.HocKy || row.MaHocKy) + '</td><td>' + completedEscapeHtml(row.KetQua) + '</td><td>Chờ xác nhận</td></tr>';
+        }).join('') || '<tr><td colspan="5"><div class="empty-state">File không có dữ liệu</div></td></tr>';
       });
     });
   }
@@ -186,12 +186,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function confirmImport() {
   if (!importRows.length) {
-    showToast('Chua co du lieu import', 'error');
+    showToast('Chưa có dữ liệu import', 'error');
     return;
   }
   var preview = await apiFetch('/api/completed-courses/batch', { method: 'POST', body: { items: importRows, preview: true } });
   if (!preview.success) {
-    showToast('Du lieu import con loi', 'error');
+    showToast('Dữ liệu import còn lỗi', 'error');
     document.getElementById('import-preview').innerHTML = (preview.errors || []).map(function(error) {
       return '<tr><td>' + completedEscapeHtml(error.row.MaSv) + '</td><td>' + completedEscapeHtml(error.row.MaMonHoc) + '</td><td>' + completedEscapeHtml(error.row.MaHocKy) + '</td><td>' + completedEscapeHtml(error.row.KetQua) + '</td><td>' + completedEscapeHtml(error.message) + '</td></tr>';
     }).join('');
@@ -199,16 +199,16 @@ async function confirmImport() {
   }
   var res = await apiFetch('/api/completed-courses/batch', { method: 'POST', body: { items: importRows } });
   if (res.success) {
-    showToast(res.message || 'Import thanh cong', 'success');
+    showToast(res.message || 'Import thành công', 'success');
     setTimeout(function() { location.reload(); }, 500);
   } else {
-    showToast(res.message || 'Import that bai', 'error');
+    showToast(res.message || 'Import thất bại', 'error');
   }
 }
 
 function openClassGradeModal() {
   classRosterRows = [];
-  document.getElementById('class-roster').innerHTML = '<tr><td colspan="4"><div class="empty-state">Chua tai danh sach</div></td></tr>';
+  document.getElementById('class-roster').innerHTML = '<tr><td colspan="4"><div class="empty-state">Chưa tải danh sách</div></td></tr>';
   document.getElementById('class-grade-modal').classList.add('active');
 }
 
@@ -220,19 +220,19 @@ async function loadClassRoster() {
   var maLop = document.getElementById('bulk-class').value;
   var maHocKy = document.getElementById('bulk-semester').value;
   if (!maLop || !maHocKy) {
-    showToast('Vui long chon lop va hoc ky', 'error');
+    showToast('Vui lòng chọn lớp và học kỳ', 'error');
     return;
   }
   var res = await apiFetch('/api/completed-courses/class-roster?MaLop=' + encodeURIComponent(maLop) + '&MaHocKy=' + encodeURIComponent(maHocKy));
   classRosterRows = res.data || [];
   document.getElementById('class-roster').innerHTML = classRosterRows.map(function(row, index) {
-    return '<tr><td class="mono">' + completedEscapeHtml(row.MaSv) + '</td><td>' + completedEscapeHtml(row.HoTen) + '</td><td>' + completedEscapeHtml(row.MaMonHoc) + '</td><td><select class="form-control" data-index="' + index + '"><option value="qua_mon">Qua mon</option><option value="rot">Rot</option></select></td></tr>';
-  }).join('') || '<tr><td colspan="4"><div class="empty-state">Lop chua co sinh vien dang ky</div></td></tr>';
+    return '<tr><td class="mono">' + completedEscapeHtml(row.MaSv) + '</td><td>' + completedEscapeHtml(row.HoTen) + '</td><td>' + completedEscapeHtml(row.MaMonHoc) + '</td><td><select class="form-control" data-index="' + index + '"><option value="qua_mon">Qua môn</option><option value="rot">Rớt</option></select></td></tr>';
+  }).join('') || '<tr><td colspan="4"><div class="empty-state">Lớp chưa có sinh viên đăng ký</div></td></tr>';
 }
 
 async function saveClassGrades() {
   if (!classRosterRows.length) {
-    showToast('Chua co danh sach de luu', 'error');
+    showToast('Chưa có danh sách để lưu', 'error');
     return;
   }
   var maHocKy = document.getElementById('bulk-semester').value;
@@ -242,9 +242,9 @@ async function saveClassGrades() {
   });
   var res = await apiFetch('/api/completed-courses/batch', { method: 'POST', body: { items: items } });
   if (res.success) {
-    showToast(res.message || 'Luu thanh cong', 'success');
+    showToast(res.message || 'Lưu thành công', 'success');
     setTimeout(function() { location.reload(); }, 500);
   } else {
-    showToast(res.message || 'Khong the luu dong loat', 'error');
+    showToast(res.message || 'Không thể lưu đồng loạt', 'error');
   }
 }

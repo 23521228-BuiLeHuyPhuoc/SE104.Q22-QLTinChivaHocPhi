@@ -15,7 +15,7 @@ function syncPrereqDisabled() {
 
 function openPrereqModal(mode, row) {
   editingPrereqId = null;
-  document.getElementById('prereq-modal-title').textContent = mode === 'edit' ? 'Sua rang buoc' : 'Them rang buoc';
+  document.getElementById('prereq-modal-title').textContent = mode === 'edit' ? 'Sửa ràng buộc' : 'Thêm ràng buộc';
 
   if (mode === 'edit' && row) {
     editingPrereqId = row.id;
@@ -46,7 +46,7 @@ async function savePrereq() {
     MoTa: document.getElementById('prereq-note').value.trim() || null
   };
   if (data.MaMonHoc && data.MaMonHoc === data.MaMonDieuKien) {
-    showToast('Khong the chon trung mon hoc', 'error');
+    showToast('Không thể chọn trùng môn học', 'error');
     return;
   }
 
@@ -56,29 +56,29 @@ async function savePrereq() {
       : await apiFetch('/api/prerequisites', { method: 'POST', body: data });
 
     if (res.success) {
-      showToast(editingPrereqId ? 'Cap nhat rang buoc thanh cong' : 'Them rang buoc thanh cong', 'success');
+      showToast(editingPrereqId ? 'Cập nhật ràng buộc thành công' : 'Thêm ràng buộc thành công', 'success');
       closePrereqModal();
       setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Khong the luu rang buoc mon hoc', 'error');
+      showToast(res.message || 'Không thể lưu ràng buộc môn học', 'error');
     }
   } catch (e) {
-    showToast('Loi ket noi', 'error');
+    showToast('Lỗi kết nối', 'error');
   }
 }
 
 async function deletePrereq(id) {
-  if (!confirm('Ban co chac muon xoa rang buoc mon hoc nay?')) return;
+  if (!confirm('Bạn có chắc muốn xóa ràng buộc môn học này?')) return;
   try {
     var res = await apiFetch('/api/prerequisites/' + id, { method: 'DELETE' });
     if (res.success) {
-      showToast('Da xoa rang buoc mon hoc', 'success');
+      showToast('Đã xóa ràng buộc môn học', 'success');
       setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Khong the xoa rang buoc mon hoc', 'error');
+      showToast(res.message || 'Không thể xóa ràng buộc môn học', 'error');
     }
   } catch (e) {
-    showToast('Loi ket noi', 'error');
+    showToast('Lỗi kết nối', 'error');
   }
 }
 
@@ -104,19 +104,19 @@ async function openPrereqGraph() {
   var modal = document.getElementById('prereq-graph-modal');
   var content = document.getElementById('prereq-graph-content');
   modal.classList.add('active');
-  content.textContent = 'graph TD\n  loading[Dang tai...]';
+  content.textContent = 'graph TD\n  loading[Đang tải...]';
   try {
     var res = await apiFetch('/api/prerequisites/graph/data');
-    if (!res.success) throw new Error(res.message || 'Khong tai duoc so do');
+    if (!res.success) throw new Error(res.message || 'Không tải được sơ đồ');
     var graph = ['graph TD'];
     (res.data.edges || []).forEach(function(edge) {
-      var label = edge.type === 'tien_quyet' ? 'tien quyet' : 'hoc truoc';
+      var label = edge.type === 'tien_quyet' ? 'tiên quyết' : 'học trước';
       graph.push('  ' + edge.from.replace(/[^a-zA-Z0-9_]/g, '_') + '[' + edge.from + '] -->|' + label + '| ' + edge.to.replace(/[^a-zA-Z0-9_]/g, '_') + '[' + edge.to + ']');
     });
-    if (graph.length === 1) graph.push('  empty[Khong co rang buoc]');
+    if (graph.length === 1) graph.push('  empty[Không có ràng buộc]');
     content.textContent = graph.join('\n');
     if (window.mermaid && window.mermaid.init) window.mermaid.init(undefined, content);
   } catch (error) {
-    content.textContent = error.message || 'Khong tai duoc so do';
+    content.textContent = error.message || 'Không tải được sơ đồ';
   }
 }

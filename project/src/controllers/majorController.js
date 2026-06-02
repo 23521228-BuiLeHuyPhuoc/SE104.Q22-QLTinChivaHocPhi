@@ -22,22 +22,22 @@ const getAllMajors = async (req, res) => {
     ]);
     res.json({ success: true, data: majors, pagination: getPaginationMeta(total, page, all === 'true' ? (total || limit) : limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getAllMajors error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllMajors error:');
   }
 };
 
 const createMajor = async (req, res) => {
   try {
     const { MaNganh, TenNganh, MaKhoa, SoTinChiToiThieu, ThoiGianDaoTao, MoTa } = req.body;
-    if (!MaNganh || !TenNganh || !MaKhoa) return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin' });
+    if (!MaNganh || !TenNganh || !MaKhoa) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     const existing = await prisma.NGANHHOC.findUnique({ where: { MaNganh } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma nganh da ton tai' });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã ngành đã tồn tại' });
     const major = await prisma.NGANHHOC.create({
       data: { MaNganh, TenNganh, MaKhoa, SoTinChiToiThieu: parseInt(SoTinChiToiThieu, 10) || 120, ThoiGianDaoTao: parseFloat(ThoiGianDaoTao) || 4, MoTa, ...updateAudit(req) }
     });
-    res.status(201).json({ success: true, message: 'Tao nganh thanh cong', data: major });
+    res.status(201).json({ success: true, message: 'Tạo ngành thành công', data: major });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'createMajor error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'createMajor error:');
   }
 };
 
@@ -53,9 +53,9 @@ const updateMajor = async (req, res) => {
     if (MoTa !== undefined) data.MoTa = MoTa;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     const major = await prisma.NGANHHOC.update({ where: { MaNganh: id }, data });
-    res.json({ success: true, message: 'Cap nhat nganh thanh cong', data: major });
+    res.json({ success: true, message: 'Cập nhật ngành thành công', data: major });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'updateMajor error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateMajor error:');
   }
 };
 
@@ -63,11 +63,11 @@ const deleteMajor = async (req, res) => {
   try {
     const { id } = req.params;
     const major = await prisma.NGANHHOC.findFirst({ where: { MaNganh: id, DaXoa: false } });
-    if (!major) return res.status(404).json({ success: false, message: 'Khong tim thay nganh' });
+    if (!major) return res.status(404).json({ success: false, message: 'Không tìm thấy ngành' });
     await prisma.NGANHHOC.update({ where: { MaNganh: id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Da chuyen nganh vao thung rac' });
+    res.json({ success: true, message: 'Đã chuyển ngành vào thùng rác' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'deleteMajor error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteMajor error:');
   }
 };
 
@@ -76,7 +76,7 @@ const getCurriculum = async (req, res) => {
     const data = await getCurriculumRows({ ...req.query, MaNganh: req.query.MaNganh || req.params.id });
     res.json({ success: true, data });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getCurriculum error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'getCurriculum error:');
   }
 };
 
@@ -91,23 +91,23 @@ const createCurriculumItem = async (req, res) => {
       d.MaNganh, d.MaMonHoc, d.HocKyDuKien, d.HocKyDuKien,
       d.BatBuoc ?? true, d.TrangThai ?? true, d.GhiChu || null
     );
-    res.status(201).json({ success: true, message: 'Them mon vao chuong trinh thanh cong', data: rows[0] });
+    res.status(201).json({ success: true, message: 'Thêm môn vào chương trình thành công', data: rows[0] });
   } catch (error) {
-    if (error.code === 'P2010' || (error.message && error.message.includes('uq_cth'))) return res.status(400).json({ success: false, message: 'Mon hoc da co trong chuong trinh' });
+    if (error.code === 'P2010' || (error.message && error.message.includes('uq_cth'))) return res.status(400).json({ success: false, message: 'Môn học đã có trong chương trình' });
     if (error.message && error.message.includes('RBTV')) {
-        const msg = error.message.match(/Vi phạm RBTV[^\n\"]+/)?.[0] || 'Loi rang buoc database (RBTV)';
+        const msg = error.message.match(/Vi phạm RBTV[^\n\"]+/)?.[0] || 'Lỗi ràng buộc database (RBTV)';
         return res.status(400).json({ success: false, message: msg });
     }
-    return sendErrorResponse(res, error, 'Loi server', 'createCurriculumItem error:');
+    return sendErrorResponse(res, error, 'Lỗi server', 'createCurriculumItem error:');
   }
 };
 
 const updateCurriculumItem = async (req, res) => {
   try {
     const id = parseInt(req.params.itemId || req.params.id, 10);
-    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const existing = await prisma.CHUONGTRINHHOC.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay mon trong chuong trinh' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn trong chương trình' });
     const validated = await validateCurriculumPlacement({
       MaNganh: req.body.MaNganh ?? existing.MaNganh,
       MaMonHoc: req.body.MaMonHoc ?? existing.MaMonHoc,
@@ -123,45 +123,45 @@ const updateCurriculumItem = async (req, res) => {
       d.MaNganh, d.MaMonHoc, d.HocKyDuKien, d.HocKyDuKien,
       d.BatBuoc ?? true, d.TrangThai ?? true, d.GhiChu || null, id
     );
-    res.json({ success: true, message: 'Cap nhat chuong trinh thanh cong', data: rows[0] });
+    res.json({ success: true, message: 'Cập nhật chương trình thành công', data: rows[0] });
   } catch (error) {
-    if (error.code === 'P2010' || (error.message && error.message.includes('uq_cth'))) return res.status(400).json({ success: false, message: 'Mon hoc da co trong chuong trinh' });
+    if (error.code === 'P2010' || (error.message && error.message.includes('uq_cth'))) return res.status(400).json({ success: false, message: 'Môn học đã có trong chương trình' });
     if (error.message && error.message.includes('RBTV')) {
-        const msg = error.message.match(/Vi phạm RBTV[^\n\"]+/)?.[0] || 'Loi rang buoc database (RBTV)';
+        const msg = error.message.match(/Vi phạm RBTV[^\n\"]+/)?.[0] || 'Lỗi ràng buộc database (RBTV)';
         return res.status(400).json({ success: false, message: msg });
     }
-    return sendErrorResponse(res, error, 'Loi server', 'updateCurriculumItem error:');
+    return sendErrorResponse(res, error, 'Lỗi server', 'updateCurriculumItem error:');
   }
 };
 
 const deleteCurriculumItem = async (req, res) => {
   try {
     const id = parseInt(req.params.itemId || req.params.id, 10);
-    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     await prisma.CHUONGTRINHHOC.delete({ where: { id } });
-    res.json({ success: true, message: 'Da go mon khoi chuong trinh' });
+    res.json({ success: true, message: 'Đã gỡ môn khỏi chương trình' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'deleteCurriculumItem error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteCurriculumItem error:');
   }
 };
 
 const getStudentDebt = async (req, res) => {
   try {
     const data = await calculateCurriculumDebt(req.params.maSv || req.params.id, req.query.MaHocKy);
-    if (!data) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
+    if (!data) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
     res.json({ success: true, data });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getStudentDebt error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'getStudentDebt error:');
   }
 };
 
 const getStudentThesisEligibility = async (req, res) => {
   try {
     const data = await getThesisEligibility(req.params.maSv || req.params.id, req.query.MaHocKy);
-    if (!data) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
+    if (!data) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
     res.json({ success: true, data });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getStudentThesisEligibility error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'getStudentThesisEligibility error:');
   }
 };
 

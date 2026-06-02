@@ -109,7 +109,7 @@ const validateCompletedRows = async (items) => {
   const semesterSet = new Set(semesters.map((row) => row.MaHocKy));
   rows.forEach((row, index) => {
     if (!studentSet.has(row.MaSv)) errors.push({ index, message: 'MSSV không tồn tại', row });
-    if (!courseSet.has(row.MaMonHoc)) errors.push({ index, message: 'Mã môn khong ton tai', row });
+  if (!courseSet.has(row.MaMonHoc)) errors.push({ index, message: 'Mã môn không tồn tại', row });
     if (!semesterSet.has(row.MaHocKy)) errors.push({ index, message: 'Học kỳ không tồn tại', row });
   });
   return { rows, errors };
@@ -256,7 +256,7 @@ const createCompletedCourse = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập MSSV, mã môn học, học kỳ và kết quả' });
     }
     if (!VALID_RESULTS.includes(result)) {
-      return res.status(400).json({ success: false, message: 'Kết quả mon da hoc khong hop le' });
+    return res.status(400).json({ success: false, message: 'Kết quả môn đã học không hợp lệ' });
     }
 
     const completedCourse = await prisma.MONDAHOC.create({
@@ -272,7 +272,7 @@ const createCompletedCourse = async (req, res) => {
       }
     });
 
-    res.status(201).json({ success: true, message: 'Thêm môn đã học thanh cong', data: completedCourse });
+    res.status(201).json({ success: true, message: 'Thêm môn đã học thành công', data: completedCourse });
   } catch (error) {
     if (error.code === 'P2002') {
       return res.status(400).json({ success: false, message: 'Môn đã học cho sinh viên, học kỳ và lần học này đã tồn tại' });
@@ -295,7 +295,7 @@ const updateCompletedCourse = async (req, res) => {
     if (KetQua !== undefined) {
       const result = normalizeResult(KetQua);
       if (!VALID_RESULTS.includes(result)) {
-        return res.status(400).json({ success: false, message: 'Kết quả mon da hoc khong hop le' });
+    return res.status(400).json({ success: false, message: 'Kết quả môn đã học không hợp lệ' });
       }
       data.KetQua = result;
     }

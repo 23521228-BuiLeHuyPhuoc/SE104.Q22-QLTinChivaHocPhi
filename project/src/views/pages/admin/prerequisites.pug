@@ -3,32 +3,32 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tim ma hoac ten mon hoc..." value=(search || '') onkeyup="debouncePrereqSearch()")
+      input#search-input(type="text" placeholder="Tìm mã hoặc tên môn học..." value=(search || '') onkeyup="debouncePrereqSearch()")
     .filter-group
       select.form-control#type-filter(onchange="applyPrereqFilters()")
-        option(value="" selected=!filterType) Tat ca loai
-        option(value="tien_quyet" selected=filterType === 'tien_quyet') Tien quyet
-        option(value="hoc_truoc" selected=filterType === 'hoc_truoc') Hoc truoc
-      button.btn.btn-primary(type="button" onclick="openPrereqModal('add')") Them rang buoc
-      button.btn.btn-outline(type="button" onclick="openPrereqGraph()") Xem so do
-      a.btn.btn-outline(href="/admin/trash?entity=prerequisites") Thung rac
+        option(value="" selected=!filterType) Tất cả loại
+        option(value="tien_quyet" selected=filterType === 'tien_quyet') Tiên quyết
+        option(value="hoc_truoc" selected=filterType === 'hoc_truoc') Học trước
+      button.btn.btn-primary(type="button" onclick="openPrereqModal('add')") Thêm ràng buộc
+      button.btn.btn-outline(type="button" onclick="openPrereqGraph()") Xem sơ đồ
+      a.btn.btn-outline(href="/admin/trash?entity=prerequisites") Thùng rác
 
   .card
     .card-header
-      h3 Danh sach rang buoc mon hoc
-      span.card-count= prerequisites ? `${prerequisites.length} ban ghi` : '0 ban ghi'
+      h3 Danh sách ràng buộc môn học
+      span.card-count= prerequisites ? `${prerequisites.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
-            th Mon hoc
-            th Mon dieu kien
-            th Loai
-            th Mo ta
-            th Trang thai
-            th Sua boi
-            th Sua luc
-            th Thao tac
+            th Môn học
+            th Môn điều kiện
+            th Loại
+            th Mô tả
+            th Trạng thái
+            th Sửa bởi
+            th Sửa lúc
+            th Thao tác
         tbody
           if prerequisites && prerequisites.length > 0
             each p in prerequisites
@@ -45,16 +45,16 @@ block content
                   span.badge(class=p.LoaiDieuKien === 'tien_quyet' ? 'badge-primary' : 'badge-warning')= p.LoaiDieuKienLabel || p.LoaiDieuKien
                 td= p.MoTa || '-'
                 td
-                  span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tam khoa' : 'Dang dung'
+                  span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
                 td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
                 td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))") Sua
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})`) Xoa
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})`) Xóa
           else
             tr
               td(colspan="8")
-                .empty-state Chua co rang buoc mon hoc phu hop
+                .empty-state Chưa có ràng buộc môn học phù hợp
 
   include ../../partials/pagination
 
@@ -62,46 +62,46 @@ block modals
   #prereq-modal.modal-overlay(onclick="if(event.target===this)closePrereqModal()")
     .modal
       .modal-header
-        h2#prereq-modal-title Them rang buoc
-        button.modal-close(type="button" onclick="closePrereqModal()" aria-label="Dong") x
+        h2#prereq-modal-title Thêm ràng buộc
+        button.modal-close(type="button" onclick="closePrereqModal()" aria-label="Đóng") x
       .modal-body
         form#prereq-form
           .form-row
             .form-group
-              label(for="prereq-course") Mon hoc
+              label(for="prereq-course") Môn học
               select.form-control#prereq-course(required onchange="syncPrereqDisabled()")
-                option(value="") Chon mon hoc
+                option(value="") Chọn môn học
                 each c in courses
                   option(value=c.MaMonHoc)= `${c.MaMonHoc} - ${c.TenMonHoc}`
             .form-group
-              label(for="prereq-required-course") Mon dieu kien
+              label(for="prereq-required-course") Môn điều kiện
               select.form-control#prereq-required-course(required onchange="syncPrereqDisabled()")
-                option(value="") Chon mon dieu kien
+                option(value="") Chọn môn điều kiện
                 each c in courses
                   option(value=c.MaMonHoc)= `${c.MaMonHoc} - ${c.TenMonHoc}`
           .form-row
             .form-group
-              label(for="prereq-type") Loai dieu kien
+              label(for="prereq-type") Loại điều kiện
               select.form-control#prereq-type(required)
-                option(value="tien_quyet") Tien quyet
-                option(value="hoc_truoc") Hoc truoc
+                option(value="tien_quyet") Tiên quyết
+                option(value="hoc_truoc") Học trước
             .form-group
-              label(for="prereq-status") Trang thai
+              label(for="prereq-status") Trạng thái
               select.form-control#prereq-status
-                option(value="true") Dang dung
-                option(value="false") Tam khoa
+                option(value="true") Đang dùng
+                option(value="false") Tạm khóa
           .form-group
-            label(for="prereq-note") Mo ta
+            label(for="prereq-note") Mô tả
             textarea.form-control#prereq-note(rows="3")
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closePrereqModal()") Huy
-        button.btn.btn-primary(type="button" onclick="savePrereq()") Luu
+        button.btn.btn-outline(type="button" onclick="closePrereqModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="savePrereq()") Lưu
 
   #prereq-graph-modal.modal-overlay(onclick="if(event.target===this)closePrereqGraph()")
     .modal.modal-wide
       .modal-header
-        h2 So do dieu kien mon hoc
-        button.modal-close(type="button" onclick="closePrereqGraph()" aria-label="Dong") x
+        h2 Sơ đồ điều kiện môn học
+        button.modal-close(type="button" onclick="closePrereqGraph()" aria-label="Đóng") x
       .modal-body
         pre#prereq-graph-content.mermaid graph TD
 

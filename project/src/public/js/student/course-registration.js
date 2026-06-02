@@ -286,13 +286,13 @@ function renderCreditSummary(summary) {
   var element = document.getElementById('registered-credit-summary');
   if (!element) return;
   if (!summary) {
-    element.textContent = 'Đã đăng ký: -- tín chỉ / Max -- tín chỉ';
+    element.textContent = 'Đã đăng ký: -- tín chỉ / Tối đa -- tín chỉ';
     element.removeAttribute('title');
     return;
   }
   var credits = Number(summary.registeredCredits || summary.totalCredits || 0);
   var max = Number(summary.maxCredits || 0);
-  element.textContent = 'Đã đăng ký: ' + credits + ' tín chỉ' + (max ? ' / Max ' + max + ' tín chỉ' : '');
+  element.textContent = 'Đã đăng ký: ' + credits + ' tín chỉ' + (max ? ' / Tối đa ' + max + ' tín chỉ' : '');
   if (summary.creditLimitReason) element.title = summary.creditLimitReason;
   else element.removeAttribute('title');
 }

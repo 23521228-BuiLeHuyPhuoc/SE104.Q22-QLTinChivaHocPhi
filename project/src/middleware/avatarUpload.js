@@ -27,20 +27,20 @@ const avatarUploadMiddleware = (req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'Anh dai dien khong duoc vuot qua 3MB'
+        message: 'Ảnh đại diện không được vượt quá 3MB'
       });
     }
 
     if (error.message === 'INVALID_AVATAR_TYPE') {
       return res.status(400).json({
         success: false,
-        message: 'Chi ho tro anh JPG, PNG, WebP hoac GIF'
+        message: 'Chỉ hỗ trợ ảnh JPG, PNG, WebP hoặc GIF'
       });
     }
 
     return res.status(400).json({
       success: false,
-      message: 'Khong the doc file anh dai dien'
+      message: 'Không thể đọc file ảnh đại diện'
     });
   });
 };

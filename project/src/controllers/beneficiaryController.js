@@ -96,7 +96,7 @@ const removeStudentFromBeneficiary = async (req, res) => {
   try {
     const { id, studentId } = req.params;
     await prisma.DOITUONGSINHVIEN.deleteMany({ where: { MaDoiTuong: id, MaSv: studentId } });
-    res.json({ success: true, message: 'Xoa sinh viên khoi doi tuong thanh cong' });
+    res.json({ success: true, message: 'Xóa sinh viên khỏi đối tượng thành công' });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi máy chủ', 'removeStudentFromBeneficiary error:');
   }
