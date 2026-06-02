@@ -20,7 +20,7 @@ const normalizeResult = (value) => {
   if (!value) return '';
   const val = String(value).toLowerCase().trim();
   if (val === 'qua_mon' || val === 'rot') return val;
-  if (['đậu', 'đạt', 'dat', 'dau', 'passed', 'qua môn', 'qua mon', 'qua', 'Qua môn', 'Qua mon'].includes(val)) return 'qua_mon';
+  if (['đậu', 'đạt', 'dat', 'dau', 'passed', 'qua môn', 'qua mon', 'qua', 'Qua môn', 'Qua môn'].includes(val)) return 'qua_mon';
   if (['rớt', 'không đạt', 'rot', 'failed', 'trượt', 'truot', 'Rớt', 'Không đạt', 'Failed', 'Trượt', 'Rot', 'khong dat', 'Khong dat'].includes(val)) return 'rot';
   return value;
 };
@@ -67,7 +67,7 @@ const parseImportBuffer = (buffer) => {
   }
 
   // Fallback: đọc file CSV/TSV/TXT dạng text
-  const text = buffer.toString('utf8').replace(/^\uFEFF/, '');
+  const text = buffer.toString('utf8').replace(/^﻿/, '');
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
   if (!lines.length) return [];
   const headers = splitDelimitedLine(lines[0]).map((item) => item.trim());
@@ -94,8 +94,8 @@ const validateCompletedRows = async (items) => {
   const rows = items.map(normalizeCompletedPayload);
   const errors = [];
   rows.forEach((row, index) => {
-    if (!row.MaSv || !row.MaMonHoc || !row.MaHocKy || !row.KetQua) errors.push({ index, message: 'Thieu MSSV, MaMonHoc, HocKy hoac KetQua', row });
-    if (row.KetQua && !VALID_RESULTS.includes(row.KetQua)) errors.push({ index, message: 'KetQua khong hop le', row });
+    if (!row.MaSv || !row.MaMonHoc || !row.MaHocKy || !row.KetQua) errors.push({ index, message: 'Thiếu MSSV, MaMonHoc, HocKy hoặc KetQua', row });
+    if (row.KetQua && !VALID_RESULTS.includes(row.KetQua)) errors.push({ index, message: 'Kết quả không hợp lệ', row });
   });
   if (errors.length) return { rows, errors };
 
@@ -108,9 +108,9 @@ const validateCompletedRows = async (items) => {
   const courseSet = new Set(courses.map((row) => row.MaMonHoc));
   const semesterSet = new Set(semesters.map((row) => row.MaHocKy));
   rows.forEach((row, index) => {
-    if (!studentSet.has(row.MaSv)) errors.push({ index, message: 'MSSV khong ton tai', row });
-    if (!courseSet.has(row.MaMonHoc)) errors.push({ index, message: 'Ma mon khong ton tai', row });
-    if (!semesterSet.has(row.MaHocKy)) errors.push({ index, message: 'Hoc ky khong ton tai', row });
+    if (!studentSet.has(row.MaSv)) errors.push({ index, message: 'MSSV không tồn tại', row });
+    if (!courseSet.has(row.MaMonHoc)) errors.push({ index, message: 'Mã môn khong ton tai', row });
+    if (!semesterSet.has(row.MaHocKy)) errors.push({ index, message: 'Học kỳ không tồn tại', row });
   });
   return { rows, errors };
 };
@@ -119,7 +119,7 @@ const getMyCompletedCourses = async (req, res) => {
   try {
     const maSv = await getStudentIdFromRequest(req);
     if (!maSv) {
-      return res.status(403).json({ success: false, message: 'Khong xac dinh duoc sinh vien hien tai' });
+      return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
     }
 
     const { page, limit, skip } = getPagination(req.query);
@@ -187,7 +187,7 @@ const getMyCompletedCourses = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getMyCompletedCourses error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getMyCompletedCourses error:');
   }
 };
 
@@ -243,7 +243,7 @@ const getAllCompletedCourses = async (req, res) => {
       pagination: all === 'true' ? getPaginationMeta(total, 1, total || limit) : getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getAllCompletedCourses error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getAllCompletedCourses error:');
   }
 };
 
@@ -253,10 +253,10 @@ const createCompletedCourse = async (req, res) => {
     const result = normalizeResult(KetQua);
 
     if (!MaSv || !MaMonHoc || !MaHocKy || !result) {
-      return res.status(400).json({ success: false, message: 'Vui long nhap MSSV, ma mon hoc, hoc ky va ket qua' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập MSSV, mã môn học, học kỳ và kết quả' });
     }
     if (!VALID_RESULTS.includes(result)) {
-      return res.status(400).json({ success: false, message: 'Ket qua mon da hoc khong hop le' });
+      return res.status(400).json({ success: false, message: 'Kết quả mon da hoc khong hop le' });
     }
 
     const completedCourse = await prisma.MONDAHOC.create({
@@ -272,12 +272,12 @@ const createCompletedCourse = async (req, res) => {
       }
     });
 
-    res.status(201).json({ success: true, message: 'Them mon da hoc thanh cong', data: completedCourse });
+    res.status(201).json({ success: true, message: 'Thêm môn đã học thanh cong', data: completedCourse });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: 'Mon da hoc cho sinh vien, hoc ky va lan hoc nay da ton tai' });
+      return res.status(400).json({ success: false, message: 'Môn đã học cho sinh viên, học kỳ và lần học này đã tồn tại' });
     }
-        return sendErrorResponse(res, error, 'Loi server', 'createCompletedCourse error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'createCompletedCourse error:');
   }
 };
 
@@ -295,19 +295,19 @@ const updateCompletedCourse = async (req, res) => {
     if (KetQua !== undefined) {
       const result = normalizeResult(KetQua);
       if (!VALID_RESULTS.includes(result)) {
-        return res.status(400).json({ success: false, message: 'Ket qua mon da hoc khong hop le' });
+        return res.status(400).json({ success: false, message: 'Kết quả mon da hoc khong hop le' });
       }
       data.KetQua = result;
     }
     if (GhiChu !== undefined) data.GhiChu = GhiChu;
 
     const completedCourse = await prisma.MONDAHOC.update({ where: { id: parseInt(id, 10) }, data });
-    res.json({ success: true, message: 'Cap nhat mon da hoc thanh cong', data: completedCourse });
+    res.json({ success: true, message: 'Cập nhật môn đã học thành công', data: completedCourse });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: 'Mon da hoc cho sinh vien, hoc ky va lan hoc nay da ton tai' });
+      return res.status(400).json({ success: false, message: 'Môn đã học cho sinh viên, học kỳ và lần học này đã tồn tại' });
     }
-        return sendErrorResponse(res, error, 'Loi server', 'updateCompletedCourse error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'updateCompletedCourse error:');
   }
 };
 
@@ -315,9 +315,9 @@ const deleteCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
     await prisma.MONDAHOC.update({ where: { id: parseInt(id, 10) }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Da chuyen mon da hoc vao thung rac' });
+    res.json({ success: true, message: 'Đã chuyển môn đã học vào thùng rác' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'deleteCompletedCourse error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'deleteCompletedCourse error:');
   }
 };
 
@@ -325,7 +325,7 @@ const batchCreateCompletedCourses = async (req, res) => {
   try {
     const items = Array.isArray(req.body) ? req.body : req.body.items || [];
     const previewOnly = req.body.preview === true || req.body.preview === 'true';
-    if (!items.length) return res.status(400).json({ success: false, message: 'Khong co du lieu de xu ly' });
+    if (!items.length) return res.status(400).json({ success: false, message: 'Không có dữ liệu để xử lý' });
     const validated = await validateCompletedRows(items);
     if (validated.errors.length || previewOnly) {
       return res.json({ success: validated.errors.length === 0, preview: true, data: validated.rows, errors: validated.errors });
@@ -333,29 +333,29 @@ const batchCreateCompletedCourses = async (req, res) => {
     const created = await prisma.$transaction(validated.rows.map((row) => prisma.MONDAHOC.create({
       data: { ...row, ...updateAudit(req) }
     })));
-    res.status(201).json({ success: true, message: `Da tao ${created.length} dong mon da hoc`, data: created });
+    res.status(201).json({ success: true, message: `Đã tạo ${created.length} dòng môn đã học`, data: created });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Co dong bi trung du lieu mon da hoc' });
-        return sendErrorResponse(res, error, 'Loi server', 'batchCreateCompletedCourses error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Có dòng bị trùng dữ liệu môn đã học' });
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'batchCreateCompletedCourses error:');
   }
 };
 
 const importCompletedCourses = async (req, res) => {
   try {
-    if (!req.file?.buffer) return res.status(400).json({ success: false, message: 'Vui long chon file CSV/TSV/XLS xuat tu Excel' });
+    if (!req.file?.buffer) return res.status(400).json({ success: false, message: 'Vui lòng chọn file CSV/TSV/XLS xuất từ Excel' });
     const rows = parseImportBuffer(req.file.buffer);
     req.body.items = rows;
     req.body.preview = req.body.preview !== 'false';
     return batchCreateCompletedCourses(req, res);
   } catch (error) {
-        return sendErrorResponse(res, error, 'Khong the import file', 'importCompletedCourses error:');
+        return sendErrorResponse(res, error, 'Không thể import file', 'importCompletedCourses error:');
   }
 };
 
 const getClassGradeRoster = async (req, res) => {
   try {
     const { MaLop, MaHocKy } = req.query;
-    if (!MaLop || !MaHocKy) return res.status(400).json({ success: false, message: 'Vui long chon lop va hoc ky' });
+    if (!MaLop || !MaHocKy) return res.status(400).json({ success: false, message: 'Vui lòng chọn lớp và học kỳ' });
     const rows = await prisma.CHITIETDANGKY.findMany({
       where: { MaLop, TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy } },
       include: { PHIEUDANGKY: { include: { SINHVIEN: true } }, MONHOC: true, LOP: true },
@@ -371,7 +371,7 @@ const getClassGradeRoster = async (req, res) => {
       MaHocKy
     })) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getClassGradeRoster error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getClassGradeRoster error:');
   }
 };
 

@@ -41,7 +41,7 @@ const getAllCourses = async (req, res) => {
     ]);
     res.json({ success: true, data: formatCourseList(rows), pagination: getPaginationMeta(total, returnAll ? 1 : page, returnAll ? Math.max(total, 1) : limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get all courses error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get all courses error:');
   }
 };
 
@@ -62,11 +62,11 @@ const getCourseById = async (req, res) => {
         },
         CHUONGTRINHHOC: {
           include: { NGANHHOC: true },
-          orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }]
+          orderBy: [{ MaNgành: 'asc' }, { HocKyDuKien: 'asc' }]
         }
       }
     });
-    if (!mh) return res.status(404).json({ success: false, message: 'Khong tim thay mon hoc' });
+    if (!mh) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
     const prerequisites = mh.DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC.map((dk) => ({
       MaMonDieuKien: dk.MaMonDieuKien,
       TenMonDieuKien: dk.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC.TenMonHoc,
@@ -82,15 +82,15 @@ const getCourseById = async (req, res) => {
       TrangThai: opened.TrangThai
     })));
     const curricula = (mh.CHUONGTRINHHOC || []).map((row) => ({
-      MaNganh: row.MaNganh,
-      TenNganh: row.NGANHHOC?.TenNganh,
+      MaNgành: row.MaNgành,
+      TenNgành: row.NGANHHOC?.TenNgành,
       HocKyDuKien: row.HocKyDuKien,
       BatBuoc: row.BatBuoc !== false,
       TrangThai: row.TrangThai !== false
     }));
     res.json({ success: true, data: { ...formatCourse(mh), prerequisites, openedClasses, curricula } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get course by ID error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get course by ID error:');
   }
 };
 
@@ -98,21 +98,21 @@ const createCourse = async (req, res) => {
   try {
     const { MaMonHoc, TenMonHoc, SoTiet, LoaiMon, MaKhoa, MoTa } = req.body;
     if (!MaMonHoc || !TenMonHoc || !SoTiet || !LoaiMon || !MaKhoa) {
-      return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     }
     const existing = await prisma.MONHOC.findUnique({ where: { MaMonHoc } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma mon hoc da ton tai' });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã môn hoc da ton tai' });
     const course = await prisma.MONHOC.create({ data: { MaMonHoc, TenMonHoc, SoTiet: parseInt(SoTiet, 10), LoaiMon, MaKhoa, MoTa, ...updateAudit(req) } });
-    res.status(201).json({ success: true, message: 'Tao mon hoc thanh cong', data: course });
+    res.status(201).json({ success: true, message: 'Tạo môn học thành công', data: course });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Create course error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Create course error:');
   }
 };
 
 const updateCourse = async (req, res) => {
   try {
     const existing = await prisma.MONHOC.findFirst({ where: { MaMonHoc: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay mon hoc' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
     const { TenMonHoc, SoTiet, LoaiMon, MaKhoa, MoTa, TrangThai } = req.body;
     const data = {};
     if (TenMonHoc) data.TenMonHoc = TenMonHoc;
@@ -123,20 +123,20 @@ const updateCourse = async (req, res) => {
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.MONHOC.update({ where: { MaMonHoc: req.params.id }, data });
-    res.json({ success: true, message: 'Cap nhat mon hoc thanh cong', data: updated });
+    res.json({ success: true, message: 'Cập nhật môn học thành công', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Update course error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Update course error:');
   }
 };
 
 const deleteCourse = async (req, res) => {
   try {
     const existing = await prisma.MONHOC.findFirst({ where: { MaMonHoc: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay mon hoc' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
     await prisma.MONHOC.update({ where: { MaMonHoc: req.params.id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Da chuyen mon hoc vao thung rac' });
+    res.json({ success: true, message: 'Đã chuyển môn học vào thùng rác' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Delete course error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Delete course error:');
   }
 };
 
@@ -148,7 +148,7 @@ const getCourseStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { total, byType: byType.map((t) => ({ LoaiMon: t.LoaiMon, count: t._count })) } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get course stats error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get course stats error:');
   }
 };
 
@@ -174,7 +174,7 @@ const exportCourses = async (req, res) => {
       `<td>${escapeCell(row.SoTinChi)}</td>` +
       `<td>${escapeCell(row.SoTiet)}</td>` +
       `<td>${escapeCell(row.KHOA?.TenKhoa || row.MaKhoa)}</td>` +
-      `<td>${escapeCell(row.TrangThai === false ? 'Tam khoa' : 'Dang dung')}</td>` +
+      `<td>${escapeCell(row.TrangThai === false ? 'Tạm khóa' : 'Đang dùng')}</td>` +
       '</tr>'
     )).join('');
     const workbook = `<!doctype html><html><head><meta charset="utf-8"></head><body><table border="1"><thead><tr><th>MaMonHoc</th><th>TenMonHoc</th><th>LoaiMon</th><th>SoTinChi</th><th>SoTiet</th><th>Khoa</th><th>TrangThai</th></tr></thead><tbody>${htmlRows}</tbody></table></body></html>`;
@@ -182,7 +182,7 @@ const exportCourses = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="courses.xls"');
     return res.send(workbook);
   } catch (error) {
-    return sendErrorResponse(res, error, 'KhA´ng tha»ƒ xuaº¥t danh sA¡ch mA´n ha»c', 'exportCourses error:');
+    return sendErrorResponse(res, error, 'KhA´ng tha»ƒ xuaº¥t danh sA¡ch mA´n ha»c', 'exportCourses error:');
   }
 };
 
@@ -211,23 +211,23 @@ const getOpenedClasses = async (req, res) => {
     ]);
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get opened classes error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get opened classes error:');
   }
 };
 
 const getMyCurriculum = async (req, res) => {
   try {
     const studentId = await getStudentIdFromRequest(req);
-    if (!studentId) return res.status(403).json({ success: false, message: 'Khong xac dinh duoc sinh vien hien tai' });
+    if (!studentId) return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
 
     const student = await prisma.SINHVIEN.findFirst({
       where: { MaSv: studentId, DaXoa: false },
-      select: { MaSv: true, HoTen: true, MaNganh: true, NGANHHOC: { select: { MaNganh: true, TenNganh: true, MaKhoa: true, SoTinChiToiThieu: true } } }
+      select: { MaSv: true, HoTen: true, MaNgành: true, NGANHHOC: { select: { MaNgành: true, TenNgành: true, MaKhoa: true, SoTinChiToiThieu: true } } }
     });
-    if (!student) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
+    if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
 
     let curriculumRows = await prisma.CHUONGTRINHHOC.findMany({
-      where: { MaNganh: student.MaNganh, TrangThai: true, MONHOC: { DaXoa: false, TrangThai: true } },
+      where: { MaNgành: student.MaNgành, TrangThai: true, MONHOC: { DaXoa: false, TrangThai: true } },
       orderBy: [{ HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
       include: { MONHOC: { include: { KHOA: true } } }
     });
@@ -239,7 +239,7 @@ const getMyCurriculum = async (req, res) => {
         include: { KHOA: true }
       });
       curriculumRows = fallbackCourses.map((course, index) => ({
-        MaNganh: student.MaNganh,
+        MaNgành: student.MaNgành,
         MaMonHoc: course.MaMonHoc,
         HocKyDuKien: Math.min(Math.floor(index / 6) + 1, 8),
         BatBuoc: true,
@@ -289,7 +289,7 @@ const getMyCurriculum = async (req, res) => {
       const latestHistory = histories[0] || null;
       const status = passed ? 'passed' : registered ? 'registered' : failed ? 'failed' : 'not_started';
       return {
-        MaNganh: row.MaNganh,
+        MaNgành: row.MaNgành,
         MaMonHoc: row.MaMonHoc,
         TenMonHoc: course.TenMonHoc,
         LoaiMon: course.LoaiMon,
@@ -314,7 +314,7 @@ const getMyCurriculum = async (req, res) => {
     res.json({
       success: true,
       data: {
-        student: { MaSv: student.MaSv, HoTen: student.HoTen, MaNganh: student.MaNganh, TenNganh: student.NGANHHOC?.TenNganh },
+        student: { MaSv: student.MaSv, HoTen: student.HoTen, MaNgành: student.MaNgành, TenNgành: student.NGANHHOC?.TenNgành },
         summary: {
           totalCourses: courses.length,
           totalCredits,
@@ -330,7 +330,7 @@ const getMyCurriculum = async (req, res) => {
       }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get curriculum error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get curriculum error:');
   }
 };
 
