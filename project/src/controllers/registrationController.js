@@ -170,7 +170,7 @@ const ensureStudentAccess = async (req, res, studentId) => {
   if (req.user?.Role === 'admin') return true;
   const currentStudentId = await getStudentIdFromRequest(req);
   if (currentStudentId && currentStudentId === studentId) return true;
-  res.status(403).json({ success: false, message: 'Khong co quyen truy cap du lieu sinh vien nay' });
+  res.status(403).json({ success: false, message: 'Không có quyền truy cập dữ liệu sinh viên này' });
   return false;
 };
 
@@ -299,7 +299,7 @@ const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop) => {
     LIMIT 1
   `;
   if (conflicts.length) {
-    throw { status: 400, message: `Trung lich hoc voi lop ${conflicts[0].MaLop}${conflicts[0].TenMonHoc ? ` - ${conflicts[0].TenMonHoc}` : ''}` };
+    throw { status: 400, message: `Trùng lịch học với lớp ${conflicts[0].MaLop}${conflicts[0].TenMonHoc ? ` - ${conflicts[0].TenMonHoc}` : ''}` };
   }
 };
 
@@ -450,14 +450,14 @@ const getAllRegistrations = async (req, res) => {
 
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get all registrations error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all registrations error:');
   }
 };
 
 const getRegistrationById = async (req, res) => {
   try {
     const soPhieu = parseInt(req.params.soPhieu, 10);
-    if (!Number.isFinite(soPhieu)) return res.status(400).json({ success: false, message: 'So phieu khong hop le' });
+    if (!Number.isFinite(soPhieu)) return res.status(400).json({ success: false, message: 'Số phiếu không hợp lệ' });
 
     const registration = await prisma.PHIEUDANGKY.findUnique({
       where: { SoPhieu: soPhieu },
@@ -471,10 +471,10 @@ const getRegistrationById = async (req, res) => {
         PHIEUTHUHOCPHI: true
       }
     });
-    if (!registration) return res.status(404).json({ success: false, message: 'Khong tim thay phieu dang ky' });
+    if (!registration) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu đăng ký' });
     res.json({ success: true, data: registration });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get registration by id error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get registration by id error:');
   }
 };
 
@@ -691,7 +691,7 @@ const getStudentCourses = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get student courses error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get student courses error:');
   }
 };
 
@@ -886,7 +886,7 @@ const getAvailableCourses = async (req, res) => {
 
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get available courses error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get available courses error:');
   }
 };
 
@@ -895,13 +895,13 @@ const registerCourse = async (req, res) => {
     let { MaSv, MaHocKy, MaLop } = req.body;
     if (req.user?.Role !== 'admin') {
       const currentStudentId = await getStudentIdFromRequest(req);
-      if (!currentStudentId) return res.status(403).json({ success: false, message: 'Khong xac dinh duoc sinh vien hien tai' });
+      if (!currentStudentId) return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
       if (MaSv && MaSv !== currentStudentId) {
-        return res.status(403).json({ success: false, message: 'Khong the dang ky cho sinh vien khac' });
+        return res.status(403).json({ success: false, message: 'Không thể đăng ký cho sinh viên khác' });
       }
       MaSv = currentStudentId;
     }
-    if (!MaSv || !MaHocKy || !MaLop) return res.status(400).json({ success: false, message: 'Vui long cung cap day du thong tin' });
+    if (!MaSv || !MaHocKy || !MaLop) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ thông tin' });
 
     const result = await prisma.$transaction(async (tx) => {
       const openedClass = await tx.LOPMO.findFirst({
@@ -936,7 +936,7 @@ const registerCourse = async (req, res) => {
       const existingReg = await tx.CHITIETDANGKY.findFirst({
         where: { SoPhieu: phieu.SoPhieu, MaMonHoc: course.MaMonHoc, TrangThai: ACTIVE_REGISTRATION_STATUS }
       });
-      if (existingReg) throw { status: 400, message: 'Da dang ky mon nay roi' };
+      if (existingReg) throw { status: 400, message: 'Đã đăng ký môn này rồi' };
 
       const registrationType = await determineRegistrationType(tx, MaSv, course.MaMonHoc);
       const price = await getCreditPrice(tx, course.LoaiMon, registrationType, MaHocKy);
@@ -977,10 +977,10 @@ const registerCourse = async (req, res) => {
       return { registration, tuitionSummary };
     });
 
-    res.status(201).json({ success: true, message: 'Dang ky thanh cong', data: result });
+    res.status(201).json({ success: true, message: 'Đăng ký thành công', data: result });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-        return sendErrorResponse(res, error, 'Loi server', 'Register course error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Register course error:');
   }
 };
 
@@ -1003,7 +1003,7 @@ const cancelRegistration = async (req, res) => {
         }
       }
     });
-    if (!reg) return res.status(404).json({ success: false, message: 'Khong tim thay dang ky' });
+    if (!reg) return res.status(404).json({ success: false, message: 'Không tìm thấy đăng ký' });
     if (!(await ensureStudentAccess(req, res, reg.PHIEUDANGKY.MaSv))) return;
     if (reg.TrangThai === CANCELLED_REGISTRATION_STATUS) {
       return res.status(400).json({ success: false, message: reg.LyDoHuy || 'Đăng ký này đã được hủy' });
@@ -1031,10 +1031,10 @@ const cancelRegistration = async (req, res) => {
       }
       return recalculateRegistrationTotals(tx, reg.PHIEUDANGKY.SoPhieu);
     });
-    res.json({ success: true, message: 'Huy dang ky thanh cong', data: result });
+    res.json({ success: true, message: 'Hủy đăng ký thành công', data: result });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-        return sendErrorResponse(res, error, 'Loi server', 'Cancel registration error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Cancel registration error:');
   }
 };
 
@@ -1048,7 +1048,7 @@ const getRegistrationStats = async (req, res) => {
     ]);
     res.json({ success: true, data: { totalRegistrations: totalReg, totalCourses: totalDetails } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get registration stats error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get registration stats error:');
   }
 };
 

@@ -59,7 +59,7 @@ const buildCurriculumRow = (row, semesterMap) => {
       ...conditionPayload(condition),
       HocKyDieuKien: requiredSemester,
       valid,
-      message: valid ? '' : 'Hoc ky du kien vi pham dieu kien'
+      message: valid ? '' : 'Học kỳ dự kiến vi phạm điều kiện'
     };
   }).filter((item) => !item.valid);
 
@@ -116,8 +116,8 @@ const validateCurriculumPlacement = async (payload, currentId = null) => {
   const MaNganh = normalizeCode(payload.MaNganh);
   const MaMonHoc = normalizeCode(payload.MaMonHoc);
   const HocKyDuKien = toInt(payload.HocKyDuKien, 1);
-  if (!MaNganh || !MaMonHoc) return { error: 'Vui long chon nganh va mon hoc' };
-  if (HocKyDuKien < 1) return { error: 'Hoc ky du kien khong hop le' };
+  if (!MaNganh || !MaMonHoc) return { error: 'Vui lòng chọn ngành và môn học' };
+  if (HocKyDuKien < 1) return { error: 'Học kỳ dự kiến không hợp lệ' };
 
   const [major, course, duplicate, curriculumRows, conditions] = await Promise.all([
     prisma.NGANHHOC.findFirst({ where: { MaNganh, DaXoa: false }, select: { MaNganh: true } }),
@@ -135,9 +135,9 @@ const validateCurriculumPlacement = async (payload, currentId = null) => {
     })
   ]);
 
-  if (!major) return { error: 'Nganh hoc khong ton tai' };
-  if (!course) return { error: 'Mon hoc khong ton tai' };
-  if (duplicate) return { error: 'Mon hoc da co trong chuong trinh nay' };
+  if (!major) return { error: 'Ngành học không tồn tại' };
+  if (!course) return { error: 'Môn học không tồn tại' };
+  if (duplicate) return { error: 'Môn học đã có trong chương trình này' };
 
   const semesterMap = new Map(curriculumRows.map((row) => [row.MaMonHoc, Number(row.HocKyDuKien || 1)]));
   const violations = conditions.map((condition) => {
@@ -154,7 +154,7 @@ const validateCurriculumPlacement = async (payload, currentId = null) => {
     };
   }).filter(Boolean);
 
-  if (violations.length) return { error: 'Mon hoc vi pham rang buoc hoc ky', violations };
+  if (violations.length) return { error: 'Môn học vi phạm ràng buộc học kỳ', violations };
   return {
     data: {
       MaNganh,

@@ -333,7 +333,7 @@ async function saveClass() {
   };
 
   if (!data.MaLop || !data.TenLop || !data.MaMonHoc) {
-    showToast('Vui long nhap ma lop, ten lop va mon hoc', 'error');
+    showToast('Vui lòng nhập mã lớp, tên lớp và môn học', 'error');
     return;
     /*
     showToast('Vui lòng nhập đầy đủ lớp, môn học, giảng viên, phòng và lịch học', 'error');

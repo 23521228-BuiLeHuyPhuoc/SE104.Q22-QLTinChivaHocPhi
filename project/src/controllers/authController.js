@@ -441,7 +441,7 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập tài khoản, mã OTP và mật khẩu mới' });
     }
     if (!/^\d+$/.test(otp) || otp.length !== RESET_OTP_LENGTH) {
-      return res.status(400).json({ success: false, message: `Ma OTP phai gom ${RESET_OTP_LENGTH} chu so` });
+      return res.status(400).json({ success: false, message: `Mã OTP phải gồm ${RESET_OTP_LENGTH} chữ số` });
     }
 
     const account = await findResetAccount(identifier, role);
@@ -532,7 +532,7 @@ const getMe = async (req, res) => {
 const updateStudentProfile = async (req, res) => {
   try {
     if ((req.user.Role || req.user.role) !== 'student') {
-      return res.status(403).json({ success: false, message: 'Chi sinh viên moi duoc cap nhat ho so ca nhan' });
+      return res.status(403).json({ success: false, message: 'Chỉ sinh viên mới được cập nhật hồ sơ cá nhân' });
     }
 
     const forbiddenFields = {

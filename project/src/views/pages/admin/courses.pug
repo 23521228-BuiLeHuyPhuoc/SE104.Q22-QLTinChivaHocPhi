@@ -3,38 +3,38 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tim ma hoac ten mon hoc..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm mã hoặc tên môn học..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select.form-control#faculty-filter(onchange="applyCourseFilters()")
-        option(value="" selected=!filterKhoa) Tat ca khoa
+        option(value="" selected=!filterKhoa) Tất cả khoa
         if faculties && faculties.length > 0
           each k in faculties
             option(value=k.MaKhoa selected=(filterKhoa === k.MaKhoa))= k.TenKhoa
       select.form-control#type-filter(onchange="applyCourseFilters()")
-        option(value="" selected=!filterLoaiMon) Tat ca loai
-        option(value="LT" selected=(filterLoaiMon === 'LT')) Ly thuyet
-        option(value="TH" selected=(filterLoaiMon === 'TH')) Thuc hanh
-      button.btn.btn-outline(type="button" onclick="exportCourses()") Xuat Excel
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Them mon hoc
-      a.btn.btn-outline(href="/admin/trash?entity=courses") Thung rac
+        option(value="" selected=!filterLoaiMon) Tất cả loại
+        option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết
+        option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành
+      button.btn.btn-outline(type="button" onclick="exportCourses()") Xuất Excel
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn học
+      a.btn.btn-outline(href="/admin/trash?entity=courses") Thùng rác
 
   .card
     .card-header
-      h3 Danh muc mon hoc
-      span.card-count= courses ? `${courses.length} ban ghi` : '0 ban ghi'
+      h3 Danh mục môn học
+      span.card-count= courses ? `${courses.length} bản ghi` : '0 bản ghi'
     .table-container
       table.data-table
         thead
           tr
-            th Ma mon
-            th Ten mon hoc
-            th Tin chi
-            th Loai
-            th So tiet
+            th Mã môn
+            th Tên môn học
+            th Tín chỉ
+            th Loại
+            th Số tiết
             th Khoa
-            th Sua boi
-            th Sua luc
-            th Thao tac
+            th Sửa bởi
+            th Sửa lúc
+            th Thao tác
         tbody#courses-table
           if courses && courses.length > 0
             each c in courses
@@ -52,12 +52,12 @@ block content
                 td= c.NguoiCapNhatTen || c.NguoiCapNhat || '-'
                 td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sua
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xoa
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
           else
             tr
               td(colspan="9")
-                .empty-state Khong co mon hoc phu hop
+                .empty-state Không có môn học phù hợp
 
   include ../../partials/pagination
 
@@ -65,50 +65,50 @@ block modals
   #course-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
     .modal
       .modal-header
-        h2#modal-title Them mon hoc
-        button.modal-close(type="button" onclick="closeModal()" aria-label="Dong") x
+        h2#modal-title Thêm môn học
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") x
       .modal-body
         form#course-form
           .form-row
             .form-group
-              label(for="mh-ma") Ma mon hoc
+              label(for="mh-ma") Mã môn học
               input.form-control#mh-ma(type="text" required)
             .form-group
-              label(for="mh-ten") Ten mon hoc
+              label(for="mh-ten") Tên môn học
               input.form-control#mh-ten(type="text" required)
           .form-row
             .form-group
               label(for="mh-makhoa") Khoa
               select.form-control#mh-makhoa(required)
-                option(value="") Chon khoa
+                option(value="") Chọn khoa
                 if faculties && faculties.length > 0
                   each k in faculties
                     option(value=k.MaKhoa)= k.TenKhoa
             .form-group
-              label(for="mh-loai") Loai mon
+              label(for="mh-loai") Loại môn
               select.form-control#mh-loai(required)
-                option(value="LT") Ly thuyet
-                option(value="TH") Thuc hanh
+                option(value="LT") Lý thuyết
+                option(value="TH") Thực hành
           .form-row
             .form-group
-              label(for="mh-sotiet") So tiet
+              label(for="mh-sotiet") Số tiết
               input.form-control#mh-sotiet(type="number" min="1" value="45" required)
             .form-group
-              label(for="mh-tc") So tin chi
+              label(for="mh-tc") Số tín chỉ
               input.form-control#mh-tc(type="number" min="1" max="10" value="3" readonly)
           .form-group
-            label(for="mh-mota") Mo ta
+            label(for="mh-mota") Mô tả
             textarea.form-control#mh-mota(rows="3")
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closeModal()") Huy
-        button.btn.btn-primary(type="button" onclick="saveCourse()") Luu
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveCourse()") Lưu
 
   #course-detail-modal.modal-overlay(onclick="if(event.target===this)closeCourseDetail()")
     .modal.modal-wide
       .modal-header
-        h2 Chi tiet mon hoc
-        button.modal-close(type="button" onclick="closeCourseDetail()" aria-label="Dong") x
-      .modal-body#course-detail-content Dang tai...
+        h2 Chi tiết môn học
+        button.modal-close(type="button" onclick="closeCourseDetail()" aria-label="Đóng") x
+      .modal-body#course-detail-content Đang tải...
 
 block scripts
   script(src="/js/admin/courses.js")

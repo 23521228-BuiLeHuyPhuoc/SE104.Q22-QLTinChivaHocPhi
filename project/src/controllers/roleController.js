@@ -69,7 +69,7 @@ const getAllRoles = async (req, res) => {
     const groups = await getCreatableGroups(req.user);
     res.json({ success: true, data: groups.map(toRoleOption) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get all roles error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all roles error:');
   }
 };
 
@@ -84,7 +84,7 @@ const getMyRole = async (req, res) => {
     };
     res.json({ success: true, data: toRoleOption(group || fallback) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get my role error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get my role error:');
   }
 };
 
@@ -139,7 +139,7 @@ const getAllAccounts = async (req, res) => {
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get all accounts error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all accounts error:');
   }
 };
 
@@ -147,20 +147,20 @@ const createAccount = async (req, res) => {
   try {
     const targetGroup = await getTargetGroup(req.body);
     if (!targetGroup) {
-      return res.status(400).json({ success: false, message: 'Nhom nguoi dung khong hop le' });
+      return res.status(400).json({ success: false, message: 'Nhóm người dùng không hợp lệ' });
     }
 
     if (!(await canCreateGroup(req.user, targetGroup))) {
       return res.status(403).json({
         success: false,
-        message: 'Ban khong co quyen tao tai khoan o nhom nay'
+        message: 'Bạn không có quyền tạo tài khoản ở nhóm này'
       });
     }
 
     const targetRole = roleFromGroup(targetGroup.MaNhom);
     const rawPassword = String(req.body.password || req.body.MatKhau || '');
     if (rawPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'Mat khau phai co it nhat 6 ky tu' });
+      return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
     }
 
     const currentUserId = Number(req.user.id || req.user.MaTaiKhoan || 0) || null;
@@ -169,7 +169,7 @@ const createAccount = async (req, res) => {
     if (targetRole === 'student') {
       const MaSv = normalize(req.body.MaSv || req.body.maSv);
       if (!MaSv) {
-        return res.status(400).json({ success: false, message: 'Tao tai khoan sinh vien bat buoc nhap MSSV' });
+        return res.status(400).json({ success: false, message: 'Tạo tài khoản sinh viên bắt buộc nhập MSSV' });
       }
 
       const student = await prisma.SINHVIEN.findFirst({
@@ -184,10 +184,10 @@ const createAccount = async (req, res) => {
         }
       });
       if (!student) {
-        return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien de lien ket tai khoan' });
+        return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên để liên kết tài khoản' });
       }
       if (student.MaTaiKhoan) {
-        return res.status(400).json({ success: false, message: 'Sinh vien nay da co tai khoan lien ket' });
+        return res.status(400).json({ success: false, message: 'Sinh viên này đã có tài khoản liên kết' });
       }
 
       const existingStudentAccount = await prisma.TAIKHOAN.findFirst({
@@ -195,7 +195,7 @@ const createAccount = async (req, res) => {
         select: { MaTaiKhoan: true }
       });
       if (existingStudentAccount) {
-        return res.status(400).json({ success: false, message: 'MSSV nay da duoc gan voi tai khoan khac' });
+        return res.status(400).json({ success: false, message: 'MSSV này đã được gán với tài khoản khác' });
       }
 
       const username = normalize(req.body.username || req.body.TenDangNhap || MaSv);
@@ -210,7 +210,7 @@ const createAccount = async (req, res) => {
         select: { MaTaiKhoan: true }
       });
       if (existing) {
-        return res.status(400).json({ success: false, message: 'Ten dang nhap hoac email da ton tai' });
+        return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
       }
 
       const account = await prisma.$transaction(async (tx) => {
@@ -256,7 +256,7 @@ const createAccount = async (req, res) => {
 
       return res.status(201).json({
         success: true,
-        message: 'Tao tai khoan sinh vien thanh cong',
+        message: 'Tạo tài khoản sinh viên thành công',
         data: account
       });
     }
@@ -269,7 +269,7 @@ const createAccount = async (req, res) => {
     const PhongBan = normalize(req.body.PhongBan);
 
     if (!username || !HoTen) {
-      return res.status(400).json({ success: false, message: 'Vui long nhap ten dang nhap va ho ten' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên đăng nhập và họ tên' });
     }
 
     const existing = await prisma.TAIKHOAN.findFirst({
@@ -282,7 +282,7 @@ const createAccount = async (req, res) => {
       select: { MaTaiKhoan: true }
     });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Ten dang nhap hoac email da ton tai' });
+      return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
     }
 
     const account = await prisma.$transaction(async (tx) => {
@@ -327,14 +327,14 @@ const createAccount = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Tao tai khoan admin thanh cong',
+      message: 'Tạo tài khoản admin thành công',
       data: account
     });
   } catch (error) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ success: false, message: 'Tai khoan da ton tai hoac du lieu bi trung' });
+      return res.status(400).json({ success: false, message: 'Tài khoản đã tồn tại hoặc dữ liệu bị trùng' });
     }
-        return sendErrorResponse(res, error, 'Loi server', 'Create account error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Create account error:');
   }
 };
 
@@ -487,10 +487,10 @@ const deleteAccount = async (req, res) => {
     const currentUserId = Number(req.user.id || req.user.MaTaiKhoan || 0);
 
     if (!Number.isInteger(accountId) || accountId <= 0) {
-      return res.status(400).json({ success: false, message: 'Tai khoan khong hop le' });
+      return res.status(400).json({ success: false, message: 'Tài khoản không hợp lệ' });
     }
     if (accountId === currentUserId) {
-      return res.status(400).json({ success: false, message: 'Khong the xoa tai khoan dang dang nhap' });
+      return res.status(400).json({ success: false, message: 'Không thể xóa tài khoản đang đăng nhập' });
     }
 
     const account = await prisma.TAIKHOAN.findUnique({
@@ -503,7 +503,7 @@ const deleteAccount = async (req, res) => {
       }
     });
     if (!account) {
-      return res.status(404).json({ success: false, message: 'Khong tim thay tai khoan' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     }
 
     await prisma.$transaction(async (tx) => {
@@ -527,16 +527,16 @@ const deleteAccount = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Da xoa tai khoan ${account.TenDangNhap}`
+      message: `Đã xóa tài khoản ${account.TenDangNhap}`
     });
   } catch (error) {
     if (error.code === 'P2003') {
       return res.status(400).json({
         success: false,
-        message: 'Khong the xoa tai khoan vi con du lieu lien ket'
+        message: 'Không thể xóa tài khoản vì còn dữ liệu liên kết'
       });
     }
-        return sendErrorResponse(res, error, 'Loi server', 'Delete account error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Delete account error:');
   }
 };
 
@@ -545,12 +545,12 @@ const updateUserRole = async (req, res) => {
     const { id } = req.params;
     const currentUserId = req.user.id || req.user.MaTaiKhoan;
     if (parseInt(id, 10) === parseInt(currentUserId, 10)) {
-      return res.status(400).json({ success: false, message: 'Khong the thay doi nhom cua chinh minh' });
+      return res.status(400).json({ success: false, message: 'Không thể thay đổi nhóm của chính mình' });
     }
 
     const targetGroup = await getTargetGroup(req.body);
     if (!targetGroup) {
-      return res.status(400).json({ success: false, message: 'Nhom nguoi dung khong hop le' });
+      return res.status(400).json({ success: false, message: 'Nhóm người dùng không hợp lệ' });
     }
 
     const account = await prisma.TAIKHOAN.findUnique({
@@ -565,9 +565,9 @@ const updateUserRole = async (req, res) => {
         Sdt: true
       }
     });
-    if (!account) return res.status(404).json({ success: false, message: 'Khong tim thay tai khoan' });
+    if (!account) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     if (account.MaNhom === targetGroup.MaNhom) {
-      return res.status(400).json({ success: false, message: `Tai khoan da thuoc nhom ${targetGroup.TenNhom}` });
+      return res.status(400).json({ success: false, message: `Tài khoản đã thuộc nhóm ${targetGroup.TenNhom}` });
     }
 
     const newRole = roleFromGroup(targetGroup.MaNhom);
@@ -605,7 +605,7 @@ const updateUserRole = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Da chuyen tai khoan sang nhom "${targetGroup.TenNhom}"`,
+      message: `Đã chuyển tài khoản sang nhóm "${targetGroup.TenNhom}"`,
       data: {
         MaTaiKhoan: account.MaTaiKhoan,
         old_role: account.Role,
@@ -616,7 +616,7 @@ const updateUserRole = async (req, res) => {
       }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Update user role error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Update user role error:');
   }
 };
 

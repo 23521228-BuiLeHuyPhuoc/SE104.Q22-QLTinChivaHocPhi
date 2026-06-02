@@ -3,52 +3,52 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tim MSSV, mon hoc, khoa, lop, giang vien..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm MSSV, môn học, khoa, lớp, giảng viên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-hocky(onchange="applyFilters()")
-        option(value="" selected=(!filterHocKy)) Tat ca hoc ky
+        option(value="" selected=(!filterHocKy)) Tất cả học kỳ
         if semesters && semesters.length > 0
           each s in semesters
             option(value=s.MaHocKy selected=(filterHocKy === s.MaHocKy))= s.TenHocKy
       select#filter-result(onchange="applyFilters()")
-        option(value="" selected=(!filterResult)) Tat ca ket qua
-        option(value="qua_mon" selected=(filterResult === 'qua_mon')) Qua mon
-        option(value="rot" selected=(filterResult === 'rot')) Rot
+        option(value="" selected=(!filterResult)) Tất cả kết quả
+        option(value="qua_mon" selected=(filterResult === 'qua_mon')) Qua môn
+        option(value="rot" selected=(filterResult === 'rot')) Rớt
       select#filter-khoa(onchange="applyFilters()")
-        option(value="" selected=(!filterKhoa)) Tat ca khoa
+        option(value="" selected=(!filterKhoa)) Tất cả khoa
         if faculties && faculties.length > 0
           each k in faculties
             option(value=k.MaKhoa selected=(filterKhoa === k.MaKhoa))= k.TenKhoa
       select#filter-loai(onchange="applyFilters()")
-        option(value="" selected=(!filterLoaiMon)) Tat ca loai
+        option(value="" selected=(!filterLoaiMon)) Tất cả loại
         option(value="LT" selected=(filterLoaiMon === 'LT')) LT
         option(value="TH" selected=(filterLoaiMon === 'TH')) TH
       select#filter-tinchi(onchange="applyFilters()")
-        option(value="" selected=(!filterTinChi)) Tat ca TC
+        option(value="" selected=(!filterTinChi)) Tất cả TC
         each tc in [1,2,3,4,5,6]
           option(value=tc selected=(String(filterTinChi) === String(tc)))= `${tc} TC`
-      button.btn.btn-outline(type="button" onclick="openImportModal()") Nhap Excel
-      button.btn.btn-outline(type="button" onclick="openClassGradeModal()") Nhap theo lop
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Them mon da hoc
-      a.btn.btn-outline(href="/admin/trash?entity=completedCourses") Thung rac
+      button.btn.btn-outline(type="button" onclick="openImportModal()") Nhập Excel
+      button.btn.btn-outline(type="button" onclick="openClassGradeModal()") Nhập theo lớp
+      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn đã học
+      a.btn.btn-outline(href="/admin/trash?entity=completedCourses") Thùng rác
 
   .card
     .card-header
-      h3 Sinh vien co mon da hoc
-      span.card-count= completedStudents ? `${completedStudents.length} sinh vien` : '0 sinh vien'
+      h3 Sinh viên có môn đã học
+      span.card-count= completedStudents ? `${completedStudents.length} sinh viên` : '0 sinh viên'
     .table-container
       table.data-table
         thead
           tr
             th MSSV
-            th Ho ten
-            th So luot hoc
-            th Qua mon
-            th Rot
-            th Tin chi tich luy
-            th Cap nhat gan nhat
-            th Sua boi
-            th Thao tac
+            th Họ tên
+            th Số lượt học
+            th Qua môn
+            th Rớt
+            th Tín chỉ tích lũy
+            th Cập nhật gần nhất
+            th Sửa bởi
+            th Thao tác
         tbody
           if completedStudents && completedStudents.length > 0
             each s in completedStudents
@@ -68,7 +68,7 @@ block content
           else
             tr
               td(colspan="9")
-                .empty-state Chua co sinh vien nao co mon da hoc
+                .empty-state Chưa có sinh viên nào có môn đã học
 
   include ../../partials/pagination
 
@@ -76,15 +76,15 @@ block modals
   #completed-course-detail-modal.modal-overlay(onclick="if(event.target===this)closeCompletedCourseDetail()")
     .modal.modal-wide
       .modal-header
-        h3 Chi tiet mon da hoc
+        h3 Chi tiết môn đã học
         button.modal-close(type="button" onclick="closeCompletedCourseDetail()") x
       .modal-body
-        #completed-course-detail-content Dang tai...
+        #completed-course-detail-content Đang tải...
 
   #completed-course-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
     .modal
       .modal-header
-        h2#modal-title Them mon da hoc
+        h2#modal-title Thêm môn đã học
         button.modal-close(type="button" onclick="closeModal()") x
       .modal-body
         form#completed-course-form
@@ -93,7 +93,7 @@ block modals
               label(for="cc-masv") MSSV
               input.form-control#cc-masv(type="text" required placeholder="VD: 23521228")
             .form-group
-              label(for="cc-mamonhoc") Mon hoc
+              label(for="cc-mamonhoc") Môn học
               input.form-control#cc-mamonhoc(type="text" list="course-options" required placeholder="VD: IT001")
               datalist#course-options
                 if courses && courses.length > 0
@@ -101,14 +101,14 @@ block modals
                     option(value=c.MaMonHoc)= c.TenMonHoc
           .form-row
             .form-group
-              label(for="cc-mahocky") Hoc ky
+              label(for="cc-mahocky") Học kỳ
               select.form-control#cc-mahocky(required)
-                option(value="") Chon hoc ky
+                option(value="") Chọn học kỳ
                 if semesters && semesters.length > 0
                   each s in semesters
                     option(value=s.MaHocKy)= s.TenHocKy
             .form-group
-              label(for="cc-malop") Lop
+              label(for="cc-malop") Lớp
               input.form-control#cc-malop(type="text" list="class-options" placeholder="VD: IT001.N01")
               datalist#class-options
                 if classes && classes.length > 0
@@ -116,24 +116,24 @@ block modals
                     option(value=l.MaLop)= l.TenLop
           .form-row
             .form-group
-              label(for="cc-lanhoc") Lan hoc
+              label(for="cc-lanhoc") Lần học
               input.form-control#cc-lanhoc(type="number" min="1" value="1")
             .form-group
-              label(for="cc-ketqua") Ket qua
+              label(for="cc-ketqua") Kết quả
               select.form-control#cc-ketqua(required)
-                option(value="qua_mon") Qua mon
-                option(value="rot") Rot
+                option(value="qua_mon") Qua môn
+                option(value="rot") Rớt
           .form-group
-            label(for="cc-ghichu") Ghi chu
+            label(for="cc-ghichu") Ghi chú
             textarea.form-control#cc-ghichu(rows="2")
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closeModal()") Huy
-        button.btn.btn-primary(type="button" onclick="saveCompletedCourse()") Luu
+        button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveCompletedCourse()") Lưu
 
   #import-modal.modal-overlay(onclick="if(event.target===this)closeImportModal()")
     .modal.modal-wide
       .modal-header
-        h2 Nhap Excel
+        h2 Nhập Excel
         button.modal-close(type="button" onclick="closeImportModal()") x
       .modal-body
         input#import-file.form-control(type="file" accept=".csv,.tsv,.txt,.xls,.xlsx")
@@ -145,54 +145,54 @@ block modals
                 th MaMonHoc
                 th HocKy
                 th KetQua
-                th Trang thai
+                th Trạng thái
             tbody#import-preview
               tr
                 td(colspan="5")
-                  .empty-state Chon file CSV/TSV tu Excel de xem truoc
+                  .empty-state Chọn file CSV/TSV từ Excel để xem trước
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closeImportModal()") Huy
-        button.btn.btn-primary(type="button" onclick="confirmImport()") Xac nhan import
+        button.btn.btn-outline(type="button" onclick="closeImportModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="confirmImport()") Xác nhận import
 
   #class-grade-modal.modal-overlay(onclick="if(event.target===this)closeClassGradeModal()")
     .modal.modal-wide
       .modal-header
-        h2 Nhap diem theo lop
+        h2 Nhập điểm theo lớp
         button.modal-close(type="button" onclick="closeClassGradeModal()") x
       .modal-body
         .form-row
           .form-group
-            label(for="bulk-class") Lop
+            label(for="bulk-class") Lớp
             select.form-control#bulk-class
-              option(value="") Chon lop
+              option(value="") Chọn lớp
               if classes && classes.length > 0
                 each l in classes
                   option(value=l.MaLop)= `${l.MaLop} - ${l.TenLop}`
           .form-group
-            label(for="bulk-semester") Hoc ky
+            label(for="bulk-semester") Học kỳ
             select.form-control#bulk-semester
-              option(value="") Chon hoc ky
+              option(value="") Chọn học kỳ
               if semesters && semesters.length > 0
                 each s in semesters
                   option(value=s.MaHocKy)= s.TenHocKy
           .form-group
             label &nbsp;
-            button.btn.btn-outline(type="button" onclick="loadClassRoster()") Tai danh sach
+            button.btn.btn-outline(type="button" onclick="loadClassRoster()") Tải danh sách
         .table-container.mt-3
           table.data-table
             thead
               tr
                 th MSSV
-                th Ho ten
-                th Mon
-                th Ket qua
+                th Họ tên
+                th Môn
+                th Kết quả
             tbody#class-roster
               tr
                 td(colspan="4")
-                  .empty-state Chua tai danh sach
+                  .empty-state Chưa tải danh sách
       .modal-footer
-        button.btn.btn-outline(type="button" onclick="closeClassGradeModal()") Huy
-        button.btn.btn-primary(type="button" onclick="saveClassGrades()") Luu dong loat
+        button.btn.btn-outline(type="button" onclick="closeClassGradeModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveClassGrades()") Lưu đồng loạt
 
 block scripts
   script(src="/js/admin/completed-courses.js")

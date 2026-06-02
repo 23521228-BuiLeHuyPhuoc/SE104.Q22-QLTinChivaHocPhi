@@ -101,7 +101,7 @@ const createCourse = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     }
     const existing = await prisma.MONHOC.findUnique({ where: { MaMonHoc } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã môn hoc da ton tai' });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã môn học đã tồn tại' });
     const course = await prisma.MONHOC.create({ data: { MaMonHoc, TenMonHoc, SoTiet: parseInt(SoTiet, 10), LoaiMon, MaKhoa, MoTa, ...updateAudit(req) } });
     res.status(201).json({ success: true, message: 'Tạo môn học thành công', data: course });
   } catch (error) {

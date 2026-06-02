@@ -123,7 +123,7 @@ const getDashboardStats = async (req, res) => {
       }
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getDashboardStats error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'getDashboardStats error:');
   }
 };
 

@@ -73,7 +73,7 @@ const authMiddleware = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: 'Khong co token xac thuc'
+        message: 'Không có token xác thực'
       });
     }
 
@@ -84,7 +84,7 @@ const authMiddleware = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Tai khoan khong con hieu luc'
+        message: 'Tài khoản không còn hiệu lực'
       });
     }
 
@@ -94,12 +94,12 @@ const authMiddleware = async (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Token da het han'
+        message: 'Token đã hết hạn'
       });
     }
     return res.status(401).json({
       success: false,
-      message: 'Token khong hop le'
+      message: 'Token không hợp lệ'
     });
   }
 };
@@ -110,7 +110,7 @@ const adminMiddleware = (req, res, next) => {
   } else {
     return res.status(403).json({
       success: false,
-      message: 'Khong co quyen truy cap. Chi admin moi duoc phep.'
+      message: 'Không có quyền truy cập. Chỉ admin mới được phép.'
     });
   }
 };
@@ -119,7 +119,7 @@ const systemAdminMiddleware = (req, res, next) => {
   if (isSystemAdminUser(req.user)) return next();
   return res.status(403).json({
     success: false,
-    message: 'Chi admin he thong moi duoc phep thuc hien thao tac nay'
+    message: 'Chỉ admin hệ thống mới được phép thực hiện thao tác này'
   });
 };
 
@@ -171,7 +171,7 @@ const checkAdminPermission = (req, res, next) => {
   if (currentPath.startsWith('/api/')) {
     return res.status(403).json({
       success: false,
-      message: 'Ban khong co quyen thuc hien thao tac nay'
+      message: 'Bạn không có quyền thực hiện thao tác này'
     });
   }
 

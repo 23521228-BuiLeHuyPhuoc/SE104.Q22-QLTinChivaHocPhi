@@ -27,20 +27,20 @@ const getAllFaculties = async (req, res) => {
     ]);
     res.json({ success: true, data: faculties, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'getAllFaculties error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'getAllFaculties error:');
   }
 };
 
 const createFaculty = async (req, res) => {
   try {
     const { MaKhoa, TenKhoa, TenVietTat, Sdt, Email, DiaChi, TruongKhoa } = req.body;
-    if (!MaKhoa || !TenKhoa) return res.status(400).json({ success: false, message: 'Vui long nhap ma khoa va ten khoa' });
+    if (!MaKhoa || !TenKhoa) return res.status(400).json({ success: false, message: 'Vui lòng nhập mã khoa và tên khoa' });
     const existing = await prisma.KHOA.findUnique({ where: { MaKhoa } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma khoa da ton tai' });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã khoa đã tồn tại' });
     const faculty = await prisma.KHOA.create({ data: { MaKhoa, TenKhoa, TenVietTat, Sdt, Email, DiaChi, TruongKhoa, ...updateAudit(req) } });
-    res.status(201).json({ success: true, message: 'Tao khoa thanh cong', data: faculty });
+    res.status(201).json({ success: true, message: 'Tạo khoa thành công', data: faculty });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'createFaculty error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'createFaculty error:');
   }
 };
 
@@ -51,9 +51,9 @@ const updateFaculty = async (req, res) => {
     const data = { TenKhoa, TenVietTat, Sdt, Email, DiaChi, TruongKhoa, ...updateAudit(req) };
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     const faculty = await prisma.KHOA.update({ where: { MaKhoa: id }, data });
-    res.json({ success: true, message: 'Cap nhat khoa thanh cong', data: faculty });
+    res.json({ success: true, message: 'Cập nhật khoa thành công', data: faculty });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'updateFaculty error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'updateFaculty error:');
   }
 };
 
@@ -61,11 +61,11 @@ const deleteFaculty = async (req, res) => {
   try {
     const { id } = req.params;
     const faculty = await prisma.KHOA.findFirst({ where: { MaKhoa: id, DaXoa: false } });
-    if (!faculty) return res.status(404).json({ success: false, message: 'Khong tim thay khoa' });
+    if (!faculty) return res.status(404).json({ success: false, message: 'Không tìm thấy khoa' });
     await prisma.KHOA.update({ where: { MaKhoa: id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Da chuyen khoa vao thung rac' });
+    res.json({ success: true, message: 'Đã chuyển khoa vào thùng rác' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'deleteFaculty error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'deleteFaculty error:');
   }
 };
 

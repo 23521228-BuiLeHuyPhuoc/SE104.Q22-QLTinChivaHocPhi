@@ -564,7 +564,7 @@ const createClass = async (req, res) => {
     const { MaLop, TenLop, MaMonHoc } = req.body;
     if (!MaLop || !TenLop || !MaMonHoc) return res.status(400).json({ success: false, message: 'Vui lòng nhập mã lớp, tên lớp và môn học' });
     const existingClass = await prisma.LOP.findUnique({ where: { MaLop } });
-    if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã lớp da ton tai' });
+    if (existingClass && existingClass.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã lớp đã tồn tại' });
     const course = await prisma.MONHOC.findFirst({ where: { MaMonHoc, DaXoa: false } });
     if (!course) return res.status(400).json({ success: false, message: 'Môn học không tồn tại' });
     const assignment = await resolveClassAssignmentData(req.body);

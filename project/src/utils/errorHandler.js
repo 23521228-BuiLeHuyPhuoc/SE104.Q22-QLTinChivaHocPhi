@@ -79,29 +79,29 @@ const extractPostgresError = (error) => {
 };
 
 const formatPrismaMessage = (error) => {
-  if (error.code === 'P2000') return 'Du lieu vuot qua do dai cho phep';
+  if (error.code === 'P2000') return 'Dữ liệu vượt quá độ dài cho phép';
   if (error.code === 'P2002') {
     const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : error.meta?.target;
-    return target ? `Du lieu da ton tai: ${target}` : 'Du lieu da ton tai';
+    return target ? `Dữ liệu đã tồn tại: ${target}` : 'Dữ liệu đã tồn tại';
   }
-  if (error.code === 'P2003') return 'Du lieu dang tham chieu khong hop le hoac dang duoc su dung';
-  if (error.code === 'P2025') return 'Khong tim thay du lieu can thao tac';
+  if (error.code === 'P2003') return 'Dữ liệu đang tham chiếu không hợp lệ hoặc đang được sử dụng';
+  if (error.code === 'P2025') return 'Không tìm thấy dữ liệu cần thao tác';
   return '';
 };
 
 const formatSqlStateMessage = (sqlState, message) => {
   if (message) return message;
-  if (sqlState === 'P0001') return 'Du lieu khong thoa rang buoc trigger SQL';
-  if (sqlState === '23505') return 'Du lieu da ton tai';
-  if (sqlState === '23503') return 'Du lieu dang tham chieu khong hop le hoac dang duoc su dung';
-  if (sqlState === '23514') return 'Du lieu khong thoa rang buoc kiem tra';
-  if (sqlState === '23502') return 'Vui long nhap day du thong tin bat buoc';
-  if (sqlState === '22001') return 'Du lieu vuot qua do dai cho phep';
-  if (sqlState === '22003') return 'Gia tri so vuot qua gioi han cho phep';
-  return 'Loi rang buoc co so du lieu';
+  if (sqlState === 'P0001') return 'Dữ liệu không thỏa ràng buộc trigger SQL';
+  if (sqlState === '23505') return 'Dữ liệu đã tồn tại';
+  if (sqlState === '23503') return 'Dữ liệu đang tham chiếu không hợp lệ hoặc đang được sử dụng';
+  if (sqlState === '23514') return 'Dữ liệu không thỏa ràng buộc kiểm tra';
+  if (sqlState === '23502') return 'Vui lòng nhập đầy đủ thông tin bắt buộc';
+  if (sqlState === '22001') return 'Dữ liệu vượt quá độ dài cho phép';
+  if (sqlState === '22003') return 'Giá trị số vượt quá giới hạn cho phép';
+  return 'Lỗi ràng buộc cơ sở dữ liệu';
 };
 
-const buildErrorResponse = (error, fallbackMessage = 'Loi server') => {
+const buildErrorResponse = (error, fallbackMessage = 'Lỗi server') => {
   const fallback = typeof fallbackMessage === 'function' ? fallbackMessage(error) : fallbackMessage;
 
   if (error?.status && error?.message) {
@@ -137,13 +137,13 @@ const buildErrorResponse = (error, fallbackMessage = 'Loi server') => {
 
   return {
     status: 500,
-    message: fallback || 'Loi server',
+    message: fallback || 'Lỗi server',
     code: 'INTERNAL_SERVER_ERROR',
     isOperational: false
   };
 };
 
-const sendErrorResponse = (res, error, fallbackMessage = 'Loi server', context = 'Request error') => {
+const sendErrorResponse = (res, error, fallbackMessage = 'Lỗi server', context = 'Request error') => {
   const response = buildErrorResponse(error, fallbackMessage);
   console.error(`${context}:`, error);
 

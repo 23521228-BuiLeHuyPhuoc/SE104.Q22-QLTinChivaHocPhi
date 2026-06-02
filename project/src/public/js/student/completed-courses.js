@@ -10,8 +10,8 @@ function completedEscapeHtml(value) {
 }
 
 function completedResultBadge(result) {
-  if (result === 'qua_mon') return '<span class="badge badge-success">Qua mon</span>';
-  if (result === 'rot') return '<span class="badge badge-error">Rot</span>';
+  if (result === 'qua_mon') return '<span class="badge badge-success">Qua môn</span>';
+  if (result === 'rot') return '<span class="badge badge-error">Rớt</span>';
   return '<span class="badge badge-secondary">-</span>';
 }
 
@@ -46,7 +46,7 @@ function populateSemesterOptions(rows) {
 function renderCompletedCourses(rows) {
   var tbody = document.getElementById('completed-list');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Chua co mon da hoc</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Chưa có môn đã học</div></td></tr>';
     return;
   }
 
@@ -97,7 +97,7 @@ async function loadCompletedCourses(page) {
     table.classList.remove('hidden');
 
     if (!res.success) {
-      document.getElementById('completed-list').innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Loi tai du lieu</div></td></tr>';
+      document.getElementById('completed-list').innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
       updateCompletedSummary({});
       renderClientPagination('completed-pagination', null, 'loadCompletedCourses');
       return;
@@ -110,7 +110,7 @@ async function loadCompletedCourses(page) {
   } catch (e) {
     loading.classList.add('hidden');
     table.classList.remove('hidden');
-    document.getElementById('completed-list').innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Loi tai du lieu</div></td></tr>';
+    document.getElementById('completed-list').innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
     updateCompletedSummary({});
     renderClientPagination('completed-pagination', null, 'loadCompletedCourses');
   }
