@@ -4,48 +4,48 @@ block content
   .page-shell
     .page-heading.compact
       .page-kicker Hoc tap
-      h2 Mon da hoc
+      h2 Môn da hoc
 
     .stats-grid
       .stat-card
         .stat-icon.blue.material-symbols-rounded history_edu
         .stat-info
           h3#total-attempts 0
-          p Luot hoc
+          p Lượt học
       .stat-card
         .stat-icon.green.material-symbols-rounded check_circle
         .stat-info
           h3#passed-count 0
-          p Qua mon
+          p Qua môn
       .stat-card
         .stat-icon.red.material-symbols-rounded cancel
         .stat-info
           h3#failed-count 0
-          p Rot
+          p Rớt
       .stat-card
         .stat-icon.purple.material-symbols-rounded school
         .stat-info
           h3#passed-credits 0
-          p Tin chi dat
+          p Tín chỉ dat
 
     .filter-group
-      input#completed-search(type="text" placeholder="Tim ma mon, ten mon, khoa, loai, lop, giang vien")
+      input#completed-search(type="text" placeholder="Tìm mã môn, tên môn, khoa, loại, lớp, giảng viên")
       select#completed-loai
-        option(value="") Tat ca loai
-        option(value="LT") Ly thuyet
-        option(value="TH") Thuc hanh
+        option(value="") Tất cả loại
+        option(value="LT") Lý thuyết
+        option(value="TH") Thực hành
       select#completed-khoa
-        option(value="") Tat ca khoa
+        option(value="") Tất cả khoa
       select#completed-semester
-        option(value="") Tat ca hoc ky
+        option(value="") Tất cả học kỳ
       select#completed-result
-        option(value="") Tat ca ket qua
-        option(value="qua_mon") Qua mon
-        option(value="rot") Rot
+        option(value="") Tất cả kết quả
+        option(value="qua_mon") Qua môn
+        option(value="rot") Rớt
 
     .card
       .card-header
-        h3 Lich su mon da hoc
+        h3 Lịch sử môn đã học
       .card-body
         .loading-overlay#completed-loading
           .spinner
@@ -53,16 +53,16 @@ block content
           table.data-table#completed-table.hidden
             thead
               tr
-                th Ma mon
-                th Ten mon
+                th Mã môn
+                th Tên môn
                 th Khoa
-                th Loai
-                th Tin chi
-                th Hoc ky
-                th Lop
-                th Lan hoc
-                th Ket qua
-                th Ghi chu
+                th Loại
+                th Tín chỉ
+                th Học kỳ
+                th Lớp
+                th Lần học
+                th Kết quả
+                th Ghi chú
             tbody#completed-list
         nav.pagination#completed-pagination(style="display:none")
 
