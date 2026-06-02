@@ -6,7 +6,29 @@ block content
     .search-box
       input#search-input(type="text" placeholder="Tìm phiếu thu, MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
-      button.btn.btn-primary(type="button" onclick="openModal()") Lập phiếu thu
+      select#filter-semester(onchange="applyFilters()")
+        option(value="" selected=(!MaHocKy)) Tất cả học kỳ
+        if semesters && semesters.length
+          each semester in semesters
+            option(value=semester.MaHocKy selected=(MaHocKy === semester.MaHocKy))= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+      select#filter-method(onchange="applyFilters()")
+        option(value="" selected=(!HinhThucThu)) Tất cả phương thức
+        option(value="Tiền mặt" selected=(HinhThucThu === 'Tiền mặt')) Tiền mặt
+        option(value="Chuyển khoản" selected=(HinhThucThu === 'Chuyển khoản')) Chuyển khoản
+        option(value="Thẻ" selected=(HinhThucThu === 'Thẻ')) Thẻ
+        option(value="Ví điện tử" selected=(HinhThucThu === 'Ví điện tử')) Ví điện tử
+      select#filter-status(onchange="applyFilters()")
+        option(value="" selected=(!TrangThai)) Tất cả trạng thái
+        option(value="Thành công" selected=(TrangThai === 'Thành công')) Thành công
+        option(value="Chờ xác nhận" selected=(TrangThai === 'Chờ xác nhận')) Chờ xác nhận
+        option(value="Thất bại" selected=(TrangThai === 'Thất bại')) Thất bại
+        option(value="Đã hủy" selected=(TrangThai === 'Đã hủy')) Đã hủy
+      button.btn.btn-primary(type="button" onclick="openModal()")
+        span.material-symbols-rounded(aria-hidden="true") receipt_long
+        span Lập phiếu thu
+      button.btn.btn-outline(type="button" onclick="exportPayments()")
+        span.material-symbols-rounded(aria-hidden="true") download
+        span Xuất Excel
 
   .card
     .card-header
@@ -35,7 +57,10 @@ block content
                 td.mono= p.SoPhieuThu
                 td.mono= p.MaSv || '-'
                 td= p.SINHVIEN ? p.SINHVIEN.HoTen : '-'
-                td= p.PHIEUDANGKY && p.PHIEUDANGKY.HOCKY ? p.PHIEUDANGKY.HOCKY.TenHocKy : '-'
+                td
+                  strong= p.PHIEUDANGKY && p.PHIEUDANGKY.HOCKY ? p.PHIEUDANGKY.HOCKY.TenHocKy : '-'
+                  if p.PHIEUDANGKY && p.PHIEUDANGKY.HOCKY && p.PHIEUDANGKY.HOCKY.NAMHOC
+                    small= p.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc
                 td.currency= money(p.SoTienThu)
                 td= p.HinhThucThu || '-'
                 td= p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-'
@@ -43,11 +68,15 @@ block content
                 td
                   span.badge(class=paymentBadge)= paymentStatus
                 td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" onclick=`viewPaymentDetail(${p.SoPhieuThu})`)
+                    span.material-symbols-rounded(aria-hidden="true") visibility
+                    span Xem
+                  button.btn.btn-sm.btn-secondary(type="button" onclick=`printPayment(${p.SoPhieuThu})`)
+                    span.material-symbols-rounded(aria-hidden="true") print
+                    span In
                   if paymentStatus === 'Chờ xác nhận'
                     button.btn.btn-sm.btn-success(type="button" onclick=`confirmPayment(${p.SoPhieuThu})`) Xác nhận
                     button.btn.btn-sm.btn-danger(type="button" onclick=`cancelPayment(${p.SoPhieuThu})`) Hủy
-                  else
-                    span.text-muted -
           else
             tr
               td(colspan="10")
@@ -71,10 +100,11 @@ block modals
               label(for="pt-hocky") Học kỳ
               select.form-control#pt-hocky(required)
                 option(value="") Chọn học kỳ
+          #student-debt-info.empty-state.hidden
           .form-row
             .form-group
               label(for="pt-sotien") Số tiền
-              input.form-control#pt-sotien(type="number" min="0" required)
+              input.form-control#pt-sotien(type="number" min="1" required)
             .form-group
               label(for="pt-phuongthuc") Phương thức thanh toán
               select.form-control#pt-phuongthuc
@@ -87,6 +117,17 @@ block modals
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="savePayment()") Lưu phiếu thu
+
+  #payment-detail-modal.modal-overlay(onclick="if(event.target===this)closePaymentDetail()")
+    .modal.modal-wide
+      .modal-header
+        h2#payment-detail-title Chi tiết phiếu thu
+        button.modal-close(type="button" onclick="closePaymentDetail()" aria-label="Đóng") ×
+      .modal-body#payment-detail-body
+        .empty-state Đang tải dữ liệu...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closePaymentDetail()") Đóng
+        button.btn.btn-primary(type="button" onclick="printLoadedPayment()") In phiếu
 
 block scripts
   script(src="/js/admin/payments.js")

@@ -2,16 +2,23 @@ extends ../../layouts/admin
 
 block content
   - const money = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
+  - const statusClass = (value, overdue) => value === 'Đã đóng đủ' ? 'badge-success' : overdue || value === 'Quá hạn' ? 'badge-error' : value === 'Đóng một phần' ? 'badge-warning' : value === 'Chưa phát sinh' ? 'badge-secondary' : 'badge-error'
   .toolbar
     .search-box
       input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
+      select#filter-semester(onchange="applyFilters()")
+        option(value="" selected=(!MaHocKy)) Tất cả học kỳ
+        if semesters && semesters.length
+          each semester in semesters
+            option(value=semester.MaHocKy selected=(MaHocKy === semester.MaHocKy))= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(!status)) Tất cả trạng thái
         option(value="unpaid" selected=(status === 'unpaid')) Chưa đóng
         option(value="partial" selected=(status === 'partial')) Đóng một phần
         option(value="overdue" selected=(status === 'overdue')) Quá hạn
         option(value="paid" selected=(status === 'paid')) Đã đóng đủ
+        option(value="none" selected=(status === 'none')) Chưa phát sinh
 
   .card
     .card-header
@@ -24,41 +31,51 @@ block content
             th MSSV
             th Họ tên
             th Học kỳ
-            th Tín chỉ
-            th Loại học
+            th Số môn
             th Tổng phải đóng
             th Đã đóng
             th Còn nợ
             th Hạn đóng
             th Trạng thái
+            th Thao tác
         tbody
           if tuitions && tuitions.length > 0
             each t in tuitions
-              - const badge = t.TrangThaiHocPhi === 'Đã đóng đủ' ? 'badge-success' : t.TrangThaiHocPhi === 'Đóng một phần' ? 'badge-warning' : 'badge-error'
               tr
                 td.mono= t.MaSv
                 td= t.HoTen || '-'
-                td= t.TenHocKy || t.MaHocKy || '-'
-                td= t.TongTinChi || 0
                 td
-                  if Number(t.SoMonHocMoi || 0) > 0
-                    span.badge.badge-success= 'Mới ' + t.SoMonHocMoi
-                  if Number(t.SoMonHocLai || 0) > 0
-                    span.badge.badge-warning= 'Lại ' + t.SoMonHocLai
-                  if Number(t.SoMonHocCaiThien || 0) > 0
-                    span.badge.badge-info= 'Cải thiện ' + t.SoMonHocCaiThien
+                  strong= t.TenHocKy || t.MaHocKy || '-'
+                  if t.TenNamHoc
+                    small= t.TenNamHoc
+                td= t.SoMon || t.soMon || (t.CHITIETDANGKY && t.CHITIETDANGKY.length) || 0
                 td.currency= money(t.TongTienPhaiDong)
                 td.currency= money(t.TongTienDaDong)
-                td.currency(class=(Number(t.ConNo || 0) > 0 ? 'text-danger' : 'text-success'))= money(t.ConNo)
+                td.currency(class=(Number(t.ConNo || t.conNo || 0) > 0 ? 'text-danger' : 'text-success'))= money(t.ConNo || t.conNo)
                 td= t.HanDongHocPhi ? new Date(t.HanDongHocPhi).toLocaleDateString('vi-VN') : '-'
                 td
-                  span.badge(class=badge)= t.TrangThaiHocPhi
+                  span.badge(class=statusClass(t.TrangThaiHocPhi || t.TrangThai, t.QuaHan))= t.TrangThaiHocPhi || t.TrangThai || '-'
+                td.table-actions
+                  button.btn.btn-sm.btn-outline(type="button" onclick=`viewTuitionDetail(${t.SoPhieu})`)
+                    span.material-symbols-rounded(aria-hidden="true") visibility
+                    span Xem
           else
             tr
               td(colspan="10")
                 .empty-state Không có dữ liệu học phí
 
   include ../../partials/pagination
+
+block modals
+  #tuition-detail-modal.modal-overlay(onclick="if(event.target===this)closeTuitionDetail()")
+    .modal.modal-wide
+      .modal-header
+        h2#tuition-detail-title Chi tiết học phí
+        button.modal-close(type="button" onclick="closeTuitionDetail()" aria-label="Đóng") ×
+      .modal-body#tuition-detail-body
+        .empty-state Đang tải dữ liệu...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeTuitionDetail()") Đóng
 
 block scripts
   script(src="/js/admin/tuition.js")

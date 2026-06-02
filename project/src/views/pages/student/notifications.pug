@@ -21,5 +21,17 @@ block content
         #notification-list.hidden
         nav.pagination#notification-pagination(style="display:none")
 
+block modals
+  #notification-detail-modal.modal-overlay(onclick="if(event.target===this)closeNotificationDetail()")
+    .modal.modal-wide
+      .modal-header
+        h3#notification-detail-title Chi tiết thông báo
+        button.modal-close(type="button" onclick="closeNotificationDetail()" aria-label="Đóng") ×
+      .modal-body#notification-detail-body
+        .empty-state Đang tải dữ liệu...
+      .modal-footer
+        a.btn.btn-primary#notification-link-btn(href="#" target="_blank" rel="noopener" style="display:none") Mở liên kết
+        button.btn.btn-outline(type="button" onclick="closeNotificationDetail()") Đóng
+
 block scripts
   script(src="/js/student/notifications.js")

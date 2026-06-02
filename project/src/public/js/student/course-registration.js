@@ -121,7 +121,9 @@ function renderAvailableCourseCard(c) {
   var max = Number(c.SoLuongToiDa || 0);
   var registered = Number(c.SoLuongDaDangKy || 0);
   var remaining = max ? Math.max(max - registered, 0) : 0;
-  var canRegister = max > 0 && remaining > 0;
+  var canRegister = max > 0 && remaining > 0 && c.CanDangKy !== false;
+  var blockedLabel = remaining > 0 && c.CanDangKy === false ? 'Đã thu HP' : 'Hết chỗ';
+  var blockedTitle = c.LyDoKhongTheDangKy ? ' title="' + courseEscapeHtml(c.LyDoKhongTheDangKy) + '"' : '';
   var seatStatus = renderSeatStatus(max, registered, remaining);
   var seatsText = max
     ? registered + ' / ' + max + ' đã đăng ký' + (remaining > 0 ? ' · Còn ' + remaining + ' chỗ' : '')
@@ -152,7 +154,7 @@ function renderAvailableCourseCard(c) {
       '</div>' +
       (canRegister
         ? '<button class="btn btn-sm btn-primary" type="button" data-register-course data-malop="' + courseEscapeHtml(c.MaLop || '') + '" data-mahocky="' + courseEscapeHtml(c.MaHocKy || '') + '">Đăng ký</button>'
-        : '<span class="badge badge-error">Hết chỗ</span>') +
+        : '<span class="badge badge-error"' + blockedTitle + '>' + blockedLabel + '</span>') +
     '</div>' +
   '</article>';
 }

@@ -2,12 +2,16 @@ extends ../../layouts/admin
 
 block content
   .toolbar
+    .search-box
+      input#trash-search(type="text" placeholder="Tìm mã hoặc tên đã xóa..." onkeyup="debounceTrashSearch()")
     .filter-group
       select#trash-entity(onchange="loadTrash(1)")
         if entities && entities.length
           each entity in entities
             option(value=entity.key)= entity.label
       button.btn.btn-secondary(type="button" onclick="loadTrash(1)") Làm mới
+      button.btn.btn-outline#trash-restore-selected(type="button" onclick="restoreSelectedTrash()" disabled) Khôi phục đã chọn
+      button.btn.btn-danger#trash-purge-selected(type="button" onclick="purgeSelectedTrash()" disabled) Xóa vĩnh viễn đã chọn
 
   .card
     .card-header
@@ -17,6 +21,8 @@ block content
       table.data-table
         thead
           tr
+            th
+              input#trash-select-all(type="checkbox" onchange="toggleAllTrashRows(this)")
             th Loại dữ liệu
             th Khóa chính
             th Tên hiển thị
@@ -25,7 +31,7 @@ block content
             th Thao tác
         tbody#trash-body
           tr
-            td(colspan="6")
+            td(colspan="7")
               .empty-state Đang tải dữ liệu...
 
   nav.pagination#trash-pagination(style="display:none")

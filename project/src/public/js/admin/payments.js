@@ -1,9 +1,23 @@
+var currentPaymentDetail = null;
+var searchTimer;
+var autofillTimer;
+
+function paymentSafe(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 (async function loadSemesters() {
   try {
     var res = await apiFetch('/api/semesters');
     if (!res.success) return;
 
     var sel = document.getElementById('pt-hocky');
+    if (!sel) return;
     res.data.forEach(function(s) {
       var opt = document.createElement('option');
       opt.value = s.MaHocKy;
@@ -14,7 +28,13 @@
 })();
 
 function openModal() {
-  document.getElementById('payment-form').reset();
+  var form = document.getElementById('payment-form');
+  if (form) form.reset();
+  var info = document.getElementById('student-debt-info');
+  if (info) {
+    info.classList.add('hidden');
+    info.textContent = '';
+  }
   document.getElementById('payment-modal').classList.add('active');
 }
 
@@ -22,14 +42,94 @@ function closeModal() {
   document.getElementById('payment-modal').classList.remove('active');
 }
 
+function closePaymentDetail() {
+  var modal = document.getElementById('payment-detail-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function applyFilters() {
+  var search = document.getElementById('search-input').value.trim();
+  var semester = document.getElementById('filter-semester').value;
+  var method = document.getElementById('filter-method').value;
+  var status = document.getElementById('filter-status').value;
+  var url = '/admin/payments?page=1';
+  if (search) url += '&search=' + encodeURIComponent(search);
+  if (semester) url += '&MaHocKy=' + encodeURIComponent(semester);
+  if (method) url += '&HinhThucThu=' + encodeURIComponent(method);
+  if (status) url += '&TrangThai=' + encodeURIComponent(status);
+  window.location.href = url;
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilters, 400);
+}
+
+function bindAutofillEvents() {
+  var mssv = document.getElementById('pt-mssv');
+  var semester = document.getElementById('pt-hocky');
+  [mssv, semester].forEach(function(el) {
+    if (!el) return;
+    el.addEventListener('input', scheduleDebtAutofill);
+    el.addEventListener('change', scheduleDebtAutofill);
+  });
+}
+
+function scheduleDebtAutofill() {
+  clearTimeout(autofillTimer);
+  autofillTimer = setTimeout(loadStudentDebtInfo, 350);
+}
+
+async function loadStudentDebtInfo() {
+  var mssv = document.getElementById('pt-mssv').value.trim();
+  var semester = document.getElementById('pt-hocky').value;
+  var amountInput = document.getElementById('pt-sotien');
+  var info = document.getElementById('student-debt-info');
+  if (!info || !mssv) {
+    if (info) info.classList.add('hidden');
+    return;
+  }
+
+  info.classList.remove('hidden');
+  info.textContent = 'Đang kiểm tra công nợ...';
+
+  try {
+    var url = '/api/tuition/student/' + encodeURIComponent(mssv) + '?limit=50';
+    if (semester) url += '&MaHocKy=' + encodeURIComponent(semester);
+    var res = await apiFetch(url);
+    if (!res || res.success === false) {
+      info.textContent = (res && res.message) || 'Không tìm thấy học phí của sinh viên';
+      return;
+    }
+
+    var rows = res.data || [];
+    var debtRow = rows.find(function(row) { return Number(row.conNo || row.ConNo || 0) > 0; }) || rows[0];
+    if (!debtRow) {
+      info.textContent = 'Sinh viên chưa phát sinh học phí';
+      if (amountInput) amountInput.value = '';
+      return;
+    }
+    var debt = Number(debtRow.conNo || debtRow.ConNo || 0);
+    info.textContent = (debtRow.HoTen || mssv) + ' - ' + (debtRow.TenHocKy || debtRow.MaHocKy || '') + ' - Còn nợ: ' + formatCurrency(debt);
+    if (amountInput && debt > 0) amountInput.value = debt;
+  } catch (e) {
+    info.textContent = 'Không kiểm tra được công nợ';
+  }
+}
+
 async function savePayment() {
   var data = {
     MaSv: document.getElementById('pt-mssv').value.trim(),
     MaHocKy: document.getElementById('pt-hocky').value,
-    SoTienThu: parseInt(document.getElementById('pt-sotien').value, 10),
+    SoTienThu: Number(document.getElementById('pt-sotien').value),
     HinhThucThu: document.getElementById('pt-phuongthuc').value,
     GhiChu: document.getElementById('pt-ghichu').value.trim() || null
   };
+
+  if (!data.MaSv || !data.MaHocKy || !Number.isFinite(data.SoTienThu) || data.SoTienThu <= 0) {
+    showToast('Vui lòng nhập MSSV, học kỳ và số tiền hợp lệ', 'error');
+    return;
+  }
 
   try {
     var res = await apiFetch('/api/payments', { method: 'POST', body: data });
@@ -75,10 +175,154 @@ async function cancelPayment(id) {
   }
 }
 
-var searchTimer;
-function debounceSearch() {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(function() {
-    window.location.href = '/admin/payments?page=1&search=' + encodeURIComponent(document.getElementById('search-input').value);
-  }, 400);
+function renderPaymentDetail(p) {
+  var status = p.TrangThai || '-';
+  var badgeClass = status === 'Thành công' ? 'badge-success' : status === 'Chờ xác nhận' ? 'badge-warning' : 'badge-error';
+  return '<div class="stats-grid">' +
+      '<div class="stat-card"><div class="stat-info"><h3>' + paymentSafe(p.SoPhieuThu || '-') + '</h3><p>Số phiếu</p></div></div>' +
+      '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(p.SoTienThu || 0) + '</h3><p>Số tiền</p></div></div>' +
+      '<div class="stat-card"><div class="stat-info"><h3><span class="badge ' + badgeClass + '">' + paymentSafe(status) + '</span></h3><p>Trạng thái</p></div></div>' +
+    '</div>' +
+    '<div class="info-list">' +
+      '<div><span class="label">Sinh viên</span><span>' + paymentSafe(p.MaSv) + ' - ' + paymentSafe(p.HoTen) + '</span></div>' +
+      '<div><span class="label">Học kỳ</span><span>' + paymentSafe([p.TenHocKy, p.TenNamHoc].filter(Boolean).join(' - ')) + '</span></div>' +
+      '<div><span class="label">Phương thức</span><span>' + paymentSafe(p.HinhThucThu || p.PaymentProvider || '-') + '</span></div>' +
+      '<div><span class="label">Người thu</span><span>' + paymentSafe(p.NguoiThu || '-') + '</span></div>' +
+      '<div><span class="label">Ngày lập</span><span>' + (p.NgayLap ? formatDate(p.NgayLap) : '-') + '</span></div>' +
+      '<div><span class="label">Ngày xác nhận</span><span>' + (p.NgayXacNhan ? formatDate(p.NgayXacNhan) : '-') + '</span></div>' +
+      '<div><span class="label">Mã giao dịch</span><span>' + paymentSafe(p.MaGiaoDich || '-') + '</span></div>' +
+      '<div><span class="label">Ghi chú</span><span>' + paymentSafe(p.GhiChu || '-') + '</span></div>' +
+    '</div>';
 }
+
+async function fetchPaymentDetail(id) {
+  var res = await apiFetch('/api/payments/' + encodeURIComponent(id));
+  if (!res || res.success === false) throw new Error((res && res.message) || 'Không tải được phiếu thu');
+  return res.data || {};
+}
+
+async function viewPaymentDetail(id) {
+  var modal = document.getElementById('payment-detail-modal');
+  var title = document.getElementById('payment-detail-title');
+  var body = document.getElementById('payment-detail-body');
+  if (!modal || !body) return;
+  modal.classList.add('active');
+  body.innerHTML = '<div class="empty-state">Đang tải dữ liệu...</div>';
+  try {
+    currentPaymentDetail = await fetchPaymentDetail(id);
+    if (title) title.textContent = 'Chi tiết phiếu thu #' + id;
+    body.innerHTML = renderPaymentDetail(currentPaymentDetail);
+  } catch (e) {
+    body.innerHTML = '<div class="empty-state text-error">' + paymentSafe(e.message) + '</div>';
+  }
+}
+
+function numberToVietnamese(value) {
+  var number = Math.round(Number(value || 0));
+  if (number === 0) return 'không đồng';
+  var digits = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+  var units = ['', ' nghìn', ' triệu', ' tỷ'];
+  function readTriple(num) {
+    var hundred = Math.floor(num / 100);
+    var ten = Math.floor((num % 100) / 10);
+    var one = num % 10;
+    var parts = [];
+    if (hundred) parts.push(digits[hundred] + ' trăm');
+    if (ten > 1) {
+      parts.push(digits[ten] + ' mươi');
+      if (one === 1) parts.push('mốt');
+      else if (one === 5) parts.push('lăm');
+      else if (one) parts.push(digits[one]);
+    } else if (ten === 1) {
+      parts.push('mười');
+      if (one === 5) parts.push('lăm');
+      else if (one) parts.push(digits[one]);
+    } else if (one) {
+      if (hundred) parts.push('lẻ');
+      parts.push(digits[one]);
+    }
+    return parts.join(' ');
+  }
+  var chunks = [];
+  var unitIndex = 0;
+  while (number > 0) {
+    var triple = number % 1000;
+    if (triple) chunks.unshift(readTriple(triple) + units[unitIndex]);
+    number = Math.floor(number / 1000);
+    unitIndex += 1;
+  }
+  return chunks.join(' ').replace(/\s+/g, ' ').trim() + ' đồng';
+}
+
+function buildPrintHtml(p) {
+  var today = new Date();
+  return '<!doctype html><html><head><meta charset="utf-8"><title>Phiếu thu học phí</title>' +
+    '<style>body{font-family:Arial,sans-serif;color:#111;margin:32px} .center{text-align:center}.row{display:flex;justify-content:space-between;margin:10px 0}.box{border:1px solid #111;padding:18px;margin-top:18px}.money{font-weight:bold}.sign{display:flex;justify-content:space-between;margin-top:48px;text-align:center}</style>' +
+    '</head><body>' +
+    '<div class="center"><h2>TRƯỜNG ĐẠI HỌC</h2><h1>PHIẾU THU HỌC PHÍ</h1><p>Số phiếu: ' + paymentSafe(p.SoPhieuThu) + '</p></div>' +
+    '<div class="box">' +
+    '<div class="row"><span>MSSV:</span><strong>' + paymentSafe(p.MaSv) + '</strong></div>' +
+    '<div class="row"><span>Họ tên:</span><strong>' + paymentSafe(p.HoTen) + '</strong></div>' +
+    '<div class="row"><span>Học kỳ:</span><strong>' + paymentSafe([p.TenHocKy, p.TenNamHoc].filter(Boolean).join(' - ')) + '</strong></div>' +
+    '<div class="row"><span>Số tiền:</span><span class="money">' + formatCurrency(p.SoTienThu || 0) + '</span></div>' +
+    '<div class="row"><span>Bằng chữ:</span><strong>' + paymentSafe(numberToVietnamese(p.SoTienThu)) + '</strong></div>' +
+    '<div class="row"><span>Phương thức:</span><span>' + paymentSafe(p.HinhThucThu || '-') + '</span></div>' +
+    '<div class="row"><span>Mã giao dịch:</span><span>' + paymentSafe(p.MaGiaoDich || '-') + '</span></div>' +
+    '<div class="row"><span>Người thu:</span><span>' + paymentSafe(p.NguoiThu || '-') + '</span></div>' +
+    '</div>' +
+    '<p style="text-align:right">Ngày ' + today.getDate() + ' tháng ' + (today.getMonth() + 1) + ' năm ' + today.getFullYear() + '</p>' +
+    '<div class="sign"><div><strong>Người nộp</strong><p>(Ký, ghi rõ họ tên)</p></div><div><strong>Người thu</strong><p>(Ký, ghi rõ họ tên)</p></div></div>' +
+    '<script>window.onload=function(){window.print();}</script></body></html>';
+}
+
+async function printPayment(id) {
+  try {
+    var data = await fetchPaymentDetail(id);
+    openPrintWindow(data);
+  } catch (e) {
+    showToast(e.message || 'Không in được phiếu thu', 'error');
+  }
+}
+
+function printLoadedPayment() {
+  if (!currentPaymentDetail) return;
+  openPrintWindow(currentPaymentDetail);
+}
+
+function openPrintWindow(data) {
+  var win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) {
+    showToast('Trình duyệt đang chặn cửa sổ in', 'error');
+    return;
+  }
+  win.document.write(buildPrintHtml(data));
+  win.document.close();
+}
+
+async function exportPayments() {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    params.delete('page');
+    var headers = {};
+    var token = getToken();
+    if (token) headers.Authorization = 'Bearer ' + token;
+    var res = await fetch('/api/payments/export?' + params.toString(), { headers: headers });
+    if (!res.ok) {
+      showToast('Không xuất được phiếu thu', 'error');
+      return;
+    }
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'phieu-thu-hoc-phi.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    showToast('Không xuất được phiếu thu', 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', bindAutofillEvents);

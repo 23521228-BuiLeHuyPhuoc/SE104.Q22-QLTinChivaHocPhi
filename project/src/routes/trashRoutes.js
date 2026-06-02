@@ -9,6 +9,8 @@ router.use(adminMiddleware);
 
 router.get('/entities', trashController.listEntities);
 router.get('/:entity', trashController.listTrash);
+router.post('/:entity/batch-restore', trashController.restoreTrashItems);
+router.delete('/:entity/batch-purge', trashController.purgeTrashItems);
 router.post('/:entity/:id/restore', trashController.restoreTrashItem);
 router.delete('/:entity/:id/purge', trashController.purgeTrashItem);
 

@@ -24,7 +24,7 @@ const ensureStudentAccess = async (req, res, studentId) => {
   if (req.user?.Role === 'admin') return true;
   const currentStudentId = await getStudentIdFromRequest(req);
   if (currentStudentId && currentStudentId === studentId) return true;
-  res.status(403).json({ success: false, message: 'Khong co quyen truy cap du lieu sinh vien nay' });
+  res.status(403).json({ success: false, message: 'Không có quyền truy cập dữ liệu sinh viên này' });
   return false;
 };
 
@@ -42,12 +42,41 @@ const getRemainingAmount = (registration) => {
   return Math.max(amountDue - paid, 0);
 };
 
+const csvCell = (value) => {
+  if (value === null || value === undefined) return '';
+  const text = String(value).replace(/"/g, '""');
+  return /[",\r\n]/.test(text) ? `"${text}"` : text;
+};
+
+const toPaymentDto = (p) => ({
+  SoPhieuThu: p.SoPhieuThu,
+  SoPhieuDangKy: p.SoPhieuDangKy,
+  MaSv: p.MaSv,
+  HoTen: p.SINHVIEN?.HoTen || '',
+  Email: p.SINHVIEN?.Email || '',
+  MaHocKy: p.PHIEUDANGKY?.MaHocKy || '',
+  TenHocKy: p.PHIEUDANGKY?.HOCKY?.TenHocKy || '',
+  TenNamHoc: p.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc || '',
+  SoTienThu: Number(p.SoTienThu || 0),
+  HinhThucThu: p.HinhThucThu,
+  PaymentProvider: p.PaymentProvider,
+  PaymentChannel: p.PaymentChannel,
+  MaGiaoDich: p.MaGiaoDich,
+  NgayLap: p.NgayLap,
+  NguoiThu: p.NguoiThu,
+  GhiChu: p.GhiChu,
+  TrangThai: p.TrangThai,
+  NgayXacNhan: p.NgayXacNhan,
+  CheckoutUrl: p.CheckoutUrl,
+  QrPayload: p.QrPayload
+});
+
 const assertPayableAmount = (registration, amount) => {
-  if (!registration) throw { status: 404, message: 'Khong tim thay hoc phi can dong' };
+  if (!registration) throw { status: 404, message: 'Không tìm thấy học phí cần đóng' };
   const remaining = getRemainingAmount(registration);
   const payAmount = Number(amount || remaining);
-  if (!Number.isFinite(payAmount) || payAmount <= 0) throw { status: 400, message: 'So tien thanh toan khong hop le' };
-  if (payAmount > remaining) throw { status: 400, message: 'Khong the thu vuot so tien con no' };
+  if (!Number.isFinite(payAmount) || payAmount <= 0) throw { status: 400, message: 'Số tiền thanh toán không hợp lệ' };
+  if (payAmount > remaining) throw { status: 400, message: 'Không thể thu vượt số tiền còn nợ' };
   return payAmount;
 };
 
@@ -115,36 +144,20 @@ const getAllPayments = async (req, res) => {
       prisma.PHIEUTHUHOCPHI.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } }),
       prisma.PHIEUTHUHOCPHI.count({ where })
     ]);
-    const data = rows.map((p) => ({
-      SoPhieuThu: p.SoPhieuThu,
-      MaSv: p.MaSv,
-      HoTen: p.SINHVIEN.HoTen,
-      Email: p.SINHVIEN.Email,
-      MaHocKy: p.PHIEUDANGKY.MaHocKy,
-      TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy,
-      TenNamHoc: p.PHIEUDANGKY.HOCKY.NAMHOC.TenNamHoc,
-      SoTienThu: Number(p.SoTienThu),
-      HinhThucThu: p.HinhThucThu,
-      PaymentProvider: p.PaymentProvider,
-      PaymentChannel: p.PaymentChannel,
-      NgayLap: p.NgayLap,
-      NguoiThu: p.NguoiThu,
-      GhiChu: p.GhiChu,
-      TrangThai: p.TrangThai
-    }));
+    const data = rows.map(toPaymentDto);
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get all payments error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all payments error:');
   }
 };
 
 const getPaymentById = async (req, res) => {
   try {
     const p = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: parseInt(req.params.id, 10) }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
-    if (!p) return res.status(404).json({ success: false, message: 'Khong tim thay phieu thu' });
-    res.json({ success: true, data: { ...p, SoTienThu: Number(p.SoTienThu) } });
+    if (!p) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
+    res.json({ success: true, data: toPaymentDto(p) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get payment by ID error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get payment by ID error:');
   }
 };
 
@@ -153,6 +166,7 @@ const getStudentPayments = async (req, res) => {
     if (!(await ensureStudentAccess(req, res, req.params.studentId))) return;
     const { page, limit, skip } = getPagination(req.query);
     const where = { MaSv: req.params.studentId };
+    if (req.query.MaHocKy) where.PHIEUDANGKY = { MaHocKy: req.query.MaHocKy };
     const [rows, total] = await Promise.all([
       prisma.PHIEUTHUHOCPHI.findMany({
         where,
@@ -165,18 +179,18 @@ const getStudentPayments = async (req, res) => {
     ]);
     res.json({
       success: true,
-      data: rows.map((p) => ({ ...p, SoTienThu: Number(p.SoTienThu), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })),
+      data: rows.map((p) => ({ ...toPaymentDto(p), MaHocKy: p.PHIEUDANGKY.MaHocKy, TenHocKy: p.PHIEUDANGKY.HOCKY.TenHocKy })),
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get student payments error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get student payments error:');
   }
 };
 
 const createPayment = async (req, res) => {
   try {
     const { MaSv, MaHocKy, SoTienThu, HinhThucThu = 'Tiền mặt', GhiChu } = req.body;
-    if (!MaSv || !MaHocKy || !SoTienThu) return res.status(400).json({ success: false, message: 'Vui long cung cap day du thong tin' });
+    if (!MaSv || !MaHocKy || !SoTienThu) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ thông tin' });
     const registration = await getRegistrationForPayment({ MaSv, MaHocKy });
     const amount = assertPayableAmount(registration, SoTienThu);
     assertRegistrationPeriodClosedForPayment(registration);
@@ -195,10 +209,10 @@ const createPayment = async (req, res) => {
         NgayXacNhan: new Date()
       }
     });
-    res.status(201).json({ success: true, message: 'Tao phieu thu thanh cong', data: payment });
+    res.status(201).json({ success: true, message: 'Tạo phiếu thu thành công', data: payment });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-        return sendErrorResponse(res, error, 'Loi server', 'Create payment error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Create payment error:');
   }
 };
 
@@ -222,7 +236,7 @@ const checkoutPayment = async (req, res) => {
     if (Number(pending._sum.SoTienThu || 0) + amount > getRemainingAmount(registration)) {
       return res.status(400).json({
         success: false,
-        message: 'Sinh vien da co yeu cau thanh toan dang cho xac nhan cho khoan hoc phi nay'
+        message: 'Sinh viên đã có yêu cầu thanh toán đang chờ xác nhận cho khoản học phí này'
       });
     }
 
@@ -262,7 +276,7 @@ const checkoutPayment = async (req, res) => {
     });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-        return sendErrorResponse(res, error, 'Loi server', 'Checkout payment error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Checkout payment error:');
   }
 };
 
@@ -294,7 +308,7 @@ const vnpayReturn = async (req, res) => {
     res.json({ success: true, data: payment, message: success ? 'Thanh toán VNPAY thành công' : 'Thanh toán VNPAY thất bại' });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-        return sendErrorResponse(res, error, 'Khong the cap nhat thanh toan VNPAY', 'VNPAY return error:');
+        return sendErrorResponse(res, error, 'Không thể cập nhật thanh toán VNPAY', 'VNPAY return error:');
   }
 };
 
@@ -334,18 +348,18 @@ const confirmPayment = async (req, res) => {
         }
       }
     });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay phieu thu' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
     if (existing.TrangThai === PAYMENT_SUCCESS) {
-      return res.json({ success: true, message: 'Phieu thu da duoc xac nhan', data: existing });
+      return res.json({ success: true, message: 'Phiếu thu đã được xác nhận', data: existing });
     }
     if ([PAYMENT_FAILED, PAYMENT_CANCELLED].includes(existing.TrangThai)) {
-      return res.status(400).json({ success: false, message: 'Khong the xac nhan phieu thu da that bai hoac da huy' });
+      return res.status(400).json({ success: false, message: 'Không thể xác nhận phiếu thu đã thất bại hoặc đã hủy' });
     }
     assertRegistrationPeriodClosedForPayment(existing.PHIEUDANGKY);
 
     const remaining = getRemainingAmount(existing.PHIEUDANGKY);
     if (Number(existing.SoTienThu || 0) > remaining) {
-      return res.status(400).json({ success: false, message: 'So tien phieu thu vuot so hoc phi con no' });
+      return res.status(400).json({ success: false, message: 'Số tiền phiếu thu vượt số học phí còn nợ' });
     }
 
     const payment = await prisma.PHIEUTHUHOCPHI.update({
@@ -357,21 +371,21 @@ const confirmPayment = async (req, res) => {
         NgayCapNhat: new Date()
       }
     });
-    res.json({ success: true, message: 'Da xac nhan thanh toan', data: payment });
+    res.json({ success: true, message: 'Đã xác nhận thanh toán', data: payment });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-        return sendErrorResponse(res, error, 'Loi server', 'Confirm payment error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Confirm payment error:');
   }
 };
 
 const cancelPayment = async (req, res) => {
   try {
     const existing = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: parseInt(req.params.id, 10) } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay phieu thu' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
     await prisma.PHIEUTHUHOCPHI.update({ where: { SoPhieuThu: existing.SoPhieuThu }, data: { TrangThai: PAYMENT_CANCELLED, NgayCapNhat: new Date() } });
-    res.json({ success: true, message: 'Huy phieu thu thanh cong' });
+    res.json({ success: true, message: 'Hủy phiếu thu thành công' });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Cancel payment error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Cancel payment error:');
   }
 };
 
@@ -390,7 +404,49 @@ const getPaymentStats = async (req, res) => {
     }, {});
     res.json({ success: true, data: { totalReceipts: rows.length, totalAmount, byMethod: Object.values(byMethodMap) } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get payment stats error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get payment stats error:');
+  }
+};
+
+const exportPayments = async (req, res) => {
+  try {
+    const { search = '', MaHocKy, HinhThucThu, TrangThai } = req.query;
+    const where = {};
+    if (HinhThucThu) where.HinhThucThu = HinhThucThu;
+    if (TrangThai) where.TrangThai = TrangThai;
+    if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
+    if (search) where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] };
+
+    const rows = await prisma.PHIEUTHUHOCPHI.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+    });
+
+    const header = ['SoPhieuThu', 'MSSV', 'HoTen', 'HocKy', 'NamHoc', 'SoTienThu', 'HinhThucThu', 'NgayLap', 'NguoiThu', 'MaGiaoDich', 'TrangThai', 'GhiChu'];
+    const lines = [header.join(',')];
+    rows.map(toPaymentDto).forEach((p) => {
+      lines.push([
+        p.SoPhieuThu,
+        p.MaSv,
+        p.HoTen,
+        p.TenHocKy,
+        p.TenNamHoc,
+        p.SoTienThu,
+        p.HinhThucThu,
+        p.NgayLap ? new Date(p.NgayLap).toISOString() : '',
+        p.NguoiThu,
+        p.MaGiaoDich,
+        p.TrangThai,
+        p.GhiChu
+      ].map(csvCell).join(','));
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="phieu-thu-hoc-phi.csv"');
+    res.send('\uFEFF' + lines.join('\n'));
+  } catch (error) {
+        return sendErrorResponse(res, error, 'Không thể xuất phiếu thu', 'Export payments error:');
   }
 };
 
@@ -405,5 +461,6 @@ module.exports = {
   zalopayCallback,
   confirmPayment,
   cancelPayment,
-  getPaymentStats
+  getPaymentStats,
+  exportPayments
 };

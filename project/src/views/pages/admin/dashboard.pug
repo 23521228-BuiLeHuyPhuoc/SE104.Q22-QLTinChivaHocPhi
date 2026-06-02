@@ -5,7 +5,7 @@ block content
     .page-heading
       .page-kicker Quản trị tổng quan
       h2 Đăng ký môn học, học phí và công nợ
-      p Theo dõi nhanh số liệu chính và mở nhanh các nghiệp vụ thường dùng.
+      p Theo dõi nhanh số liệu chính, doanh thu và sinh viên còn nợ học phí.
 
     .stats-grid
       .stat-card
@@ -32,35 +32,37 @@ block content
     .content-grid.two-columns
       .card
         .card-header
-          h3 Nghiệp vụ nhanh
+          h3 Doanh thu theo tháng
         .card-body
-          .action-grid
-            a.action-tile(href="/admin/students")
-              strong Sinh viên
-              span Hồ sơ, ngành học, trạng thái học tập
-            a.action-tile(href="/admin/courses")
-              strong Môn học
-              span Tín chỉ, khoa phụ trách, mô tả môn
-            a.action-tile(href="/admin/classes")
-              strong Lớp học
-              span Giảng viên, lịch học, phòng học
-            a.action-tile(href="/admin/payments")
-              strong Thu học phí
-              span Lập phiếu thu và đối soát công nợ
+          canvas#dashboard-revenue-chart(height="180")
       .card
         .card-header
-          h3 Nhịp vận hành
+          h3 Đăng ký theo học kỳ
         .card-body
-          ul.info-list
-            li
-              span.label Đăng ký
-              span Kiểm tra số tín chỉ và danh sách lớp trước khi chốt học kỳ.
-            li
-              span.label Học phí
-              span Theo dõi sinh viên chưa đóng hoặc đóng một phần để nhắc hạn.
-            li
-              span.label Báo cáo
-              span Tổng hợp doanh thu, công nợ và tình hình đăng ký theo kỳ.
+          canvas#dashboard-registration-chart(height="180")
+
+    .content-grid.two-columns
+      .card
+        .card-header
+          h3 Top sinh viên nợ học phí
+        .table-container
+          table.data-table
+            thead
+              tr
+                th MSSV
+                th Họ tên
+                th Học kỳ
+                th Còn nợ
+            tbody#dashboard-debt-table
+              tr
+                td(colspan="4")
+                  .empty-state Đang tải dữ liệu...
+      .card
+        .card-header
+          h3 Hoạt động gần đây
+        .card-body#dashboard-activity-list
+          .empty-state Đang tải dữ liệu...
 
 block scripts
+  script(src="https://cdn.jsdelivr.net/npm/chart.js")
   script(src="/js/admin/dashboard.js")

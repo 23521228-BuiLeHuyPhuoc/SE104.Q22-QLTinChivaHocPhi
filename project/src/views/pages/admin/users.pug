@@ -17,6 +17,10 @@ block content
           option(value=group.MaNhom selected=(filterGroup === group.MaNhom))= group.TenNhom || group.MaNhom
       if canCreateAccounts
         button.btn.btn-primary(type="button" onclick="openAccountModal()") Tạo tài khoản
+      if canManageAccounts
+        button.btn.btn-outline(type="button" onclick="openBatchStudentModal()")
+          span.material-symbols-rounded(aria-hidden="true") group_add
+          span Tạo TK cho SV
 
   .card
     .card-header
@@ -71,6 +75,9 @@ block content
                       button.btn.btn-sm.btn-secondary.account-action-button(type="button" title="Đổi nhóm" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)")
                         span.material-symbols-rounded(aria-hidden="true") sync_alt
                         span Đổi
+                      button.btn.btn-sm.btn-outline.account-action-button(type="button" title="Reset mật khẩu" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="resetAccountPassword(this)")
+                        span.material-symbols-rounded(aria-hidden="true") key
+                        span Reset MK
                       button.btn.btn-sm.btn-danger.account-action-button(type="button" title="Xóa tài khoản" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)")
                         span.material-symbols-rounded(aria-hidden="true") delete
                         span Xóa
@@ -127,6 +134,43 @@ block modals
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeAccountModal()") Hủy
         button.btn.btn-primary#btn-save-account(type="button" onclick="saveAccount()") Tạo
+
+  #batch-student-modal.modal-overlay(onclick="if(event.target===this)closeBatchStudentModal()")
+    .modal.modal-wide
+      .modal-header
+        h2 Tạo tài khoản hàng loạt cho sinh viên
+        button.modal-close(type="button" onclick="closeBatchStudentModal()" aria-label="Đóng") ×
+      .modal-body
+        form#batch-student-form
+          .form-row
+            .form-group
+              label(for="batch-faculty") Khoa
+              select.form-control#batch-faculty(onchange="filterBatchMajors()")
+                option(value="") Không lọc theo khoa
+                if faculties && faculties.length
+                  each faculty in faculties
+                    option(value=faculty.MaKhoa)= faculty.TenKhoa || faculty.MaKhoa
+            .form-group
+              label(for="batch-major") Ngành
+              select.form-control#batch-major
+                option(value="") Không lọc theo ngành
+                if majors && majors.length
+                  each major in majors
+                    option(value=major.MaNganh data-faculty=major.MaKhoa)= `${major.TenNganh || major.MaNganh}${major.KHOA ? ' - ' + major.KHOA.TenKhoa : ''}`
+          .form-row
+            .form-group
+              label(for="batch-password") Mật khẩu mặc định
+              input.form-control#batch-password(type="text" value="123456")
+            .form-group
+              label(for="batch-note") Kiểu chọn
+              input.form-control#batch-note(type="text" value="Có thể chọn khoa/ngành hoặc nhập danh sách MSSV" readonly)
+          .form-group
+            label(for="batch-mssv-list") Danh sách MSSV
+            textarea.form-control#batch-mssv-list(rows="5" placeholder="Mỗi dòng một MSSV, hoặc phân tách bằng dấu phẩy/khoảng trắng")
+          #batch-result.empty-state.hidden
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeBatchStudentModal()") Đóng
+        button.btn.btn-primary#btn-batch-create(type="button" onclick="batchCreateStudentAccounts()") Tạo tài khoản
 
 block scripts
   script(src="/js/admin/users.js")

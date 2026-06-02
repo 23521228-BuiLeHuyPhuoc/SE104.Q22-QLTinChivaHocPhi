@@ -24,7 +24,7 @@ const ensureStudentAccess = async (req, res, studentId) => {
   if (req.user?.Role === 'admin') return true;
   const currentStudentId = await getStudentIdFromRequest(req);
   if (currentStudentId && currentStudentId === studentId) return true;
-  res.status(403).json({ success: false, message: 'Khong co quyen truy cap du lieu sinh vien nay' });
+  res.status(403).json({ success: false, message: 'Không có quyền truy cập dữ liệu sinh viên này' });
   return false;
 };
 
@@ -37,10 +37,73 @@ const tuitionStatus = (amountDue, amountPaid, dueDate) => {
   return 'Còn nợ';
 };
 
+const matchesTuitionStatus = (row, status) => {
+  if (!status) return true;
+  if (status === 'paid') return row.TrangThai === 'Đã đóng đủ';
+  if (status === 'partial') return row.TrangThai === 'Đóng một phần';
+  if (status === 'unpaid') return ['Còn nợ', 'Chưa đóng'].includes(row.TrangThai);
+  if (status === 'overdue') return row.TrangThai === 'Quá hạn' || row.QuaHan;
+  if (status === 'none') return row.TrangThai === 'Chưa phát sinh';
+  return row.TrangThai === status;
+};
+
+const buildTuitionDetail = (registration) => {
+  const successPayments = registration.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
+  const daDong = successPayments.reduce((s, p) => s + Number(p.SoTienThu), 0);
+  const phaiDong = Number(registration.TongTienPhaiDong || 0);
+  const conNo = Math.max(phaiDong - daDong, 0);
+  const paymentBlock = getPaymentRegistrationBlock(registration.HOCKY);
+  const discounts = (registration.SINHVIEN?.DOITUONGSINHVIEN || [])
+    .map((row) => row.DOITUONG)
+    .filter(Boolean)
+    .map((row) => ({
+      MaDoiTuong: row.MaDoiTuong,
+      TenDoiTuong: row.TenDoiTuong,
+      TiLeGiamHocPhi: Number(row.TiLeGiamHocPhi || 0)
+    }));
+
+  return {
+    SoPhieu: registration.SoPhieu,
+    MaSv: registration.MaSv,
+    HoTen: registration.SINHVIEN.HoTen,
+    Email: registration.SINHVIEN.Email,
+    MaHocKy: registration.MaHocKy,
+    TenHocKy: registration.HOCKY.TenHocKy,
+    TenNamHoc: registration.HOCKY.NAMHOC?.TenNamHoc,
+    HanDongHocPhi: registration.HOCKY.HanDongHocPhi,
+    NgayKetThucDangKy: registration.HOCKY.NgayKetThucDangKy,
+    TongTienDangKy: Number(registration.TongTienDangKy || 0),
+    TiLeGiam: Number(registration.TiLeGiam || 0),
+    TienMienGiam: Number(registration.TienMienGiam || 0),
+    TongTienPhaiDong: phaiDong,
+    TongTienDaDong: daDong,
+    conNo,
+    ConNo: conNo,
+    CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
+    LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
+    QuaHan: conNo > 0 && registration.HOCKY.HanDongHocPhi && new Date(registration.HOCKY.HanDongHocPhi) < new Date(),
+    TrangThai: tuitionStatus(phaiDong, daDong, registration.HOCKY.HanDongHocPhi),
+    discounts,
+    courses: registration.CHITIETDANGKY.map((c) => ({
+      MaMonHoc: c.MaMonHoc || c.LOP.MaMonHoc,
+      TenMonHoc: c.MONHOC?.TenMonHoc || c.LOP.MONHOC.TenMonHoc,
+      SoTinChi: c.SoTinChi,
+      LoaiDangKy: c.LoaiDangKy,
+      LoaiDangKyLabel: getRegistrationTypeLabel(c.LoaiDangKy),
+      DonGia: Number(c.DonGia),
+      ThanhTien: Number(c.ThanhTien)
+    })),
+    payments: registration.PHIEUTHUHOCPHI.map((p) => ({
+      ...p,
+      SoTienThu: Number(p.SoTienThu || 0)
+    }))
+  };
+};
+
 const getAllTuition = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search = '', MaHocKy } = req.query;
+    const { search = '', MaHocKy, status } = req.query;
     const where = { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false } };
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (search) where.SINHVIEN.OR = [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }];
@@ -83,10 +146,10 @@ const getAllTuition = async (req, res) => {
         QuaHan: conNo > 0 && t.HOCKY.HanDongHocPhi && new Date(t.HOCKY.HanDongHocPhi) < new Date(),
         TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY.HanDongHocPhi)
       };
-    });
+    }).filter((row) => matchesTuitionStatus(row, status));
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get all tuition error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get all tuition error:');
   }
 };
 
@@ -101,32 +164,29 @@ const getTuitionById = async (req, res) => {
         PHIEUTHUHOCPHI: true
       }
     });
-    if (!t) return res.status(404).json({ success: false, message: 'Khong tim thay thong tin hoc phi' });
-    const daDong = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS).reduce((s, p) => s + Number(p.SoTienThu), 0);
-    const phaiDong = Number(t.TongTienPhaiDong || 0);
-    const conNo = Math.max(phaiDong - daDong, 0);
-    const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
-    res.json({
-      success: true,
-      data: {
-        SoPhieu: t.SoPhieu,
-        MaSv: t.MaSv,
-        HoTen: t.SINHVIEN.HoTen,
-        TenHocKy: t.HOCKY.TenHocKy,
-        HanDongHocPhi: t.HOCKY.HanDongHocPhi,
-        NgayKetThucDangKy: t.HOCKY.NgayKetThucDangKy,
-        TongTienPhaiDong: phaiDong,
-        TongTienDaDong: daDong,
-        conNo,
-        CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
-        LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
-        TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY.HanDongHocPhi),
-        courses: t.CHITIETDANGKY.map((c) => ({ MaMonHoc: c.MaMonHoc || c.LOP.MaMonHoc, TenMonHoc: c.MONHOC?.TenMonHoc || c.LOP.MONHOC.TenMonHoc, SoTinChi: c.SoTinChi, LoaiDangKy: c.LoaiDangKy, LoaiDangKyLabel: getRegistrationTypeLabel(c.LoaiDangKy), DonGia: Number(c.DonGia), ThanhTien: Number(c.ThanhTien) })),
-        payments: t.PHIEUTHUHOCPHI
+    if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
+    res.json({ success: true, data: buildTuitionDetail(t) });
+  } catch (error) {
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition by ID error:');
+  }
+};
+
+const getTuitionDetail = async (req, res) => {
+  try {
+    const t = await prisma.PHIEUDANGKY.findUnique({
+      where: { SoPhieu: parseInt(req.params.id, 10) },
+      include: {
+        SINHVIEN: { include: { DOITUONGSINHVIEN: { include: { DOITUONG: true } } } },
+        HOCKY: { include: { NAMHOC: true } },
+        CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, include: { LOP: { include: { MONHOC: true } }, MONHOC: true } },
+        PHIEUTHUHOCPHI: true
       }
     });
+    if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
+    if (!(await ensureStudentAccess(req, res, t.MaSv))) return;
+    res.json({ success: true, data: buildTuitionDetail(t) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get tuition by ID error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition detail error:');
   }
 };
 
@@ -138,6 +198,7 @@ const getStudentTuition = async (req, res) => {
     const semesterId = req.query.MaHocKy || null;
     const where = { MaSv: studentId, ...(semesterId ? { MaHocKy: semesterId } : {}) };
     const include = {
+      SINHVIEN: { select: { HoTen: true, Email: true } },
       HOCKY: { include: { NAMHOC: true } },
       PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS }, select: { SoTienThu: true } }
     };
@@ -159,11 +220,16 @@ const getStudentTuition = async (req, res) => {
       const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
       return {
         SoPhieu: t.SoPhieu,
+        HoTen: t.SINHVIEN?.HoTen,
+        Email: t.SINHVIEN?.Email,
         MaHocKy: t.MaHocKy,
         TenHocKy: t.HOCKY?.TenHocKy,
         TenNamHoc: t.HOCKY?.NAMHOC?.TenNamHoc,
         HanDongHocPhi: t.HOCKY?.HanDongHocPhi,
         NgayKetThucDangKy: t.HOCKY?.NgayKetThucDangKy,
+        TongTienDangKy: Number(t.TongTienDangKy || 0),
+        TiLeGiam: Number(t.TiLeGiam || 0),
+        TienMienGiam: Number(t.TienMienGiam || 0),
         TongTienPhaiDong: phaiDong,
         TongTienDaDong: daDong,
         conNo,
@@ -184,20 +250,20 @@ const getStudentTuition = async (req, res) => {
 
     res.json({ success: true, data, summary, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get student tuition error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get student tuition error:');
   }
 };
 
 const calculateTuition = async (req, res) => {
   try {
     const { MaSv, MaHocKy } = req.body;
-    if (!MaSv || !MaHocKy) return res.status(400).json({ success: false, message: 'Vui long cung cap ma sinh vien va hoc ky' });
+    if (!MaSv || !MaHocKy) return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã sinh viên và học kỳ' });
     const phieu = await prisma.PHIEUDANGKY.findFirst({ where: { MaSv, MaHocKy }, include: { CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } } } });
-    if (!phieu) return res.status(404).json({ success: false, message: 'Chua dang ky mon hoc trong hoc ky nay' });
+    if (!phieu) return res.status(404).json({ success: false, message: 'Chưa đăng ký môn học trong học kỳ này' });
     const updated = await prisma.$transaction((tx) => recalculateRegistrationTotals(tx, phieu.SoPhieu));
     res.json({ success: true, data: { SoPhieu: updated.SoPhieu, TongTienPhaiDong: Number(updated.TongTienPhaiDong || 0) } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Calculate tuition error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Calculate tuition error:');
   }
 };
 
@@ -210,17 +276,17 @@ const getTuitionStats = async (req, res) => {
     const paidAmount = rows.reduce((s, r) => s + r.PHIEUTHUHOCPHI.reduce((ss, p) => ss + Number(p.SoTienThu), 0), 0);
     res.json({ success: true, data: { totalAmount, paidAmount, remainingAmount: totalAmount - paidAmount } });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get tuition stats error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition stats error:');
   }
 };
 
 const getCreditPrices = async (req, res) => {
   try {
-    const prices = await prisma.DONGIATINCHI.findMany({ where: { DaXoa: false, TrangThai: true }, orderBy: [{ LoaiMon: 'asc' }, { LoaiHoc: 'asc' }] });
+    const prices = await prisma.DONGIATINCHI.findMany({ where: { DaXoa: false }, orderBy: [{ LoaiMon: 'asc' }, { LoaiHoc: 'asc' }] });
     res.json({ success: true, data: prices });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi server', 'Get credit prices error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get credit prices error:');
   }
 };
 
-module.exports = { getAllTuition, getTuitionById, getStudentTuition, calculateTuition, getTuitionStats, getCreditPrices };
+module.exports = { getAllTuition, getTuitionById, getTuitionDetail, getStudentTuition, calculateTuition, getTuitionStats, getCreditPrices };

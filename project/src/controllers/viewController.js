@@ -1128,6 +1128,7 @@ const adminTuition = async (req, res) => {
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
   const status = req.query.status || '';
+  const MaHocKy = req.query.MaHocKy || '';
   const where = {};
 
   if (search) {
@@ -1138,18 +1139,26 @@ const adminTuition = async (req, res) => {
       ]
     };
   }
+  if (MaHocKy) where.MaHocKy = MaHocKy;
 
   try {
-    const registrations = await prisma.PHIEUDANGKY.findMany({
-      where,
-      orderBy: { NgayLap: 'desc' },
-      include: {
-        SINHVIEN: true,
-        HOCKY: { include: { NAMHOC: true } },
-        CHITIETDANGKY: true,
-        PHIEUTHUHOCPHI: { where: { TrangThai: 'Thành công' } }
-      }
-    });
+    const [registrations, semesters] = await Promise.all([
+      prisma.PHIEUDANGKY.findMany({
+        where,
+        orderBy: { NgayLap: 'desc' },
+        include: {
+          SINHVIEN: true,
+          HOCKY: { include: { NAMHOC: true } },
+          CHITIETDANGKY: true,
+          PHIEUTHUHOCPHI: { where: { TrangThai: 'Thành công' } }
+        }
+      }),
+      prisma.HOCKY.findMany({
+        where: { DaXoa: false },
+        orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }],
+        include: { NAMHOC: true }
+      })
+    ]);
 
     const rows = registrations.map((registration) => {
       const amountDue = toNumber(registration.TongTienPhaiDong || registration.TongTienDangKy);
@@ -1162,6 +1171,8 @@ const adminTuition = async (req, res) => {
         HoTen: registration.SINHVIEN?.HoTen || '',
         MaHocKy: registration.MaHocKy,
         TenHocKy: registration.HOCKY?.TenHocKy || registration.MaHocKy,
+        TenNamHoc: registration.HOCKY?.NAMHOC?.TenNamHoc || '',
+        SoMon: registration.CHITIETDANGKY.length,
         TongTinChi: registration.TongTinChi || registration.CHITIETDANGKY.reduce((sum, item) => sum + Number(item.SoTinChi || 0), 0),
         SoMonHocMoi: registration.SoMonHocMoi || 0,
         SoMonHocLai: registration.SoMonHocLai || 0,
@@ -1180,12 +1191,14 @@ const adminTuition = async (req, res) => {
 
     renderAdmin(res, 'tuition', 'tuition', 'Quản lý học phí', req, {
       tuitions,
+      semesters,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/tuition',
-      queryParams: { search, status, limit },
+      queryParams: { search, status, MaHocKy, limit },
       search,
-      status
+      status,
+      MaHocKy
     });
   } catch (err) {
     console.error('Error:', err);
@@ -1196,7 +1209,9 @@ const adminTuition = async (req, res) => {
       baseUrl: '/admin/tuition',
       queryParams: {},
       search: '',
-      status: ''
+      status: '',
+      MaHocKy: '',
+      semesters: []
     });
   }
 };
@@ -1205,6 +1220,9 @@ const adminPayments = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const MaHocKy = req.query.MaHocKy || '';
+  const HinhThucThu = req.query.HinhThucThu || '';
+  const TrangThai = req.query.TrangThai || '';
   const where = {};
 
   if (search) {
@@ -1215,26 +1233,34 @@ const adminPayments = async (req, res) => {
       ]
     };
   }
+  if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
+  if (HinhThucThu) where.HinhThucThu = HinhThucThu;
+  if (TrangThai) where.TrangThai = TrangThai;
 
   try {
-    const [payments, total] = await Promise.all([
+    const [payments, total, semesters] = await Promise.all([
       prisma.PHIEUTHUHOCPHI.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { NgayLap: 'desc' },
-        include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: true } } }
+        include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
       }),
-      prisma.PHIEUTHUHOCPHI.count({ where })
+      prisma.PHIEUTHUHOCPHI.count({ where }),
+      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }], include: { NAMHOC: true } })
     ]);
 
     renderAdmin(res, 'payments', 'payments', 'Thu học phí', req, {
       payments,
+      semesters,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/payments',
-      queryParams: { search, limit },
-      search
+      queryParams: { search, MaHocKy, HinhThucThu, TrangThai, limit },
+      search,
+      MaHocKy,
+      HinhThucThu,
+      TrangThai
     });
   } catch (err) {
     console.error('Error:', err);
@@ -1244,15 +1270,37 @@ const adminPayments = async (req, res) => {
       totalPages: 0,
       baseUrl: '/admin/payments',
       queryParams: {},
-      search: ''
+      search: '',
+      semesters: [],
+      MaHocKy: '',
+      HinhThucThu: '',
+      TrangThai: ''
     });
   }
 };
 
-const adminReports = (req, res) => {
-  renderAdmin(res, 'reports', 'reports', 'Báo cáo thống kê', req, {
-    headerSubtitle: 'Theo dõi doanh thu, công nợ và tình hình đăng ký'
-  });
+const adminReports = async (req, res) => {
+  try {
+    const [semesters, faculties, majors] = await Promise.all([
+      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }], include: { NAMHOC: true } }),
+      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' } }),
+      prisma.NGANHHOC.findMany({ where: { DaXoa: false }, orderBy: { TenNganh: 'asc' }, include: { KHOA: true } })
+    ]);
+    renderAdmin(res, 'reports', 'reports', 'Báo cáo thống kê', req, {
+      headerSubtitle: 'Theo dõi doanh thu, công nợ và tình hình đăng ký',
+      semesters,
+      faculties,
+      majors
+    });
+  } catch (err) {
+    console.error('adminReports error:', err);
+    renderAdmin(res, 'reports', 'reports', 'Báo cáo thống kê', req, {
+      headerSubtitle: 'Theo dõi doanh thu, công nợ và tình hình đăng ký',
+      semesters: [],
+      faculties: [],
+      majors: []
+    });
+  }
 };
 
 const adminUsers = async (req, res) => {
@@ -1264,7 +1312,11 @@ const adminUsers = async (req, res) => {
   const where = {};
 
   try {
-    const groupOptions = await getCreatableAccountGroups(req.user);
+    const [groupOptions, faculties, majors] = await Promise.all([
+      getCreatableAccountGroups(req.user),
+      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' } }),
+      prisma.NGANHHOC.findMany({ where: { DaXoa: false }, orderBy: { TenNganh: 'asc' }, include: { KHOA: true } })
+    ]);
     const allowedGroupCodes = groupOptions.map((group) => group.MaNhom);
     const filterGroupAllowed = !filterGroup || allowedGroupCodes.includes(filterGroup);
 
@@ -1304,6 +1356,8 @@ const adminUsers = async (req, res) => {
       accounts,
       groupOptions,
       creatableGroups: groupOptions.map((group) => ({ ...group, Role: roleFromGroupCode(group.MaNhom) })),
+      faculties,
+      majors,
       currentUserId: req.user.id || req.user.MaTaiKhoan,
       canManageAccounts: isSystemAdminUser(req.user),
       canCreateAccounts: groupOptions.length > 0,
@@ -1321,6 +1375,8 @@ const adminUsers = async (req, res) => {
       accounts: [],
       groupOptions: [],
       creatableGroups: [],
+      faculties: [],
+      majors: [],
       currentUserId: req.user.id || req.user.MaTaiKhoan,
       canManageAccounts: isSystemAdminUser(req.user),
       canCreateAccounts: false,
@@ -1614,12 +1670,16 @@ const adminNotifications = async (req, res) => {
   const where = { DaXoa: false };
   if (filterLoai) where.Loai = filterLoai;
   try {
-    const [notifications, total] = await Promise.all([
+    const [notifications, total, faculties, majors] = await Promise.all([
       prisma.THONGBAO.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { NgayTao: 'desc' } }),
-      prisma.THONGBAO.count({ where })
+      prisma.THONGBAO.count({ where }),
+      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' } }),
+      prisma.NGANHHOC.findMany({ where: { DaXoa: false }, orderBy: { TenNganh: 'asc' }, include: { KHOA: true } })
     ]);
     renderAdmin(res, 'notifications', 'notifications', 'Quản lý thông báo', req, {
       notifications,
+      faculties,
+      majors,
       filterLoai,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
@@ -1630,6 +1690,8 @@ const adminNotifications = async (req, res) => {
     console.error('Error:', err);
     renderAdmin(res, 'notifications', 'notifications', 'Quản lý thông báo', req, {
       notifications: [],
+      faculties: [],
+      majors: [],
       filterLoai: '',
       currentPage: 1,
       totalPages: 0,
