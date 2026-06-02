@@ -1,0 +1,327 @@
+.open-courses-toolbar {
+  align-items: flex-start;
+  gap: var(--spacing-md);
+}
+
+.open-courses-toolbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+}
+
+.open-courses-toolbar-actions .btn,
+.open-courses-filter-actions .btn {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.open-courses-filter-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+}
+
+.open-courses-filter-grid {
+  align-items: end;
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: minmax(260px, 1.4fr) minmax(170px, 0.85fr) minmax(170px, 0.85fr) minmax(140px, 0.7fr) auto;
+}
+
+.open-courses-filter-field {
+  min-width: 0;
+}
+
+.open-courses-filter-field label {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.open-courses-search-box {
+  max-width: none;
+  width: 100%;
+}
+
+.open-courses-filter-field .form-control,
+.open-courses-search-box input {
+  min-height: 42px;
+  min-width: 0;
+  width: 100%;
+}
+
+.open-courses-filter-actions {
+  align-items: end;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 120px;
+}
+
+.open-courses-list-card {
+  overflow: hidden;
+}
+
+.open-courses-list-header {
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.open-courses-table-container {
+  overflow-x: auto;
+}
+
+.open-courses-table {
+  min-width: 1060px;
+  table-layout: fixed;
+}
+
+.open-courses-table th,
+.open-courses-table td {
+  vertical-align: top;
+}
+
+.open-courses-table th:nth-child(1) {
+  width: 130px;
+}
+
+.open-courses-table th:nth-child(2) {
+  width: 230px;
+}
+
+.open-courses-table th:nth-child(3) {
+  width: 165px;
+}
+
+.open-courses-table th:nth-child(4),
+.open-courses-table th:nth-child(5) {
+  width: 78px;
+}
+
+.open-courses-table th:nth-child(6) {
+  width: 108px;
+}
+
+.open-courses-table th:nth-child(7) {
+  width: 126px;
+}
+
+.open-courses-table th:nth-child(8) {
+  width: 138px;
+}
+
+.open-course-semester,
+.open-course-title,
+.open-course-faculty-cell span,
+.open-course-update-cell span {
+  color: var(--text-primary);
+  display: block;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.open-course-semester,
+.open-course-title {
+  font-weight: 700;
+}
+
+.open-course-semester-cell small,
+.open-course-update-cell small {
+  color: var(--text-tertiary);
+  display: block;
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.open-course-course-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.open-course-code,
+.open-course-type,
+.open-course-credit,
+.open-course-count {
+  align-items: center;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  line-height: 1.2;
+  min-height: 26px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.open-course-code,
+.open-course-type {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.open-course-credit {
+  background: var(--color-primary-50);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  color: var(--color-primary-dark);
+  justify-content: center;
+  min-width: 40px;
+}
+
+.open-course-count {
+  background: var(--color-accent-light);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  color: #047857;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.open-course-status-cell .badge {
+  justify-content: center;
+  min-width: 78px;
+  white-space: nowrap;
+}
+
+.open-course-actions {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(68px, 1fr));
+  width: 100%;
+}
+
+.open-course-actions .btn {
+  justify-content: center;
+  min-height: 32px;
+  padding-inline: 8px;
+  white-space: nowrap;
+}
+
+.open-course-actions .material-symbols-rounded,
+.open-courses-filter-actions .material-symbols-rounded,
+.open-course-modal .modal-footer .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.open-courses-empty {
+  align-items: center;
+  display: grid;
+  gap: var(--spacing-sm);
+  justify-items: center;
+  min-height: 160px;
+  padding: var(--spacing-xl) var(--spacing-md);
+}
+
+.open-courses-empty .material-symbols-rounded {
+  color: var(--text-muted);
+  font-size: 34px;
+}
+
+.open-courses-empty p {
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.open-course-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(88vh, 720px);
+  max-width: min(640px, 96vw);
+  overflow: hidden;
+  width: min(100%, 640px);
+}
+
+.open-course-modal .modal-body {
+  max-height: min(66vh, 520px);
+  overflow-y: auto;
+}
+
+.open-course-form-grid {
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.open-course-form-grid .form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.open-course-form-grid .form-group-wide {
+  grid-column: 1 / -1;
+}
+
+#oc-mamonhoc:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+#oc-ghichu {
+  min-height: 92px;
+  resize: vertical;
+}
+
+@media (max-width: 1180px) {
+  .open-courses-filter-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
+  .open-courses-search-field,
+  .open-courses-filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  .open-courses-filter-actions {
+    justify-content: flex-start;
+  }
+
+  .open-courses-filter-actions .btn {
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 640px) {
+  .open-courses-toolbar-actions,
+  .open-courses-toolbar-actions .btn,
+  .open-courses-filter-actions,
+  .open-courses-filter-actions .btn {
+    width: 100%;
+  }
+
+  .open-courses-filter-grid,
+  .open-course-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .open-courses-search-field,
+  .open-courses-filter-actions,
+  .open-course-form-grid .form-group-wide {
+    grid-column: auto;
+  }
+
+  .open-courses-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .open-courses-table {
+    min-width: 980px;
+  }
+
+  .open-course-modal .modal-body {
+    max-height: 70vh;
+  }
+}

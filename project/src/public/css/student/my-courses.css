@@ -1,0 +1,135 @@
+.my-courses-filter-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-lg);
+  padding: 16px;
+}
+
+.my-courses-filter-grid {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.my-courses-filter-field {
+  grid-column: span 4;
+  min-width: 0;
+}
+
+.my-courses-filter-actions {
+  display: flex;
+  grid-column: span 4;
+  justify-content: flex-end;
+}
+
+.my-courses-filter-field label {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.my-courses-filter-actions .btn {
+  min-height: 42px;
+}
+
+.my-courses-summary {
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 14px 16px;
+}
+
+.my-courses-summary-main {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.my-courses-summary-icon {
+  align-items: center;
+  background: rgba(16, 185, 129, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  display: inline-flex;
+  flex: 0 0 34px;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.my-courses-summary strong,
+.my-courses-summary small {
+  display: block;
+}
+
+.my-courses-summary strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.my-courses-summary small {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  margin-top: 2px;
+}
+
+.my-courses-summary-fee {
+  flex: 0 0 auto;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.my-courses-action {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 132px;
+}
+
+.my-courses-locked-action {
+  min-width: 132px;
+  opacity: 0.62;
+}
+
+#courses-table {
+  min-width: 1140px;
+}
+
+@media (max-width: 760px) {
+  .my-courses-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-courses-filter-field,
+  .my-courses-filter-actions {
+    grid-column: 1;
+  }
+
+  .my-courses-filter-actions .btn {
+    width: 100%;
+  }
+
+  .my-courses-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .my-courses-summary-fee {
+    text-align: left;
+    white-space: normal;
+  }
+}

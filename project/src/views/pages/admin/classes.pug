@@ -97,6 +97,10 @@ block content
                       button.btn.btn-sm.btn-close-class(type="button" data-lopmoid=cl.LopMoHienTaiId onclick="closeOpenedClass(this.dataset.lopmoid)")
                         span.material-symbols-rounded block
                         span Đóng
+                    else if selectedSemester && !cl.MonHocDaMoTrongHocKy
+                      a.btn.btn-sm.btn-outline(href="/admin/open-courses?MaHocKy=" + selectedSemester + "&search=" + cl.MaMonHoc title="Mo mon hoc truoc")
+                        span.material-symbols-rounded event_available
+                        span Mon chua mo
                     else
                       button.btn.btn-sm.btn-open-class(type="button" data-record=JSON.stringify(cl) onclick="openClass(JSON.parse(this.dataset.record))")
                         span.material-symbols-rounded add_circle

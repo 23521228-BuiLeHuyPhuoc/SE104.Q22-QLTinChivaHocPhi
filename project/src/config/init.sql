@@ -53,6 +53,7 @@ DROP TABLE IF EXISTS "DIEMSINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "LICHHOCLOP" CASCADE;
 DROP TABLE IF EXISTS "DONGIATINCHI" CASCADE;
 DROP TABLE IF EXISTS "LOPMO" CASCADE;
+DROP TABLE IF EXISTS "MONHOCMO" CASCADE;
 DROP TABLE IF EXISTS "CHUONGTRINHHOC" CASCADE;
 DROP TABLE IF EXISTS "HOCKY" CASCADE;
 DROP TABLE IF EXISTS "NAMHOC" CASCADE;
@@ -604,6 +605,29 @@ CREATE TABLE "HOCKY" (
 -- =====================================================
 -- 17. BẢNG "LOPMO" - Lớp mở trong học kỳ (BM4, QĐ4, QĐ5)
 -- =====================================================
+CREATE TABLE "MONHOCMO" (
+    id SERIAL NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "MaMonHoc" VARCHAR(15) NOT NULL,
+    "GhiChu" VARCHAR(200),
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT mon_hoc_mo_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_monhocmo UNIQUE ("MaHocKy", "MaMonHoc"),
+    CONSTRAINT fk_monhocmo_hocky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_monhocmo_monhoc FOREIGN KEY ("MaMonHoc")
+        REFERENCES "MONHOC"("MaMonHoc") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_monhocmo_hocky ON "MONHOCMO" ("MaHocKy");
+CREATE INDEX idx_monhocmo_monhoc ON "MONHOCMO" ("MaMonHoc");
+
 CREATE TABLE "LOPMO" (
     id SERIAL NOT NULL,
     "MaHocKy" VARCHAR(15) NOT NULL,
@@ -13819,6 +13843,109 @@ BEFORE INSERT OR UPDATE OF "SoPhieu", "MaLop", "TrangThai"
 ON "CHITIETDANGKY"
 FOR EACH ROW
 EXECUTE FUNCTION prevent_student_schedule_conflict();
+
+INSERT INTO "MONHOCMO" ("MaHocKy", "MaMonHoc", "TrangThai", "GhiChu")
+SELECT DISTINCT lm."MaHocKy", l."MaMonHoc", TRUE, 'Tu dong tao tu lop mo hien co'
+FROM "LOPMO" lm
+JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+  AND COALESCE(l."DaXoa", FALSE) = FALSE
+  AND COALESCE(mh."DaXoa", FALSE) = FALSE
+ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL;
+
+CREATE OR REPLACE FUNCTION fn_check_lopmo_monhocmo()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_mamonhoc VARCHAR(15);
+BEGIN
+  IF COALESCE(NEW."TrangThai", TRUE) = FALSE THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT l."MaMonHoc" INTO v_mamonhoc
+  FROM "LOP" l
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+  WHERE l."MaLop" = NEW."MaLop"
+    AND COALESCE(l."DaXoa", FALSE) = FALSE
+    AND COALESCE(l."TrangThai", TRUE) = TRUE
+    AND COALESCE(mh."DaXoa", FALSE) = FALSE
+    AND COALESCE(mh."TrangThai", TRUE) = TRUE;
+
+  IF v_mamonhoc IS NULL THEN
+    RAISE EXCEPTION 'MONHOCMO: Lop % khong ton tai hoac mon hoc cua lop khong hoat dong.', NEW."MaLop";
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM "MONHOCMO" mhm
+    WHERE mhm."MaHocKy" = NEW."MaHocKy"
+      AND mhm."MaMonHoc" = v_mamonhoc
+      AND COALESCE(mhm."DaXoa", FALSE) = FALSE
+      AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+  ) THEN
+    RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_lopmo_monhocmo ON "LOPMO";
+CREATE TRIGGER trg_check_lopmo_monhocmo
+BEFORE INSERT OR UPDATE OF "MaHocKy", "MaLop", "TrangThai"
+ON "LOPMO"
+FOR EACH ROW
+EXECUTE FUNCTION fn_check_lopmo_monhocmo();
+
+CREATE OR REPLACE FUNCTION fn_guard_monhocmo_active_lopmo()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_count INT;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    SELECT COUNT(*) INTO v_count
+    FROM "LOPMO" lm
+    JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+    WHERE lm."MaHocKy" = OLD."MaHocKy"
+      AND l."MaMonHoc" = OLD."MaMonHoc"
+      AND COALESCE(lm."TrangThai", TRUE) = TRUE;
+
+    IF v_count > 0 THEN
+      RAISE EXCEPTION 'MONHOCMO: Khong the tat hoac xoa mon hoc mo vi con lop mo dang hoat dong.';
+    END IF;
+    RETURN OLD;
+  END IF;
+
+  IF COALESCE(NEW."DaXoa", FALSE) = TRUE
+     OR COALESCE(NEW."TrangThai", TRUE) = FALSE
+     OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy"
+     OR NEW."MaMonHoc" IS DISTINCT FROM OLD."MaMonHoc" THEN
+    SELECT COUNT(*) INTO v_count
+    FROM "LOPMO" lm
+    JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+    WHERE lm."MaHocKy" = OLD."MaHocKy"
+      AND l."MaMonHoc" = OLD."MaMonHoc"
+      AND COALESCE(lm."TrangThai", TRUE) = TRUE;
+
+    IF v_count > 0 THEN
+      RAISE EXCEPTION 'MONHOCMO: Khong the tat hoac xoa mon hoc mo vi con lop mo dang hoat dong.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_guard_monhocmo_active_lopmo ON "MONHOCMO";
+CREATE TRIGGER trg_guard_monhocmo_active_lopmo
+BEFORE DELETE OR UPDATE OF "MaHocKy", "MaMonHoc", "TrangThai", "DaXoa"
+ON "MONHOCMO"
+FOR EACH ROW
+EXECUTE FUNCTION fn_guard_monhocmo_active_lopmo();
 
 -- =====================================================
 -- END OF INIT.SQL

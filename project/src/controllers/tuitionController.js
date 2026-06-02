@@ -108,25 +108,21 @@ const getAllTuition = async (req, res) => {
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (search) where.SINHVIEN.OR = [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }];
 
-    const [rows, total] = await Promise.all([
-      prisma.PHIEUDANGKY.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { NgayLap: 'desc' },
-        include: {
-          SINHVIEN: true,
-          HOCKY: { include: { NAMHOC: true } },
-          PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS } },
-          CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } }
-        }
-      }),
-      prisma.PHIEUDANGKY.count({ where })
-    ]);
-    const data = rows.map((t) => {
-      const daDong = t.PHIEUTHUHOCPHI.reduce((s, p) => s + Number(p.SoTienThu), 0);
+    const include = {
+      SINHVIEN: true,
+      HOCKY: { include: { NAMHOC: true } },
+      PHIEUTHUHOCPHI: { where: { TrangThai: { in: [PAYMENT_SUCCESS, 'Hoàn tiền'] } } },
+      CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS } }
+    };
+
+    const mapRow = (t) => {
+      const successPayments = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
+      const refunds = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === 'Hoàn tiền');
+      const daDong = successPayments.reduce((s, p) => s + Number(p.SoTienThu), 0);
+      const hoantien = refunds.reduce((s, p) => s + Number(p.SoTienThu), 0);
+      const effectivePaid = daDong - hoantien;
       const phaiDong = Number(t.TongTienPhaiDong) || 0;
-      const conNo = Math.max(phaiDong - daDong, 0);
+      const conNo = Math.max(phaiDong - effectivePaid, 0);
       const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
       return {
         SoPhieu: t.SoPhieu,
@@ -139,17 +135,33 @@ const getAllTuition = async (req, res) => {
         HanDongHocPhi: t.HOCKY.HanDongHocPhi,
         soMon: t.CHITIETDANGKY.length,
         TongTienPhaiDong: phaiDong,
-        TongTienDaDong: daDong,
+        TongTienDaDong: effectivePaid,
         conNo,
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
         LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
         QuaHan: conNo > 0 && t.HOCKY.HanDongHocPhi && new Date(t.HOCKY.HanDongHocPhi) < new Date(),
-        TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY.HanDongHocPhi)
+        TrangThai: tuitionStatus(phaiDong, effectivePaid, t.HOCKY.HanDongHocPhi)
       };
-    }).filter((row) => matchesTuitionStatus(row, status));
-    res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
+    };
+
+    if (status) {
+      // When filtering by status, we must compute status for all rows first
+      const allRows = await prisma.PHIEUDANGKY.findMany({ where, orderBy: { NgayLap: 'desc' }, include });
+      const allMapped = allRows.map(mapRow).filter((row) => matchesTuitionStatus(row, status));
+      const total = allMapped.length;
+      const data = allMapped.slice(skip, skip + limit);
+      res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
+    } else {
+      // No status filter: use database pagination
+      const [rows, total] = await Promise.all([
+        prisma.PHIEUDANGKY.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include }),
+        prisma.PHIEUDANGKY.count({ where })
+      ]);
+      const data = rows.map(mapRow);
+      res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
+    }
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all tuition error:');
+    return sendErrorResponse(res, error, 'Lỗi server', 'Get all tuition error:');
   }
 };
 
@@ -196,13 +208,18 @@ const getStudentTuition = async (req, res) => {
     if (!(await ensureStudentAccess(req, res, studentId))) return;
     const { page, limit, skip } = getPagination(req.query);
     const semesterId = req.query.MaHocKy || null;
-    const where = { MaSv: studentId, ...(semesterId ? { MaHocKy: semesterId } : {}) };
+    const where = {
+      MaSv: studentId,
+      SINHVIEN: { DaXoa: false },
+      HOCKY: { DaXoa: false },
+      ...(semesterId ? { MaHocKy: semesterId } : {})
+    };
     const include = {
       SINHVIEN: { select: { HoTen: true, Email: true } },
       HOCKY: { include: { NAMHOC: true } },
-      PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS }, select: { SoTienThu: true } }
+      PHIEUTHUHOCPHI: { where: { TrangThai: { in: [PAYMENT_SUCCESS, 'Hoàn tiền'] } }, select: { SoTienThu: true, TrangThai: true } }
     };
-    const [rows, allRows, total] = await Promise.all([
+    const [rows, total, summaryAgg] = await Promise.all([
       prisma.PHIEUDANGKY.findMany({
         where,
         skip,
@@ -210,13 +227,35 @@ const getStudentTuition = async (req, res) => {
         orderBy: { NgayLap: 'desc' },
         include
       }),
-      prisma.PHIEUDANGKY.findMany({ where, include }),
-      prisma.PHIEUDANGKY.count({ where })
+      prisma.PHIEUDANGKY.count({ where }),
+      prisma.PHIEUDANGKY.aggregate({
+        where,
+        _sum: { TongTienPhaiDong: true }
+      })
     ]);
+
+    // Compute paid summary from paginated + all payments (need separate query for total paid)
+    const allPayments = await prisma.PHIEUTHUHOCPHI.findMany({
+      where: {
+        MaSv: studentId,
+        TrangThai: { in: [PAYMENT_SUCCESS, 'Hoàn tiền'] },
+        PHIEUDANGKY: { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false }, ...(semesterId ? { MaHocKy: semesterId } : {}) }
+      },
+      select: { SoTienThu: true, TrangThai: true }
+    });
+    const totalPaid = allPayments.filter((p) => p.TrangThai === PAYMENT_SUCCESS).reduce((s, p) => s + Number(p.SoTienThu || 0), 0);
+    const totalRefunded = allPayments.filter((p) => p.TrangThai === 'Hoàn tiền').reduce((s, p) => s + Number(p.SoTienThu || 0), 0);
+    const totalFee = Number(summaryAgg._sum.TongTienPhaiDong || 0);
+    const effectivePaid = totalPaid - totalRefunded;
+
     const data = rows.map((t) => {
-      const daDong = t.PHIEUTHUHOCPHI.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
+      const successPayments = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
+      const refunds = t.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === 'Hoàn tiền');
+      const daDong = successPayments.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
+      const hoantien = refunds.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
+      const effectiveRowPaid = daDong - hoantien;
       const phaiDong = Number(t.TongTienPhaiDong || 0);
-      const conNo = Math.max(phaiDong - daDong, 0);
+      const conNo = Math.max(phaiDong - effectiveRowPaid, 0);
       const paymentBlock = getPaymentRegistrationBlock(t.HOCKY);
       return {
         SoPhieu: t.SoPhieu,
@@ -231,26 +270,18 @@ const getStudentTuition = async (req, res) => {
         TiLeGiam: Number(t.TiLeGiam || 0),
         TienMienGiam: Number(t.TienMienGiam || 0),
         TongTienPhaiDong: phaiDong,
-        TongTienDaDong: daDong,
+        TongTienDaDong: effectiveRowPaid,
         conNo,
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked,
         LyDoChuaTheThanhToan: paymentBlock.blocked ? PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE : null,
-        TrangThai: tuitionStatus(phaiDong, daDong, t.HOCKY?.HanDongHocPhi)
+        TrangThai: tuitionStatus(phaiDong, effectiveRowPaid, t.HOCKY?.HanDongHocPhi)
       };
     });
 
-    const summary = allRows.reduce((acc, row) => {
-      const due = Number(row.TongTienPhaiDong || 0);
-      const paid = row.PHIEUTHUHOCPHI.reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
-      acc.totalFee += due;
-      acc.totalPaid += paid;
-      acc.totalRemaining += Math.max(due - paid, 0);
-      return acc;
-    }, { totalFee: 0, totalPaid: 0, totalRemaining: 0 });
-
+    const summary = { totalFee, totalPaid: effectivePaid, totalRemaining: Math.max(totalFee - effectivePaid, 0) };
     res.json({ success: true, data, summary, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get student tuition error:');
+    return sendErrorResponse(res, error, 'Lỗi server', 'Get student tuition error:');
   }
 };
 

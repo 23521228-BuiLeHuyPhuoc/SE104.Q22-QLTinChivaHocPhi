@@ -216,6 +216,7 @@ model HOCKY {
   NgayXoa           DateTime?      @db.Timestamp(6)
   MONDAHOC          MONDAHOC[]
   DONGIATINCHI      DONGIATINCHI[]
+  MONHOCMO          MONHOCMO[]
   NAMHOC            NAMHOC         @relation(fields: [MaNamHoc], references: [MaNamHoc], map: "fk_hk_namhoc")
   LOPMO             LOPMO[]
   PHIEUDANGKY       PHIEUDANGKY[]
@@ -368,7 +369,26 @@ model MONHOC {
   DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC      DIEUKIENMONHOC[] @relation("DIEUKIENMONHOC_MaMonHocToMONHOC")
   DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC DIEUKIENMONHOC[] @relation("DIEUKIENMONHOC_MaMonDieuKienToMONHOC")
   LOP                                                 LOP[]
+  MONHOCMO                                            MONHOCMO[]
   KHOA                                                KHOA             @relation(fields: [MaKhoa], references: [MaKhoa], map: "fk_monhoc_khoa")
+}
+
+model MONHOCMO {
+  id           Int       @id(map: "mon_hoc_mo_pkey") @default(autoincrement())
+  MaHocKy      String    @db.VarChar(15)
+  MaMonHoc     String    @db.VarChar(15)
+  GhiChu       String?   @db.VarChar(200)
+  TrangThai    Boolean?  @default(true)
+  NgayTao      DateTime? @default(now()) @db.Timestamp(6)
+  NguoiCapNhat Int?
+  NgayCapNhat  DateTime? @db.Timestamp(6)
+  DaXoa        Boolean   @default(false)
+  NguoiXoa     Int?
+  NgayXoa      DateTime? @db.Timestamp(6)
+  HOCKY        HOCKY     @relation(fields: [MaHocKy], references: [MaHocKy], onDelete: Cascade, map: "fk_monhocmo_hocky")
+  MONHOC       MONHOC    @relation(fields: [MaMonHoc], references: [MaMonHoc], onDelete: Cascade, map: "fk_monhocmo_monhoc")
+
+  @@unique([MaHocKy, MaMonHoc], map: "uq_monhocmo")
 }
 
 model NAMHOC {

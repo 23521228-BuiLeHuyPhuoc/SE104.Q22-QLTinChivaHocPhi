@@ -13,6 +13,7 @@ const DEFAULT_USER_GROUPS = [
 const AUDITED_SOFT_DELETE_TABLES = [
   'SINHVIEN',
   'MONHOC',
+  'MONHOCMO',
   'LOP',
   'PHONGHOC',
   'GIANGVIEN',
@@ -300,6 +301,183 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "MaGiangVien" VARCHAR(20),
       ADD COLUMN IF NOT EXISTS "GiangVien" VARCHAR(100),
       ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "MONHOCMO" (
+      id SERIAL NOT NULL,
+      "MaHocKy" VARCHAR(15) NOT NULL,
+      "MaMonHoc" VARCHAR(15) NOT NULL,
+      "GhiChu" VARCHAR(200),
+      "TrangThai" BOOLEAN DEFAULT TRUE,
+      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "NguoiCapNhat" INTEGER,
+      "NgayCapNhat" TIMESTAMP,
+      "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+      "NguoiXoa" INTEGER,
+      "NgayXoa" TIMESTAMP,
+      CONSTRAINT mon_hoc_mo_pkey PRIMARY KEY (id)
+    )
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "MONHOCMO"
+      ADD COLUMN IF NOT EXISTS "MaHocKy" VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS "MaMonHoc" VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS "GhiChu" VARCHAR(200),
+      ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NguoiCapNhat" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS "NguoiXoa" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayXoa" TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_monhocmo'
+      ) THEN
+        ALTER TABLE "MONHOCMO"
+          ADD CONSTRAINT uq_monhocmo UNIQUE ("MaHocKy", "MaMonHoc");
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_monhocmo_hocky'
+      ) THEN
+        ALTER TABLE "MONHOCMO"
+          ADD CONSTRAINT fk_monhocmo_hocky
+          FOREIGN KEY ("MaHocKy") REFERENCES "HOCKY"("MaHocKy")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_monhocmo_monhoc'
+      ) THEN
+        ALTER TABLE "MONHOCMO"
+          ADD CONSTRAINT fk_monhocmo_monhoc
+          FOREIGN KEY ("MaMonHoc") REFERENCES "MONHOC"("MaMonHoc")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_monhocmo_hocky ON "MONHOCMO" ("MaHocKy")');
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_monhocmo_monhoc ON "MONHOCMO" ("MaMonHoc")');
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO "MONHOCMO" ("MaHocKy", "MaMonHoc", "TrangThai", "GhiChu")
+    SELECT DISTINCT lm."MaHocKy", l."MaMonHoc", TRUE, 'Tu dong tao tu lop mo hien co'
+    FROM "LOPMO" lm
+    JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+    JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+    WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+      AND COALESCE(l."DaXoa", FALSE) = FALSE
+      AND COALESCE(mh."DaXoa", FALSE) = FALSE
+    ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
+      "TrangThai" = TRUE,
+      "DaXoa" = FALSE,
+      "NguoiXoa" = NULL,
+      "NgayXoa" = NULL
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_check_lopmo_monhocmo()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_mamonhoc VARCHAR(15);
+    BEGIN
+      IF COALESCE(NEW."TrangThai", TRUE) = FALSE THEN
+        RETURN NEW;
+      END IF;
+
+      SELECT l."MaMonHoc" INTO v_mamonhoc
+      FROM "LOP" l
+      JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+      WHERE l."MaLop" = NEW."MaLop"
+        AND COALESCE(l."DaXoa", FALSE) = FALSE
+        AND COALESCE(l."TrangThai", TRUE) = TRUE
+        AND COALESCE(mh."DaXoa", FALSE) = FALSE
+        AND COALESCE(mh."TrangThai", TRUE) = TRUE;
+
+      IF v_mamonhoc IS NULL THEN
+        RAISE EXCEPTION 'MONHOCMO: Lop % khong ton tai hoac mon hoc cua lop khong hoat dong.', NEW."MaLop";
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1
+        FROM "MONHOCMO" mhm
+        WHERE mhm."MaHocKy" = NEW."MaHocKy"
+          AND mhm."MaMonHoc" = v_mamonhoc
+          AND COALESCE(mhm."DaXoa", FALSE) = FALSE
+          AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+      ) THEN
+        RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_check_lopmo_monhocmo ON "LOPMO"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_check_lopmo_monhocmo
+    BEFORE INSERT OR UPDATE OF "MaHocKy", "MaLop", "TrangThai"
+    ON "LOPMO"
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_check_lopmo_monhocmo();
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_guard_monhocmo_active_lopmo()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_count INT;
+    BEGIN
+      IF TG_OP = 'DELETE' THEN
+        SELECT COUNT(*) INTO v_count
+        FROM "LOPMO" lm
+        JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+        WHERE lm."MaHocKy" = OLD."MaHocKy"
+          AND l."MaMonHoc" = OLD."MaMonHoc"
+          AND COALESCE(lm."TrangThai", TRUE) = TRUE;
+
+        IF v_count > 0 THEN
+          RAISE EXCEPTION 'MONHOCMO: Khong the tat hoac xoa mon hoc mo vi con lop mo dang hoat dong.';
+        END IF;
+        RETURN OLD;
+      END IF;
+
+      IF COALESCE(NEW."DaXoa", FALSE) = TRUE
+         OR COALESCE(NEW."TrangThai", TRUE) = FALSE
+         OR NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy"
+         OR NEW."MaMonHoc" IS DISTINCT FROM OLD."MaMonHoc" THEN
+        SELECT COUNT(*) INTO v_count
+        FROM "LOPMO" lm
+        JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+        WHERE lm."MaHocKy" = OLD."MaHocKy"
+          AND l."MaMonHoc" = OLD."MaMonHoc"
+          AND COALESCE(lm."TrangThai", TRUE) = TRUE;
+
+        IF v_count > 0 THEN
+          RAISE EXCEPTION 'MONHOCMO: Khong the tat hoac xoa mon hoc mo vi con lop mo dang hoat dong.';
+        END IF;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_guard_monhocmo_active_lopmo ON "MONHOCMO"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_guard_monhocmo_active_lopmo
+    BEFORE DELETE OR UPDATE OF "MaHocKy", "MaMonHoc", "TrangThai", "DaXoa"
+    ON "MONHOCMO"
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_guard_monhocmo_active_lopmo();
   `);
 
   await prisma.$executeRawUnsafe(`

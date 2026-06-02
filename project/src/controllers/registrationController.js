@@ -525,17 +525,21 @@ const getStudentCourses = async (req, res) => {
     if (!(await ensureStudentAccess(req, res, studentId))) return;
     const { page, limit, skip } = getPagination(req.query);
     const semesterId = req.query.MaHocKy || null;
+    const academicYearId = req.query.MaNamHoc || null;
+    const includeCancelled = String(req.query.includeCancelled || '').toLowerCase() === 'true';
     const where = {
       PHIEUDANGKY: {
         MaSv: studentId,
-        ...(semesterId ? { MaHocKy: semesterId } : {})
+        ...(semesterId ? { MaHocKy: semesterId } : {}),
+        ...(academicYearId ? { HOCKY: { MaNamHoc: academicYearId } } : {})
       }
     };
+    const detailWhere = includeCancelled ? where : { ...where, TrangThai: ACTIVE_REGISTRATION_STATUS };
     const activeWhere = { ...where, TrangThai: ACTIVE_REGISTRATION_STATUS };
 
-    const [rows, total, totals, limitInfo] = await Promise.all([
+    const [rows, total, activeTotal, totals, limitInfo] = await Promise.all([
       prisma.CHITIETDANGKY.findMany({
-        where,
+        where: detailWhere,
         skip,
         take: limit,
         orderBy: [{ NgayDangKy: 'desc' }, { id: 'desc' }],
@@ -571,20 +575,36 @@ const getStudentCourses = async (req, res) => {
           }
         }
       }),
-      prisma.CHITIETDANGKY.count({ where }),
+      prisma.CHITIETDANGKY.count({ where: detailWhere }),
+      prisma.CHITIETDANGKY.count({ where: activeWhere }),
       prisma.CHITIETDANGKY.aggregate({
         where: activeWhere,
-        _sum: { SoTinChi: true }
+        _sum: { SoTinChi: true, ThanhTien: true }
       }),
       semesterId ? getEnglishLimitInfo(prisma, studentId, semesterId) : Promise.resolve(null)
     ]);
+
+    const totalCreditsRegistered = Number(totals._sum.SoTinChi || 0);
+    const totalTuitionBeforeDiscount = Number(totals._sum.ThanhTien || 0);
 
     const courses = rows.map((row) => {
       const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
       const openedClasses = (row.LOP?.LOPMO || []).filter((item) => item.MaHocKy === row.PHIEUDANGKY?.MaHocKy);
       const currentOpened = openedClasses[0] || null;
       const lockedByPayment = hasSuccessfulPayment(row.PHIEUDANGKY);
+      const registrationWindow = getRegistrationWindowState(row.PHIEUDANGKY?.HOCKY);
+      const lockedByWindow = !registrationWindow.isOpen;
       const isActive = row.TrangThai === ACTIVE_REGISTRATION_STATUS;
+      const cancelLockMessage = lockedByPayment
+        ? PAID_REGISTRATION_LOCK_MESSAGE
+        : lockedByWindow
+          ? registrationWindow.message
+          : '';
+      const cancelActionLabel = lockedByPayment
+        ? 'Đã thu HP'
+        : lockedByWindow
+          ? 'Đã chốt đăng ký'
+          : 'Hủy ĐK';
       return {
         id: row.id,
         SoPhieu: row.SoPhieu,
@@ -598,9 +618,13 @@ const getStudentCourses = async (req, res) => {
         NgayDangKy: row.NgayDangKy,
         NgayHuy: row.NgayHuy,
         LyDoHuy: row.LyDoHuy,
-        CanHuy: isActive && !lockedByPayment,
-        KhoaHuyDangKy: lockedByPayment,
-        LyDoKhongTheHuy: lockedByPayment ? PAID_REGISTRATION_LOCK_MESSAGE : '',
+        CanHuy: isActive && !lockedByPayment && !lockedByWindow,
+        CanCancelRegistration: isActive && !lockedByPayment && !lockedByWindow,
+        KhoaHuyDangKy: lockedByPayment || lockedByWindow,
+        LyDoKhongTheHuy: cancelLockMessage,
+        CancelActionLabel: cancelActionLabel,
+        CancelActionMessage: cancelLockMessage,
+        RegistrationWindow: registrationWindow,
         SoTinChi: row.SoTinChi || monHoc.SoTinChi || 0,
         LOP: {
           MaLop: row.MaLop,
@@ -629,9 +653,15 @@ const getStudentCourses = async (req, res) => {
           TongTinChi: row.PHIEUDANGKY?.TongTinChi,
           TrangThai: row.PHIEUDANGKY?.TrangThai,
           DaCoPhieuThuThanhCong: lockedByPayment,
+          RegistrationWindow: registrationWindow,
           HOCKY: {
+            MaHocKy: row.PHIEUDANGKY?.HOCKY?.MaHocKy,
             TenHocKy: row.PHIEUDANGKY?.HOCKY?.TenHocKy,
-            NAMHOC: { TenNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc }
+            MaNamHoc: row.PHIEUDANGKY?.HOCKY?.MaNamHoc,
+            NAMHOC: {
+              MaNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.MaNamHoc,
+              TenNamHoc: row.PHIEUDANGKY?.HOCKY?.NAMHOC?.TenNamHoc
+            }
           }
         }
       };
@@ -643,8 +673,15 @@ const getStudentCourses = async (req, res) => {
         courses,
         summary: {
           totalCourses: total,
-          totalCredits: Number(totals._sum.SoTinChi || 0),
-          registeredCredits: Number(totals._sum.SoTinChi || 0),
+          activeCourses: activeTotal,
+          registeredCourses: activeTotal,
+          totalCredits: totalCreditsRegistered,
+          registeredCredits: totalCreditsRegistered,
+          totalCreditsRegistered,
+          totalTuition: totalTuitionBeforeDiscount,
+          registeredTuition: totalTuitionBeforeDiscount,
+          totalAmount: totalTuitionBeforeDiscount,
+          totalTuitionBeforeDiscount,
           maxCredits: Number(limitInfo?.maxCredits || 0),
           creditLimitReason: limitInfo?.limited
             ? `Giới hạn do chưa hoàn tất ${limitInfo.missingCourses.join(', ')}`
