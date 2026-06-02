@@ -13,7 +13,7 @@
 
 .open-courses-toolbar-actions .btn,
 .open-courses-filter-actions .btn {
-  min-height: 42px;
+  min-height: 44px;
   white-space: nowrap;
 }
 
@@ -30,7 +30,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(260px, 1.4fr) minmax(170px, 0.85fr) minmax(170px, 0.85fr) minmax(140px, 0.7fr) auto;
+  grid-template-columns: minmax(300px, 1.35fr) minmax(170px, 0.8fr) minmax(170px, 0.8fr) minmax(150px, 0.65fr) minmax(140px, auto);
 }
 
 .open-courses-filter-field {
@@ -53,7 +53,7 @@
 
 .open-courses-filter-field .form-control,
 .open-courses-search-box input {
-  min-height: 42px;
+  min-height: 44px;
   min-width: 0;
   width: 100%;
 }

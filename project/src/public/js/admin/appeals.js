@@ -20,6 +20,38 @@ function appealContent(row) {
   return 'Đổi: ' + (row.MaLopHuy || '-') + ' -> ' + (row.MaLopThem || '-');
 }
 
+function getSelectedAppealActivity() {
+  var select = document.getElementById('appeal-semester');
+  if (!select || !select.value) return null;
+  var option = select.options[select.selectedIndex];
+  return parseActivityData(option ? option.dataset.activity : null);
+}
+
+function renderAppealActivityPanel() {
+  var activity = getSelectedAppealActivity();
+  var semesterEl = document.getElementById('appeal-activity-semester');
+  var badge = document.getElementById('appeal-window-badge');
+  var start = document.getElementById('appeal-window-start');
+  var end = document.getElementById('appeal-window-end');
+  var pending = document.getElementById('appeal-pending-appeals');
+
+  if (!activity) {
+    if (semesterEl) semesterEl.textContent = 'Chọn học kỳ để xem thời hạn cứu xét';
+    setActivityBadge(badge, getActivityBadgeMeta(null));
+    if (start) start.textContent = '-';
+    if (end) end.textContent = '-';
+    if (pending) pending.textContent = '-';
+    return;
+  }
+
+  var windowState = activity.appealWindow || {};
+  if (semesterEl) semesterEl.textContent = activity.label || activity.MaHocKy || '-';
+  setActivityBadge(badge, getActivityBadgeMeta(windowState));
+  if (start) start.textContent = formatActivityDateTime(activity.NgayBatDauCuuXet || windowState.appealStart || windowState.start);
+  if (end) end.textContent = formatActivityDateTime(activity.NgayKetThucCuuXet || windowState.appealDeadline || windowState.deadline);
+  if (pending) pending.textContent = String(activity.pendingAppeals || 0);
+}
+
 function renderAppealRows(rows) {
   var tbody = document.getElementById('appeal-table-body');
   var count = document.getElementById('appeal-count');
@@ -64,6 +96,7 @@ function buildAppealParams(page) {
 }
 
 async function loadAppeals(page) {
+  renderAppealActivityPanel();
   var tbody = document.getElementById('appeal-table-body');
   if (tbody) tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Đang tải đơn cứu xét...</div></td></tr>';
   try {
@@ -107,5 +140,6 @@ async function rejectAppeal(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  renderAppealActivityPanel();
   loadAppeals(1);
 });

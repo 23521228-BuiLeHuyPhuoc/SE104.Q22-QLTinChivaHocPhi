@@ -23,6 +23,13 @@ block content
           input#search-input(type="text" name="search" placeholder=registrationSearchPlaceholder value=(search || '') autocomplete="off" onkeyup="debounceSearch()")
     .registration-filter-row
       .registration-filter-field
+        label(for="registration-semester") Học kỳ thao tác
+        select.form-control#registration-semester(name="MaHocKy" onchange="applyFilters()")
+          option(value="" selected=(!selectedSemester)) Tất cả học kỳ
+          if semesterActivityOptions && semesterActivityOptions.length
+            each semester in semesterActivityOptions
+              option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy) data-activity=JSON.stringify(semester))= semester.label
+      .registration-filter-field
         label(for="filter-status") Lọc theo trạng thái
         select.form-control#filter-status(name="status" onchange="applyFilters()")
           option(value="" selected=(!status)) Tất cả trạng thái
@@ -32,6 +39,29 @@ block content
         button.btn.btn-outline#registration-stats-toggle(type="button" aria-controls="registration-stats-panel" aria-expanded="false" onclick="toggleRegistrationStats()") Thống kê đăng ký môn học
         a.btn.btn-outline(href="/admin/registrations") Xóa lọc
         button.btn.btn-outline(type="button" onclick="exportRegistrations()") Xuất thống kê Excel
+
+  .activity-window-panel#registration-activity-panel
+    .activity-window-main
+      .activity-window-title
+        span.material-symbols-rounded(aria-hidden="true") event_available
+        div
+          h3 Thời gian đăng ký môn học
+          p#registration-activity-semester Chọn học kỳ để xem thời hạn đăng ký
+      span.badge.badge-secondary#registration-window-badge Chưa chọn
+    .activity-window-grid
+      .activity-window-item
+        span Bắt đầu
+        strong#registration-window-start -
+      .activity-window-item
+        span Kết thúc
+        strong#registration-window-end -
+      .activity-window-item
+        span Đơn chờ duyệt
+        strong#registration-pending-appeals -
+    .activity-window-actions
+      button.btn.btn-primary#finalize-registration-btn(type="button" onclick="finalizeSelectedRegistration()" disabled)
+        span.material-symbols-rounded(aria-hidden="true") task_alt
+        span Chốt đăng ký
 
   #registration-stats-panel.registration-stat-grid(hidden)
     .registration-stat-card

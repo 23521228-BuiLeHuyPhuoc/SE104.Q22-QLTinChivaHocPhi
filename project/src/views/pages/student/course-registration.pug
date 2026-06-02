@@ -53,6 +53,24 @@ block content
         button.btn.btn-outline#reset-filters(type="button")
           span.material-symbols-rounded restart_alt
           span Xóa lọc
+  .activity-window-panel#course-registration-activity-panel
+    .activity-window-main
+      .activity-window-title
+        span.material-symbols-rounded(aria-hidden="true") event_available
+        div
+          h3 Thời gian đăng ký học phần
+          p#course-registration-activity-semester Đang tải học kỳ
+      span.badge.badge-secondary#course-registration-window-badge Chưa chọn
+    .activity-window-grid
+      .activity-window-item
+        span Bắt đầu
+        strong#course-registration-window-start -
+      .activity-window-item
+        span Kết thúc
+        strong#course-registration-window-end -
+      .activity-window-item
+        span Cứu xét
+        strong#course-registration-appeal-state -
   #registration-window-message.empty-state.hidden
 
   .card.course-registration-card

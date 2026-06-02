@@ -28,12 +28,12 @@
 }
 
 .class-filter-search {
-  grid-column: 5 / -1;
+  grid-column: 4 / -1;
   grid-row: 1;
 }
 
 .class-filter-scope {
-  grid-column: 1 / span 4;
+  grid-column: 1 / span 3;
   grid-row: 1;
 }
 
@@ -43,14 +43,14 @@
 }
 
 .class-filter-status {
-  grid-column: 4 / span 7;
+  grid-column: 4 / span 6;
   grid-row: 2;
 }
 
 .class-filter-actions {
   align-items: end;
   display: flex;
-  grid-column: 11 / -1;
+  grid-column: 10 / -1;
   grid-row: 2;
   justify-content: flex-end;
 }

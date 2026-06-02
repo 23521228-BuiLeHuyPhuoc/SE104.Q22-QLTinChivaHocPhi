@@ -127,10 +127,15 @@ async function refreshUnreadCount() {
     var res = await apiFetch('/api/notifications/unread-count');
     if (!res || res.success === false) return;
     var count = res.count || (res.data && res.data.count) || 0;
-    document.querySelectorAll('.bell-badge,.badge-count,#notification-count').forEach(function(el) {
-      el.textContent = count;
-      el.style.display = count > 0 ? '' : 'none';
-    });
+    if (window.setHeaderNotificationCount) {
+      window.setHeaderNotificationCount(count);
+    } else {
+      document.querySelectorAll('.bell-badge,.badge-count,#notification-count').forEach(function(el) {
+        el.textContent = count;
+        el.style.display = count > 0 ? '' : 'none';
+      });
+    }
+    if (window.refreshHeaderNotifications) window.refreshHeaderNotifications();
   } catch (e) {}
 }
 

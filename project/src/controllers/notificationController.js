@@ -119,6 +119,22 @@ const markAsRead = async (req, res) => {
   }
 };
 
+const markAllAsRead = async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
+    const where = await notificationAccessWhere(req);
+    where.DaDoc = false;
+    const result = await prisma.THONGBAO.updateMany({
+      where,
+      data: { DaDoc: true, NgayDoc: new Date() }
+    });
+    res.json({ success: true, message: 'Đã đánh dấu tất cả thông báo là đã đọc', count: result.count || 0 });
+  } catch (error) {
+        return sendErrorResponse(res, error, 'Lỗi server', 'Notification read all error:');
+  }
+};
+
 const getUnreadCount = async (req, res) => {
   try {
     const userId = getUserId(req);
@@ -225,6 +241,7 @@ module.exports = {
   getAllNotifications,
   getNotificationById,
   markAsRead,
+  markAllAsRead,
   getUnreadCount,
   createPublicNotification,
   createAdminNotification,

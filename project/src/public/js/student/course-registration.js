@@ -68,6 +68,33 @@ function renderRegistrationWindowMessage() {
   messageBox.classList.remove('hidden');
 }
 
+function renderCourseRegistrationActivityPanel() {
+  var selected = getSelectedSemesterOption();
+  var semesterEl = document.getElementById('course-registration-activity-semester');
+  var badge = document.getElementById('course-registration-window-badge');
+  var start = document.getElementById('course-registration-window-start');
+  var end = document.getElementById('course-registration-window-end');
+  var appealStateEl = document.getElementById('course-registration-appeal-state');
+
+  if (!selected) {
+    if (semesterEl) semesterEl.textContent = 'Chưa có học kỳ đăng ký';
+    setActivityBadge(badge, getActivityBadgeMeta(null));
+    if (start) start.textContent = '-';
+    if (end) end.textContent = '-';
+    if (appealStateEl) appealStateEl.textContent = '-';
+    return;
+  }
+
+  var registrationWindow = selected.RegistrationWindow || selected.registrationWindow || {};
+  var appealWindow = selected.AppealWindow || selected.appealWindow || {};
+  var appealBadge = getActivityBadgeMeta(appealWindow);
+  if (semesterEl) semesterEl.textContent = selected.DisplayLabel || selected.TenHocKy || selected.MaHocKy || '-';
+  setActivityBadge(badge, getActivityBadgeMeta(registrationWindow));
+  if (start) start.textContent = formatActivityDateTime(selected.NgayBatDauDangKy || registrationWindow.registrationStart || registrationWindow.start);
+  if (end) end.textContent = formatActivityDateTime(selected.NgayKetThucDangKy || registrationWindow.registrationDeadline || registrationWindow.deadline);
+  if (appealStateEl) appealStateEl.textContent = appealBadge.label;
+}
+
 function renderSemesterOptions(semesters) {
   var semesterInput = document.getElementById('semester-input');
   var label = document.getElementById('semester-label');
@@ -108,6 +135,7 @@ function renderSemesterOptions(semesters) {
     label.classList.toggle('text-error', Boolean(selected && getSemesterWindow(selected) && !getSemesterWindow(selected).isOpen && !(selectedAppealState && selectedAppealState.isOpen)));
   }
   renderRegistrationWindowMessage();
+  renderCourseRegistrationActivityPanel();
 }
 
 function courseField(label, value) {
@@ -363,6 +391,7 @@ async function loadAvailableCourses(page) {
 
   await loadRegisteredCreditSummary(semester);
   renderRegistrationWindowMessage();
+  renderCourseRegistrationActivityPanel();
   var selectedSemester = getSelectedSemesterOption();
   var selectedWindow = getSemesterWindow(selectedSemester);
   var selectedAppealWindow = selectedSemester && selectedSemester.AppealWindow ? selectedSemester.AppealWindow : null;
@@ -515,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (semester) {
     semester.addEventListener('change', function() {
       renderRegistrationWindowMessage();
+      renderCourseRegistrationActivityPanel();
       loadAvailableCourses(1);
     });
   }

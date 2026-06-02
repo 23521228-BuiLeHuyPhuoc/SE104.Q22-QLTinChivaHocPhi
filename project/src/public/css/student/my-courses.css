@@ -15,14 +15,18 @@
 }
 
 .my-courses-filter-field {
-  grid-column: span 4;
+  grid-column: span 5;
   min-width: 0;
 }
 
 .my-courses-filter-actions {
   display: flex;
-  grid-column: span 4;
+  grid-column: span 2;
   justify-content: flex-end;
+}
+
+.my-courses-filter-field .form-control {
+  min-height: 44px;
 }
 
 .my-courses-filter-field label {
@@ -35,7 +39,8 @@
 }
 
 .my-courses-filter-actions .btn {
-  min-height: 42px;
+  min-height: 44px;
+  width: 100%;
 }
 
 .my-courses-summary {

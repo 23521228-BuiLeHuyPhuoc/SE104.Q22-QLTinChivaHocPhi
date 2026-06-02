@@ -11,6 +11,97 @@ function paymentSafe(value) {
     .replace(/'/g, '&#039;');
 }
 
+function getSelectedPaymentActivity() {
+  var select = document.getElementById('filter-semester');
+  if (!select || !select.value) return null;
+  var option = select.options[select.selectedIndex];
+  return parseActivityData(option ? option.dataset.activity : null);
+}
+
+function renderPaymentActivityPanel() {
+  var activity = getSelectedPaymentActivity();
+  var semesterEl = document.getElementById('payment-activity-semester');
+  var badge = document.getElementById('payment-window-badge');
+  var start = document.getElementById('payment-window-start');
+  var end = document.getElementById('payment-window-end');
+  var finalized = document.getElementById('payment-finalized-state');
+  var openButton = document.getElementById('open-tuition-btn');
+  var closeButton = document.getElementById('close-tuition-btn');
+
+  if (!activity) {
+    if (semesterEl) semesterEl.textContent = 'Chọn học kỳ để xem thời hạn thu';
+    setActivityBadge(badge, getActivityBadgeMeta(null));
+    if (start) start.textContent = '-';
+    if (end) end.textContent = '-';
+    if (finalized) finalized.textContent = '-';
+    if (openButton) {
+      openButton.disabled = true;
+      openButton.title = 'Chọn học kỳ để mở thu';
+    }
+    if (closeButton) {
+      closeButton.disabled = true;
+      closeButton.title = 'Chọn học kỳ để khóa thu';
+    }
+    return;
+  }
+
+  var windowState = activity.tuitionPaymentWindow || {};
+  var workflow = activity.workflow || {};
+  if (semesterEl) semesterEl.textContent = activity.label || activity.MaHocKy || '-';
+  setActivityBadge(badge, getActivityBadgeMeta(windowState, { lockedLabel: 'Đã khóa thu' }));
+  if (start) start.textContent = formatActivityDateTime(activity.NgayMoThuHocPhi || windowState.paymentStart || windowState.start);
+  if (end) end.textContent = formatActivityDateTime(activity.HanDongHocPhi || windowState.paymentDeadline || windowState.deadline);
+  if (finalized) finalized.textContent = activity.NgayChotDangKy ? formatActivityDateTime(activity.NgayChotDangKy) : 'Chưa chốt';
+  if (openButton) {
+    openButton.disabled = Boolean(activity.MoThuHocPhi) || !workflow.canOpenTuitionPayment;
+    openButton.title = activity.MoThuHocPhi ? 'Học kỳ đang mở thu' : (workflow.openTuitionPaymentReason || 'Có thể mở thu');
+  }
+  if (closeButton) {
+    closeButton.disabled = !activity.MoThuHocPhi;
+    closeButton.title = activity.MoThuHocPhi ? 'Khóa thu học phí cho học kỳ này' : 'Học kỳ chưa mở thu';
+  }
+}
+
+async function openSelectedTuitionPayment() {
+  var activity = getSelectedPaymentActivity();
+  if (!activity || !activity.MaHocKy) {
+    showToast('Vui lòng chọn học kỳ cần mở thu', 'error');
+    return;
+  }
+  if (!confirm('Mở thu học phí cho ' + (activity.label || activity.MaHocKy) + '?')) return;
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(activity.MaHocKy) + '/open-tuition-payment', { method: 'POST' });
+    if (res && res.success) {
+      showToast('Đã mở thu học phí', 'success');
+      setTimeout(function() { window.location.reload(); }, 500);
+      return;
+    }
+    showToast((res && res.message) || 'Không thể mở thu học phí', 'error');
+  } catch (e) {
+    showToast('Lỗi kết nối khi mở thu học phí', 'error');
+  }
+}
+
+async function closeSelectedTuitionPayment() {
+  var activity = getSelectedPaymentActivity();
+  if (!activity || !activity.MaHocKy) {
+    showToast('Vui lòng chọn học kỳ cần khóa thu', 'error');
+    return;
+  }
+  if (!confirm('Khóa thu học phí cho ' + (activity.label || activity.MaHocKy) + '?')) return;
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(activity.MaHocKy) + '/close-tuition-payment', { method: 'POST' });
+    if (res && res.success) {
+      showToast('Đã khóa thu học phí', 'success');
+      setTimeout(function() { window.location.reload(); }, 500);
+      return;
+    }
+    showToast((res && res.message) || 'Không thể khóa thu học phí', 'error');
+  } catch (e) {
+    showToast('Lỗi kết nối khi khóa thu học phí', 'error');
+  }
+}
+
 (async function loadSemesters() {
   try {
     var res = await apiFetch('/api/semesters');
@@ -370,4 +461,7 @@ async function exportPayments() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', bindAutofillEvents);
+document.addEventListener('DOMContentLoaded', function() {
+  bindAutofillEvents();
+  renderPaymentActivityPanel();
+});

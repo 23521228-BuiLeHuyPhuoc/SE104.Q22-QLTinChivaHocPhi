@@ -19,65 +19,54 @@ const ONGOING_SEMESTER_STATUS = SEMESTER_STATUS.ONGOING;
 const MIN_OPEN_CLASS_RATIO = 0.75;
 const FINALIZE_CANCEL_REASON = 'Hủy do không đủ sinh viên đăng ký';
 
-const semesterSelect = (hk) => ({
-  MaHocKy: hk.MaHocKy,
-  TenHocKy: hk.TenHocKy,
-  MaNamHoc: hk.MaNamHoc,
-  TenNamHoc: hk.NAMHOC?.TenNamHoc,
-  NAMHOC: hk.NAMHOC ? {
-    MaNamHoc: hk.NAMHOC.MaNamHoc,
-    TenNamHoc: hk.NAMHOC.TenNamHoc,
-    NamBatDau: hk.NAMHOC.NamBatDau,
-    NamKetThuc: hk.NAMHOC.NamKetThuc
-  } : undefined,
-  LoaiHocKy: hk.LoaiHocKy,
-  ThuTu: hk.ThuTu,
-  NgayBatDau: hk.NgayBatDau,
-  NgayKetThuc: hk.NgayKetThuc,
-  NgayBatDauDangKy: hk.NgayBatDauDangKy,
-  NgayKetThucDangKy: hk.NgayKetThucDangKy,
-  NgayBatDauCuuXet: hk.NgayBatDauCuuXet,
-  NgayKetThucCuuXet: hk.NgayKetThucCuuXet,
-  NgayChotDangKy: hk.NgayChotDangKy,
-  MoThuHocPhi: hk.MoThuHocPhi,
-  NgayMoThuHocPhi: hk.NgayMoThuHocPhi,
-  HanDongHocPhi: hk.HanDongHocPhi,
-  TrangThai: hk.TrangThai,
-  NgayCapNhat: hk.NgayCapNhat,
-  NguoiCapNhat: hk.NguoiCapNhat,
-  NguoiCapNhatTen: hk.NguoiCapNhatTen,
-  SoLopMo: hk.SoLopMo ?? hk._count?.LOPMO ?? 0,
-  SoSinhVienDangKy: hk.SoSinhVienDangKy ?? hk._count?.PHIEUDANGKY ?? 0
-});
+const semesterSelect = (hk) => {
+  const pendingAppeals = hk.SoDonCuuXetChoDuyet ?? hk._count?.DONCUUXETDANGKY ?? 0;
+  const registrationWindow = getRegistrationWindowState(hk);
+  const appealWindow = getAppealWindowState(hk);
+  const tuitionPaymentWindow = getTuitionPaymentWindowState(hk);
+  const workflow = getSemesterWorkflowState(hk, { pendingAppeals });
 
-const registrationSemesterSelect = (semester) => {
-  const windowState = getRegistrationWindowState(semester);
-  const appealWindow = getAppealWindowState(semester);
-  const workflow = getSemesterWorkflowState(semester);
   return {
-    ...semesterSelect(semester),
-    RegistrationWindow: {
-      isOpen: windowState.isOpen,
-      isClosed: windowState.isClosed,
-      reason: windowState.reason,
-      message: windowState.message,
-      registrationStart: windowState.registrationStart,
-      registrationDeadline: windowState.registrationDeadline
-    },
-    AppealWindow: {
-      isOpen: appealWindow.isOpen,
-      isClosed: appealWindow.isClosed,
-      reason: appealWindow.reason,
-      message: appealWindow.message,
-      appealStart: appealWindow.appealStart,
-      appealDeadline: appealWindow.appealDeadline
-    },
+    MaHocKy: hk.MaHocKy,
+    TenHocKy: hk.TenHocKy,
+    MaNamHoc: hk.MaNamHoc,
+    TenNamHoc: hk.NAMHOC?.TenNamHoc,
+    NAMHOC: hk.NAMHOC ? {
+      MaNamHoc: hk.NAMHOC.MaNamHoc,
+      TenNamHoc: hk.NAMHOC.TenNamHoc,
+      NamBatDau: hk.NAMHOC.NamBatDau,
+      NamKetThuc: hk.NAMHOC.NamKetThuc
+    } : undefined,
+    LoaiHocKy: hk.LoaiHocKy,
+    ThuTu: hk.ThuTu,
+    NgayBatDau: hk.NgayBatDau,
+    NgayKetThuc: hk.NgayKetThuc,
+    NgayBatDauDangKy: hk.NgayBatDauDangKy,
+    NgayKetThucDangKy: hk.NgayKetThucDangKy,
+    NgayBatDauCuuXet: hk.NgayBatDauCuuXet,
+    NgayKetThucCuuXet: hk.NgayKetThucCuuXet,
+    NgayChotDangKy: hk.NgayChotDangKy,
+    MoThuHocPhi: hk.MoThuHocPhi,
+    NgayMoThuHocPhi: hk.NgayMoThuHocPhi,
+    HanDongHocPhi: hk.HanDongHocPhi,
+    TrangThai: hk.TrangThai,
+    NgayCapNhat: hk.NgayCapNhat,
+    NguoiCapNhat: hk.NguoiCapNhat,
+    NguoiCapNhatTen: hk.NguoiCapNhatTen,
+    SoLopMo: hk.SoLopMo ?? hk._count?.LOPMO ?? 0,
+    SoSinhVienDangKy: hk.SoSinhVienDangKy ?? hk._count?.PHIEUDANGKY ?? 0,
+    SoDonCuuXetChoDuyet: pendingAppeals,
+    RegistrationWindow: registrationWindow,
+    AppealWindow: appealWindow,
+    TuitionPaymentWindow: tuitionPaymentWindow,
     Workflow: workflow,
-    CoTheDangKy: windowState.isOpen,
+    CoTheDangKy: registrationWindow.isOpen,
     CoTheCuuXet: appealWindow.isOpen,
-    LyDoKhongTheDangKy: windowState.message
+    LyDoKhongTheDangKy: registrationWindow.message
   };
 };
+
+const registrationSemesterSelect = (semester) => semesterSelect(semester);
 
 const academicYearSelect = (year) => ({
   MaNamHoc: year.MaNamHoc,
@@ -296,7 +285,8 @@ const getSemesterPage = async (query = {}) => {
         _count: {
           select: {
             LOPMO: true,
-            PHIEUDANGKY: true
+            PHIEUDANGKY: true,
+            DONCUUXETDANGKY: { where: { TrangThai: APPEAL_STATUS.PENDING } }
           }
         }
       },
@@ -423,7 +413,10 @@ const getRegistrationOptions = async (req, res) => {
       },
       take: 8,
       orderBy: [{ NgayBatDau: { sort: 'desc', nulls: 'last' } }, { MaHocKy: 'desc' }],
-      include: { NAMHOC: true }
+      include: {
+        NAMHOC: true,
+        _count: { select: { DONCUUXETDANGKY: { where: { TrangThai: APPEAL_STATUS.PENDING } } } }
+      }
     });
 
     res.json({ success: true, data: semesters.map(registrationSemesterSelect) });

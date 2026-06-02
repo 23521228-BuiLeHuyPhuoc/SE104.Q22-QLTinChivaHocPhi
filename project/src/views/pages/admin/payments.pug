@@ -8,9 +8,9 @@ block content
     .filter-group
       select#filter-semester(onchange="applyFilters()")
         option(value="" selected=(!MaHocKy)) Tất cả học kỳ
-        if semesters && semesters.length
-          each semester in semesters
-            option(value=semester.MaHocKy selected=(MaHocKy === semester.MaHocKy))= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+        if semesterActivityOptions && semesterActivityOptions.length
+          each semester in semesterActivityOptions
+            option(value=semester.MaHocKy selected=(MaHocKy === semester.MaHocKy) data-activity=JSON.stringify(semester))= semester.label
       select#filter-method(onchange="applyFilters()")
         option(value="" selected=(!HinhThucThu)) Tất cả phương thức
         option(value="Tiền mặt" selected=(HinhThucThu === 'Tiền mặt')) Tiền mặt
@@ -33,6 +33,32 @@ block content
       button.btn.btn-outline(type="button" onclick="exportPayments()")
         span.material-symbols-rounded(aria-hidden="true") download
         span Xuất Excel
+
+  .activity-window-panel#payment-activity-panel
+    .activity-window-main
+      .activity-window-title
+        span.material-symbols-rounded(aria-hidden="true") payments
+        div
+          h3 Thời gian thu học phí
+          p#payment-activity-semester Chọn học kỳ để xem thời hạn thu
+      span.badge.badge-secondary#payment-window-badge Chưa chọn
+    .activity-window-grid
+      .activity-window-item
+        span Bắt đầu
+        strong#payment-window-start -
+      .activity-window-item
+        span Kết thúc
+        strong#payment-window-end -
+      .activity-window-item
+        span Chốt đăng ký
+        strong#payment-finalized-state -
+    .activity-window-actions
+      button.btn.btn-primary#open-tuition-btn(type="button" onclick="openSelectedTuitionPayment()" disabled)
+        span.material-symbols-rounded(aria-hidden="true") lock_open
+        span Mở thu
+      button.btn.btn-outline#close-tuition-btn(type="button" onclick="closeSelectedTuitionPayment()" disabled)
+        span.material-symbols-rounded(aria-hidden="true") lock
+        span Khóa thu
 
   .card
     .card-header

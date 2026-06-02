@@ -11910,6 +11910,9 @@ WHERE "GiangVien" IS NOT NULL
 -- =====================================================
 -- INSERT DATA - Chương trình học (Curriculum)
 -- =====================================================
+-- Source distribution: thong_ke_ctdt_uit_khoa_2023_da_sua.md.
+-- uq_cth is unique on (MaNganh, MaMonHoc), so repeated course codes in the
+-- source file are stored by their first appearance in that program.
 INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy") VALUES
 ('CNTT', 'IT001', 1),
 ('CNTT', 'MA006', 1),
@@ -13226,6 +13229,10 @@ SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), 6, true)
 --   HK-DEMO-CHOT: đã hết cứu xét, đã chốt đăng ký, chưa mở thu học phí
 --   HK-DEMO-THU: đã chốt đăng ký, đã mở thu học phí, có đủ trạng thái phiếu thu mới
 -- =====================================================
+INSERT INTO "NAMHOC" ("MaNamHoc", "TenNamHoc", "NamBatDau", "NamKetThuc") VALUES
+('2026-2027', 'Năm học 2026-2027', 2026, 2027)
+ON CONFLICT ("MaNamHoc") DO NOTHING;
+
 INSERT INTO "HOCKY" (
   "MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "ThuTu",
   "NgayBatDau", "NgayKetThuc",
@@ -13269,16 +13276,16 @@ INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "SoLuongDaDangKy", "TrangThai", "GhiChu
 ('HK-DEMO-THU', 'ENG02.DEMO1', 4, TRUE, 'Demo: lớp đã chốt và mở thu học phí')
 ON CONFLICT ("MaHocKy", "MaLop") DO NOTHING;
 
-INSERT INTO "LICHHOCLOP" ("LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu")
-SELECT lm.id, v."ThuTrongTuan", v."MaTietBatDau", v."MaTietKetThuc", v."PhongHoc", v."GhiChu"
+INSERT INTO "LICHHOCLOP" ("LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu", "TrangThai")
+SELECT lm.id, v."ThuTrongTuan", v."MaTietBatDau", v."MaTietKetThuc", v."PhongHoc", v."GhiChu", v."TrangThai"
 FROM (VALUES
-  ('HK-DEMO-CUUXET', 'IT002.DEMO1', 2, 'T1', 'T3', 'DEMO.A101', 'Demo IT002 - cứu xét'),
-  ('HK-DEMO-CUUXET', 'IT003.DEMO1', 3, 'T1', 'T3', 'DEMO.A102', 'Demo IT003 - lớp đổi'),
-  ('HK-DEMO-CUUXET', 'MA004.DEMO1', 4, 'T1', 'T4', 'DEMO.A103', 'Demo MA004 - lớp thêm'),
-  ('HK-DEMO-CHOT', 'IT005.DEMO1', 5, 'T1', 'T3', 'DEMO.A104', 'Demo IT005 - lớp đóng'),
-  ('HK-DEMO-CHOT', 'IT006.DEMO1', 6, 'T1', 'T1', 'DEMO.A105', 'Demo IT006 - đúng 75%'),
-  ('HK-DEMO-THU', 'ENG02.DEMO1', 7, 'T1', 'T1', 'DEMO.A106', 'Demo ENG02 - mở thu')
-) AS v("MaHocKy", "MaLop", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu")
+  ('HK-DEMO-CUUXET', 'IT002.DEMO1', 2, 'T1', 'T3', 'DEMO.A101', 'Demo IT002 - cứu xét', TRUE),
+  ('HK-DEMO-CUUXET', 'IT003.DEMO1', 3, 'T1', 'T3', 'DEMO.A102', 'Demo IT003 - lớp đổi', TRUE),
+  ('HK-DEMO-CUUXET', 'MA004.DEMO1', 4, 'T1', 'T4', 'DEMO.A103', 'Demo MA004 - lớp thêm', TRUE),
+  ('HK-DEMO-CHOT', 'IT005.DEMO1', 5, 'T1', 'T3', 'DEMO.A104', 'Demo IT005 - lớp đóng', FALSE),
+  ('HK-DEMO-CHOT', 'IT006.DEMO1', 6, 'T1', 'T1', 'DEMO.A105', 'Demo IT006 - đúng 75%', TRUE),
+  ('HK-DEMO-THU', 'ENG02.DEMO1', 7, 'T1', 'T1', 'DEMO.A106', 'Demo ENG02 - mở thu', TRUE)
+) AS v("MaHocKy", "MaLop", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "GhiChu", "TrangThai")
 JOIN "LOPMO" lm ON lm."MaHocKy" = v."MaHocKy" AND lm."MaLop" = v."MaLop"
 WHERE NOT EXISTS (
   SELECT 1 FROM "LICHHOCLOP" lh
@@ -13312,10 +13319,10 @@ INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTi
 (105, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:10:00', NULL, NULL),
 (106, 'IT006.DEMO1', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:20:00', NULL, NULL),
 (107, 'IT005.DEMO1', 'IT005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã hủy', '2026-04-10 08:30:00', '2026-04-21 09:10:00', 'Hủy do không đủ sinh viên đăng ký'),
-(201, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:00:00', NULL, NULL),
-(202, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:10:00', NULL, NULL),
-(203, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:20:00', NULL, NULL),
-(204, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-03-10 08:30:00', NULL, NULL)
+(201, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:00:00', NULL, NULL),
+(202, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:10:00', NULL, NULL),
+(203, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:20:00', NULL, NULL),
+(204, 'ENG02.DEMO1', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:30:00', NULL, NULL)
 ON CONFLICT ("SoPhieu", "MaMonHoc") DO NOTHING;
 
 RESET app.finalize_registration;
@@ -13350,10 +13357,10 @@ INSERT INTO "PHIEUTHUHOCPHI" (
   "MaGiaoDich", "NguoiThu", "PaymentProvider", "PaymentChannel", "GhiChu",
   "TrangThai", "NgayXacNhan", "NgayCapNhat", "CheckoutUrl", "QrPayload"
 ) VALUES
-(101, 201, '22520001', '2026-03-22 09:00:00', 27000, 'Tiền mặt', NULL, 'Phòng tài chính', 'invoice', 'admin', 'Demo: admin đã tạo phiếu, sinh viên chưa checkout', 'Chưa thanh toán', NULL, '2026-03-22 09:00:00', NULL, NULL),
-(102, 202, '22520002', '2026-03-22 09:10:00', 13500, 'Tiền mặt', 'CASH-DEMO-102', NULL, 'cash', 'student', 'Demo: sinh viên chọn đóng tiền mặt, chờ admin xác nhận', 'Chờ xác nhận', NULL, '2026-03-22 09:10:00', NULL, NULL),
-(103, 203, '22520003', '2026-03-22 09:20:00', 13500, 'Chuyển khoản', 'BANK-DEMO-103', 'Cổng thanh toán demo', 'bank_qr', 'student', 'Demo: thanh toán sandbox thành công', 'Thành công', '2026-03-22 09:25:00', '2026-03-22 09:25:00', NULL, NULL),
-(104, 204, '22520004', '2026-03-22 09:30:00', 18900, 'Ví điện tử', 'ZALO-DEMO-104', NULL, 'zalopay', 'student', 'Demo: thanh toán sandbox thất bại', 'Thất bại', NULL, '2026-03-22 09:35:00', NULL, NULL)
+(101, 201, '22520001', '2026-03-22 09:00:00', 35000, 'Tiền mặt', NULL, 'Phòng tài chính', 'invoice', 'admin', 'Demo: admin đã tạo phiếu, sinh viên chưa checkout', 'Chưa thanh toán', NULL, '2026-03-22 09:00:00', NULL, NULL),
+(102, 202, '22520002', '2026-03-22 09:10:00', 17500, 'Tiền mặt', 'CASH-DEMO-102', NULL, 'cash', 'student', 'Demo: sinh viên chọn đóng tiền mặt, chờ admin xác nhận', 'Chờ xác nhận', NULL, '2026-03-22 09:10:00', NULL, NULL),
+(103, 203, '22520003', '2026-03-22 09:20:00', 17500, 'Chuyển khoản', 'BANK-DEMO-103', 'Cổng thanh toán demo', 'bank_qr', 'student', 'Demo: thanh toán sandbox thành công', 'Thành công', '2026-03-22 09:25:00', '2026-03-22 09:25:00', NULL, NULL),
+(104, 204, '22520004', '2026-03-22 09:30:00', 24500, 'Ví điện tử', 'ZALO-DEMO-104', NULL, 'zalopay', 'student', 'Demo: thanh toán sandbox thất bại', 'Thất bại', NULL, '2026-03-22 09:35:00', NULL, NULL)
 ON CONFLICT ("SoPhieuThu") DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), GREATEST((SELECT MAX("SoPhieu") FROM "PHIEUDANGKY"), 204), true);
@@ -13397,8 +13404,13 @@ INSERT INTO "THONGBAO" ("TieuDe", "NoiDung", "MaTaiKhoanNhan", "DuongDan", "DaDo
 -- =====================================================
 -- DATA COMPATIBILITY - Cập nhật dữ liệu cho các cột đã khai báo trong CREATE TABLE
 -- =====================================================
+-- HocKy is the canonical seed value from thong_ke_ctdt_uit_khoa_2023_da_sua.md;
+-- keep HocKyDuKien synchronized so student curriculum grouping uses the source distribution.
 UPDATE "CHUONGTRINHHOC"
-SET "HocKyDuKien" = COALESCE("HocKyDuKien", "HocKy", 1);
+SET "HocKyDuKien" = CASE
+    WHEN "HocKyDuKien" IS NULL OR "HocKyDuKien" <> "HocKy" THEN "HocKy"
+    ELSE "HocKyDuKien"
+END;
 
 UPDATE "CHITIETDANGKY" ctdk
 SET
@@ -13952,7 +13964,8 @@ SET
   END,
   "NguoiCapNhat" = COALESCE(hk."NguoiCapNhat", (SELECT "MaTaiKhoan" FROM admin_account)),
   "NgayCapNhat" = COALESCE(hk."NgayCapNhat", CURRENT_TIMESTAMP)
-WHERE hk."DaXoa" = FALSE;
+WHERE hk."DaXoa" = FALSE
+  AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%';
 
 WITH admin_account AS (
   SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'

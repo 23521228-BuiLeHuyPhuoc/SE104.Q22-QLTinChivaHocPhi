@@ -8,9 +8,9 @@ block content
     .filter-group
       select#appeal-semester(onchange="loadAppeals(1)")
         option(value="") Tất cả học kỳ
-        if semesters && semesters.length
-          each semester in semesters
-            option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+        if semesterActivityOptions && semesterActivityOptions.length
+          each semester in semesterActivityOptions
+            option(value=semester.MaHocKy data-activity=JSON.stringify(semester))= semester.label
       select#appeal-type(onchange="loadAppeals(1)")
         option(value="") Tất cả loại đơn
         option(value="them") Thêm
@@ -22,6 +22,25 @@ block content
         option(value="da_duyet") Đã duyệt
         option(value="tu_choi") Từ chối
         option(value="da_huy") Đã hủy
+
+  .activity-window-panel#appeal-activity-panel
+    .activity-window-main
+      .activity-window-title
+        span.material-symbols-rounded(aria-hidden="true") rule
+        div
+          h3 Thời gian cứu xét đăng ký
+          p#appeal-activity-semester Chọn học kỳ để xem thời hạn cứu xét
+      span.badge.badge-secondary#appeal-window-badge Chưa chọn
+    .activity-window-grid
+      .activity-window-item
+        span Bắt đầu
+        strong#appeal-window-start -
+      .activity-window-item
+        span Kết thúc
+        strong#appeal-window-end -
+      .activity-window-item
+        span Đơn chờ duyệt
+        strong#appeal-pending-appeals -
 
   .card
     .card-header

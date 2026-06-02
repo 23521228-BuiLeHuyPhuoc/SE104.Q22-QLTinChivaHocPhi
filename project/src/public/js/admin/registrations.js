@@ -10,13 +10,13 @@ function applyFilters() {
   var search = document.getElementById('search-input').value;
   var searchScope = document.getElementById('registration-search-scope');
   var status = document.getElementById('filter-status').value;
-  var currentParams = new URLSearchParams(window.location.search);
+  var semester = document.getElementById('registration-semester');
   var params = new URLSearchParams();
   params.set('page', '1');
   if (search && search.trim()) params.set('search', search.trim());
   if (searchScope && searchScope.value) params.set('searchScope', searchScope.value);
   if (status) params.set('status', status);
-  if (currentParams.get('MaHocKy')) params.set('MaHocKy', currentParams.get('MaHocKy'));
+  if (semester && semester.value) params.set('MaHocKy', semester.value);
   window.location.href = '/admin/registrations?' + params.toString();
 }
 
@@ -32,7 +32,10 @@ function updateRegistrationSearchPlaceholder() {
   input.placeholder = 'Nhập từ khóa tìm kiếm';
 }
 
-document.addEventListener('DOMContentLoaded', updateRegistrationSearchPlaceholder);
+document.addEventListener('DOMContentLoaded', function() {
+  updateRegistrationSearchPlaceholder();
+  renderRegistrationActivityPanel();
+});
 
 function toggleRegistrationStats() {
   var panel = document.getElementById('registration-stats-panel');
@@ -49,11 +52,11 @@ async function exportRegistrations() {
   var search = document.getElementById('search-input').value.trim();
   var searchScope = document.getElementById('registration-search-scope');
   var status = document.getElementById('filter-status').value;
-  var currentParams = new URLSearchParams(window.location.search);
+  var semester = document.getElementById('registration-semester');
   if (search) params.set('search', search);
   if (searchScope && searchScope.value) params.set('searchScope', searchScope.value);
   if (status) params.set('status', status);
-  if (currentParams.get('MaHocKy')) params.set('MaHocKy', currentParams.get('MaHocKy'));
+  if (semester && semester.value) params.set('MaHocKy', semester.value);
 
   try {
     var token = getToken();
@@ -108,6 +111,76 @@ function registrationTypeLabel(type) {
 
 function registrationStatusBadge(status) {
   return String(status || '').toLowerCase().indexOf('hủy') >= 0 ? 'badge-error' : 'badge-success';
+}
+
+function getSelectedRegistrationActivity() {
+  var select = document.getElementById('registration-semester');
+  if (!select || !select.value) return null;
+  var option = select.options[select.selectedIndex];
+  return parseActivityData(option ? option.dataset.activity : null);
+}
+
+function renderRegistrationActivityPanel() {
+  var activity = getSelectedRegistrationActivity();
+  var semesterEl = document.getElementById('registration-activity-semester');
+  var badge = document.getElementById('registration-window-badge');
+  var start = document.getElementById('registration-window-start');
+  var end = document.getElementById('registration-window-end');
+  var pending = document.getElementById('registration-pending-appeals');
+  var button = document.getElementById('finalize-registration-btn');
+
+  if (!activity) {
+    if (semesterEl) semesterEl.textContent = 'Chọn học kỳ để xem thời hạn đăng ký';
+    setActivityBadge(badge, getActivityBadgeMeta(null));
+    if (start) start.textContent = '-';
+    if (end) end.textContent = '-';
+    if (pending) pending.textContent = '-';
+    if (button) {
+      button.disabled = true;
+      button.title = 'Chọn học kỳ để chốt đăng ký';
+    }
+    return;
+  }
+
+  var windowState = activity.registrationWindow || {};
+  var workflow = activity.workflow || {};
+  if (semesterEl) semesterEl.textContent = activity.label || activity.MaHocKy || '-';
+  setActivityBadge(badge, getActivityBadgeMeta(windowState));
+  if (start) start.textContent = formatActivityDateTime(activity.NgayBatDauDangKy || windowState.registrationStart || windowState.start);
+  if (end) end.textContent = formatActivityDateTime(activity.NgayKetThucDangKy || windowState.registrationDeadline || windowState.deadline);
+  if (pending) pending.textContent = String(activity.pendingAppeals || workflow.pendingAppeals || 0);
+  if (button) {
+    var alreadyFinalized = Boolean(workflow.finalized || activity.NgayChotDangKy);
+    button.disabled = alreadyFinalized || !workflow.canFinalize;
+    button.title = alreadyFinalized ? 'Học kỳ đã chốt đăng ký' : (workflow.finalizeReason || 'Có thể chốt đăng ký');
+  }
+}
+
+async function finalizeSelectedRegistration() {
+  var activity = getSelectedRegistrationActivity();
+  if (!activity || !activity.MaHocKy) {
+    showToast('Vui lòng chọn học kỳ cần chốt đăng ký', 'error');
+    return;
+  }
+  if (!confirm('Chốt đăng ký học phần cho ' + (activity.label || activity.MaHocKy) + '? Các lớp dưới 75% sức chứa sẽ bị đóng và đăng ký của các lớp đó sẽ bị hủy.')) return;
+
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(activity.MaHocKy) + '/finalize-registration', { method: 'POST' });
+    if (res && res.success) {
+      var summary = res.data || {};
+      showToast(
+        'Đã chốt đăng ký: ' + (summary.SoLopDatNguong || 0) + ' lớp mở, ' +
+          (summary.SoLopBiDong || 0) + ' lớp đóng, ' +
+          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy',
+        'success'
+      );
+      setTimeout(function() { window.location.reload(); }, 500);
+      return;
+    }
+    showToast((res && res.message) || 'Không thể chốt đăng ký học phần', 'error');
+  } catch (error) {
+    showToast('Lỗi kết nối khi chốt đăng ký học phần', 'error');
+  }
 }
 
 function isActiveRegistration(item) {

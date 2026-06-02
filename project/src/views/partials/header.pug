@@ -13,9 +13,31 @@ header.top-header
   .header-right
     button.theme-toggle(type="button" onclick="toggleTheme()" title="Đổi giao diện" aria-label="Đổi giao diện")
       span#theme-icon.material-symbols-rounded light_mode
-    - const notifHref = user && user.Role === 'admin' ? '/admin/dashboard' : '/student/notifications'
-    button.notification-bell(type="button" title="Thông báo" aria-label="Thông báo" onclick=`window.location.href='${notifHref}'`)
-      span.material-symbols-rounded notifications
+    - const notifHref = user && user.Role === 'admin' ? '/admin/notifications' : '/student/notifications'
+    .notification-popover#header-notification-popover(data-notification-home=notifHref)
+      button.notification-bell#header-notification-bell(type="button" title="Thông báo" aria-label="Thông báo" aria-expanded="false" aria-controls="header-notification-dropdown")
+        span.material-symbols-rounded notifications
+        span.bell-badge#header-notification-badge(style="display:none") 0
+      .notification-dropdown#header-notification-dropdown(aria-hidden="true")
+        .notification-dropdown-header
+          div
+            strong Thông báo
+            small#header-notification-summary Đang cập nhật...
+          button.notification-mark-all#header-notification-mark-all(type="button")
+            span.material-symbols-rounded done_all
+            span Đánh dấu tất cả đã đọc
+        .notification-dropdown-body#header-notification-list
+          .notification-empty Đang tải thông báo...
+        .notification-detail.hidden#header-notification-detail
+          button.notification-back#header-notification-back(type="button")
+            span.material-symbols-rounded arrow_back
+            span Danh sách
+          h4#header-notification-detail-title Thông báo
+          .notification-detail-meta#header-notification-detail-meta
+          .notification-detail-content#header-notification-detail-content
+          a.notification-detail-link#header-notification-detail-link(href="#" style="display:none") Mở liên kết
+        .notification-dropdown-footer
+          a#header-notification-view-all(href=notifHref) Xem tất cả thông báo
     if displayName
       .header-user
         if userAvatarUrl

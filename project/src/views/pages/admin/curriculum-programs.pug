@@ -78,7 +78,7 @@ block content
               if group.inactiveCourses
                 span.badge.badge-warning #{group.inactiveCourses} tạm ngưng
             .curriculum-major-actions
-              button.btn.btn-sm.btn-primary(type="button" onclick=`openCurriculumProgramModal('add', { MaNganh: '${group.MaNganh}' })`)
+              button.btn.btn-sm.btn-primary(type="button" data-major=group.MaNganh onclick="openCurriculumProgramModal('add', { MaNganh: this.dataset.major })")
                 span.material-symbols-rounded add
                 span Thêm môn
 
@@ -115,7 +115,7 @@ block content
             .curriculum-major-empty
               span.material-symbols-rounded playlist_add
               p Ngành này chưa có môn nào trong chương trình học.
-              button.btn.btn-primary(type="button" onclick=`openCurriculumProgramModal('add', { MaNganh: '${group.MaNganh}' })`)
+              button.btn.btn-primary(type="button" data-major=group.MaNganh onclick="openCurriculumProgramModal('add', { MaNganh: this.dataset.major })")
                 span.material-symbols-rounded add
                 span Thêm môn đầu tiên
     else

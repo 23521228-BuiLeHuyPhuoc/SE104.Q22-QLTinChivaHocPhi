@@ -23,7 +23,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(180px, 0.85fr) minmax(280px, 1.5fr);
+  grid-template-columns: minmax(190px, 240px) minmax(320px, 1fr);
   margin-bottom: var(--spacing-md);
 }
 
@@ -31,7 +31,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(140px, 0.85fr) minmax(140px, 0.85fr) minmax(220px, 1.25fr) minmax(150px, 0.9fr) auto;
+  grid-template-columns: minmax(150px, 180px) minmax(150px, 180px) minmax(220px, 1fr) minmax(160px, 220px) auto;
 }
 
 .pricing-filter-field {
@@ -88,7 +88,7 @@
 
 .pricing-filter-actions .btn,
 .pricing-toolbar-actions .btn {
-  min-height: 42px;
+  min-height: 44px;
 }
 
 @media (max-width: 1180px) {
@@ -97,7 +97,7 @@
   }
 
   .pricing-search-row {
-    grid-template-columns: minmax(180px, 0.8fr) minmax(260px, 1.2fr);
+    grid-template-columns: minmax(190px, 240px) minmax(260px, 1fr);
   }
 
   .pricing-filter-field-wide,

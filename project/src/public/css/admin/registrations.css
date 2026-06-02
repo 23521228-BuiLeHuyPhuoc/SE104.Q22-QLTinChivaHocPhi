@@ -17,11 +17,11 @@
 }
 
 .registration-search-row {
-  grid-template-columns: minmax(170px, 0.6fr) minmax(280px, 1.4fr);
+  grid-template-columns: minmax(190px, 240px) minmax(320px, 1fr);
 }
 
 .registration-filter-row {
-  grid-template-columns: minmax(220px, 0.75fr) auto;
+  grid-template-columns: minmax(220px, 300px) minmax(180px, 240px) minmax(0, 1fr);
 }
 
 .registration-filter-field {
@@ -74,7 +74,7 @@
 }
 
 .registration-filter-actions .btn {
-  min-height: 42px;
+  min-height: 44px;
   white-space: nowrap;
 }
 

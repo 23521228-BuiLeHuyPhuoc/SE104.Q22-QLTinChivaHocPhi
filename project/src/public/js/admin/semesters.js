@@ -263,7 +263,6 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Thời điểm sửa</span><span class="semester-field-value">' + escapeHtml(formatSemesterDateTime(s.NgayCapNhat)) + '</span></div>',
         '</div>',
         '<div class="semester-actions">',
-          '<button class="btn btn-sm btn-outline" type="button" data-action="finalize" data-id="' + escapeHtml(s.MaHocKy || '') + '">Ch\u1ed1t \u0111\u0103ng k\u00fd</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="open-tuition" data-id="' + escapeHtml(s.MaHocKy || '') + '">Mở thu</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="close-tuition" data-id="' + escapeHtml(s.MaHocKy || '') + '">Khóa thu</button>',
           '<button class="btn btn-sm btn-outline" type="button" data-action="edit" data-index="' + index + '">Sửa</button>',
@@ -273,8 +272,8 @@ function renderSemesterRows(rows) {
     ].join('');
   }).join('');
 
-  body.querySelectorAll('[data-action=finalize]').forEach(function(button) {
-    button.textContent = 'Ch\u1ed1t \u0111\u0103ng k\u00fd';
+  body.querySelectorAll('[data-action=finalize], [data-action=open-tuition], [data-action=close-tuition]').forEach(function(button) {
+    button.remove();
   });
 }
 
@@ -741,12 +740,6 @@ function bindSemesterFilters() {
         if (semesterRecords[index]) openModal('edit', semesterRecords[index]);
       } else if (button.dataset.action === 'delete') {
         deleteSemester(button.dataset.id);
-      } else if (button.dataset.action === 'finalize') {
-        finalizeSemesterRegistration(button.dataset.id);
-      } else if (button.dataset.action === 'open-tuition') {
-        openTuitionPayment(button.dataset.id);
-      } else if (button.dataset.action === 'close-tuition') {
-        closeTuitionPayment(button.dataset.id);
       }
     });
   }

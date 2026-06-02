@@ -7,6 +7,9 @@ const { TRASH_ENTITIES } = require('../utils/trashConfig');
 const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pricingSearch');
 const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { buildRegistrationStudentRows, buildRegistrationDistribution } = require('../utils/registrationStats');
+const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
+const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
+const { APPEAL_STATUS } = require('../utils/businessConstants');
 require('dotenv').config();
 
 function getTokenFromCookie(req) {
@@ -57,6 +60,75 @@ async function getUserFromToken(token) {
 }
 
 const toNumber = (value) => Number(value || 0);
+
+const toIsoOrNull = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const serializeWindowState = (state = {}) => ({
+  isOpen: Boolean(state.isOpen),
+  isClosed: Boolean(state.isClosed),
+  reason: state.reason || '',
+  message: state.message || '',
+  start: toIsoOrNull(state.start),
+  deadline: toIsoOrNull(state.deadline),
+  registrationStart: toIsoOrNull(state.registrationStart),
+  registrationDeadline: toIsoOrNull(state.registrationDeadline),
+  appealStart: toIsoOrNull(state.appealStart),
+  appealDeadline: toIsoOrNull(state.appealDeadline),
+  paymentStart: toIsoOrNull(state.paymentStart),
+  paymentDeadline: toIsoOrNull(state.paymentDeadline)
+});
+
+const semesterActivityInclude = {
+  NAMHOC: true,
+  _count: { select: { DONCUUXETDANGKY: { where: { TrangThai: APPEAL_STATUS.PENDING } } } }
+};
+
+const getSemesterActivityRows = () => prisma.HOCKY.findMany({
+  where: { DaXoa: false },
+  orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }, { MaHocKy: 'desc' }],
+  include: semesterActivityInclude
+});
+
+const toSemesterActivityOption = (semester) => {
+  const pendingAppeals = semester._count?.DONCUUXETDANGKY || 0;
+  const registrationWindow = getRegistrationWindowState(semester);
+  const appealWindow = getAppealWindowState(semester);
+  const tuitionPaymentWindow = getTuitionPaymentWindowState(semester);
+  const workflow = getSemesterWorkflowState(semester, { pendingAppeals });
+  const label = `${semester.TenHocKy}${semester.NAMHOC?.TenNamHoc ? ` - ${semester.NAMHOC.TenNamHoc}` : ''}`;
+
+  return {
+    MaHocKy: semester.MaHocKy,
+    TenHocKy: semester.TenHocKy,
+    TenNamHoc: semester.NAMHOC?.TenNamHoc || '',
+    label,
+    NgayChotDangKy: toIsoOrNull(semester.NgayChotDangKy),
+    NgayBatDauDangKy: toIsoOrNull(semester.NgayBatDauDangKy),
+    NgayKetThucDangKy: toIsoOrNull(semester.NgayKetThucDangKy),
+    NgayBatDauCuuXet: toIsoOrNull(semester.NgayBatDauCuuXet),
+    NgayKetThucCuuXet: toIsoOrNull(semester.NgayKetThucCuuXet),
+    MoThuHocPhi: Boolean(semester.MoThuHocPhi),
+    NgayMoThuHocPhi: toIsoOrNull(semester.NgayMoThuHocPhi),
+    HanDongHocPhi: toIsoOrNull(semester.HanDongHocPhi),
+    pendingAppeals,
+    registrationWindow: serializeWindowState(registrationWindow),
+    appealWindow: serializeWindowState(appealWindow),
+    tuitionPaymentWindow: serializeWindowState(tuitionPaymentWindow),
+    workflow: {
+      canFinalize: Boolean(workflow.canFinalize),
+      canOpenTuitionPayment: Boolean(workflow.canOpenTuitionPayment),
+      finalized: Boolean(workflow.finalized),
+      tuitionOpen: Boolean(workflow.tuitionOpen),
+      pendingAppeals,
+      finalizeReason: workflow.finalizeReason || '',
+      openTuitionPaymentReason: workflow.openTuitionPaymentReason || ''
+    }
+  };
+};
 
 const formatTimeValue = (value) => {
   if (!value) return '';
@@ -1202,6 +1274,8 @@ const adminRegistrations = async (req, res) => {
       }
     });
 
+    const semesters = await getSemesterActivityRows();
+    res.locals.semesterActivityOptions = semesters.map(toSemesterActivityOption);
     const grouped = buildRegistrationStudentRows(registrations);
 
     const total = grouped.length;
@@ -1214,6 +1288,7 @@ const adminRegistrations = async (req, res) => {
       totalRegistrationStudents: total,
       registrationStatsByFaculty,
       registrationStatsByMajor,
+      semesterActivityOptions: semesters.map(toSemesterActivityOption),
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/registrations',
@@ -1230,6 +1305,7 @@ const adminRegistrations = async (req, res) => {
       totalRegistrationStudents: 0,
       registrationStatsByFaculty: [],
       registrationStatsByMajor: [],
+      semesterActivityOptions: [],
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/registrations',
@@ -1366,12 +1442,13 @@ const adminPayments = async (req, res) => {
         include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
       }),
       prisma.PHIEUTHUHOCPHI.count({ where }),
-      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }], include: { NAMHOC: true } })
+      getSemesterActivityRows()
     ]);
 
     renderAdmin(res, 'payments', 'payments', 'Thu học phí', req, {
       payments,
       semesters,
+      semesterActivityOptions: semesters.map(toSemesterActivityOption),
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/payments',
@@ -1385,6 +1462,7 @@ const adminPayments = async (req, res) => {
     console.error('Error:', err);
     renderAdmin(res, 'payments', 'payments', 'Thu học phí', req, {
       payments: [],
+      semesterActivityOptions: [],
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/payments',
@@ -1400,14 +1478,12 @@ const adminPayments = async (req, res) => {
 
 const adminAppeals = async (req, res) => {
   try {
-    const semesters = await prisma.HOCKY.findMany({
-      where: { DaXoa: false },
-      orderBy: [{ MaNamHoc: 'desc' }, { ThuTu: 'desc' }],
-      include: { NAMHOC: true }
-    });
+    const semesters = await getSemesterActivityRows();
+    res.locals.semesterActivityOptions = semesters.map(toSemesterActivityOption);
     renderAdmin(res, 'appeals', 'appeals', 'Đơn cứu xét đăng ký', req, { semesters });
   } catch (err) {
     console.error('adminAppeals error:', err);
+    res.locals.semesterActivityOptions = [];
     renderAdmin(res, 'appeals', 'appeals', 'Đơn cứu xét đăng ký', req, { semesters: [] });
   }
 };
