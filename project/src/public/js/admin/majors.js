@@ -52,7 +52,9 @@ async function saveMajor() {
     ThoiGianDaoTao: document.getElementById('maj-thoigian').value,
     MoTa: document.getElementById('maj-mota').value.trim()
   };
-  if (!body.MaNganh || !body.TenNganh || !body.MaKhoa) { showToast('Vui lòng nhập đầy đủ', 'error'); return; }
+  if (!body.MaNganh || !body.TenNganh || !body.MaKhoa) { showToast('Vui long nhap day du thong tin', 'error'); return; }
+  if (!Number.isInteger(Number(body.SoTinChiToiThieu)) || Number(body.SoTinChiToiThieu) <= 0) { showToast('So tin chi toi thieu phai la so nguyen duong', 'error'); return; }
+  if (!Number.isFinite(Number(body.ThoiGianDaoTao)) || Number(body.ThoiGianDaoTao) <= 0) { showToast('Thoi gian dao tao phai lon hon 0', 'error'); return; }
   var url = editMode ? '/api/majors/' + editId : '/api/majors';
   var res = await apiFetch(url, { method: editMode ? 'PUT' : 'POST', body: body });
   if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 500); }

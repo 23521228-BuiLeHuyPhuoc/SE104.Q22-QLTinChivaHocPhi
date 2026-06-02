@@ -62,6 +62,11 @@ async function saveCourse() {
     MoTa: document.getElementById('mh-mota').value.trim() || null
   };
 
+  if (!data.MaMonHoc || !data.TenMonHoc || !data.MaKhoa || !data.LoaiMon || !Number.isInteger(data.SoTiet) || data.SoTiet <= 0) {
+    showToast('Vui long nhap day du thong tin hop le', 'error');
+    return;
+  }
+
   try {
     var res = editingId
       ? await apiFetch('/api/courses/' + editingId, { method: 'PUT', body: data })

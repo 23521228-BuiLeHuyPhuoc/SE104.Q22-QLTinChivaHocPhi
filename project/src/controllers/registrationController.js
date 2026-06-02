@@ -748,7 +748,14 @@ const getAvailableCourses = async (req, res) => {
     }
 
     let studentId = req.query.MaSv || null;
-    if (!studentId && req.user?.Role !== 'admin') studentId = await getStudentIdFromRequest(req);
+    if (req.user?.Role !== 'admin') {
+      const currentStudentId = await getStudentIdFromRequest(req);
+      if (!currentStudentId) return res.status(403).json({ success: false, message: 'Khong xac dinh duoc sinh vien hien tai' });
+      if (studentId && studentId !== currentStudentId) {
+        return res.status(403).json({ success: false, message: 'Khong duoc tra cuu dang ky cho sinh vien khac' });
+      }
+      studentId = currentStudentId;
+    }
 
     const periodIds = Array.from(new Set([periodStartId, periodEndId].filter(Boolean)));
     const periodOrderMap = periodIds.length

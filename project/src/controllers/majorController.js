@@ -9,6 +9,20 @@ const {
   getThesisEligibility
 } = require('../services/curriculumService');
 
+const normalizeText = (value) => String(value || '').trim();
+
+const parsePositiveInt = (value, fallback = null) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parsePositiveNumber = (value, fallback = null) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const getAllMajors = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
@@ -29,15 +43,32 @@ const getAllMajors = async (req, res) => {
 const createMajor = async (req, res) => {
   try {
     const { MaNganh, TenNganh, MaKhoa, SoTinChiToiThieu, ThoiGianDaoTao, MoTa } = req.body;
-    if (!MaNganh || !TenNganh || !MaKhoa) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
-    const existing = await prisma.NGANHHOC.findUnique({ where: { MaNganh } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã ngành đã tồn tại' });
+    const majorId = normalizeText(MaNganh);
+    const majorName = normalizeText(TenNganh);
+    const facultyId = normalizeText(MaKhoa);
+    const minCredits = parsePositiveInt(SoTinChiToiThieu, 120);
+    const trainingYears = parsePositiveNumber(ThoiGianDaoTao, 4);
+
+    if (!majorId || !majorName || !facultyId) return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin' });
+    if (!minCredits) return res.status(400).json({ success: false, message: 'So tin chi toi thieu phai la so nguyen duong' });
+    if (!trainingYears) return res.status(400).json({ success: false, message: 'Thoi gian dao tao phai lon hon 0' });
+
+    const existing = await prisma.NGANHHOC.findUnique({ where: { MaNganh: majorId } });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma nganh da ton tai' });
     const major = await prisma.NGANHHOC.create({
-      data: { MaNganh, TenNganh, MaKhoa, SoTinChiToiThieu: parseInt(SoTinChiToiThieu, 10) || 120, ThoiGianDaoTao: parseFloat(ThoiGianDaoTao) || 4, MoTa, ...updateAudit(req) }
+      data: {
+        MaNganh: majorId,
+        TenNganh: majorName,
+        MaKhoa: facultyId,
+        SoTinChiToiThieu: minCredits,
+        ThoiGianDaoTao: trainingYears,
+        MoTa: MoTa !== undefined ? normalizeText(MoTa) || null : null,
+        ...updateAudit(req)
+      }
     });
-    res.status(201).json({ success: true, message: 'Tạo ngành thành công', data: major });
+    res.status(201).json({ success: true, message: 'Tao nganh thanh cong', data: major });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'createMajor error:');
+        return sendErrorResponse(res, error, 'Loi server', 'createMajor error:');
   }
 };
 
@@ -46,16 +77,32 @@ const updateMajor = async (req, res) => {
     const { id } = req.params;
     const { TenNganh, MaKhoa, SoTinChiToiThieu, ThoiGianDaoTao, MoTa, TrangThai } = req.body;
     const data = updateAudit(req);
-    if (TenNganh) data.TenNganh = TenNganh;
-    if (MaKhoa) data.MaKhoa = MaKhoa;
-    if (SoTinChiToiThieu !== undefined) data.SoTinChiToiThieu = parseInt(SoTinChiToiThieu, 10);
-    if (ThoiGianDaoTao !== undefined) data.ThoiGianDaoTao = parseFloat(ThoiGianDaoTao);
-    if (MoTa !== undefined) data.MoTa = MoTa;
+    if (TenNganh !== undefined) {
+      const majorName = normalizeText(TenNganh);
+      if (!majorName) return res.status(400).json({ success: false, message: 'Ten nganh khong duoc de trong' });
+      data.TenNganh = majorName;
+    }
+    if (MaKhoa !== undefined) {
+      const facultyId = normalizeText(MaKhoa);
+      if (!facultyId) return res.status(400).json({ success: false, message: 'Khoa khong duoc de trong' });
+      data.MaKhoa = facultyId;
+    }
+    if (SoTinChiToiThieu !== undefined) {
+      const minCredits = parsePositiveInt(SoTinChiToiThieu);
+      if (!minCredits) return res.status(400).json({ success: false, message: 'So tin chi toi thieu phai la so nguyen duong' });
+      data.SoTinChiToiThieu = minCredits;
+    }
+    if (ThoiGianDaoTao !== undefined) {
+      const trainingYears = parsePositiveNumber(ThoiGianDaoTao);
+      if (!trainingYears) return res.status(400).json({ success: false, message: 'Thoi gian dao tao phai lon hon 0' });
+      data.ThoiGianDaoTao = trainingYears;
+    }
+    if (MoTa !== undefined) data.MoTa = normalizeText(MoTa) || null;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     const major = await prisma.NGANHHOC.update({ where: { MaNganh: id }, data });
-    res.json({ success: true, message: 'Cập nhật ngành thành công', data: major });
+    res.json({ success: true, message: 'Cap nhat nganh thanh cong', data: major });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'updateMajor error:');
+        return sendErrorResponse(res, error, 'Loi server', 'updateMajor error:');
   }
 };
 

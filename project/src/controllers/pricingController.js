@@ -6,6 +6,14 @@ const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pr
 const { recalculateRegistrationPricingForScope } = require('./registrationController');
 
 const REQUIRED_PRICE_TYPES = ['hoc_moi', 'hoc_lai', 'hoc_cai_thien', 'hoc_he'];
+const VALID_PRICING_COURSE_TYPES = new Set(['LT', 'TH']);
+
+const normalizeText = (value) => String(value || '').trim();
+
+const parsePositiveMoney = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
+};
 const bypassPricingGuard = (tx) => tx.$executeRawUnsafe('SELECT set_config($$app.bypass_pricing_guard$$, $$1$$, true)');
 
 const normalizeSemester = (value) => value || null;
@@ -82,20 +90,29 @@ const createPricing = async (req, res) => {
   try {
     const { LoaiMon, LoaiHoc, DonGia, MaHocKy, GhiChu } = req.body;
     const normalizedMaHocKy = normalizeSemester(MaHocKy);
-    if (!LoaiMon || !LoaiHoc || !DonGia) return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
-    if (!REQUIRED_PRICE_TYPES.includes(LoaiHoc)) {
-      return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
+    const normalizedLoaiMon = normalizeText(LoaiMon).toUpperCase();
+    const normalizedLoaiHoc = normalizeText(LoaiHoc);
+    const unitPrice = parsePositiveMoney(DonGia);
+
+    if (!normalizedLoaiMon || !normalizedLoaiHoc || !unitPrice) {
+      return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin hop le' });
     }
-    if (await isPricingScopeComplete(LoaiMon, normalizedMaHocKy)) {
-      return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ học mới, học lại, cải thiện và học hè' });
+    if (!VALID_PRICING_COURSE_TYPES.has(normalizedLoaiMon)) {
+      return res.status(400).json({ success: false, message: 'Loai mon khong hop le' });
     }
-    if (await findActivePricing(LoaiMon, LoaiHoc, normalizedMaHocKy)) {
-      return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
+    if (!REQUIRED_PRICE_TYPES.includes(normalizedLoaiHoc)) {
+      return res.status(400).json({ success: false, message: 'Loai hoc khong hop le' });
+    }
+    if (await isPricingScopeComplete(normalizedLoaiMon, normalizedMaHocKy)) {
+      return res.status(400).json({ success: false, message: 'Pham vi nay da du hoc moi, hoc lai, cai thien va hoc he' });
+    }
+    if (await findActivePricing(normalizedLoaiMon, normalizedLoaiHoc, normalizedMaHocKy)) {
+      return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
     }
     const reusablePricing = await prisma.DONGIATINCHI.findFirst({
       where: {
-        LoaiMon,
-        LoaiHoc,
+        LoaiMon: normalizedLoaiMon,
+        LoaiHoc: normalizedLoaiHoc,
         MaHocKy: normalizedMaHocKy,
         OR: [{ DaXoa: true }, { TrangThai: false }]
       },
@@ -104,11 +121,11 @@ const createPricing = async (req, res) => {
 
     const pricing = await prisma.$transaction(async (tx) => {
       const data = {
-        LoaiMon,
-        LoaiHoc,
-        DonGia: parseInt(DonGia, 10),
+        LoaiMon: normalizedLoaiMon,
+        LoaiHoc: normalizedLoaiHoc,
+        DonGia: unitPrice,
         MaHocKy: normalizedMaHocKy,
-        GhiChu,
+        GhiChu: GhiChu !== undefined ? normalizeText(GhiChu) || null : null,
         TrangThai: true,
         DaXoa: false,
         NguoiXoa: null,
@@ -122,39 +139,49 @@ const createPricing = async (req, res) => {
       await recalculatePricingScopes(tx, [row]);
       return row;
     });
-    res.status(reusablePricing ? 200 : 201).json({ success: true, message: 'Tạo đơn giá thành công', data: pricing });
+    res.status(reusablePricing ? 200 : 201).json({ success: true, message: 'Tao don gia thanh cong', data: pricing });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-        return sendErrorResponse(res, error, 'Lỗi server', 'createPricing error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
+        return sendErrorResponse(res, error, 'Loi server', 'createPricing error:');
   }
 };
 
 const updatePricing = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID khong hop le' });
     const { LoaiMon, LoaiHoc, DonGia, MaHocKy, GhiChu, TrangThai } = req.body;
     const current = await prisma.DONGIATINCHI.findUnique({ where: { id } });
-    if (!current || current.DaXoa) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn giá' });
+    if (!current || current.DaXoa) return res.status(404).json({ success: false, message: 'Khong tim thay don gia' });
 
-    const nextLoaiMon = LoaiMon || current.LoaiMon;
-    const nextLoaiHoc = LoaiHoc || current.LoaiHoc;
+    const nextLoaiMon = LoaiMon !== undefined ? normalizeText(LoaiMon).toUpperCase() : current.LoaiMon;
+    const nextLoaiHoc = LoaiHoc !== undefined ? normalizeText(LoaiHoc) : current.LoaiHoc;
     const nextMaHocKy = MaHocKy !== undefined ? normalizeSemester(MaHocKy) : current.MaHocKy;
     const data = updateAudit(req);
-    if (LoaiMon) data.LoaiMon = LoaiMon;
-    if (LoaiHoc) data.LoaiHoc = LoaiHoc;
-    if (DonGia !== undefined) data.DonGia = parseInt(DonGia, 10);
-    if (MaHocKy !== undefined) data.MaHocKy = normalizeSemester(MaHocKy);
-    if (GhiChu !== undefined) data.GhiChu = GhiChu;
+
+    if (!VALID_PRICING_COURSE_TYPES.has(nextLoaiMon)) {
+      return res.status(400).json({ success: false, message: 'Loai mon khong hop le' });
+    }
+    if (!REQUIRED_PRICE_TYPES.includes(nextLoaiHoc)) {
+      return res.status(400).json({ success: false, message: 'Loai hoc khong hop le' });
+    }
+    if (DonGia !== undefined) {
+      const unitPrice = parsePositiveMoney(DonGia);
+      if (!unitPrice) return res.status(400).json({ success: false, message: 'Don gia phai lon hon 0' });
+      data.DonGia = unitPrice;
+    }
+
+    if (LoaiMon !== undefined) data.LoaiMon = nextLoaiMon;
+    if (LoaiHoc !== undefined) data.LoaiHoc = nextLoaiHoc;
+    if (MaHocKy !== undefined) data.MaHocKy = nextMaHocKy;
+    if (GhiChu !== undefined) data.GhiChu = normalizeText(GhiChu) || null;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
 
-    if (LoaiHoc && !REQUIRED_PRICE_TYPES.includes(LoaiHoc)) {
-      return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
-    }
     if (await findActivePricing(nextLoaiMon, nextLoaiHoc, nextMaHocKy, id)) {
-      return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
+      return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
     }
     if (!current.TrangThai && data.TrangThai === true && await isPricingScopeComplete(nextLoaiMon, nextMaHocKy, id)) {
-      return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ bốn loại đơn giá' });
+      return res.status(400).json({ success: false, message: 'Pham vi nay da du bon loai don gia' });
     }
 
     const pricing = await prisma.$transaction(async (tx) => {
@@ -163,10 +190,10 @@ const updatePricing = async (req, res) => {
       await recalculatePricingScopes(tx, [current, row]);
       return row;
     });
-    res.json({ success: true, message: 'Cập nhật đơn giá thành công', data: pricing });
+    res.json({ success: true, message: 'Cap nhat don gia thanh cong', data: pricing });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-        return sendErrorResponse(res, error, 'Lỗi server', 'updatePricing error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Don gia cho loai mon, loai hoc va hoc ky nay da ton tai' });
+        return sendErrorResponse(res, error, 'Loi server', 'updatePricing error:');
   }
 };
 

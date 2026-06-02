@@ -283,10 +283,8 @@ const ensureCatalogScheduleAvailable = async (client, input) => {
         COALESCE(l."MaPhong", l."PhongHoc") = ${input.MaPhong}
         OR COALESCE(l."MaGiangVien", l."GiangVien") = ${input.MaGiangVien}
       )
-      AND (
-        (${input.startOrder} < kt."ThuTu" AND bd."ThuTu" < ${input.endOrder})
-        OR (bd."ThuTu" = ${input.startOrder} AND kt."ThuTu" = ${input.endOrder})
-      )
+      AND ${input.startOrder} <= kt."ThuTu"
+      AND bd."ThuTu" <= ${input.endOrder}
     LIMIT 20
   `;
 
@@ -335,10 +333,8 @@ const ensureOpenedScheduleAvailable = async (client, {
         OR COALESCE(lm."MaGiangVien", lm."GiangVien") = ${MaGiangVien}
         OR lm."MaLop" = ${MaLop}
       )
-      AND (
-        (${startOrder} < kt."ThuTu" AND bd."ThuTu" < ${endOrder})
-        OR (bd."ThuTu" = ${startOrder} AND kt."ThuTu" = ${endOrder})
-      )
+      AND ${startOrder} <= kt."ThuTu"
+      AND bd."ThuTu" <= ${endOrder}
     LIMIT 20
   `;
 

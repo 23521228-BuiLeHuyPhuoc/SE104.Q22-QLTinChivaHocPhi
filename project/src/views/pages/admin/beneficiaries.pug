@@ -41,9 +41,9 @@ block content
                 td= b.NguoiCapNhatTen || b.NguoiCapNhat || '-'
                 td= b.NgayCapNhat ? new Date(b.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-primary(type="button" onclick=`openStudentsModal('${b.MaDoiTuong}', '${b.TenDoiTuong}')`) Xem SV
+                  button.btn.btn-sm.btn-primary(type="button" data-id=b.MaDoiTuong data-name=b.TenDoiTuong onclick="openStudentsModal(this.dataset.id, this.dataset.name)") Xem SV
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(b) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteBeneficiary('${b.MaDoiTuong}')`) Xóa
+                  button.btn.btn-sm.btn-danger(type="button" data-id=b.MaDoiTuong onclick="deleteBeneficiary(this.dataset.id)") Xóa
           else
             tr
               td(colspan="9")

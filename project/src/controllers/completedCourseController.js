@@ -7,6 +7,17 @@ const XLSX = require('xlsx');
 
 const VALID_RESULTS = ['qua_mon', 'rot'];
 
+const parsePositiveInteger = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const parseAttemptNumber = (item) => {
+  const value = item.LanHoc ?? item.lanhoc;
+  return value === undefined || value === null || value === '' ? 1 : parsePositiveInteger(value);
+};
+
 const getStudentIdFromRequest = async (req) => {
   if (req.user?.MaSv) return req.user.MaSv;
   const student = await prisma.SINHVIEN.findFirst({
@@ -85,7 +96,7 @@ const normalizeCompletedPayload = (item) => ({
   MaMonHoc: String(item.MaMonHoc || item.Mamonhoc || item.MaMon || item.mamonhoc || '').trim().toUpperCase(),
   MaHocKy: String(item.MaHocKy || item.Hocky || item.HocKy || item.hocky || '').trim(),
   MaLop: String(item.MaLop || item.Lop || item.lop || '').trim() || null,
-  LanHoc: parseInt(item.LanHoc || item.lanhoc || 1, 10) || 1,
+  LanHoc: parseAttemptNumber(item),
   KetQua: normalizeResult(item.KetQua || item.ketqua || item.Result || ''),
   GhiChu: item.GhiChu || item.ghichu || null
 });
@@ -94,6 +105,7 @@ const validateCompletedRows = async (items) => {
   const rows = items.map(normalizeCompletedPayload);
   const errors = [];
   rows.forEach((row, index) => {
+    if (!row.LanHoc) errors.push({ index, message: 'LanHoc phai la so nguyen duong', row });
     if (!row.MaSv || !row.MaMonHoc || !row.MaHocKy || !row.KetQua) errors.push({ index, message: 'Thiếu MSSV, MaMonHoc, HocKy hoặc KetQua', row });
     if (row.KetQua && !VALID_RESULTS.includes(row.KetQua)) errors.push({ index, message: 'Kết quả không hợp lệ', row });
   });
@@ -251,6 +263,11 @@ const createCompletedCourse = async (req, res) => {
   try {
     const { MaSv, MaMonHoc, MaHocKy, MaLop, LanHoc, KetQua, GhiChu } = req.body;
     const result = normalizeResult(KetQua);
+    const attemptNumber = LanHoc === undefined || LanHoc === null || LanHoc === '' ? 1 : parsePositiveInteger(LanHoc);
+
+    if (!attemptNumber) {
+      return res.status(400).json({ success: false, message: 'LanHoc phai la so nguyen duong' });
+    }
 
     if (!MaSv || !MaMonHoc || !MaHocKy || !result) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập MSSV, mã môn học, học kỳ và kết quả' });
@@ -265,7 +282,7 @@ const createCompletedCourse = async (req, res) => {
         MaMonHoc,
         MaHocKy,
         MaLop: MaLop || null,
-        LanHoc: parseInt(LanHoc, 10) || 1,
+        LanHoc: attemptNumber,
         KetQua: result,
         GhiChu,
         ...updateAudit(req)
@@ -284,6 +301,8 @@ const createCompletedCourse = async (req, res) => {
 const updateCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
+    const recordId = parsePositiveInteger(id);
+    if (!recordId) return res.status(400).json({ success: false, message: 'ID khong hop le' });
     const { MaSv, MaMonHoc, MaHocKy, MaLop, LanHoc, KetQua, GhiChu } = req.body;
     const data = updateAudit(req);
 
@@ -291,7 +310,11 @@ const updateCompletedCourse = async (req, res) => {
     if (MaMonHoc !== undefined) data.MaMonHoc = MaMonHoc;
     if (MaHocKy !== undefined) data.MaHocKy = MaHocKy;
     if (MaLop !== undefined) data.MaLop = MaLop || null;
-    if (LanHoc !== undefined) data.LanHoc = parseInt(LanHoc, 10) || 1;
+    if (LanHoc !== undefined) {
+      const attemptNumber = parsePositiveInteger(LanHoc);
+      if (!attemptNumber) return res.status(400).json({ success: false, message: 'LanHoc phai la so nguyen duong' });
+      data.LanHoc = attemptNumber;
+    }
     if (KetQua !== undefined) {
       const result = normalizeResult(KetQua);
       if (!VALID_RESULTS.includes(result)) {
@@ -301,7 +324,7 @@ const updateCompletedCourse = async (req, res) => {
     }
     if (GhiChu !== undefined) data.GhiChu = GhiChu;
 
-    const completedCourse = await prisma.MONDAHOC.update({ where: { id: parseInt(id, 10) }, data });
+    const completedCourse = await prisma.MONDAHOC.update({ where: { id: recordId }, data });
     res.json({ success: true, message: 'Cập nhật môn đã học thành công', data: completedCourse });
   } catch (error) {
     if (error.code === 'P2002') {
@@ -314,7 +337,9 @@ const updateCompletedCourse = async (req, res) => {
 const deleteCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.MONDAHOC.update({ where: { id: parseInt(id, 10) }, data: softDeleteAudit(req) });
+    const recordId = parsePositiveInteger(id);
+    if (!recordId) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+    await prisma.MONDAHOC.update({ where: { id: recordId }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển môn đã học vào thùng rác' });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi máy chủ', 'deleteCompletedCourse error:');

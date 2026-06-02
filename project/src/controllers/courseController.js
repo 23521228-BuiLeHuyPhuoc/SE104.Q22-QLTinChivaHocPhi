@@ -6,6 +6,14 @@ const { sendErrorResponse } = require('../utils/errorHandler');
 const { getThesisEligibility } = require('../services/curriculumService');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
+const VALID_COURSE_TYPES = new Set(['LT', 'TH']);
+
+const normalizeText = (value) => String(value || '').trim();
+
+const parsePositiveInteger = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
 
 const getStudentIdFromRequest = async (req) => {
   if (req.user?.MaSv) return req.user.MaSv;
@@ -97,35 +105,72 @@ const getCourseById = async (req, res) => {
 const createCourse = async (req, res) => {
   try {
     const { MaMonHoc, TenMonHoc, SoTiet, LoaiMon, MaKhoa, MoTa } = req.body;
-    if (!MaMonHoc || !TenMonHoc || !SoTiet || !LoaiMon || !MaKhoa) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    const courseId = normalizeText(MaMonHoc);
+    const courseName = normalizeText(TenMonHoc);
+    const facultyId = normalizeText(MaKhoa);
+    const courseType = normalizeText(LoaiMon).toUpperCase();
+    const lessonCount = parsePositiveInteger(SoTiet);
+
+    if (!courseId || !courseName || !lessonCount || !courseType || !facultyId) {
+      return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin hop le' });
     }
-    const existing = await prisma.MONHOC.findUnique({ where: { MaMonHoc } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã môn học đã tồn tại' });
-    const course = await prisma.MONHOC.create({ data: { MaMonHoc, TenMonHoc, SoTiet: parseInt(SoTiet, 10), LoaiMon, MaKhoa, MoTa, ...updateAudit(req) } });
-    res.status(201).json({ success: true, message: 'Tạo môn học thành công', data: course });
+    if (!VALID_COURSE_TYPES.has(courseType)) {
+      return res.status(400).json({ success: false, message: 'Loai mon hoc khong hop le' });
+    }
+
+    const existing = await prisma.MONHOC.findUnique({ where: { MaMonHoc: courseId } });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma mon hoc da ton tai' });
+    const course = await prisma.MONHOC.create({
+      data: {
+        MaMonHoc: courseId,
+        TenMonHoc: courseName,
+        SoTiet: lessonCount,
+        LoaiMon: courseType,
+        MaKhoa: facultyId,
+        MoTa: MoTa !== undefined ? normalizeText(MoTa) || null : null,
+        ...updateAudit(req)
+      }
+    });
+    res.status(201).json({ success: true, message: 'Tao mon hoc thanh cong', data: course });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Create course error:');
+        return sendErrorResponse(res, error, 'Loi may chu', 'Create course error:');
   }
 };
 
 const updateCourse = async (req, res) => {
   try {
     const existing = await prisma.MONHOC.findFirst({ where: { MaMonHoc: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay mon hoc' });
     const { TenMonHoc, SoTiet, LoaiMon, MaKhoa, MoTa, TrangThai } = req.body;
     const data = {};
-    if (TenMonHoc) data.TenMonHoc = TenMonHoc;
-    if (SoTiet) data.SoTiet = parseInt(SoTiet, 10);
-    if (LoaiMon) data.LoaiMon = LoaiMon;
-    if (MaKhoa) data.MaKhoa = MaKhoa;
-    if (MoTa !== undefined) data.MoTa = MoTa;
+
+    if (TenMonHoc !== undefined) {
+      const courseName = normalizeText(TenMonHoc);
+      if (!courseName) return res.status(400).json({ success: false, message: 'Ten mon hoc khong duoc de trong' });
+      data.TenMonHoc = courseName;
+    }
+    if (SoTiet !== undefined) {
+      const lessonCount = parsePositiveInteger(SoTiet);
+      if (!lessonCount) return res.status(400).json({ success: false, message: 'So tiet phai la so nguyen duong' });
+      data.SoTiet = lessonCount;
+    }
+    if (LoaiMon !== undefined) {
+      const courseType = normalizeText(LoaiMon).toUpperCase();
+      if (!VALID_COURSE_TYPES.has(courseType)) return res.status(400).json({ success: false, message: 'Loai mon hoc khong hop le' });
+      data.LoaiMon = courseType;
+    }
+    if (MaKhoa !== undefined) {
+      const facultyId = normalizeText(MaKhoa);
+      if (!facultyId) return res.status(400).json({ success: false, message: 'Khoa khong duoc de trong' });
+      data.MaKhoa = facultyId;
+    }
+    if (MoTa !== undefined) data.MoTa = normalizeText(MoTa) || null;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.MONHOC.update({ where: { MaMonHoc: req.params.id }, data });
-    res.json({ success: true, message: 'Cập nhật môn học thành công', data: updated });
+    res.json({ success: true, message: 'Cap nhat mon hoc thanh cong', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Update course error:');
+        return sendErrorResponse(res, error, 'Loi may chu', 'Update course error:');
   }
 };
 

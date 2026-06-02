@@ -119,6 +119,11 @@ async function saveCompletedCourse() {
     KetQua: document.getElementById('cc-ketqua').value,
     GhiChu: document.getElementById('cc-ghichu').value.trim()
   };
+  var attemptNumber = Number(body.LanHoc);
+  if (!Number.isInteger(attemptNumber) || attemptNumber <= 0) {
+    showToast('Lan hoc phai la so nguyen duong', 'error');
+    return;
+  }
   if (!body.MaSv || !body.MaMonHoc || !body.MaHocKy || !body.KetQua) {
     showToast('Vui lòng nhập MSSV, mã môn, học kỳ và kết quả', 'error');
     return;
