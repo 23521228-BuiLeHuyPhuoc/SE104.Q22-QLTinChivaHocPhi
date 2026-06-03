@@ -541,55 +541,6 @@ CREATE TABLE "GIANGVIEN" (
         REFERENCES "KHOA"("MaKhoa") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- =====================================================
--- 14.1. BANG "PHONGHOCHOCKY" - Phong hoc ap dung theo hoc ky
--- =====================================================
-CREATE TABLE "PHONGHOCHOCKY" (
-    id SERIAL NOT NULL,
-    "MaPhong" VARCHAR(50) NOT NULL,
-    "MaHocKy" VARCHAR(15) NOT NULL,
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "GhiChu" VARCHAR(200),
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "NguoiCapNhat" INTEGER,
-    "NgayCapNhat" TIMESTAMP,
-    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
-    "NguoiXoa" INTEGER,
-    "NgayXoa" TIMESTAMP,
-    CONSTRAINT phong_hoc_hoc_ky_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_phong_hoc_hoc_ky UNIQUE ("MaPhong", "MaHocKy"),
-    CONSTRAINT fk_phong_hoc_hoc_ky_phong FOREIGN KEY ("MaPhong")
-        REFERENCES "PHONGHOC"("MaPhong") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_phong_hoc_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
-        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-CREATE INDEX idx_phong_hoc_hoc_ky_hk ON "PHONGHOCHOCKY" ("MaHocKy");
-
--- =====================================================
--- 14.2. BANG "GIANGVIENHOCKY" - Giang vien giang day theo hoc ky
--- =====================================================
-CREATE TABLE "GIANGVIENHOCKY" (
-    id SERIAL NOT NULL,
-    "MaGiangVien" VARCHAR(20) NOT NULL,
-    "MaHocKy" VARCHAR(15) NOT NULL,
-    "TrangThai" BOOLEAN DEFAULT TRUE,
-    "GhiChu" VARCHAR(200),
-    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "NguoiCapNhat" INTEGER,
-    "NgayCapNhat" TIMESTAMP,
-    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
-    "NguoiXoa" INTEGER,
-    "NgayXoa" TIMESTAMP,
-    CONSTRAINT giang_vien_hoc_ky_pkey PRIMARY KEY (id),
-    CONSTRAINT uq_giang_vien_hoc_ky UNIQUE ("MaGiangVien", "MaHocKy"),
-    CONSTRAINT fk_giang_vien_hoc_ky_giang_vien FOREIGN KEY ("MaGiangVien")
-        REFERENCES "GIANGVIEN"("MaGiangVien") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_giang_vien_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
-        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-CREATE INDEX idx_giang_vien_hoc_ky_hk ON "GIANGVIENHOCKY" ("MaHocKy");
 
 -- =====================================================
 -- 13. BẢNG "LOP" - Lớp học
@@ -697,6 +648,56 @@ CREATE TABLE "HOCKY" (
     CONSTRAINT fk_hk_namhoc FOREIGN KEY ("MaNamHoc")
         REFERENCES "NAMHOC"("MaNamHoc") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- =====================================================
+-- 14.1. BANG "PHONGHOCHOCKY" - Phong hoc ap dung theo hoc ky
+-- =====================================================
+CREATE TABLE "PHONGHOCHOCKY" (
+    id SERIAL NOT NULL,
+    "MaPhong" VARCHAR(50) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "GhiChu" VARCHAR(200),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT phong_hoc_hoc_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_phong_hoc_hoc_ky UNIQUE ("MaPhong", "MaHocKy"),
+    CONSTRAINT fk_phong_hoc_hoc_ky_phong FOREIGN KEY ("MaPhong")
+        REFERENCES "PHONGHOC"("MaPhong") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_phong_hoc_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_phong_hoc_hoc_ky_hk ON "PHONGHOCHOCKY" ("MaHocKy");
+
+-- =====================================================
+-- 14.2. BANG "GIANGVIENHOCKY" - Giang vien giang day theo hoc ky
+-- =====================================================
+CREATE TABLE "GIANGVIENHOCKY" (
+    id SERIAL NOT NULL,
+    "MaGiangVien" VARCHAR(20) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "GhiChu" VARCHAR(200),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT giang_vien_hoc_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_giang_vien_hoc_ky UNIQUE ("MaGiangVien", "MaHocKy"),
+    CONSTRAINT fk_giang_vien_hoc_ky_giang_vien FOREIGN KEY ("MaGiangVien")
+        REFERENCES "GIANGVIEN"("MaGiangVien") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_giang_vien_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_giang_vien_hoc_ky_hk ON "GIANGVIENHOCKY" ("MaHocKy");
 
 -- =====================================================
 -- 17. BẢNG "LOPMO" - Lớp mở trong học kỳ (BM4, QĐ4, QĐ5)
@@ -13318,8 +13319,9 @@ WITH ranked_rooms AS (
   JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
 )
 INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
-SELECT "MaPhong", "MaHocKy", TRUE, "GhiChu"
+SELECT "MaPhong", "MaHocKy", TRUE, MAX("GhiChu")
 FROM room_allocations
+GROUP BY "MaPhong", "MaHocKy"
 ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
   "TrangThai" = TRUE,
   "DaXoa" = FALSE,
@@ -13352,8 +13354,9 @@ WITH ranked_lecturers AS (
   JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
 )
 INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
-SELECT "MaGiangVien", "MaHocKy", TRUE, "GhiChu"
+SELECT "MaGiangVien", "MaHocKy", TRUE, MAX("GhiChu")
 FROM lecturer_allocations
+GROUP BY "MaGiangVien", "MaHocKy"
 ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
   "TrangThai" = TRUE,
   "DaXoa" = FALSE,
