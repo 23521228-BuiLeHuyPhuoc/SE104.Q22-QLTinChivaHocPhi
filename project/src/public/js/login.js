@@ -146,7 +146,7 @@ async function handleResetPassword(e) {
   }
 
   if (newPassword.length < 6) {
-    setAuthMessage('reset-error', 'Mat khau phai co it nhat 6 ky tu');
+    setAuthMessage('reset-error', 'Mật khẩu phải có ít nhất 6 ký tự');
     return false;
   }
 

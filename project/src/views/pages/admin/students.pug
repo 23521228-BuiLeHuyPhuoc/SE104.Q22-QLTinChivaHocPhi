@@ -6,9 +6,9 @@ block content
       input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-faculty(onchange='onFacultyFilterChange()')
-        option(value='') Tat ca khoa
+        option(value='') Tất cả khoa
       select#filter-major(onchange='applyFilters()')
-        option(value='') Tat ca nganh
+        option(value='') Tất cả ngành
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(status === '' || !status)) Tất cả trạng thái
         option(value="Đang học" selected=(status === 'Đang học')) Đang học
@@ -20,8 +20,8 @@ block content
 
   .toolbar
     .filter-group
-      button.btn.btn-outline(type='button' onclick='exportStudents()') Xuat Excel
-      label.btn.btn-outline(for='students-import-input') Nhap Excel
+      button.btn.btn-outline(type='button' onclick='exportStudents()') Xuất Excel
+      label.btn.btn-outline(for='students-import-input') Nhập Excel
       input#students-import-input(type='file' accept='.xlsx' hidden onchange='onImportStudentsFileChange()')
 
   #students-import-result.hidden
@@ -88,13 +88,13 @@ block modals
         form#student-form
           .profile-avatar-panel
             .profile-avatar-preview
-              img#sv-avatar-img.hidden(src='' alt='Anh dai dien')
+              img#sv-avatar-img.hidden(src='' alt='Ảnh đại diện')
               span#sv-avatar-initials SV
             .profile-avatar-actions
-              label.btn.btn-outline(for='sv-avatar-input') Chon anh
+              label.btn.btn-outline(for='sv-avatar-input') Chọn ảnh
               input#sv-avatar-input(type='file' accept='image/jpeg,image/png,image/webp,image/gif' hidden)
-              button.btn.btn-primary#btn-upload-student-avatar(type='button' disabled onclick='uploadStudentAvatar()') Cap nhat anh
-              small JPG, PNG, WebP hoac GIF, toi da 3MB. Can luu sinh vien truoc khi upload.
+              button.btn.btn-primary#btn-upload-student-avatar(type='button' disabled onclick='uploadStudentAvatar()') Cập nhật ảnh
+              small JPG, PNG, WebP hoặc GIF, tối đa 3MB. Cần lưu sinh viên trước khi tải lên.
           .form-row
             .form-group
               label(for="sv-mssv") MSSV
@@ -151,9 +151,9 @@ block modals
             label(for="sv-diachi") Địa chỉ liên hệ
             input.form-control#sv-diachi(type="text" required)
           .form-group
-            label Doi tuong uu tien hien tai
+            label Đối tượng ưu tiên hiện tại
             #student-beneficiaries-current.profile-readonly-panel
-              .empty-state Chua thuoc doi tuong uu tien nao
+              .empty-state Chưa thuộc đối tượng ưu tiên nào
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu

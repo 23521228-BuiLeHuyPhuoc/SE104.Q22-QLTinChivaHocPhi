@@ -121,7 +121,7 @@ function renderMajorFilterOptions(maKhoa, selectedMajor) {
   var majorSelect = document.getElementById('filter-major');
   if (!majorSelect) return;
 
-  majorSelect.innerHTML = '<option value=>Tat ca nganh</option>';
+  majorSelect.innerHTML = '<option value="">Tất cả ngành</option>';
   allMajors
     .filter(function(m) { return !maKhoa || m.MaKhoa === maKhoa; })
     .forEach(function(m) {
@@ -150,7 +150,7 @@ function renderStudentBeneficiaries(sv) {
 
   var rows = sv && sv.DOITUONGSINHVIEN ? sv.DOITUONGSINHVIEN : [];
   if (!rows.length) {
-    box.innerHTML = '<div class=empty-state>Chua thuoc doi tuong uu tien nao</div>';
+    box.innerHTML = '<div class=empty-state>Chưa thuộc đối tượng ưu tiên nào</div>';
     return;
   }
 
@@ -159,8 +159,8 @@ function renderStudentBeneficiaries(sv) {
     return [
       '<div class=beneficiary-readonly-item>',
       '<strong>' + (dt.MaDoiTuong || row.MaDoiTuong || '-') + ' - ' + (dt.TenDoiTuong || '-') + '</strong>',
-      '<small>Ti le giam: ' + Number(dt.TiLeGiamHocPhi || 0) + '%</small>',
-      '<small>Do uu tien: ' + (dt.DoUuTien || '-') + '</small>',
+      '<small>Tỉ lệ giảm: ' + Number(dt.TiLeGiamHocPhi || 0) + '%</small>',
+      '<small>Độ ưu tiên: ' + (dt.DoUuTien || '-') + '</small>',
       '</div>'
     ].join('');
   }).join('');
@@ -204,13 +204,13 @@ function bindStudentAvatarInput() {
     if (!file) return;
 
     if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) {
-      showToast('Chi ho tro anh JPG, PNG, WebP hoac GIF', 'error');
+      showToast('Chỉ hỗ trợ ảnh JPG, PNG, WebP hoặc GIF', 'error');
       input.value = '';
       return;
     }
 
     if (file.size > 3 * 1024 * 1024) {
-      showToast('Anh dai dien khong duoc vuot qua 3MB', 'error');
+      showToast('Ảnh đại diện không được vượt quá 3MB', 'error');
       input.value = '';
       return;
     }
@@ -223,19 +223,19 @@ function bindStudentAvatarInput() {
 
 async function uploadStudentAvatar() {
   if (!editingId) {
-    showToast('Vui long luu sinh vien truoc khi cap nhat anh', 'error');
+    showToast('Vui lòng lưu sinh viên trước khi cập nhật ảnh', 'error');
     return;
   }
 
   if (!selectedStudentAvatarFile) {
-    showToast('Vui long chon anh dai dien', 'error');
+    showToast('Vui lòng chọn ảnh đại diện', 'error');
     return;
   }
 
   var button = document.getElementById('btn-upload-student-avatar');
   if (button) {
     button.disabled = true;
-    button.textContent = 'Dang tai...';
+    button.textContent = 'Đang tải...';
   }
 
   try {
@@ -247,19 +247,19 @@ async function uploadStudentAvatar() {
     });
 
     if (res.success) {
-      showToast(res.message || 'Cap nhat anh dai dien thanh cong', 'success');
+      showToast(res.message || 'Cập nhật ảnh đại diện thành công', 'success');
       selectedStudentAvatarFile = null;
       setStudentAvatarPreview(res.data && res.data.avatarUrl, document.getElementById('sv-hoten').value);
       setTimeout(function() { location.reload(); }, 500);
     } else {
-      showToast(res.message || 'Khong the cap nhat anh dai dien', 'error');
+      showToast(res.message || 'Không thể cập nhật ảnh đại diện', 'error');
     }
   } catch (e) {
-    showToast('Loi ket noi khi tai anh dai dien', 'error');
+    showToast('Lỗi kết nối khi tải ảnh đại diện', 'error');
   } finally {
     if (button) {
       button.disabled = true;
-      button.textContent = 'Cap nhat anh';
+      button.textContent = 'Cập nhật ảnh';
     }
     var input = document.getElementById('sv-avatar-input');
     if (input) input.value = '';
@@ -408,14 +408,14 @@ async function exportStudents() {
     });
 
     if (res.status === 401) {
-      showToast('Phien dang nhap het han, vui long dang nhap lai', 'error');
+      showToast('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại', 'error');
       clearToken();
       window.location.href = '/admin/login';
       return;
     }
 
     if (!res.ok) {
-      showToast('Khong the xuat Excel', 'error');
+      showToast('Không thể xuất Excel', 'error');
       return;
     }
 
@@ -429,7 +429,7 @@ async function exportStudents() {
     link.remove();
     window.URL.revokeObjectURL(downloadUrl);
   } catch (e) {
-    showToast('Loi ket noi khi xuat Excel', 'error');
+    showToast('Lỗi kết nối khi xuất Excel', 'error');
   }
 }
 
@@ -443,9 +443,9 @@ function onImportStudentsFileChange() {
     result.innerHTML = selectedStudentsImportFile
       ? [
           '<div class=card><div class=card-body>',
-          '<h3>Nhap danh sach sinh vien</h3>',
-          '<p>Da chon file: <strong>' + studentEscapeHtml(selectedStudentsImportFile.name) + '</strong></p>',
-          '<button class=btn type=button onclick=importStudents()>Xac nhan nhap</button>',
+          '<h3>Nhập danh sách sinh viên</h3>',
+          '<p>Đã chọn file: <strong>' + studentEscapeHtml(selectedStudentsImportFile.name) + '</strong></p>',
+          '<button class=btn type=button onclick=importStudents()>Xác nhận nhập</button>',
           '</div></div>'
         ].join('')
       : '';
@@ -454,14 +454,14 @@ function onImportStudentsFileChange() {
 
 async function importStudents() {
   if (!selectedStudentsImportFile) {
-    showToast('Vui long chon file Excel', 'error');
+    showToast('Vui lòng chọn file Excel', 'error');
     return;
   }
 
   var result = document.getElementById('students-import-result');
   if (result) {
     result.classList.remove('hidden');
-    result.innerHTML = '<div class=card><div class=card-body>Dang nhap du lieu...</div></div>';
+    result.innerHTML = '<div class=card><div class=card-body>Đang nhập dữ liệu...</div></div>';
   }
 
   try {
@@ -476,12 +476,12 @@ async function importStudents() {
       var data = res.data || {};
       var html = [
         '<div class=card><div class=card-body>',
-        '<h3>Ket qua nhap Excel</h3>',
-        '<p>Thanh cong: <strong>' + Number(data.successCount || 0) + '</strong> | Loi: <strong>' + Number(data.errorCount || 0) + '</strong></p>'
+        '<h3>Kết quả nhập Excel</h3>',
+        '<p>Thành công: <strong>' + Number(data.successCount || 0) + '</strong> | Lỗi: <strong>' + Number(data.errorCount || 0) + '</strong></p>'
       ].join('');
 
       if (data.errors && data.errors.length) {
-        html += '<table class=data-table><thead><tr><th>Dong</th><th>MSSV</th><th>Ly do loi</th></tr></thead><tbody>';
+        html += '<table class=data-table><thead><tr><th>Dòng</th><th>MSSV</th><th>Lý do lỗi</th></tr></thead><tbody>';
         data.errors.forEach(function(error) {
           html += '<tr>';
           html += '<td>' + studentEscapeHtml(error.row || '-') + '</td>';
@@ -494,15 +494,15 @@ async function importStudents() {
 
       html += '</div></div>';
       if (result) result.innerHTML = html;
-      showToast(res.message || 'Nhap Excel hoan tat', 'success');
+      showToast(res.message || 'Nhập Excel hoàn tất', 'success');
       if (!data.errorCount && data.successCount) {
         setTimeout(function() { location.reload(); }, 800);
       }
     } else {
-      showToast(res.message || 'Khong the nhap Excel', 'error');
+      showToast(res.message || 'Không thể nhập Excel', 'error');
     }
   } catch (e) {
-    showToast('Loi ket noi khi nhap Excel', 'error');
+    showToast('Lỗi kết nối khi nhập Excel', 'error');
   } finally {
     var input = document.getElementById('students-import-input');
     if (input) input.value = '';

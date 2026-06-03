@@ -182,7 +182,7 @@
 
     var rows = student && student.DOITUONGSINHVIEN ? student.DOITUONGSINHVIEN : [];
     if (!rows.length) {
-      box.innerHTML = '<div class=empty-state>Chua thuoc doi tuong uu tien nao</div>';
+      box.innerHTML = '<div class=empty-state>Chưa thuộc đối tượng ưu tiên nào</div>';
       return;
     }
 
@@ -191,10 +191,10 @@
       return [
         '<div class=beneficiary-readonly-item>',
         '<strong>' + profileEscapeHtml(dt.MaDoiTuong || row.MaDoiTuong || '-') + ' - ' + profileEscapeHtml(dt.TenDoiTuong || '-') + '</strong>',
-        '<small>Ti le giam: ' + profileEscapeHtml(Number(dt.TiLeGiamHocPhi || 0)) + '%</small>',
-        '<small>Do uu tien: ' + profileEscapeHtml(dt.DoUuTien || '-') + '</small>',
-        dt.MoTa ? '<small>Mo ta: ' + profileEscapeHtml(dt.MoTa) + '</small>' : '',
-        row.GhiChu ? '<small>Ghi chu SV: ' + profileEscapeHtml(row.GhiChu) + '</small>' : '',
+        '<small>Tỉ lệ giảm: ' + profileEscapeHtml(Number(dt.TiLeGiamHocPhi || 0)) + '%</small>',
+        '<small>Độ ưu tiên: ' + profileEscapeHtml(dt.DoUuTien || '-') + '</small>',
+        dt.MoTa ? '<small>Mô tả: ' + profileEscapeHtml(dt.MoTa) + '</small>' : '',
+        row.GhiChu ? '<small>Ghi chú SV: ' + profileEscapeHtml(row.GhiChu) + '</small>' : '',
         '</div>'
       ].join('');
     }).join('');

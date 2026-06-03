@@ -208,7 +208,7 @@ const getCreditPrice = async (tx, loaiMon, loaiHoc, maHocKy) => {
   throw {
     status: 400,
     code: 'MISSING_CREDIT_PRICE',
-    message: `Chua cau hinh don gia tin chi cho loai mon ${loaiMon}, loai hoc ${effectiveLoaiHoc}${maHocKy ? `, hoc ky ${maHocKy}` : ''}`
+    message: `Chưa cấu hình đơn giá tín chỉ cho loại môn ${loaiMon}, loại học ${effectiveLoaiHoc}${maHocKy ? `, học kỳ ${maHocKy}` : ''}`
   };
 };
 
@@ -279,12 +279,12 @@ const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc, maHocKy) => {
 
   if (!prerequisites.length) return;
   if (!maHocKy) {
-    throw { status: 400, code: 'PREREQUISITE_TARGET_SEMESTER_REQUIRED', message: 'Khong xac dinh hoc ky dang ky de kiem tra mon tien quyet' };
+    throw { status: 400, code: 'PREREQUISITE_TARGET_SEMESTER_REQUIRED', message: 'Không xác định học kỳ đăng ký để kiểm tra môn tiên quyết' };
   }
 
   const targetSemester = await getSemesterOrderData(tx, maHocKy);
   if (!targetSemester) {
-    throw { status: 400, code: 'PREREQUISITE_TARGET_SEMESTER_NOT_FOUND', message: 'Khong tim thay hoc ky dang ky de kiem tra mon tien quyet' };
+    throw { status: 400, code: 'PREREQUISITE_TARGET_SEMESTER_NOT_FOUND', message: 'Không tìm thấy học kỳ đăng ký để kiểm tra môn tiên quyết' };
   }
 
   const requiredCourseIds = prerequisites.map((item) => item.MaMonDieuKien);
@@ -335,12 +335,12 @@ const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc, maHocKy) => {
     throw {
       status: 400,
       code: 'PREREQUISITE_SEMESTER_ORDER_UNKNOWN',
-      message: `Khong du du lieu hoc ky de xac dinh mon tien quyet da hoan thanh truoc hoc ky dang ky: ${formatPrerequisiteNames(unknownOrder)}`
+      message: `Không đủ dữ liệu học kỳ để xác định môn tiên quyết đã hoàn thành trước học kỳ đăng ký: ${formatPrerequisiteNames(unknownOrder)}`
     };
   }
 
   if (missing.length) {
-    throw { status: 400, code: 'PREREQUISITE_NOT_SATISFIED', message: `Chua dat mon tien quyet truoc hoc ky dang ky: ${formatPrerequisiteNames(missing)}` };
+    throw { status: 400, code: 'PREREQUISITE_NOT_SATISFIED', message: `Chưa đạt môn tiên quyết trước học kỳ đăng ký: ${formatPrerequisiteNames(missing)}` };
   }
 };
 
@@ -350,7 +350,7 @@ const ensureClassCapacityAvailable = async (tx, maHocKy, maLop, capacity) => {
     where: { MaLop: maLop, TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy: maHocKy } }
   });
   if (activeCount >= Number(capacity)) {
-    throw { status: 400, code: 'CLASS_FULL', message: 'Lop hoc da het cho' };
+    throw { status: 400, code: 'CLASS_FULL', message: 'Lớp học đã hết chỗ' };
   }
 };
 
@@ -372,7 +372,7 @@ const reserveOpenedClassSeat = async (tx, maHocKy, maLop, capacity) => {
   );
 
   if (Number(updated) !== 1) {
-    throw { status: 409, code: 'CLASS_SEAT_RACE_CONDITION', message: 'Lop hoc da het cho hoac vua duoc sinh vien khac dang ky' };
+    throw { status: 409, code: 'CLASS_SEAT_RACE_CONDITION', message: 'Lớp học đã hết chỗ hoặc vừa được sinh viên khác đăng ký' };
   }
 };
 
@@ -907,9 +907,9 @@ const getAvailableCourses = async (req, res) => {
     let studentId = req.query.MaSv || null;
     if (req.user?.Role !== 'admin') {
       const currentStudentId = await getStudentIdFromRequest(req);
-      if (!currentStudentId) return res.status(403).json({ success: false, message: 'Khong xac dinh duoc sinh vien hien tai' });
+      if (!currentStudentId) return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
       if (studentId && studentId !== currentStudentId) {
-        return res.status(403).json({ success: false, message: 'Khong duoc tra cuu dang ky cho sinh vien khac' });
+        return res.status(403).json({ success: false, message: 'Không được tra cứu đăng ký cho sinh viên khác' });
       }
       studentId = currentStudentId;
     }

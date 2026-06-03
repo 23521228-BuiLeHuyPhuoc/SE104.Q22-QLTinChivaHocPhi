@@ -50,7 +50,7 @@ const getAllBeneficiaries = async (req, res) => {
     ]);
     res.json({ success: true, data: beneficiaries, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi may chu', 'getAllBeneficiaries error:');
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getAllBeneficiaries error:');
   }
 };
 
@@ -63,12 +63,12 @@ const createBeneficiary = async (req, res) => {
     const priority = parsePositiveInteger(DoUuTien);
 
     if (!beneficiaryId || !beneficiaryName || discountPercent === null || !priority) {
-      return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin hop le' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin hợp lệ' });
     }
 
     const existing = await prisma.DOITUONG.findUnique({ where: { MaDoiTuong: beneficiaryId } });
     if (existing && existing.DaXoa === false) {
-      return res.status(400).json({ success: false, message: 'Ma doi tuong da ton tai' });
+      return res.status(400).json({ success: false, message: 'Mã đối tượng đã tồn tại' });
     }
 
     const obj = await prisma.DOITUONG.create({
@@ -81,10 +81,10 @@ const createBeneficiary = async (req, res) => {
         ...updateAudit(req)
       }
     });
-    res.status(201).json({ success: true, message: 'Tao doi tuong thanh cong', data: obj });
+    res.status(201).json({ success: true, message: 'Tạo đối tượng thành công', data: obj });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Ma doi tuong da ton tai' });
-    return sendErrorResponse(res, error, 'Loi may chu', 'createBeneficiary error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Mã đối tượng đã tồn tại' });
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'createBeneficiary error:');
   }
 };
 
@@ -96,26 +96,26 @@ const updateBeneficiary = async (req, res) => {
 
     if (TenDoiTuong !== undefined) {
       const beneficiaryName = normalizeText(TenDoiTuong);
-      if (!beneficiaryName) return res.status(400).json({ success: false, message: 'Ten doi tuong khong duoc de trong' });
+      if (!beneficiaryName) return res.status(400).json({ success: false, message: 'Tên đối tượng không được để trống' });
       data.TenDoiTuong = beneficiaryName;
     }
     if (TiLeGiamHocPhi !== undefined) {
       const discountPercent = parseDiscountPercent(TiLeGiamHocPhi);
-      if (discountPercent === null) return res.status(400).json({ success: false, message: 'Ti le giam hoc phi phai tu 0 den 100' });
+      if (discountPercent === null) return res.status(400).json({ success: false, message: 'Tỉ lệ giảm học phí phải từ 0 đến 100' });
       data.TiLeGiamHocPhi = discountPercent;
     }
     if (DoUuTien !== undefined) {
       const priority = parsePositiveInteger(DoUuTien);
-      if (!priority) return res.status(400).json({ success: false, message: 'Do uu tien phai la so nguyen duong' });
+      if (!priority) return res.status(400).json({ success: false, message: 'Độ ưu tiên phải là số nguyên dương' });
       data.DoUuTien = priority;
     }
     if (MoTa !== undefined) data.MoTa = normalizeText(MoTa) || null;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
 
     const obj = await prisma.DOITUONG.update({ where: { MaDoiTuong: id }, data });
-    res.json({ success: true, message: 'Cap nhat doi tuong thanh cong', data: obj });
+    res.json({ success: true, message: 'Cập nhật đối tượng thành công', data: obj });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi may chu', 'updateBeneficiary error:');
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'updateBeneficiary error:');
   }
 };
 
@@ -123,11 +123,11 @@ const deleteBeneficiary = async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await prisma.DOITUONG.findFirst({ where: { MaDoiTuong: id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay doi tuong' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng' });
     await prisma.DOITUONG.update({ where: { MaDoiTuong: id }, data: softDeleteAudit(req) });
-    res.json({ success: true, message: 'Da chuyen doi tuong vao thung rac' });
+    res.json({ success: true, message: 'Đã chuyển đối tượng vào thùng rác' });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi may chu', 'deleteBeneficiary error:');
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'deleteBeneficiary error:');
   }
 };
 
@@ -141,7 +141,7 @@ const getBeneficiaryStudents = async (req, res) => {
     });
     res.json({ success: true, data: students });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi may chu', 'getBeneficiaryStudents error:');
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getBeneficiaryStudents error:');
   }
 };
 
@@ -150,16 +150,16 @@ const addStudentToBeneficiary = async (req, res) => {
     const { id } = req.params;
     const { MaSv, GhiChu } = req.body;
     const studentId = normalizeText(MaSv);
-    if (!studentId) return res.status(400).json({ success: false, message: 'Vui long nhap ma sinh vien' });
+    if (!studentId) return res.status(400).json({ success: false, message: 'Vui lòng nhập mã sinh viên' });
     const sv = await prisma.SINHVIEN.findFirst({ where: { MaSv: studentId, DaXoa: false } });
-    if (!sv) return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
+    if (!sv) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
     const record = await prisma.DOITUONGSINHVIEN.create({
       data: { MaSv: studentId, MaDoiTuong: id, GhiChu: GhiChu !== undefined ? normalizeText(GhiChu) || null : null }
     });
-    res.status(201).json({ success: true, message: 'Them sinh vien vao doi tuong thanh cong', data: record });
+    res.status(201).json({ success: true, message: 'Thêm sinh viên vào đối tượng thành công', data: record });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Sinh vien da thuoc doi tuong nay' });
-    return sendErrorResponse(res, error, 'Loi may chu', 'addStudentToBeneficiary error:');
+    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Sinh viên đã thuộc đối tượng này' });
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'addStudentToBeneficiary error:');
   }
 };
 
@@ -167,9 +167,9 @@ const removeStudentFromBeneficiary = async (req, res) => {
   try {
     const { id, studentId } = req.params;
     await prisma.DOITUONGSINHVIEN.deleteMany({ where: { MaDoiTuong: id, MaSv: studentId } });
-    res.json({ success: true, message: 'Xoa sinh vien khoi doi tuong thanh cong' });
+    res.json({ success: true, message: 'Xóa sinh viên khỏi đối tượng thành công' });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi may chu', 'removeStudentFromBeneficiary error:');
+    return sendErrorResponse(res, error, 'Lỗi máy chủ', 'removeStudentFromBeneficiary error:');
   }
 };
 
@@ -178,7 +178,7 @@ const importStudentsToBeneficiary = async (req, res) => {
     const { id } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Vui long chon file Excel' });
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn file Excel' });
     }
 
     const beneficiary = await prisma.DOITUONG.findFirst({
@@ -186,7 +186,7 @@ const importStudentsToBeneficiary = async (req, res) => {
     });
 
     if (!beneficiary) {
-      return res.status(404).json({ success: false, message: 'Khong tim thay doi tuong uu tien' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng ưu tiên' });
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -194,7 +194,7 @@ const importStudentsToBeneficiary = async (req, res) => {
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
-      return res.status(400).json({ success: false, message: 'File Excel khong co sheet du lieu' });
+      return res.status(400).json({ success: false, message: 'File Excel không có sheet dữ liệu' });
     }
 
     const results = {
@@ -209,7 +209,7 @@ const importStudentsToBeneficiary = async (req, res) => {
 
       const MaSv = normalizeExcelValue(row.getCell(1).value);
       if (!MaSv) {
-        results.errors.push({ row: rowNumber, MaSv: '', reason: 'Thieu MSSV' });
+        results.errors.push({ row: rowNumber, MaSv: '', reason: 'Thiếu MSSV' });
         return;
       }
 
@@ -222,7 +222,7 @@ const importStudentsToBeneficiary = async (req, res) => {
         results.errors.push({
           row: item.rowNumber,
           MaSv: item.MaSv,
-          reason: 'Trung MSSV trong file import'
+          reason: 'Trùng MSSV trong file import'
         });
         return;
       }
@@ -249,8 +249,8 @@ const importStudentsToBeneficiary = async (req, res) => {
 
     for (const item of validRows) {
       const rowErrors = [];
-      if (!studentSet.has(item.MaSv)) rowErrors.push('MSSV khong ton tai');
-      if (existingSet.has(item.MaSv)) rowErrors.push('Sinh vien da thuoc doi tuong nay');
+      if (!studentSet.has(item.MaSv)) rowErrors.push('MSSV không tồn tại');
+      if (existingSet.has(item.MaSv)) rowErrors.push('Sinh viên đã thuộc đối tượng này');
 
       if (rowErrors.length) {
         results.errors.push({ row: item.rowNumber, MaSv: item.MaSv, reason: rowErrors.join('; ') });
@@ -272,7 +272,7 @@ const importStudentsToBeneficiary = async (req, res) => {
         results.errors.push({
           row: item.rowNumber,
           MaSv: item.MaSv,
-          reason: error.code === 'P2002' ? 'Sinh vien da thuoc doi tuong nay' : 'Khong the gan sinh vien'
+          reason: error.code === 'P2002' ? 'Sinh viên đã thuộc đối tượng này' : 'Không thể gán sinh viên'
         });
       }
     }
@@ -281,11 +281,11 @@ const importStudentsToBeneficiary = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Thanh cong ' + results.successCount + ', loi ' + results.errorCount,
+      message: 'Thành công ' + results.successCount + ', lỗi ' + results.errorCount,
       data: results
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Khong the nhap danh sach sinh vien vao doi tuong', 'importStudentsToBeneficiary error:');
+    return sendErrorResponse(res, error, 'Không thể nhập danh sách sinh viên vào đối tượng', 'importStudentsToBeneficiary error:');
   }
 };
 

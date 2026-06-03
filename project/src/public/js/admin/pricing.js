@@ -50,7 +50,7 @@ function openModal(mode, data) {
 function closeModal() { document.getElementById('pricing-modal').classList.remove('active'); }
 async function savePricing() {
   var body = { LoaiMon: document.getElementById('pr-loaimon').value, LoaiHoc: document.getElementById('pr-loaihoc').value, DonGia: document.getElementById('pr-dongia').value, MaHocKy: document.getElementById('pr-hocky').value || null, GhiChu: document.getElementById('pr-ghichu').value.trim() };
-  if (!body.DonGia || Number(body.DonGia) <= 0) { showToast('Don gia phai lon hon 0', 'error'); return; }
+  if (!body.DonGia || Number(body.DonGia) <= 0) { showToast('Đơn giá phải lớn hơn 0', 'error'); return; }
   var url = editMode ? '/api/pricing/' + editId : '/api/pricing';
   var res = await apiFetch(url, { method: editMode ? 'PUT' : 'POST', body: body });
   if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 500); }

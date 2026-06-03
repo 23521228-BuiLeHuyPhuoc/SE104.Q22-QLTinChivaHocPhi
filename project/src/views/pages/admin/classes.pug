@@ -100,7 +100,7 @@ block content
                     else if selectedSemester && !cl.MonHocDaMoTrongHocKy
                       a.btn.btn-sm.btn-outline(href="/admin/open-courses?MaHocKy=" + selectedSemester + "&search=" + cl.MaMonHoc title="Mở môn học trước")
                         span.material-symbols-rounded event_available
-                        span Mon chua mo
+                        span Môn chưa mở
                     else
                       button.btn.btn-sm.btn-open-class(type="button" data-record=JSON.stringify(cl) onclick="openClass(JSON.parse(this.dataset.record))")
                         span.material-symbols-rounded add_circle

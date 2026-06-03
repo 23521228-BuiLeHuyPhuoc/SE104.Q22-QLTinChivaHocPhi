@@ -1,12 +1,16 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
+const {
+  canAccessPathWithPermissionCodes,
+  isSystemAdminUser: isCatalogSystemAdminUser
+} = require('../utils/permissionCatalog');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 
 const normalizeRoleText = (value) => String(value || '').toLowerCase();
 
-const isSystemAdminUser = (user) => {
+const legacyIsSystemAdminUser = (user) => {
   if (!user || user.Role !== 'admin') return false;
   const maNhom = normalizeRoleText(user.MaNhom || user.maNhom);
   if (['admin', 'admin_he_thong', 'system_admin'].includes(maNhom)) return true;
@@ -16,6 +20,29 @@ const isSystemAdminUser = (user) => {
     chucVu.includes('hệ thống') ||
     chucVu.includes('he thong') ||
     chucVu.includes('system');
+};
+
+const isSystemAdminUser = isCatalogSystemAdminUser;
+
+const getUserPermissionCodes = async (user) => {
+  if (!user || isSystemAdminUser(user)) return [];
+  const MaNhom = user.MaNhom || user.maNhom;
+  if (!MaNhom) return [];
+
+  const permissions = await prisma.PHANQUYEN.findMany({
+    where: {
+      MaNhom,
+      CHUCNANG: { DaXoa: false }
+    },
+    select: { MaChucNang: true }
+  });
+
+  return permissions.map(permission => permission.MaChucNang);
+};
+
+const userCanAccessPath = async (user, path) => {
+  const permissionCodes = await getUserPermissionCodes(user);
+  return canAccessPathWithPermissionCodes(user, permissionCodes, path);
 };
 
 const getTokenUser = async (decoded) => {
@@ -104,13 +131,38 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-const adminMiddleware = (req, res, next) => {
+const legacyAdminMiddleware = (req, res, next) => {
   if (req.user && (req.user.Role === 'admin' || req.user.role === 'admin')) {
     next();
   } else {
     return res.status(403).json({
       success: false,
       message: 'Không có quyền truy cập. Chỉ admin mới được phép.'
+    });
+  }
+};
+
+const adminMiddleware = async (req, res, next) => {
+  if (!req.user || (req.user.Role !== 'admin' && req.user.role !== 'admin')) {
+    return res.status(403).json({
+      success: false,
+      message: 'Không có quyền truy cập. Chỉ admin mới được phép.'
+    });
+  }
+
+  if (isSystemAdminUser(req.user)) return next();
+
+  try {
+    if (await userCanAccessPath(req.user, req.originalUrl || req.path)) return next();
+    return res.status(403).json({
+      success: false,
+      message: 'Bạn không có quyền truy cập chức năng này'
+    });
+  } catch (error) {
+    console.error('adminMiddleware permission error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể kiểm tra quyền truy cập'
     });
   }
 };
@@ -183,6 +235,8 @@ module.exports = {
   adminMiddleware,
   systemAdminMiddleware,
   checkAdminPermission,
+  getUserPermissionCodes,
+  userCanAccessPath,
   isSystemAdminUser,
   authenticateToken: authMiddleware,
   isAdmin: adminMiddleware,

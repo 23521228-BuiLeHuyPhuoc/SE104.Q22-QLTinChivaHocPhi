@@ -1,29 +1,80 @@
-var locationSearchTimer = null;
+var provinceSearchTimer = null;
+var wardSearchTimer = null;
 var provinceEditingId = null;
 var wardEditingId = null;
 
-function applyLocationFilters() {
+function getLocationValue(id) {
+  var el = document.getElementById(id);
+  return el && el.value ? el.value.trim() : '';
+}
+
+function setLocationParam(params, key, value) {
+  if (value !== undefined && value !== null && String(value).trim() !== '') {
+    params.set(key, String(value).trim());
+  }
+}
+
+function redirectLocationPage(path, params) {
+  var query = params.toString();
+  window.location.href = path + (query ? '?' + query : '');
+}
+
+function applyProvinceFilters() {
   var params = new URLSearchParams();
-  var tab = window.locationTab || 'provinces';
-  var search = document.getElementById('search-input');
-  var status = document.getElementById('filter-status');
-  var province = document.getElementById('filter-province');
-  var area = document.getElementById('filter-area');
-
-  params.set('tab', tab);
   params.set('page', '1');
+  setLocationParam(params, 'search', getLocationValue('province-search-input'));
+  setLocationParam(params, 'status', getLocationValue('province-filter-status'));
+  redirectLocationPage('/admin/locations/provinces', params);
+}
 
-  if (search && search.value.trim()) params.set('search', search.value.trim());
-  if (status && status.value) params.set('status', status.value);
-  if (province && province.value) params.set('MaTinh', province.value);
-  if (area && area.value) params.set('KhuVuc', area.value);
+function debounceProvinceSearch() {
+  clearTimeout(provinceSearchTimer);
+  provinceSearchTimer = setTimeout(applyProvinceFilters, 400);
+}
 
-  window.location.href = '/admin/locations?' + params.toString();
+function clearProvinceFilters() {
+  var search = document.getElementById('province-search-input');
+  var status = document.getElementById('province-filter-status');
+  if (search) search.value = '';
+  if (status) status.value = '';
+  applyProvinceFilters();
+}
+
+function applyWardFilters() {
+  var params = new URLSearchParams();
+  params.set('page', '1');
+  setLocationParam(params, 'search', getLocationValue('ward-search-input'));
+  setLocationParam(params, 'MaTinh', getLocationValue('ward-filter-province'));
+  setLocationParam(params, 'KhuVuc', getLocationValue('ward-filter-area'));
+  setLocationParam(params, 'status', getLocationValue('ward-filter-status'));
+  redirectLocationPage('/admin/locations/wards', params);
+}
+
+function debounceWardSearch() {
+  clearTimeout(wardSearchTimer);
+  wardSearchTimer = setTimeout(applyWardFilters, 400);
+}
+
+function clearWardFilters() {
+  var search = document.getElementById('ward-search-input');
+  var province = document.getElementById('ward-filter-province');
+  var area = document.getElementById('ward-filter-area');
+  var status = document.getElementById('ward-filter-status');
+  if (search) search.value = '';
+  if (province) province.value = '';
+  if (area) area.value = '';
+  if (status) status.value = '';
+  applyWardFilters();
+}
+
+function applyLocationFilters() {
+  if (document.getElementById('province-section')) return applyProvinceFilters();
+  if (document.getElementById('ward-section')) return applyWardFilters();
 }
 
 function debounceLocationSearch() {
-  clearTimeout(locationSearchTimer);
-  locationSearchTimer = setTimeout(applyLocationFilters, 400);
+  if (document.getElementById('province-section')) return debounceProvinceSearch();
+  if (document.getElementById('ward-section')) return debounceWardSearch();
 }
 
 function openProvinceModal(mode, province) {

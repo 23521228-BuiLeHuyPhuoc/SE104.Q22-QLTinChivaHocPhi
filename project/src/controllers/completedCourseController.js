@@ -302,7 +302,7 @@ const updateCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
     const recordId = parsePositiveInteger(id);
-    if (!recordId) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+  if (!recordId) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const { MaSv, MaMonHoc, MaHocKy, MaLop, LanHoc, KetQua, GhiChu } = req.body;
     const data = updateAudit(req);
 
@@ -338,7 +338,7 @@ const deleteCompletedCourse = async (req, res) => {
   try {
     const { id } = req.params;
     const recordId = parsePositiveInteger(id);
-    if (!recordId) return res.status(400).json({ success: false, message: 'ID khong hop le' });
+  if (!recordId) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     await prisma.MONDAHOC.update({ where: { id: recordId }, data: softDeleteAudit(req) });
     res.json({ success: true, message: 'Đã chuyển môn đã học vào thùng rác' });
   } catch (error) {

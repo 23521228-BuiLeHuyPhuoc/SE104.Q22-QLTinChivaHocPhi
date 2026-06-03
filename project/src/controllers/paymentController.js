@@ -143,7 +143,7 @@ const buildVnpayUrl = (receipt, amount, req) => {
     vnp_Amount: Math.round(amount * 100),
     vnp_CurrCode: 'VND',
     vnp_TxnRef: String(receipt.SoPhieuThu),
-    vnp_OrderInfo: `Thanh toan hoc phi ${receipt.SoPhieuThu}`,
+    vnp_OrderInfo: `Thanh toán học phí ${receipt.SoPhieuThu}`,
     vnp_OrderType: 'billpayment',
     vnp_Locale: 'vn',
     vnp_ReturnUrl: returnUrl,
@@ -163,7 +163,7 @@ const buildZalopayUrl = (receipt, amount) => {
     app_id: appId,
     app_trans_id: appTransId,
     amount: String(Math.round(amount)),
-    description: `Thanh toan hoc phi ${receipt.SoPhieuThu}`
+    description: `Thanh toán học phí ${receipt.SoPhieuThu}`
   });
   return `https://sb-openapi.zalopay.vn/v2/gateway?${payload.toString()}`;
 };
@@ -471,14 +471,14 @@ const markOnlineResult = async (receiptId, success, transactionCode, providerAmo
     const receiptAmount = Number(existing.SoTienThu || 0);
     const confirmedAmount = Number(providerAmount);
     if (!Number.isFinite(confirmedAmount) || confirmedAmount <= 0) {
-      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_INVALID', message: 'So tien callback tu cong thanh toan khong hop le' };
+      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_INVALID', message: 'Số tiền callback từ cổng thanh toán không hợp lệ' };
     }
     if (confirmedAmount !== receiptAmount) {
-      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_MISMATCH', message: 'So tien callback tu cong thanh toan khong khop phieu thu' };
+      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_MISMATCH', message: 'Số tiền callback từ cổng thanh toán không khớp phiếu thu' };
     }
     const remaining = getRemainingAmount(existing.PHIEUDANGKY);
     if (receiptAmount !== remaining) {
-      throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'So tien callback khong khop hoc phi con phai dong hoac phieu da duoc thanh toan bang giao dich khac' };
+      throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'Số tiền callback không khớp học phí còn phải đóng hoặc phiếu đã được thanh toán bằng giao dịch khác' };
     }
   }
 

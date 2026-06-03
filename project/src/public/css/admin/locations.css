@@ -1,0 +1,221 @@
+.location-page {
+  display: grid;
+  gap: var(--spacing-lg);
+}
+
+.location-overview {
+  display: grid;
+  gap: var(--spacing-md);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.location-overview-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.location-stat {
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: var(--spacing-md);
+  min-height: 92px;
+  padding: var(--spacing-lg);
+}
+
+.location-stat-icon {
+  align-items: center;
+  background: var(--color-primary-50);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  display: inline-flex;
+  flex: 0 0 48px;
+  font-size: 28px;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.location-stat:nth-child(2) .location-stat-icon {
+  background: var(--color-success-bg);
+  border-color: rgba(34, 197, 94, 0.2);
+  color: var(--color-success);
+}
+
+.location-stat-content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.location-stat-content strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.location-stat-content span {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.location-section {
+  overflow: hidden;
+}
+
+.location-section-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: space-between;
+  padding: var(--spacing-lg);
+}
+
+.location-section-title {
+  align-items: center;
+  display: flex;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.location-section-title > .material-symbols-rounded {
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  display: inline-flex;
+  flex: 0 0 38px;
+  font-size: 24px;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.location-section-title h2 {
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.location-section-title small {
+  color: var(--text-tertiary);
+  display: block;
+  font-size: var(--font-size-xs);
+  margin-top: 3px;
+}
+
+.location-toolbar {
+  align-items: center;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+}
+
+.location-toolbar .search-box {
+  flex: 1 1 320px;
+  max-width: none;
+}
+
+.location-toolbar .filter-group {
+  flex: 2 1 420px;
+  justify-content: flex-end;
+}
+
+.location-toolbar .filter-group .form-control,
+.location-toolbar .filter-group select {
+  flex: 1 1 190px;
+  max-width: 260px;
+}
+
+.location-toolbar-wide .filter-group {
+  flex-basis: 640px;
+}
+
+.location-toolbar .btn .material-symbols-rounded,
+.location-section-header .btn .material-symbols-rounded,
+.location-table .btn .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.location-table {
+  min-width: 860px;
+}
+
+.location-table td:nth-last-child(2),
+.location-table th:nth-last-child(2) {
+  white-space: nowrap;
+}
+
+.location-table .table-actions {
+  flex-wrap: nowrap;
+}
+
+.location-pagination {
+  border-top: 1px solid var(--border-light);
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+}
+
+.location-pagination .pagination {
+  margin-top: var(--spacing-md);
+}
+
+@media (max-width: 980px) {
+  .location-toolbar,
+  .location-section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .location-section-header .btn,
+  .location-toolbar .filter-group,
+  .location-toolbar .filter-group .btn,
+  .location-toolbar .search-box {
+    width: 100%;
+  }
+
+  .location-toolbar .filter-group {
+    justify-content: flex-start;
+  }
+
+  .location-toolbar .filter-group .form-control,
+  .location-toolbar .filter-group select {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .location-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .location-stat {
+    min-height: 78px;
+    padding: var(--spacing-md);
+  }
+
+  .location-section-header,
+  .location-toolbar {
+    padding: var(--spacing-md);
+  }
+
+  .location-section-title h2 {
+    font-size: var(--font-size-md);
+  }
+
+  .location-pagination {
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+  }
+}

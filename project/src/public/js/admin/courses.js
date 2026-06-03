@@ -63,7 +63,7 @@ async function saveCourse() {
   };
 
   if (!data.MaMonHoc || !data.TenMonHoc || !data.MaKhoa || !data.LoaiMon || !Number.isInteger(data.SoTiet) || data.SoTiet <= 0) {
-    showToast('Vui long nhap day du thong tin hop le', 'error');
+    showToast('Vui lòng nhập đầy đủ thông tin hợp lệ', 'error');
     return;
   }
 

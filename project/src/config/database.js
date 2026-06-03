@@ -1,14 +1,13 @@
 const { PrismaClient } = require('@prisma/client');
 const { buildErrorResponse } = require('../utils/errorHandler');
+const {
+  DEFAULT_USER_GROUPS,
+  DEFAULT_GROUP_PERMISSIONS,
+  LEGACY_PERMISSION_CODES,
+  PERMISSION_CATALOG
+} = require('../utils/permissionCatalog');
 
 const prisma = new PrismaClient({});
-
-const DEFAULT_USER_GROUPS = [
-  { MaNhom: 'ADMIN', TenNhom: 'Admin hệ thống' },
-  { MaNhom: 'ADMIN_DAOTAO', TenNhom: 'Quản trị viên đào tạo' },
-  { MaNhom: 'ADMIN_TAICHINH', TenNhom: 'Quản trị viên tài chính' },
-  { MaNhom: 'SINHVIEN', TenNhom: 'Sinh viên' }
-];
 
 const AUDITED_SOFT_DELETE_TABLES = [
   'SINHVIEN',
@@ -29,6 +28,52 @@ const AUDITED_SOFT_DELETE_TABLES = [
   'NHOMNGUOIDUNG',
   'TIETHOC'
 ];
+
+const ensureDefaultAuthorizationData = async () => {
+  for (const group of DEFAULT_USER_GROUPS) {
+    await prisma.NHOMNGUOIDUNG.upsert({
+      where: { MaNhom: group.MaNhom },
+      create: group,
+      update: { TenNhom: group.TenNhom }
+    });
+  }
+
+  for (const permission of PERMISSION_CATALOG) {
+    await prisma.CHUCNANG.upsert({
+      where: { MaChucNang: permission.code },
+      create: {
+        MaChucNang: permission.code,
+        TenChucNang: permission.name,
+        TenManHinhDuocLoad: permission.screen,
+        DaXoa: false
+      },
+      update: {
+        TenChucNang: permission.name,
+        TenManHinhDuocLoad: permission.screen,
+        DaXoa: false,
+        NguoiXoa: null,
+        NgayXoa: null
+      }
+    });
+  }
+
+  await prisma.PHANQUYEN.deleteMany({
+    where: { MaChucNang: { in: LEGACY_PERMISSION_CODES } }
+  });
+
+  await prisma.CHUCNANG.updateMany({
+    where: { MaChucNang: { in: LEGACY_PERMISSION_CODES } },
+    data: { DaXoa: true, NgayXoa: new Date() }
+  });
+
+  for (const [MaNhom, permissionCodes] of Object.entries(DEFAULT_GROUP_PERMISSIONS)) {
+    if (!permissionCodes.length) continue;
+    await prisma.PHANQUYEN.createMany({
+      data: permissionCodes.map(MaChucNang => ({ MaNhom, MaChucNang })),
+      skipDuplicates: true
+    });
+  }
+};
 
 const ensureAuthSchema = async () => {
   const qi = String.fromCharCode(34);
@@ -2190,12 +2235,54 @@ const ensureAuthSchema = async () => {
       update: { TenNhom: group.TenNhom }
     });
   }
+
+  for (const permission of PERMISSION_CATALOG) {
+    await prisma.CHUCNANG.upsert({
+      where: { MaChucNang: permission.code },
+      create: {
+        MaChucNang: permission.code,
+        TenChucNang: permission.name,
+        TenManHinhDuocLoad: permission.screen,
+        DaXoa: false
+      },
+      update: {
+        TenChucNang: permission.name,
+        TenManHinhDuocLoad: permission.screen,
+        DaXoa: false,
+        NguoiXoa: null,
+        NgayXoa: null
+      }
+    });
+  }
+
+  await prisma.PHANQUYEN.deleteMany({
+    where: { MaChucNang: { in: LEGACY_PERMISSION_CODES } }
+  });
+
+  await prisma.CHUCNANG.updateMany({
+    where: { MaChucNang: { in: LEGACY_PERMISSION_CODES } },
+    data: { DaXoa: true, NgayXoa: new Date() }
+  });
+
+  for (const [MaNhom, permissionCodes] of Object.entries(DEFAULT_GROUP_PERMISSIONS)) {
+    if (!permissionCodes.length) continue;
+    await prisma.PHANQUYEN.createMany({
+      data: permissionCodes.map(MaChucNang => ({ MaNhom, MaChucNang })),
+      skipDuplicates: true
+    });
+  }
 };
 
 // Test connection on startup and bring older local databases up to the current auth schema.
 prisma.ready = prisma.$connect()
   .then(async () => {
     console.log('Connected to PostgreSQL database via Prisma');
+    await ensureDefaultAuthorizationData()
+      .then(() => console.log('Authorization defaults are ready'))
+      .catch(err => {
+        const response = buildErrorResponse(err, 'Authorization defaults sync warning');
+        console.error('Authorization defaults sync warning:', response.message);
+      });
     await ensureAuthSchema();
     console.log('Auth schema is ready');
   })

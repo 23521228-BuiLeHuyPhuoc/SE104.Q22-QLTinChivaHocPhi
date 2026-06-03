@@ -1,0 +1,136 @@
+extends ../../layouts/admin
+
+block styles
+  link(rel="stylesheet" href="/css/admin/locations.css")
+
+block content
+  .location-page
+    .location-overview.location-overview-single
+      .location-stat
+        span.material-symbols-rounded.location-stat-icon home_pin
+        .location-stat-content
+          strong= totalRecords || 0
+          span Phường/Xã
+
+    section.card.location-section#ward-section
+      .location-section-header
+        .location-section-title
+          span.material-symbols-rounded home_pin
+          div
+            h2 Phường/Xã
+            small= (totalRecords || 0) + ' bản ghi'
+        button.btn.btn-primary(type="button" onclick="openWardAdd()")
+          span.material-symbols-rounded add
+          | Thêm phường/xã
+
+      .location-toolbar.location-toolbar-wide
+        .search-box
+          input#ward-search-input(type="text" placeholder="Tìm mã, tên phường/xã, tỉnh..." value=(search || '') onkeyup="debounceWardSearch()")
+        .filter-group
+          select.form-control#ward-filter-province(onchange="applyWardFilters()")
+            option(value="" selected=(!MaTinh)) Tất cả tỉnh
+            if provinceOptions && provinceOptions.length
+              each p in provinceOptions
+                option(value=p.MaTinh selected=(MaTinh === p.MaTinh))= p.TenTinh + ' (' + p.MaTinh + ')'
+          select.form-control#ward-filter-area(onchange="applyWardFilters()")
+            option(value="" selected=(!KhuVuc)) Tất cả khu vực
+            option(value="KV1" selected=(KhuVuc === 'KV1')) KV1
+            option(value="KV2" selected=(KhuVuc === 'KV2')) KV2
+            option(value="KV2-NT" selected=(KhuVuc === 'KV2-NT')) KV2-NT
+            option(value="KV3" selected=(KhuVuc === 'KV3')) KV3
+          select.form-control#ward-filter-status(onchange="applyWardFilters()")
+            option(value="" selected=(!status)) Tất cả trạng thái
+            option(value="active" selected=(status === 'active')) Đang dùng
+            option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+          button.btn.btn-outline(type="button" onclick="clearWardFilters()")
+            span.material-symbols-rounded filter_alt_off
+            | Xóa lọc
+
+      .table-container
+        table.data-table.location-table
+          thead
+            tr
+              th Mã phường/xã
+              th Tên phường/xã
+              th Loại
+              th Tỉnh/Thành phố
+              th Khu vực
+              th Trạng thái
+              th Ngày tạo
+              th Thao tác
+          tbody
+            if wards && wards.length
+              each w in wards
+                tr
+                  td.mono= w.MaPhuongXa
+                  td
+                    strong= w.TenPhuongXa
+                  td= w.Loai || '-'
+                  td= w.TINH ? w.TINH.TenTinh + ' (' + w.MaTinh + ')' : w.MaTinh
+                  td= w.KhuVuc || '-'
+                  td
+                    span.badge(class=w.TrangThai === false ? 'badge-secondary' : 'badge-success')= w.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
+                  td= w.NgayTao ? new Date(w.NgayTao).toLocaleDateString('vi-VN') : '-'
+                  td.table-actions
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(w) onclick="openWardEdit(this)")
+                      span.material-symbols-rounded edit
+                      | Sửa
+            else
+              tr
+                td(colspan="8")
+                  .empty-state Không có phường/xã phù hợp
+
+      if totalPages && totalPages > 1
+        .location-pagination
+          include ../../partials/pagination
+
+block modals
+  #ward-modal.modal-overlay(onclick="if(event.target===this)closeWardModal()")
+    .modal
+      .modal-header
+        h2#ward-modal-title Thêm phường/xã
+        button.modal-close(type="button" onclick="closeWardModal()")
+          span.material-symbols-rounded close
+      .modal-body
+        form#ward-form
+          .form-row
+            .form-group
+              label(for="ward-ma") Mã phường/xã
+              input.form-control#ward-ma(type="text" required placeholder="VD: 2659")
+            .form-group
+              label(for="ward-ten") Tên phường/xã
+              input.form-control#ward-ten(type="text" required placeholder="VD: Phường Vũng Tàu")
+          .form-row
+            .form-group
+              label(for="ward-tinh") Tỉnh/Thành phố
+              select.form-control#ward-tinh(required)
+                option(value="") Chọn tỉnh
+                if provinceOptions && provinceOptions.length
+                  each p in provinceOptions
+                    if p.TrangThai !== false
+                      option(value=p.MaTinh)= p.TenTinh + ' (' + p.MaTinh + ')'
+            .form-group
+              label(for="ward-loai") Loại
+              select.form-control#ward-loai
+                option(value="Phường") Phường
+                option(value="Xã") Xã
+                option(value="Thị trấn") Thị trấn
+          .form-row
+            .form-group
+              label(for="ward-khuvuc") Khu vực
+              select.form-control#ward-khuvuc
+                option(value="KV1") KV1
+                option(value="KV2") KV2
+                option(value="KV2-NT") KV2-NT
+                option(value="KV3") KV3
+            .form-group
+              label(for="ward-trangthai") Trạng thái
+              select.form-control#ward-trangthai
+                option(value="true") Đang dùng
+                option(value="false") Tạm khóa
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeWardModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveWard()") Lưu
+
+block scripts
+  script(src="/js/admin/locations.js")

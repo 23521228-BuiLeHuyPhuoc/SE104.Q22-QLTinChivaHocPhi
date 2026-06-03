@@ -1,0 +1,106 @@
+extends ../../layouts/admin
+
+block styles
+  link(rel="stylesheet" href="/css/admin/locations.css")
+
+block content
+  .location-page
+    .location-overview.location-overview-single
+      .location-stat
+        span.material-symbols-rounded.location-stat-icon location_city
+        .location-stat-content
+          strong= totalRecords || 0
+          span Tỉnh/Thành phố
+
+    section.card.location-section#province-section
+      .location-section-header
+        .location-section-title
+          span.material-symbols-rounded location_city
+          div
+            h2 Tỉnh/Thành phố
+            small= (totalRecords || 0) + ' bản ghi'
+        button.btn.btn-primary(type="button" onclick="openProvinceAdd()")
+          span.material-symbols-rounded add
+          | Thêm tỉnh
+
+      .location-toolbar
+        .search-box
+          input#province-search-input(type="text" placeholder="Tìm mã, tên tỉnh/thành phố..." value=(search || '') onkeyup="debounceProvinceSearch()")
+        .filter-group
+          select.form-control#province-filter-status(onchange="applyProvinceFilters()")
+            option(value="" selected=(!status)) Tất cả trạng thái
+            option(value="active" selected=(status === 'active')) Đang dùng
+            option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+          button.btn.btn-outline(type="button" onclick="clearProvinceFilters()")
+            span.material-symbols-rounded filter_alt_off
+            | Xóa lọc
+
+      .table-container
+        table.data-table.location-table
+          thead
+            tr
+              th Mã tỉnh
+              th Tên tỉnh/thành phố
+              th Loại
+              th Số phường/xã
+              th Trạng thái
+              th Ngày tạo
+              th Thao tác
+          tbody
+            if provinces && provinces.length
+              each p in provinces
+                tr
+                  td.mono= p.MaTinh
+                  td
+                    strong= p.TenTinh
+                  td= p.LoaiTinh || '-'
+                  td= p._count ? p._count.PHUONGXA : 0
+                  td
+                    span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
+                  td= p.NgayTao ? new Date(p.NgayTao).toLocaleDateString('vi-VN') : '-'
+                  td.table-actions
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openProvinceEdit(this)")
+                      span.material-symbols-rounded edit
+                      | Sửa
+            else
+              tr
+                td(colspan="7")
+                  .empty-state Không có tỉnh/thành phố phù hợp
+
+      if totalPages && totalPages > 1
+        .location-pagination
+          include ../../partials/pagination
+
+block modals
+  #province-modal.modal-overlay(onclick="if(event.target===this)closeProvinceModal()")
+    .modal
+      .modal-header
+        h2#province-modal-title Thêm tỉnh/thành phố
+        button.modal-close(type="button" onclick="closeProvinceModal()")
+          span.material-symbols-rounded close
+      .modal-body
+        form#province-form
+          .form-row
+            .form-group
+              label(for="province-ma") Mã tỉnh
+              input.form-control#province-ma(type="text" required placeholder="VD: 79")
+            .form-group
+              label(for="province-ten") Tên tỉnh/thành phố
+              input.form-control#province-ten(type="text" required placeholder="VD: Thành phố Hồ Chí Minh")
+          .form-row
+            .form-group
+              label(for="province-loai") Loại
+              select.form-control#province-loai
+                option(value="Tỉnh") Tỉnh
+                option(value="Thành phố") Thành phố
+            .form-group
+              label(for="province-trangthai") Trạng thái
+              select.form-control#province-trangthai
+                option(value="true") Đang dùng
+                option(value="false") Tạm khóa
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeProvinceModal()") Hủy
+        button.btn.btn-primary(type="button" onclick="saveProvince()") Lưu
+
+block scripts
+  script(src="/js/admin/locations.js")

@@ -462,7 +462,7 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: `Mã OTP phải gồm ${RESET_OTP_LENGTH} chữ số` });
     }
     if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
-      return res.status(400).json({ success: false, message: `Mat khau phai co it nhat ${MIN_PASSWORD_LENGTH} ky tu` });
+      return res.status(400).json({ success: false, message: `Mật khẩu phải có ít nhất ${MIN_PASSWORD_LENGTH} ký tự` });
     }
 
     const account = await findResetAccount(identifier, role);
@@ -745,7 +745,7 @@ const uploadAvatar = async (req, res) => {
         : '';
       return res.status(500).json({
         success: false,
-        message: `Chưa cấu hình đủ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY va CLOUDINARY_API_SECRET.${missing}`
+        message: `Chưa cấu hình đủ CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET.${missing}`
       });
     }
     return sendErrorResponse(res, error, getCloudinaryUploadErrorMessage(error));
@@ -765,7 +765,7 @@ const changePassword = async (req, res) => {
     if (String(newPassword).length < MIN_PASSWORD_LENGTH) {
       return res.status(400).json({
         success: false,
-        message: `Mat khau moi phai co it nhat ${MIN_PASSWORD_LENGTH} ky tu`
+        message: `Mật khẩu mới phải có ít nhất ${MIN_PASSWORD_LENGTH} ký tự`
       });
     }
 

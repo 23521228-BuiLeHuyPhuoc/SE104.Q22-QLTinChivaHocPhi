@@ -112,14 +112,14 @@ const createCourse = async (req, res) => {
     const lessonCount = parsePositiveInteger(SoTiet);
 
     if (!courseId || !courseName || !lessonCount || !courseType || !facultyId) {
-      return res.status(400).json({ success: false, message: 'Vui long nhap day du thong tin hop le' });
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin hợp lệ' });
     }
     if (!VALID_COURSE_TYPES.has(courseType)) {
-      return res.status(400).json({ success: false, message: 'Loai mon hoc khong hop le' });
+      return res.status(400).json({ success: false, message: 'Loại môn học không hợp lệ' });
     }
 
     const existing = await prisma.MONHOC.findUnique({ where: { MaMonHoc: courseId } });
-    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Ma mon hoc da ton tai' });
+    if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã môn học đã tồn tại' });
     const course = await prisma.MONHOC.create({
       data: {
         MaMonHoc: courseId,
@@ -131,46 +131,46 @@ const createCourse = async (req, res) => {
         ...updateAudit(req)
       }
     });
-    res.status(201).json({ success: true, message: 'Tao mon hoc thanh cong', data: course });
+    res.status(201).json({ success: true, message: 'Tạo môn học thành công', data: course });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi may chu', 'Create course error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Create course error:');
   }
 };
 
 const updateCourse = async (req, res) => {
   try {
     const existing = await prisma.MONHOC.findFirst({ where: { MaMonHoc: req.params.id, DaXoa: false } });
-    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay mon hoc' });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
     const { TenMonHoc, SoTiet, LoaiMon, MaKhoa, MoTa, TrangThai } = req.body;
     const data = {};
 
     if (TenMonHoc !== undefined) {
       const courseName = normalizeText(TenMonHoc);
-      if (!courseName) return res.status(400).json({ success: false, message: 'Ten mon hoc khong duoc de trong' });
+      if (!courseName) return res.status(400).json({ success: false, message: 'Tên môn học không được để trống' });
       data.TenMonHoc = courseName;
     }
     if (SoTiet !== undefined) {
       const lessonCount = parsePositiveInteger(SoTiet);
-      if (!lessonCount) return res.status(400).json({ success: false, message: 'So tiet phai la so nguyen duong' });
+      if (!lessonCount) return res.status(400).json({ success: false, message: 'Số tiết phải là số nguyên dương' });
       data.SoTiet = lessonCount;
     }
     if (LoaiMon !== undefined) {
       const courseType = normalizeText(LoaiMon).toUpperCase();
-      if (!VALID_COURSE_TYPES.has(courseType)) return res.status(400).json({ success: false, message: 'Loai mon hoc khong hop le' });
+      if (!VALID_COURSE_TYPES.has(courseType)) return res.status(400).json({ success: false, message: 'Loại môn học không hợp lệ' });
       data.LoaiMon = courseType;
     }
     if (MaKhoa !== undefined) {
       const facultyId = normalizeText(MaKhoa);
-      if (!facultyId) return res.status(400).json({ success: false, message: 'Khoa khong duoc de trong' });
+      if (!facultyId) return res.status(400).json({ success: false, message: 'Khoa không được để trống' });
       data.MaKhoa = facultyId;
     }
     if (MoTa !== undefined) data.MoTa = normalizeText(MoTa) || null;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.MONHOC.update({ where: { MaMonHoc: req.params.id }, data });
-    res.json({ success: true, message: 'Cap nhat mon hoc thanh cong', data: updated });
+    res.json({ success: true, message: 'Cập nhật môn học thành công', data: updated });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Loi may chu', 'Update course error:');
+        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Update course error:');
   }
 };
 

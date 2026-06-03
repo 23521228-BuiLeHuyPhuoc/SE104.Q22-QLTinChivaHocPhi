@@ -5,10 +5,54 @@ var funcEditMode = false;
 var funcEditId = null;
 var permGroupId = null;
 
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
 function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-groups').style.display = tab === 'groups' ? '' : 'none';
   document.getElementById('tab-functions').style.display = tab === 'functions' ? '' : 'none';
+}
+
+function getGroupPortal(groupId) {
+  return normalizeCode(groupId) === 'SINHVIEN' ? 'student' : 'admin';
+}
+
+function getFunctionPortal(func) {
+  if (func && func.LoaiQuyen) return func.LoaiQuyen;
+  var code = normalizeCode(func && func.MaChucNang);
+  var screen = String((func && func.TenManHinhDuocLoad) || '');
+  if (code.indexOf('STUDENT_') === 0 || screen.indexOf('/student') === 0) return 'student';
+  if (code.indexOf('ADMIN_') === 0 || screen.indexOf('/admin') === 0 || screen.indexOf('/api') === 0) return 'admin';
+  return 'shared';
+}
+
+function getPortalLabel(portal) {
+  if (portal === 'student') return 'Cổng sinh viên';
+  if (portal === 'admin') return 'Cổng quản trị';
+  return 'Dùng chung';
+}
+
+function getPortalBadgeClass(portal) {
+  if (portal === 'student') return 'badge-success';
+  if (portal === 'admin') return 'badge-info';
+  return 'badge-secondary';
+}
+
+function isFunctionAllowedForGroup(groupId, func) {
+  var portal = getFunctionPortal(func);
+  if (portal === 'shared') return true;
+  return portal === getGroupPortal(groupId);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,7 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (tab === 'functions') switchTab('functions');
 });
 
-// ── Group Modal ──
 function openGroupModal(mode, data) {
   groupEditMode = mode === 'edit';
   groupEditId = groupEditMode ? data.MaNhom : null;
@@ -32,11 +75,14 @@ function closeGroupModal() {
 }
 
 async function saveGroup() {
-  var MaNhom = document.getElementById('grp-ma').value.trim();
+  var MaNhom = normalizeCode(document.getElementById('grp-ma').value);
   var TenNhom = document.getElementById('grp-ten').value.trim();
-  if (!MaNhom || !TenNhom) { showToast('Vui lòng nhập đầy đủ thông tin', 'error'); return; }
+  if (!MaNhom || !TenNhom) {
+    showToast('Vui lòng nhập đầy đủ thông tin', 'error');
+    return;
+  }
 
-  var url = groupEditMode ? '/api/permissions/groups/' + groupEditId : '/api/permissions/groups';
+  var url = groupEditMode ? '/api/permissions/groups/' + encodeURIComponent(groupEditId) : '/api/permissions/groups';
   var res = await apiFetch(url, { method: groupEditMode ? 'PUT' : 'POST', body: { MaNhom: MaNhom, TenNhom: TenNhom } });
   if (res.success) {
     showToast(res.message, 'success');
@@ -48,7 +94,7 @@ async function saveGroup() {
 
 async function deleteGroup(id) {
   if (!confirm('Xóa nhóm "' + id + '"?')) return;
-  var res = await apiFetch('/api/permissions/groups/' + id, { method: 'DELETE' });
+  var res = await apiFetch('/api/permissions/groups/' + encodeURIComponent(id), { method: 'DELETE' });
   if (res.success) {
     showToast(res.message, 'success');
     setTimeout(function() { location.reload(); }, 500);
@@ -57,11 +103,10 @@ async function deleteGroup(id) {
   }
 }
 
-// ── Function Modal ──
 function openFunctionModal(mode, data) {
   funcEditMode = mode === 'edit';
   funcEditId = funcEditMode ? data.MaChucNang : null;
-  document.getElementById('function-modal-title').textContent = funcEditMode ? 'Sửa chức năng' : 'Thêm chức năng';
+  document.getElementById('function-modal-title').textContent = funcEditMode ? 'Sửa quyền' : 'Thêm quyền';
   document.getElementById('func-ma').value = funcEditMode ? data.MaChucNang : '';
   document.getElementById('func-ten').value = funcEditMode ? data.TenChucNang : '';
   document.getElementById('func-manhinh').value = funcEditMode ? data.TenManHinhDuocLoad : '';
@@ -74,12 +119,15 @@ function closeFunctionModal() {
 }
 
 async function saveFunction() {
-  var MaChucNang = document.getElementById('func-ma').value.trim();
+  var MaChucNang = normalizeCode(document.getElementById('func-ma').value);
   var TenChucNang = document.getElementById('func-ten').value.trim();
   var TenManHinhDuocLoad = document.getElementById('func-manhinh').value.trim();
-  if (!MaChucNang || !TenChucNang || !TenManHinhDuocLoad) { showToast('Vui lòng nhập đầy đủ', 'error'); return; }
+  if (!MaChucNang || !TenChucNang || !TenManHinhDuocLoad) {
+    showToast('Vui lòng nhập đầy đủ thông tin', 'error');
+    return;
+  }
 
-  var url = funcEditMode ? '/api/permissions/functions/' + funcEditId : '/api/permissions/functions';
+  var url = funcEditMode ? '/api/permissions/functions/' + encodeURIComponent(funcEditId) : '/api/permissions/functions';
   var res = await apiFetch(url, {
     method: funcEditMode ? 'PUT' : 'POST',
     body: { MaChucNang: MaChucNang, TenChucNang: TenChucNang, TenManHinhDuocLoad: TenManHinhDuocLoad }
@@ -93,8 +141,8 @@ async function saveFunction() {
 }
 
 async function deleteFunction(id) {
-  if (!confirm('Xóa chức năng "' + id + '"?')) return;
-  var res = await apiFetch('/api/permissions/functions/' + id, { method: 'DELETE' });
+  if (!confirm('Xóa quyền "' + id + '"?')) return;
+  var res = await apiFetch('/api/permissions/functions/' + encodeURIComponent(id), { method: 'DELETE' });
   if (res.success) {
     showToast(res.message, 'success');
     setTimeout(function() { location.reload(); }, 500);
@@ -103,7 +151,51 @@ async function deleteFunction(id) {
   }
 }
 
-// ── Permission Modal ──
+function renderPermissionList(groupId, allFuncs, currentPerms) {
+  var allowedFuncs = allFuncs.filter(function(func) {
+    return isFunctionAllowedForGroup(groupId, func);
+  });
+
+  if (allowedFuncs.length === 0) {
+    return '<div class="empty-state">Không có quyền phù hợp với nhóm này</div>';
+  }
+
+  var currentSet = new Set(currentPerms);
+  var sections = allowedFuncs.reduce(function(map, func) {
+    var portal = getFunctionPortal(func);
+    if (!map[portal]) map[portal] = [];
+    map[portal].push(func);
+    return map;
+  }, {});
+
+  var portalOrder = ['admin', 'student', 'shared'];
+  var html = '<div style="max-height:420px;overflow-y:auto">';
+
+  portalOrder.forEach(function(portal) {
+    var funcs = sections[portal] || [];
+    if (funcs.length === 0) return;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 6px">';
+    html += '<span class="badge ' + getPortalBadgeClass(portal) + '">' + escapeHtml(getPortalLabel(portal)) + '</span>';
+    html += '<small style="color:var(--text-muted)">' + funcs.length + ' quyền</small>';
+    html += '</div>';
+
+    funcs.forEach(function(func) {
+      var code = normalizeCode(func.MaChucNang);
+      var checked = currentSet.has(code) ? ' checked' : '';
+      html += '<label style="display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border-light);gap:12px;cursor:pointer">';
+      html += '<input type="checkbox" class="perm-checkbox" value="' + escapeHtml(code) + '"' + checked + ' style="width:18px;height:18px;margin-top:2px">';
+      html += '<span style="display:block;min-width:0">';
+      html += '<strong>' + escapeHtml(func.TenChucNang) + '</strong><br>';
+      html += '<small style="color:var(--text-muted)">' + escapeHtml(code) + ' - ' + escapeHtml(func.TenManHinhDuocLoad) + '</small>';
+      html += '</span>';
+      html += '</label>';
+    });
+  });
+
+  html += '</div>';
+  return html;
+}
+
 async function openPermissionModal(groupId, groupName) {
   permGroupId = groupId;
   document.getElementById('permission-modal-title').textContent = 'Phân quyền: ' + groupName;
@@ -115,26 +207,19 @@ async function openPermissionModal(groupId, groupName) {
 
   try {
     var funcRes = await apiFetch('/api/permissions/functions?all=true');
-    var permRes = await apiFetch('/api/permissions/groups/' + groupId + '/permissions');
+    var permRes = await apiFetch('/api/permissions/groups/' + encodeURIComponent(groupId) + '/permissions');
 
     var allFuncs = funcRes.data || [];
-    var currentPerms = (permRes.data || []).map(function(p) { return p.MaChucNang; });
+    var currentPerms = (permRes.data || []).map(function(permission) {
+      return normalizeCode(permission.MaChucNang);
+    });
 
     if (allFuncs.length === 0) {
-      listEl.innerHTML = '<div class="empty-state">Chưa có chức năng nào trong hệ thống</div>';
+      listEl.innerHTML = '<div class="empty-state">Chưa có quyền nào trong hệ thống</div>';
       return;
     }
 
-    var html = '<div style="max-height:400px;overflow-y:auto">';
-    allFuncs.forEach(function(f) {
-      var checked = currentPerms.indexOf(f.MaChucNang) >= 0 ? ' checked' : '';
-      html += '<label style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-light);gap:12px;cursor:pointer">';
-      html += '<input type="checkbox" class="perm-checkbox" value="' + f.MaChucNang + '"' + checked + ' style="width:18px;height:18px">';
-      html += '<div><strong>' + f.TenChucNang + '</strong><br><small style="color:var(--text-muted)">' + f.MaChucNang + ' — ' + f.TenManHinhDuocLoad + '</small></div>';
-      html += '</label>';
-    });
-    html += '</div>';
-    listEl.innerHTML = html;
+    listEl.innerHTML = renderPermissionList(groupId, allFuncs, currentPerms);
   } catch (e) {
     listEl.innerHTML = '<div class="empty-state">Lỗi tải dữ liệu</div>';
   }
@@ -148,10 +233,10 @@ async function savePermissions() {
   var checkboxes = document.querySelectorAll('.perm-checkbox');
   var permissions = [];
   checkboxes.forEach(function(cb) {
-    if (cb.checked) permissions.push(cb.value);
+    if (cb.checked) permissions.push(normalizeCode(cb.value));
   });
 
-  var res = await apiFetch('/api/permissions/groups/' + permGroupId + '/permissions', {
+  var res = await apiFetch('/api/permissions/groups/' + encodeURIComponent(permGroupId) + '/permissions', {
     method: 'PUT',
     body: { permissions: permissions }
   });

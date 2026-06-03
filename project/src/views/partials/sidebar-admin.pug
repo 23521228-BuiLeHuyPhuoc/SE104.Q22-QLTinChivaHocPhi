@@ -24,10 +24,13 @@ nav.sidebar.sidebar-admin(id="sidebar")
 
     if isSystem || isTraining
       .sidebar-section
-        .sidebar-section-title Dia danh
-        a.sidebar-link(href='/admin/locations' title='Tinh/phuong xa' class=(active === 'locations' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded map
-          span.link-label Tinh/phuong xa
+        .sidebar-section-title Địa danh
+        a.sidebar-link(href="/admin/locations/provinces" title="Tỉnh/Thành phố" class=(active === 'locations-provinces' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded location_city
+          span.link-label Tỉnh/Thành phố
+        a.sidebar-link(href="/admin/locations/wards" title="Phường/Xã" class=(active === 'locations-wards' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded home_pin
+          span.link-label Phường/Xã
 
     if isSystem || isTraining
       .sidebar-section

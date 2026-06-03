@@ -204,7 +204,7 @@ function exportIncompleteCsv() {
     showToast('Không có dữ liệu để xuất', 'info');
     return;
   }
-  var header = ['MSSV', 'HoTen', 'Nganh', 'Khoa', 'HocKy', 'PhaiDong', 'DaDong', 'ConNo', 'HanDongHocPhi', 'SoNgayQuaHan', 'TrangThai'];
+  var header = ['MSSV', 'Họ tên', 'Ngành', 'Khoa', 'Học kỳ', 'Phải đóng', 'Đã đóng', 'Còn nợ', 'Hạn đóng học phí', 'Số ngày quá hạn', 'Trạng thái'];
   var lines = [header.join(',')];
   currentIncompleteRows.forEach(function(row) {
     lines.push([

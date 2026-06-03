@@ -251,7 +251,7 @@ const uploadStudentAvatar = async (req, res) => {
     const { id } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Vui long chon anh dai dien' });
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ảnh đại diện' });
     }
 
     const student = await prisma.SINHVIEN.findFirst({
@@ -260,7 +260,7 @@ const uploadStudentAvatar = async (req, res) => {
     });
 
     if (!student) {
-      return res.status(404).json({ success: false, message: 'Khong tim thay sinh vien' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
     }
 
     const uploadResult = await uploadAvatarBuffer(req.file.buffer, {
@@ -293,15 +293,15 @@ const uploadStudentAvatar = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cap nhat anh dai dien sinh vien thanh cong',
+      message: 'Cập nhật ảnh đại diện sinh viên thành công',
       data: { avatarUrl }
     });
   } catch (error) {
     if (error.code === 'CLOUDINARY_NOT_CONFIGURED') {
-      return res.status(500).json({ success: false, message: 'Chua cau hinh Cloudinary de upload anh dai dien' });
+      return res.status(500).json({ success: false, message: 'Chưa cấu hình Cloudinary để upload ảnh đại diện' });
     }
 
-    return sendErrorResponse(res, error, 'Loi server', 'Upload student avatar error:');
+    return sendErrorResponse(res, error, 'Lỗi server', 'Upload student avatar error:');
   }
 };
 
@@ -322,22 +322,22 @@ const exportStudents = async (req, res) => {
     workbook.creator = 'EduPay';
     workbook.created = new Date();
 
-    const worksheet = workbook.addWorksheet('Sinh vien');
+    const worksheet = workbook.addWorksheet('Sinh viên');
     worksheet.columns = [
       { header: 'MSSV', key: 'MaSv', width: 15 },
-      { header: 'Ho ten', key: 'HoTen', width: 28 },
-      { header: 'Ngay sinh', key: 'NgaySinh', width: 15 },
-      { header: 'Gioi tinh', key: 'GioiTinh', width: 12 },
+      { header: 'Họ tên', key: 'HoTen', width: 28 },
+      { header: 'Ngày sinh', key: 'NgaySinh', width: 15 },
+      { header: 'Giới tính', key: 'GioiTinh', width: 12 },
       { header: 'CCCD', key: 'Cccd', width: 18 },
       { header: 'Email', key: 'Email', width: 28 },
       { header: 'SDT', key: 'Sdt', width: 16 },
-      { header: 'Nganh', key: 'TenNganh', width: 28 },
+      { header: 'Ngành', key: 'TenNganh', width: 28 },
       { header: 'Khoa', key: 'TenKhoa', width: 28 },
-      { header: 'Dan toc', key: 'TenDanToc', width: 18 },
-      { header: 'Phuong/Xa', key: 'TenPhuongXa', width: 24 },
-      { header: 'Tinh/Thanh pho', key: 'TenTinh', width: 24 },
-      { header: 'Doi tuong uu tien', key: 'DoiTuong', width: 36 },
-      { header: 'Trang thai', key: 'TrangThai', width: 18 }
+      { header: 'Dân tộc', key: 'TenDanToc', width: 18 },
+      { header: 'Phường/Xã', key: 'TenPhuongXa', width: 24 },
+      { header: 'Tỉnh/Thành phố', key: 'TenTinh', width: 24 },
+      { header: 'Đối tượng ưu tiên', key: 'DoiTuong', width: 36 },
+      { header: 'Trạng thái', key: 'TrangThai', width: 18 }
     ];
 
     worksheet.getRow(1).font = { bold: true };
@@ -378,14 +378,14 @@ const exportStudents = async (req, res) => {
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
-    return sendErrorResponse(res, error, 'Khong the xuat danh sach sinh vien', 'Export students error:');
+    return sendErrorResponse(res, error, 'Không thể xuất danh sách sinh viên', 'Export students error:');
   }
 };
 
 const importStudents = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'Vui long chon file Excel' });
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn file Excel' });
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -393,7 +393,7 @@ const importStudents = async (req, res) => {
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
-      return res.status(400).json({ success: false, message: 'File Excel khong co sheet du lieu' });
+      return res.status(400).json({ success: false, message: 'File Excel không có sheet dữ liệu' });
     }
 
     const results = {
@@ -423,20 +423,20 @@ const importStudents = async (req, res) => {
 
       const missing = [];
       if (!data.MaSv) missing.push('MSSV');
-      if (!data.HoTen) missing.push('Ho ten');
-      if (!data.NgaySinh) missing.push('Ngay sinh');
-      if (!data.GioiTinh) missing.push('Gioi tinh');
+      if (!data.HoTen) missing.push('Họ tên');
+      if (!data.NgaySinh) missing.push('Ngày sinh');
+      if (!data.GioiTinh) missing.push('Giới tính');
       if (!data.Cccd) missing.push('CCCD');
-      if (!data.MaNganh) missing.push('Ma nganh');
-      if (!data.MaDanToc) missing.push('Ma dan toc');
-      if (!data.MaPhuongXa) missing.push('Ma phuong xa');
-      if (!data.DiaChiLienHe) missing.push('Dia chi lien he');
+      if (!data.MaNganh) missing.push('Mã ngành');
+      if (!data.MaDanToc) missing.push('Mã dân tộc');
+      if (!data.MaPhuongXa) missing.push('Mã phường xã');
+      if (!data.DiaChiLienHe) missing.push('Địa chỉ liên hệ');
 
       if (missing.length) {
         results.errors.push({
           row: rowNumber,
           MaSv: data.MaSv,
-          reason: 'Thieu thong tin bat buoc: ' + missing.join(', ')
+          reason: 'Thiếu thông tin bắt buộc: ' + missing.join(', ')
         });
         return;
       }
@@ -450,7 +450,7 @@ const importStudents = async (req, res) => {
         results.errors.push({
           row: item.rowNumber,
           MaSv: item.data.MaSv,
-          reason: 'Trung MSSV trong file import'
+          reason: 'Trùng MSSV trong file import'
         });
         return;
       }
@@ -488,10 +488,10 @@ const importStudents = async (req, res) => {
       const { data, rowNumber } = item;
       const rowErrors = [];
 
-      if (existingSet.has(data.MaSv)) rowErrors.push('MSSV da ton tai');
-      if (!majorSet.has(data.MaNganh)) rowErrors.push('Ma nganh khong ton tai hoac da khoa');
-      if (!ethnicitySet.has(data.MaDanToc)) rowErrors.push('Ma dan toc khong ton tai hoac da khoa');
-      if (!wardSet.has(data.MaPhuongXa)) rowErrors.push('Ma phuong xa khong ton tai hoac da khoa');
+      if (existingSet.has(data.MaSv)) rowErrors.push('MSSV đã tồn tại');
+      if (!majorSet.has(data.MaNganh)) rowErrors.push('Mã ngành không tồn tại hoặc đã khóa');
+      if (!ethnicitySet.has(data.MaDanToc)) rowErrors.push('Mã dân tộc không tồn tại hoặc đã khóa');
+      if (!wardSet.has(data.MaPhuongXa)) rowErrors.push('Mã phường xã không tồn tại hoặc đã khóa');
 
       if (rowErrors.length) {
         results.errors.push({ row: rowNumber, MaSv: data.MaSv, reason: rowErrors.join('; ') });
@@ -510,7 +510,7 @@ const importStudents = async (req, res) => {
         results.errors.push({
           row: rowNumber,
           MaSv: data.MaSv,
-          reason: error.code === 'P2002' ? 'Du lieu bi trung unique' : 'Khong the tao sinh vien'
+          reason: error.code === 'P2002' ? 'Dữ liệu bị trùng unique' : 'Không thể tạo sinh viên'
         });
       }
     }
@@ -518,11 +518,11 @@ const importStudents = async (req, res) => {
     results.errorCount = results.errors.length;
     res.json({
       success: true,
-      message: 'Thanh cong ' + results.successCount + ', loi ' + results.errorCount,
+      message: 'Thành công ' + results.successCount + ', lỗi ' + results.errorCount,
       data: results
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Khong the nhap danh sach sinh vien', 'Import students error:');
+    return sendErrorResponse(res, error, 'Không thể nhập danh sách sinh viên', 'Import students error:');
   }
 };
 

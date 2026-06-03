@@ -4,9 +4,9 @@ block content
   .toolbar
     .toolbar-title
       h2.page-title Phân quyền hệ thống
-      p Quản lý nhóm người dùng, chức năng và phân quyền truy cập.
+      p Quản lý nhóm người dùng và quyền truy cập theo từng cổng.
     .filter-group
-      button.btn.btn-outline(type="button" onclick="switchTab('functions')") Chức năng
+      button.btn.btn-outline(type="button" onclick="switchTab('functions')") Quyền truy cập
       button.btn.btn-primary(type="button" onclick="openGroupModal('add')") Thêm nhóm
       a.btn.btn-outline(href="/admin/trash?entity=groups") Thùng rác nhóm
 
@@ -22,6 +22,7 @@ block content
             tr
               th Mã nhóm
               th Tên nhóm
+              th Loại nhóm
               th Số tài khoản
               th Số quyền
               th Thao tác
@@ -32,6 +33,8 @@ block content
                   td.mono= g.MaNhom
                   td
                     strong= g.TenNhom
+                  td
+                    span.badge(class=g.LoaiNhomBadgeClass || 'badge-secondary')= g.LoaiNhomLabel || 'Nhóm người dùng'
                   td= g._count ? g._count.TAIKHOAN : 0
                   td= g._count ? g._count.PHANQUYEN : 0
                   td.table-actions
@@ -41,7 +44,7 @@ block content
                       button.btn.btn-sm.btn-danger(type="button" onclick=`deleteGroup('${g.MaNhom}')`) Xóa
             else
               tr
-                td(colspan="5")
+                td(colspan="6")
                   .empty-state Chưa có nhóm nào
     - var currentPage = groupPage || 1
     - var totalPages = groupTotalPages || 0
@@ -54,22 +57,23 @@ block content
   #tab-functions.tab-panel(style="display:none")
     .toolbar
       .toolbar-title
-        h2.page-title Chức năng hệ thống
+        h2.page-title Quyền truy cập
       .filter-group
         button.btn.btn-outline(type="button" onclick="switchTab('groups')") Nhóm người dùng
-        button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm chức năng
-        a.btn.btn-outline(href="/admin/trash?entity=functions") Thùng rác chức năng
+        button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm quyền
+        a.btn.btn-outline(href="/admin/trash?entity=functions") Thùng rác quyền
     .card
       .card-header
-        h3 Danh sách chức năng
-        span.card-count= functions ? `${functions.length} chức năng` : '0 chức năng'
+        h3 Danh sách quyền
+        span.card-count= functions ? `${functions.length} quyền` : '0 quyền'
       .table-container
         table.data-table
           thead
             tr
-              th Mã chức năng
-              th Tên chức năng
-              th Màn hình
+              th Mã quyền
+              th Tên quyền
+              th Loại quyền
+              th Màn hình / đường dẫn
               th Thao tác
           tbody
             if functions && functions.length > 0
@@ -78,14 +82,16 @@ block content
                   td.mono= f.MaChucNang
                   td
                     strong= f.TenChucNang
+                  td
+                    span.badge(class=f.LoaiQuyenBadgeClass || 'badge-secondary')= f.LoaiQuyenLabel || 'Dùng chung'
                   td= f.TenManHinhDuocLoad
                   td.table-actions
                     button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openFunctionModal('edit', JSON.parse(this.dataset.record))") Sửa
                     button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFunction('${f.MaChucNang}')`) Xóa
             else
               tr
-                td(colspan="4")
-                  .empty-state Chưa có chức năng nào
+                td(colspan="5")
+                  .empty-state Chưa có quyền nào
     - currentPage = functionPage || 1
     - totalPages = functionTotalPages || 0
     - baseUrl = '/admin/permissions'
@@ -117,18 +123,18 @@ block modals
   #function-modal.modal-overlay(onclick="if(event.target===this)closeFunctionModal()")
     .modal
       .modal-header
-        h2#function-modal-title Thêm chức năng
+        h2#function-modal-title Thêm quyền
         button.modal-close(type="button" onclick="closeFunctionModal()") ×
       .modal-body
         form#function-form
           .form-group
-            label(for="func-ma") Mã chức năng
-            input.form-control#func-ma(type="text" required placeholder="VD: QL_SINHVIEN")
+            label(for="func-ma") Mã quyền
+            input.form-control#func-ma(type="text" required placeholder="VD: ADMIN_STUDENTS")
           .form-group
-            label(for="func-ten") Tên chức năng
+            label(for="func-ten") Tên quyền
             input.form-control#func-ten(type="text" required placeholder="VD: Quản lý sinh viên")
           .form-group
-            label(for="func-manhinh") Tên màn hình được load
+            label(for="func-manhinh") Màn hình / đường dẫn
             input.form-control#func-manhinh(type="text" required placeholder="VD: /admin/students")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeFunctionModal()") Hủy

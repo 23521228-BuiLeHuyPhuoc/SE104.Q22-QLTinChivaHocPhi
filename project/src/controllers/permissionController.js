@@ -2,8 +2,42 @@ const prisma = require('../config/database');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const {
+  decorateGroup,
+  decoratePermissionFunction,
+  getPermissionPortal,
+  isPermissionCompatibleWithGroup
+} = require('../utils/permissionCatalog');
 
 // ── CHUCNANG (Functions) ──
+
+const normalizeFunctionPayload = (body = {}) => ({
+  MaChucNang: String(body.MaChucNang || '').trim().toUpperCase(),
+  TenChucNang: String(body.TenChucNang || '').trim(),
+  TenManHinhDuocLoad: String(body.TenManHinhDuocLoad || '').trim()
+});
+
+const hasPortalMismatch = (permission) => {
+  const code = String(permission.MaChucNang || '').toUpperCase();
+  const screen = String(permission.TenManHinhDuocLoad || '');
+  const portal = getPermissionPortal(permission).key;
+  if (code.startsWith('ADMIN_') && portal !== 'admin') return true;
+  if (code.startsWith('STUDENT_') && portal !== 'student') return true;
+  if (screen.startsWith('/admin') && code.startsWith('STUDENT_')) return true;
+  if (screen.startsWith('/student') && code.startsWith('ADMIN_')) return true;
+  return false;
+};
+
+const decorateGroupForResponse = (group) => decorateGroup({
+  ...group,
+  _count: {
+    ...(group._count || {}),
+    PHANQUYEN: Array.isArray(group.PHANQUYEN)
+      ? group.PHANQUYEN.length
+      : group._count?.PHANQUYEN || 0
+  },
+  PHANQUYEN: undefined
+});
 
 const getAllFunctions = async (req, res) => {
   try {
@@ -14,7 +48,7 @@ const getAllFunctions = async (req, res) => {
         orderBy: { MaChucNang: 'asc' },
         include: { _count: { select: { PHANQUYEN: true } } }
       });
-      return res.json({ success: true, data: functions });
+      return res.json({ success: true, data: functions.map(decoratePermissionFunction) });
     }
 
     const { page, limit, skip } = getPagination(req.query);
@@ -28,7 +62,7 @@ const getAllFunctions = async (req, res) => {
       }),
       prisma.CHUCNANG.count({ where })
     ]);
-    res.json({ success: true, data: functions, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data: functions.map(decoratePermissionFunction), pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'getAllFunctions error:');
   }
@@ -36,9 +70,12 @@ const getAllFunctions = async (req, res) => {
 
 const createFunction = async (req, res) => {
   try {
-    const { MaChucNang, TenChucNang, TenManHinhDuocLoad } = req.body;
+    const { MaChucNang, TenChucNang, TenManHinhDuocLoad } = normalizeFunctionPayload(req.body);
     if (!MaChucNang || !TenChucNang || !TenManHinhDuocLoad) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
+    }
+    if (hasPortalMismatch({ MaChucNang, TenManHinhDuocLoad })) {
+      return res.status(400).json({ success: false, message: 'Mã quyền không khớp với cổng màn hình' });
     }
     const existing = await prisma.CHUCNANG.findUnique({ where: { MaChucNang } });
     if (existing) {
@@ -47,7 +84,7 @@ const createFunction = async (req, res) => {
     const func = await prisma.CHUCNANG.create({
       data: { MaChucNang, TenChucNang, TenManHinhDuocLoad, ...updateAudit(req) }
     });
-    res.status(201).json({ success: true, message: 'Tạo chức năng thành công', data: func });
+    res.status(201).json({ success: true, message: 'Tạo chức năng thành công', data: decoratePermissionFunction(func) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'createFunction error:');
   }
@@ -56,12 +93,15 @@ const createFunction = async (req, res) => {
 const updateFunction = async (req, res) => {
   try {
     const { id } = req.params;
-    const { TenChucNang, TenManHinhDuocLoad } = req.body;
+    const { TenChucNang, TenManHinhDuocLoad } = normalizeFunctionPayload(req.body);
+    if (hasPortalMismatch({ MaChucNang: id, TenManHinhDuocLoad })) {
+      return res.status(400).json({ success: false, message: 'Mã quyền không khớp với cổng màn hình' });
+    }
     const func = await prisma.CHUCNANG.update({
       where: { MaChucNang: id },
       data: { TenChucNang, TenManHinhDuocLoad, ...updateAudit(req) }
     });
-    res.json({ success: true, message: 'Cập nhật chức năng thành công', data: func });
+    res.json({ success: true, message: 'Cập nhật chức năng thành công', data: decoratePermissionFunction(func) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'updateFunction error:');
   }
@@ -87,10 +127,14 @@ const getAllGroups = async (req, res) => {
         where,
         orderBy: { MaNhom: 'asc' },
         include: {
-          _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
+          _count: { select: { TAIKHOAN: true } },
+          PHANQUYEN: {
+            where: { CHUCNANG: { DaXoa: false } },
+            select: { MaChucNang: true }
+          }
         }
       });
-      return res.json({ success: true, data: groups });
+      return res.json({ success: true, data: groups.map(decorateGroupForResponse) });
     }
 
     const { page, limit, skip } = getPagination(req.query);
@@ -101,12 +145,16 @@ const getAllGroups = async (req, res) => {
         take: limit,
         orderBy: { MaNhom: 'asc' },
         include: {
-          _count: { select: { TAIKHOAN: true, PHANQUYEN: true } }
+          _count: { select: { TAIKHOAN: true } },
+          PHANQUYEN: {
+            where: { CHUCNANG: { DaXoa: false } },
+            select: { MaChucNang: true }
+          }
         }
       }),
       prisma.NHOMNGUOIDUNG.count({ where })
     ]);
-    res.json({ success: true, data: groups, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data: groups.map(decorateGroupForResponse), pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'getAllGroups error:');
   }
@@ -114,7 +162,8 @@ const getAllGroups = async (req, res) => {
 
 const createGroup = async (req, res) => {
   try {
-    const { MaNhom, TenNhom } = req.body;
+    const MaNhom = String(req.body.MaNhom || '').trim().toUpperCase();
+    const TenNhom = String(req.body.TenNhom || '').trim();
     if (!MaNhom || !TenNhom) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     }
@@ -123,7 +172,7 @@ const createGroup = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã nhóm đã tồn tại' });
     }
     const group = await prisma.NHOMNGUOIDUNG.create({ data: { MaNhom, TenNhom, ...updateAudit(req) } });
-    res.status(201).json({ success: true, message: 'Tạo nhóm thành công', data: group });
+    res.status(201).json({ success: true, message: 'Tạo nhóm thành công', data: decorateGroup(group) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'createGroup error:');
   }
@@ -137,7 +186,7 @@ const updateGroup = async (req, res) => {
       where: { MaNhom: id },
       data: { TenNhom, ...updateAudit(req) }
     });
-    res.json({ success: true, message: 'Cập nhật nhóm thành công', data: group });
+    res.json({ success: true, message: 'Cập nhật nhóm thành công', data: decorateGroup(group) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'updateGroup error:');
   }
@@ -166,10 +215,19 @@ const getGroupPermissions = async (req, res) => {
   try {
     const { id } = req.params;
     const permissions = await prisma.PHANQUYEN.findMany({
-      where: { MaNhom: id },
+      where: {
+        MaNhom: id,
+        CHUCNANG: { DaXoa: false }
+      },
       include: { CHUCNANG: true }
     });
-    res.json({ success: true, data: permissions });
+    res.json({
+      success: true,
+      data: permissions.map(permission => ({
+        ...permission,
+        CHUCNANG: decoratePermissionFunction(permission.CHUCNANG)
+      }))
+    });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'getGroupPermissions error:');
   }
@@ -178,9 +236,16 @@ const getGroupPermissions = async (req, res) => {
 const assignPermission = async (req, res) => {
   try {
     const { id } = req.params;
-    const { MaChucNang } = req.body;
+    const MaChucNang = String(req.body.MaChucNang || '').trim().toUpperCase();
     if (!MaChucNang) {
       return res.status(400).json({ success: false, message: 'Thiếu mã chức năng' });
+    }
+    const func = await prisma.CHUCNANG.findFirst({ where: { MaChucNang, DaXoa: false } });
+    if (!func) {
+      return res.status(400).json({ success: false, message: 'Quyền không tồn tại hoặc đã bị xóa' });
+    }
+    if (!isPermissionCompatibleWithGroup(id, func)) {
+      return res.status(400).json({ success: false, message: 'Không thể gán quyền khác cổng cho nhóm này' });
     }
     await prisma.PHANQUYEN.create({
       data: { MaNhom: id, MaChucNang }
@@ -213,15 +278,34 @@ const bulkUpdatePermissions = async (req, res) => {
     if (!Array.isArray(permissions)) {
       return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
     }
+    const permissionCodes = [...new Set(permissions
+      .map(code => String(code || '').trim().toUpperCase())
+      .filter(Boolean))];
+
+    const funcs = permissionCodes.length > 0
+      ? await prisma.CHUCNANG.findMany({
+        where: { MaChucNang: { in: permissionCodes }, DaXoa: false }
+      })
+      : [];
+
+    if (funcs.length !== permissionCodes.length) {
+      return res.status(400).json({ success: false, message: 'Danh sách quyền có quyền không tồn tại hoặc đã bị xóa' });
+    }
+
+    const invalidFunc = funcs.find(func => !isPermissionCompatibleWithGroup(id, func));
+    if (invalidFunc) {
+      return res.status(400).json({ success: false, message: 'Không thể gán quyền khác cổng cho nhóm này' });
+    }
     // Delete all existing permissions for this group
     await prisma.PHANQUYEN.deleteMany({ where: { MaNhom: id } });
     // Create new permissions
-    if (permissions.length > 0) {
+    if (permissionCodes.length > 0) {
       await prisma.PHANQUYEN.createMany({
-        data: permissions.map(MaChucNang => ({ MaNhom: id, MaChucNang }))
+        data: permissionCodes.map(MaChucNang => ({ MaNhom: id, MaChucNang })),
+        skipDuplicates: true
       });
     }
-    res.json({ success: true, message: `Đã cập nhật ${permissions.length} quyền cho nhóm` });
+    res.json({ success: true, message: `Đã cập nhật ${permissionCodes.length} quyền cho nhóm` });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'bulkUpdatePermissions error:');
   }

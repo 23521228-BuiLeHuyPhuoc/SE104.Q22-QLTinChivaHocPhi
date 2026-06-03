@@ -3,6 +3,28 @@
 - const studentCode = user && user.studentInfo ? (user.studentInfo.MaSv || user.studentInfo.ma_sv || '') : (user ? (user.MaSv || '') : '')
 - const studentAvatarUrl = user ? (user.AnhDaiDien || (user.studentInfo ? user.studentInfo.AnhDaiDien : '') || '') : ''
 - const systemLogoUrl = typeof logoUrl !== 'undefined' ? logoUrl : '/uploads/logos/logo_tin_chi_hoc_phi_dark.svg?v=20260524201000'
+- const canAccess = typeof canAccessPath === 'function' ? canAccessPath : function() { return true }
+-
+  const studentSections = [
+    { title: 'Tổng quan', links: [
+      { href: '/student/dashboard', active: 'dashboard', icon: 'dashboard', label: 'Bảng điều khiển', title: 'Bảng điều khiển' }
+    ] },
+    { title: 'Học tập', links: [
+      { href: '/student/course-registration', active: 'course-registration', icon: 'add_task', label: 'Đăng ký học phần', title: 'Đăng ký học phần' },
+      { href: '/student/my-courses', active: 'my-courses', icon: 'checklist', label: 'Phiếu đăng ký học phần', title: 'Phiếu đăng ký học phần' },
+      { href: '/student/completed-courses', active: 'completed-courses', icon: 'history_edu', label: 'Môn đã học', title: 'Môn đã học' },
+      { href: '/student/my-schedule', active: 'my-schedule', icon: 'calendar_month', label: 'Thời khóa biểu', title: 'Thời khóa biểu' },
+      { href: '/student/curriculum', active: 'curriculum', icon: 'account_tree', label: 'Chương trình ĐT', title: 'Chương trình đào tạo' }
+    ] },
+    { title: 'Tài chính', links: [
+      { href: '/student/my-tuition', active: 'my-tuition', icon: 'account_balance_wallet', label: 'Học phí', title: 'Học phí' },
+      { href: '/student/my-payments', active: 'my-payments', icon: 'receipt_long', label: 'Lịch sử thanh toán', title: 'Lịch sử thanh toán' }
+    ] },
+    { title: 'Cá nhân', links: [
+      { href: '/student/profile', active: 'profile', icon: 'person', label: 'Hồ sơ', title: 'Hồ sơ' },
+      { href: '/student/notifications', active: 'notifications', icon: 'notifications', label: 'Thông báo', title: 'Thông báo' }
+    ] }
+  ];
 
 nav.sidebar.sidebar-student(id="sidebar")
   .sidebar-brand
@@ -10,47 +32,15 @@ nav.sidebar.sidebar-student(id="sidebar")
       img.sidebar-logo(src=systemLogoUrl alt="Logo hệ thống")
 
   .sidebar-nav
-    .sidebar-section
-      .sidebar-section-title Tổng quan
-      a.sidebar-link(href="/student/dashboard" title="Bảng điều khiển" class=(active === 'dashboard' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded dashboard
-        span.link-label Bảng điều khiển
-
-    .sidebar-section
-      .sidebar-section-title Học tập
-      a.sidebar-link(href="/student/course-registration" title="Đăng ký học phần" class=(active === 'course-registration' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded add_task
-        span.link-label Đăng ký học phần
-      a.sidebar-link(href="/student/my-courses" title="Phiếu đăng ký học phần" class=(active === 'my-courses' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded checklist
-        span.link-label Phiếu đăng ký học phần
-      a.sidebar-link(href="/student/completed-courses" title="Môn đã học" class=(active === 'completed-courses' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded history_edu
-        span.link-label Môn đã học
-      a.sidebar-link(href="/student/my-schedule" title="Thời khóa biểu" class=(active === 'my-schedule' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded calendar_month
-        span.link-label Thời khóa biểu
-      a.sidebar-link(href="/student/curriculum" title="Chương trình đào tạo" class=(active === 'curriculum' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded account_tree
-        span.link-label Chương trình ĐT
-
-    .sidebar-section
-      .sidebar-section-title Tài chính
-      a.sidebar-link(href="/student/my-tuition" title="Học phí" class=(active === 'my-tuition' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded account_balance_wallet
-        span.link-label Học phí
-      a.sidebar-link(href="/student/my-payments" title="Lịch sử thanh toán" class=(active === 'my-payments' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded receipt_long
-        span.link-label Lịch sử thanh toán
-
-    .sidebar-section
-      .sidebar-section-title Cá nhân
-      a.sidebar-link(href="/student/profile" title="Hồ sơ" class=(active === 'profile' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded person
-        span.link-label Hồ sơ
-      a.sidebar-link(href="/student/notifications" title="Thông báo" class=(active === 'notifications' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded notifications
-        span.link-label Thông báo
+    each section in studentSections
+      - const visibleLinks = section.links.filter(function(link) { return canAccess(link.href) })
+      if visibleLinks.length
+        .sidebar-section
+          .sidebar-section-title= section.title
+          each link in visibleLinks
+            a.sidebar-link(href=link.href title=link.title class=(active === link.active ? 'active' : ''))
+              span.sidebar-icon.material-symbols-rounded= link.icon
+              span.link-label= link.label
 
   .sidebar-footer
     .sidebar-user

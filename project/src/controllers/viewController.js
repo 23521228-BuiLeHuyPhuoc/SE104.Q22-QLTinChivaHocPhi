@@ -1,7 +1,12 @@
 const jwt = require('jsonwebtoken');
 const { Prisma } = require('@prisma/client');
 const prisma = require('../config/database');
-const { isSystemAdminUser } = require('../middleware/auth');
+const { getUserPermissionCodes, isSystemAdminUser } = require('../middleware/auth');
+const {
+  canAccessPathWithPermissionCodes,
+  decorateGroup,
+  decoratePermissionFunction
+} = require('../utils/permissionCatalog');
 const { DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 const { TRASH_ENTITIES } = require('../utils/trashConfig');
 const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pricingSearch');
@@ -288,23 +293,29 @@ const roleFromGroupCode = (MaNhom) => (
 );
 
 const renderAdmin = (res, view, page, title, req, locals = {}) => {
+  const permissionCodes = req.permissionCodes || [];
   res.render(`pages/admin/${view}`, {
     pageTitle: title,
     activePage: page,
     headerTitle: title,
     user: req.user,
     chucVu: req.user?.ChucVu || 'Quản trị viên hệ thống',
+    permissionCodes,
+    canAccessPath: (path) => canAccessPathWithPermissionCodes(req.user, permissionCodes, path),
     ...res.locals,
     ...locals
   });
 };
 
 const renderStudent = (res, view, page, title, req, locals = {}) => {
+  const permissionCodes = req.permissionCodes || [];
   res.render(`pages/student/${view}`, {
     pageTitle: title,
     activePage: page,
     headerTitle: title,
     user: req.user,
+    permissionCodes,
+    canAccessPath: (path) => canAccessPathWithPermissionCodes(req.user, permissionCodes, path),
     ...locals
   });
 };
@@ -317,16 +328,23 @@ const requireViewAuth = async (req, res, next) => {
   const user = await getUserFromToken(getTokenFromCookie(req));
   if (!user) return res.redirect(getLoginPathForRequest(req));
   req.user = user;
+  req.permissionCodes = await getUserPermissionCodes(user);
   next();
 };
 
 const requireViewAdmin = (req, res, next) => {
   if (!req.user || req.user.Role !== 'admin') return res.redirect('/admin/login');
+  if (!canAccessPathWithPermissionCodes(req.user, req.permissionCodes || [], req.path)) {
+    return res.status(403).send('Bạn không có quyền truy cập màn hình này.');
+  }
   next();
 };
 
 const requireViewStudent = (req, res, next) => {
   if (!req.user || req.user.Role !== 'student') return res.redirect('/login');
+  if (!canAccessPathWithPermissionCodes(req.user, req.permissionCodes || [], req.path)) {
+    return res.status(403).send('Bạn không có quyền truy cập màn hình này.');
+  }
   next();
 };
 
@@ -1909,7 +1927,13 @@ const adminPermissions = async (req, res) => {
         skip: (groupPage - 1) * limit,
         take: limit,
         orderBy: { MaNhom: 'asc' },
-        include: { _count: { select: { TAIKHOAN: true, PHANQUYEN: true } } }
+        include: {
+          _count: { select: { TAIKHOAN: true } },
+          PHANQUYEN: {
+            where: { CHUCNANG: { DaXoa: false } },
+            select: { MaChucNang: true }
+          }
+        }
       }),
       prisma.NHOMNGUOIDUNG.count({ where: { DaXoa: false } }),
       prisma.CHUCNANG.findMany({
@@ -1921,9 +1945,18 @@ const adminPermissions = async (req, res) => {
       }),
       prisma.CHUCNANG.count({ where: { DaXoa: false } })
     ]);
+    const displayGroups = groups.map(group => decorateGroup({
+      ...group,
+      _count: {
+        ...(group._count || {}),
+        PHANQUYEN: group.PHANQUYEN.length
+      },
+      PHANQUYEN: undefined
+    }));
+
     renderAdmin(res, 'permissions', 'permissions', 'Phân quyền hệ thống', req, {
-      groups,
-      functions,
+      groups: displayGroups,
+      functions: functions.map(decoratePermissionFunction),
       groupPage,
       functionPage,
       groupTotalPages: Math.ceil(groupTotal / limit),
@@ -2201,96 +2234,150 @@ const adminCurriculumPrograms = async (req, res) => {
   }
 };
 
-const adminLocations = async (req, res) => {
-  const page = parseInt(req.query.page, 10) || 1;
+const parsePositivePage = (value) => {
+  const page = parseInt(value, 10);
+  return Number.isFinite(page) && page > 0 ? page : 1;
+};
+
+const applyLocationStatusFilter = (where, status) => {
+  if (status === 'active') where.TrangThai = true;
+  if (status === 'inactive') where.TrangThai = false;
+};
+
+const buildAdminProvinceWhere = ({ search, status }) => {
+  const where = {};
+  if (search) {
+    where.OR = [
+      { MaTinh: { contains: search, mode: 'insensitive' } },
+      { TenTinh: { contains: search, mode: 'insensitive' } },
+      { LoaiTinh: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+  applyLocationStatusFilter(where, status);
+  return where;
+};
+
+const buildAdminWardWhere = ({ search, MaTinh, KhuVuc, status }) => {
+  const where = {};
+  if (MaTinh) where.MaTinh = MaTinh;
+  if (KhuVuc) where.KhuVuc = KhuVuc;
+  if (search) {
+    where.OR = [
+      { MaPhuongXa: { contains: search, mode: 'insensitive' } },
+      { TenPhuongXa: { contains: search, mode: 'insensitive' } },
+      { Loai: { contains: search, mode: 'insensitive' } },
+      { KhuVuc: { contains: search, mode: 'insensitive' } },
+      { TINH: { TenTinh: { contains: search, mode: 'insensitive' } } }
+    ];
+  }
+  applyLocationStatusFilter(where, status);
+  return where;
+};
+
+const adminLocations = (req, res) => {
+  res.redirect('/admin/locations/provinces');
+};
+
+const adminLocationProvinces = async (req, res) => {
+  const page = parsePositivePage(req.query.page);
   const limit = DEFAULT_PAGE_SIZE;
-  const search = req.query.search || '';
-  const tab = req.query.tab === 'wards' ? 'wards' : 'provinces';
+  const search = String(req.query.search || '').trim();
+  const status = req.query.status || '';
+  const where = buildAdminProvinceWhere({ search, status });
+
+  try {
+    const [provinces, total] = await Promise.all([
+      prisma.TINH.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { MaTinh: 'asc' },
+        include: { _count: { select: { PHUONGXA: true } } }
+      }),
+      prisma.TINH.count({ where })
+    ]);
+
+    renderAdmin(res, 'locations-provinces', 'locations-provinces', 'Quản lý tỉnh/thành phố', req, {
+      provinces,
+      totalRecords: total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/locations/provinces',
+      queryParams: { search, status, limit },
+      search,
+      status,
+      limit
+    });
+  } catch (err) {
+    console.error('adminLocationProvinces error:', err);
+    renderAdmin(res, 'locations-provinces', 'locations-provinces', 'Quản lý tỉnh/thành phố', req, {
+      provinces: [],
+      totalRecords: 0,
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/locations/provinces',
+      queryParams: {},
+      search: '',
+      status: '',
+      limit
+    });
+  }
+};
+
+const adminLocationWards = async (req, res) => {
+  const page = parsePositivePage(req.query.page);
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = String(req.query.search || '').trim();
   const status = req.query.status || '';
   const MaTinh = req.query.MaTinh || '';
   const KhuVuc = req.query.KhuVuc || '';
+  const where = buildAdminWardWhere({ search, MaTinh, KhuVuc, status });
 
   try {
-    const provinceWhere = {};
-    if (search && tab === 'provinces') {
-      provinceWhere.OR = [
-        { MaTinh: { contains: search, mode: 'insensitive' } },
-        { TenTinh: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-    if (status === 'active') provinceWhere.TrangThai = true;
-    if (status === 'inactive') provinceWhere.TrangThai = false;
-
-    const wardWhere = {};
-    if (search && tab === 'wards') {
-      wardWhere.OR = [
-        { MaPhuongXa: { contains: search, mode: 'insensitive' } },
-        { TenPhuongXa: { contains: search, mode: 'insensitive' } },
-        { TINH: { TenTinh: { contains: search, mode: 'insensitive' } } }
-      ];
-    }
-    if (MaTinh) wardWhere.MaTinh = MaTinh;
-    if (KhuVuc) wardWhere.KhuVuc = KhuVuc;
-    if (status === 'active') wardWhere.TrangThai = true;
-    if (status === 'inactive') wardWhere.TrangThai = false;
-
-    const [provinces, wards, total, provinceOptions] = await Promise.all([
-      tab === 'provinces'
-        ? prisma.TINH.findMany({
-            where: provinceWhere,
-            skip: (page - 1) * limit,
-            take: limit,
-            orderBy: { MaTinh: 'asc' },
-            include: { _count: { select: { PHUONGXA: true } } }
-          })
-        : Promise.resolve([]),
-      tab === 'wards'
-        ? prisma.PHUONGXA.findMany({
-            where: wardWhere,
-            skip: (page - 1) * limit,
-            take: limit,
-            orderBy: { MaPhuongXa: 'asc' },
-            include: { TINH: true }
-          })
-        : Promise.resolve([]),
-      tab === 'provinces'
-        ? prisma.TINH.count({ where: provinceWhere })
-        : prisma.PHUONGXA.count({ where: wardWhere }),
+    const [wards, total, provinceOptions] = await Promise.all([
+      prisma.PHUONGXA.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { MaPhuongXa: 'asc' },
+        include: { TINH: true }
+      }),
+      prisma.PHUONGXA.count({ where }),
       prisma.TINH.findMany({
         orderBy: { TenTinh: 'asc' },
         select: { MaTinh: true, TenTinh: true, TrangThai: true }
       })
     ]);
 
-    renderAdmin(res, 'locations', 'locations', 'Quan ly tinh / phuong xa', req, {
-      tab,
-      provinces,
+    renderAdmin(res, 'locations-wards', 'locations-wards', 'Quản lý phường/xã', req, {
       wards,
       provinceOptions,
+      totalRecords: total,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
-      baseUrl: '/admin/locations',
-      queryParams: { tab, search, status, MaTinh, KhuVuc, limit },
+      baseUrl: '/admin/locations/wards',
+      queryParams: { search, status, MaTinh, KhuVuc, limit },
       search,
       status,
       MaTinh,
-      KhuVuc
+      KhuVuc,
+      limit
     });
   } catch (err) {
-    console.error('adminLocations error:', err);
-    renderAdmin(res, 'locations', 'locations', 'Quan ly tinh / phuong xa', req, {
-      tab,
-      provinces: [],
+    console.error('adminLocationWards error:', err);
+    renderAdmin(res, 'locations-wards', 'locations-wards', 'Quản lý phường/xã', req, {
       wards: [],
       provinceOptions: [],
+      totalRecords: 0,
       currentPage: 1,
       totalPages: 0,
-      baseUrl: '/admin/locations',
+      baseUrl: '/admin/locations/wards',
       queryParams: {},
       search: '',
       status: '',
       MaTinh: '',
-      KhuVuc: ''
+      KhuVuc: '',
+      limit
     });
   }
 };
@@ -2344,5 +2431,7 @@ module.exports = {
   studentProfile,
   studentNotifications,
   studentCurriculum,
-  adminLocations
+  adminLocations,
+  adminLocationProvinces,
+  adminLocationWards
 };
