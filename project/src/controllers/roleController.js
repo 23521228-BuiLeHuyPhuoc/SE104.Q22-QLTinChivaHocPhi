@@ -483,7 +483,7 @@ const resetPassword = async (req, res) => {
     if (!account) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
 
     const password = normalize(req.body.password || req.body.defaultPassword) || DEFAULT_ACCOUNT_PASSWORD;
-    if (false) {
+    if (password.length < 6) {
       return res.status(400).json({ success: false, message: 'Mật khẩu mặc định phải có ít nhất 6 ký tự' });
     }
 
@@ -511,11 +511,8 @@ const batchCreateStudentAccounts = async (req, res) => {
     const MaNganh = normalize(req.body.MaNganh || req.body.major);
     const MaKhoa = normalize(req.body.MaKhoa || req.body.faculty);
 
-    if (false) {
-      return res.status(400).json({ success: false, message: 'Mật khẩu mặc định phải có ít nhất 6 ký tự' });
-    }
     if (!MaNganh && !MaKhoa) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập danh sách MSSV hoặc chọn ngành/khoa' });
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn khoa hoặc ngành để tạo tài khoản sinh viên hàng loạt' });
     }
 
     const studentWhere = { DaXoa: false };

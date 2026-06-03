@@ -8,10 +8,10 @@ block content
     - const completedSearchField = searchField || 'MaSv'
     select.form-control#search-field(onchange="applyFilters()")
       option(value="MaSv" selected=(completedSearchField === 'MaSv')) MSSV
-      option(value="HoTen" selected=(completedSearchField === 'HoTen')) Há» tÃªn
-      option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Há»c ká»³
+      option(value="HoTen" selected=(completedSearchField === 'HoTen')) Ho ten
+      option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Hoc ky
     .search-box
-      input#search-input(type="text" placeholder="Tìm MSSV, môn học, khoa, lớp, giảng viên..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tim theo tieu chi da chon..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-hocky(onchange="applyFilters()")
         option(value="" selected=(!filterHocKy)) Tất cả học kỳ
@@ -100,7 +100,7 @@ block modals
                 option(value="") Chọn học kỳ
                 if semesters && semesters.length > 0
                   each s in semesters
-                    option(value=s.MaHocKy)= s.TenHocKy
+                    option(value=s.MaHocKy)= `${s.TenHocKy} - ${s.MaHocKy}${s.MaNamHoc ? ' - ' + s.MaNamHoc : ''}${s.NAMHOC && s.NAMHOC.TenNamHoc ? ' - ' + s.NAMHOC.TenNamHoc : ''}`
             .form-group
               label(for="cc-malop") Lớp
               input.form-control#cc-malop(type="text" list="class-options" placeholder="VD: IT001.N01")

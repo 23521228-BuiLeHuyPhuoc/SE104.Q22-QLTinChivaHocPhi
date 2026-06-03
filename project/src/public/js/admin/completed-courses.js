@@ -3,7 +3,6 @@ var editMode = false;
 var editId = null;
 var importRows = [];
 var importPreviewValid = false;
-var classRosterRows = [];
 
 function completedEscapeHtml(value) {
   return String(value || '')
@@ -169,112 +168,6 @@ async function deleteCompletedCourse(id) {
     setTimeout(function() { location.reload(); }, 500);
   } else {
     showToast(res.message || 'Lỗi', 'error');
-  }
-}
-
-function openImportModal() {
-  importRows = [];
-  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chọn file CSV/TSV từ Excel để xem trước</div></td></tr>';
-  document.getElementById('import-modal').classList.add('active');
-}
-
-function closeImportModal() {
-  document.getElementById('import-modal').classList.remove('active');
-}
-
-function parseDelimitedText(text) {
-  var lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(function(line) { return line.trim(); });
-  if (!lines.length) return [];
-  var delimiter = lines[0].indexOf('\t') >= 0 ? '\t' : ',';
-  var headers = lines[0].split(delimiter).map(function(item) { return item.trim(); });
-  return lines.slice(1).map(function(line) {
-    var values = line.split(delimiter);
-    return headers.reduce(function(row, header, index) {
-      row[header] = (values[index] || '').trim();
-      return row;
-    }, {});
-  });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  var file = document.getElementById('import-file');
-  if (file) {
-    file.addEventListener('change', function() {
-      var selected = file.files[0];
-      if (!selected) return;
-      if (/\.xlsx?$/i.test(selected.name || '')) return;
-      selected.text().then(function(text) {
-        importRows = parseDelimitedText(text);
-        document.getElementById('import-preview').innerHTML = importRows.slice(0, 20).map(function(row) {
-          return '<tr><td>' + completedEscapeHtml(row.MSSV || row.MaSv) + '</td><td>' + completedEscapeHtml(row.MaMonHoc) + '</td><td>' + completedEscapeHtml(row.Hocky || row.HocKy || row.MaHocKy) + '</td><td>' + completedEscapeHtml(row.KetQua) + '</td><td>Chờ xác nhận</td></tr>';
-        }).join('') || '<tr><td colspan="5"><div class="empty-state">File không có dữ liệu</div></td></tr>';
-      });
-    });
-  }
-});
-
-async function confirmImport() {
-  if (!importRows.length) {
-    showToast('Chưa có dữ liệu import', 'error');
-    return;
-  }
-  var preview = await apiFetch('/api/completed-courses/batch', { method: 'POST', body: { items: importRows, preview: true } });
-  if (!preview.success) {
-    showToast('Dữ liệu import còn lỗi', 'error');
-    document.getElementById('import-preview').innerHTML = (preview.errors || []).map(function(error) {
-      return '<tr><td>' + completedEscapeHtml(error.row.MaSv) + '</td><td>' + completedEscapeHtml(error.row.MaMonHoc) + '</td><td>' + completedEscapeHtml(error.row.MaHocKy) + '</td><td>' + completedEscapeHtml(error.row.KetQua) + '</td><td>' + completedEscapeHtml(error.message) + '</td></tr>';
-    }).join('');
-    return;
-  }
-  var res = await apiFetch('/api/completed-courses/batch', { method: 'POST', body: { items: importRows } });
-  if (res.success) {
-    showToast(res.message || 'Import thành công', 'success');
-    setTimeout(function() { location.reload(); }, 500);
-  } else {
-    showToast(res.message || 'Import thất bại', 'error');
-  }
-}
-
-function openClassGradeModal() {
-  classRosterRows = [];
-  document.getElementById('class-roster').innerHTML = '<tr><td colspan="4"><div class="empty-state">Chưa tải danh sách</div></td></tr>';
-  document.getElementById('class-grade-modal').classList.add('active');
-}
-
-function closeClassGradeModal() {
-  document.getElementById('class-grade-modal').classList.remove('active');
-}
-
-async function loadClassRoster() {
-  var maLop = document.getElementById('bulk-class').value;
-  var maHocKy = document.getElementById('bulk-semester').value;
-  if (!maLop || !maHocKy) {
-    showToast('Vui lòng chọn lớp và học kỳ', 'error');
-    return;
-  }
-  var res = await apiFetch('/api/completed-courses/class-roster?MaLop=' + encodeURIComponent(maLop) + '&MaHocKy=' + encodeURIComponent(maHocKy));
-  classRosterRows = res.data || [];
-  document.getElementById('class-roster').innerHTML = classRosterRows.map(function(row, index) {
-    return '<tr><td class="mono">' + completedEscapeHtml(row.MaSv) + '</td><td>' + completedEscapeHtml(row.HoTen) + '</td><td>' + completedEscapeHtml(row.MaMonHoc) + '</td><td><select class="form-control" data-index="' + index + '"><option value="qua_mon">Qua môn</option><option value="rot">Rớt</option></select></td></tr>';
-  }).join('') || '<tr><td colspan="4"><div class="empty-state">Lớp chưa có sinh viên đăng ký</div></td></tr>';
-}
-
-async function saveClassGrades() {
-  if (!classRosterRows.length) {
-    showToast('Chưa có danh sách để lưu', 'error');
-    return;
-  }
-  var maHocKy = document.getElementById('bulk-semester').value;
-  var items = classRosterRows.map(function(row, index) {
-    var select = document.querySelector('#class-roster select[data-index="' + index + '"]');
-    return { MaSv: row.MaSv, MaMonHoc: row.MaMonHoc, MaHocKy: maHocKy, MaLop: row.MaLop, KetQua: select ? select.value : 'qua_mon' };
-  });
-  var res = await apiFetch('/api/completed-courses/batch', { method: 'POST', body: { items: items } });
-  if (res.success) {
-    showToast(res.message || 'Lưu thành công', 'success');
-    setTimeout(function() { location.reload(); }, 500);
-  } else {
-    showToast(res.message || 'Không thể lưu đồng loạt', 'error');
   }
 }
 

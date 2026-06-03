@@ -105,20 +105,20 @@ block content
                         span.material-symbols-rounded block
                         span Đóng
                     else if selectedSemester && !cl.MonHocDaMoTrongHocKy
-                      a.btn.btn-sm.btn-outline(href="/admin/open-courses?MaHocKy=" + selectedSemester + "&search=" + cl.MaMonHoc title="Mở môn học trước")
+                      a.btn.btn-sm.btn-outline(href="/admin/open-courses?MaHocKy=" + selectedSemester + "&search=" + cl.MaMonHoc onclick="event.stopPropagation()" title="Mở môn học trước")
                         span.material-symbols-rounded event_available
                         span Môn chưa mở
                     else
                       button.btn.btn-sm.btn-open-class(type="button" data-record=JSON.stringify(cl) onclick="event.stopPropagation(); openClass(JSON.parse(this.dataset.record))")
                         span.material-symbols-rounded add_circle
                         span Mở
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="openModal('edit', JSON.parse(this.dataset.record))" title="Sửa lớp")
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="event.stopPropagation(); openModal('edit', JSON.parse(this.dataset.record))" title="Sửa lớp")
                       span.material-symbols-rounded edit
                       span Sửa
-                    button.btn.btn-sm.btn-outline(type="button" data-malop=cl.MaLop data-tenlop=cl.TenLop onclick="openStudentsModal(this.dataset.malop, this.dataset.tenlop)" title="Danh sách sinh viên")
+                    button.btn.btn-sm.btn-outline(type="button" data-malop=cl.MaLop data-tenlop=cl.TenLop onclick="event.stopPropagation(); openStudentsModal(this.dataset.malop, this.dataset.tenlop)" title="Danh sách sinh viên")
                       span.material-symbols-rounded groups
                       span DS SV
-                    button.btn.btn-sm.btn-danger(type="button" data-malop=cl.MaLop onclick="deleteClass(this.dataset.malop)" title="Xóa lớp")
+                    button.btn.btn-sm.btn-danger(type="button" data-malop=cl.MaLop onclick="event.stopPropagation(); deleteClass(this.dataset.malop)" title="Xóa lớp")
                       span.material-symbols-rounded delete
                       span Xóa
           else

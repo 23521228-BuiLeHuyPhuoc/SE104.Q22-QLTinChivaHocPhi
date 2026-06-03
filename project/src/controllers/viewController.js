@@ -2130,7 +2130,12 @@ const adminNotifications = async (req, res) => {
   const where = { DaXoa: false };
   if (filterLoai) where.Loai = filterLoai;
   if (filterNguon === 'auto') where.LoaiThongBao = { startsWith: 'auto_' };
-  if (filterNguon === 'manual') where.NOT = { LoaiThongBao: { startsWith: 'auto_' } };
+  if (filterNguon === 'manual') {
+    where.OR = [
+      { LoaiThongBao: null },
+      { NOT: { LoaiThongBao: { startsWith: 'auto_' } } }
+    ];
+  }
   try {
     const [notifications, total, faculties, majors] = await Promise.all([
       prisma.THONGBAO.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: [{ GhimTop: 'desc' }, { NgayTao: 'desc' }] }),

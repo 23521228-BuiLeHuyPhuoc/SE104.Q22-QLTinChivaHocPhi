@@ -68,7 +68,7 @@ function setCurriculumProgramLockedState(locked) {
 }
 
 function notifyCurriculumLockedField() {
-  showToast('NgÃ nh vÃ  mÃ´n há»c khÃ´ng Ä‘Æ°á»£c phÃ©p sá»­a. HÃ£y gá»¡ dÃ²ng nÃ y vÃ  thÃªm láº¡i náº¿u chá»n sai.', 'error');
+  showToast('Khong duoc phep sua nganh va mon hoc. Hay go dong nay va them lai neu chon sai.', 'error');
 }
 
 function openCurriculumCoursePicker() {

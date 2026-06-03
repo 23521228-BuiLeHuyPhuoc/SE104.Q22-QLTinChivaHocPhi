@@ -69,6 +69,7 @@ DROP TABLE IF EXISTS "CAUHINHDANGKY" CASCADE;
 DROP TABLE IF EXISTS "DIEUKIENMONHOC" CASCADE;
 DROP TABLE IF EXISTS "MONHOC" CASCADE;
 DROP TABLE IF EXISTS "DOITUONGSINHVIEN" CASCADE;
+DROP TABLE IF EXISTS "MATKHAUTAMTAIKHOAN" CASCADE;
 DROP TABLE IF EXISTS "QUANTRIVIEN" CASCADE;
 DROP TABLE IF EXISTS "SINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "NGUOIDUNG" CASCADE;
@@ -276,6 +277,28 @@ CREATE TABLE "NGUOIDUNG" (
     CONSTRAINT fk_nd_nhom FOREIGN KEY ("MaNhom")
         REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- =====================================================
+-- 9.1. BANG "MATKHAUTAMTAIKHOAN" - Mat khau tam sinh vien
+-- =====================================================
+CREATE TABLE "MATKHAUTAMTAIKHOAN" (
+    id SERIAL NOT NULL,
+    "MaTaiKhoan" INTEGER NOT NULL,
+    "MaSv" VARCHAR(15) NOT NULL,
+    "TenDangNhap" VARCHAR(50) NOT NULL,
+    "MatKhauTam" VARCHAR(100) NOT NULL,
+    "Email" VARCHAR(100),
+    "TrangThaiGuiEmail" VARCHAR(30) DEFAULT 'pending',
+    "LoiGuiEmail" VARCHAR(300),
+    "NguoiTao" INTEGER,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT mat_khau_tam_tai_khoan_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_mkttk_tk FOREIGN KEY ("MaTaiKhoan")
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_mkttk_masv ON "MATKHAUTAMTAIKHOAN"("MaSv");
+CREATE INDEX idx_mkttk_ngaytao ON "MATKHAUTAMTAIKHOAN"("NgayTao");
 
 -- 10. BẢNG "SINHVIEN" - Sinh viên (BM1, QĐ1)
 -- Ghi chú: Đối tượng "vùng sâu vùng xa" = sinh viên ở KV3 VÀ là dân tộc thiểu số
@@ -4499,7 +4522,7 @@ DECLARE
     v_Mon1_DaXoa BOOLEAN; v_Mon1_TrangThai BOOLEAN;
     v_Mon2_DaXoa BOOLEAN; v_Mon2_TrangThai BOOLEAN;
 BEGIN
-    IF NEW."MaTaiKhoanNhan" IS NOT NULL AND NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa", "TrangThai" INTO v_Mon1_DaXoa, v_Mon1_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon1_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon1_TrangThai, TRUE) = FALSE THEN
             RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
@@ -4723,7 +4746,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_thongbao()
 RETURNS TRIGGER AS $$
 DECLARE v_Nd_TrangThai BOOLEAN;
 BEGIN
-    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+    IF NEW."MaTaiKhoanNhan" IS NOT NULL AND NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoanNhan";
         IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
             RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoanNhan";
@@ -8395,6 +8418,8 @@ INSERT INTO "CHUCNANG" ("MaChucNang", "TenChucNang", "TenManHinhDuocLoad") VALUE
 ('ADMIN_DASHBOARD', 'Bảng điều khiển quản trị', '/admin/dashboard'),
 ('ADMIN_STUDENTS', 'Quản lý sinh viên', '/admin/students'),
 ('ADMIN_LOCATIONS', 'Quản lý địa danh', '/admin/locations'),
+('ADMIN_LOCATION_PROVINCES', 'Quản lý tỉnh/thành phố', '/admin/locations/provinces'),
+('ADMIN_LOCATION_WARDS', 'Quản lý phường/xã', '/admin/locations/wards'),
 ('ADMIN_COURSES', 'Quản lý môn học', '/admin/courses'),
 ('ADMIN_OPEN_COURSES', 'Quản lý môn học mở', '/admin/open-courses'),
 ('ADMIN_CLASSES', 'Quản lý lớp học', '/admin/classes'),
@@ -8436,6 +8461,8 @@ INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
 ('ADMIN', 'ADMIN_DASHBOARD'),
 ('ADMIN', 'ADMIN_STUDENTS'),
 ('ADMIN', 'ADMIN_LOCATIONS'),
+('ADMIN', 'ADMIN_LOCATION_PROVINCES'),
+('ADMIN', 'ADMIN_LOCATION_WARDS'),
 ('ADMIN', 'ADMIN_COURSES'),
 ('ADMIN', 'ADMIN_OPEN_COURSES'),
 ('ADMIN', 'ADMIN_CLASSES'),
@@ -8464,6 +8491,8 @@ INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
 ('ADMIN', 'ADMIN_PROFILE'),
 ('ADMIN_DAOTAO', 'ADMIN_DASHBOARD'),
 ('ADMIN_DAOTAO', 'ADMIN_LOCATIONS'),
+('ADMIN_DAOTAO', 'ADMIN_LOCATION_PROVINCES'),
+('ADMIN_DAOTAO', 'ADMIN_LOCATION_WARDS'),
 ('ADMIN_DAOTAO', 'ADMIN_STUDENTS'),
 ('ADMIN_DAOTAO', 'ADMIN_COURSES'),
 ('ADMIN_DAOTAO', 'ADMIN_OPEN_COURSES'),

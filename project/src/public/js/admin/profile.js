@@ -121,20 +121,20 @@
       PhongBan: document.getElementById('p-phongban').value.trim()
     };
     if (!body.HoTen || !body.Email) {
-      showToast('Vui long nhap ho ten va email', 'error');
+      showToast('Vui lòng nhập họ tên và email', 'error');
       return;
     }
     if (button) button.disabled = true;
     try {
       var res = await apiFetch('/api/auth/profile', { method: 'PUT', body: body });
       if (res.success) {
-        showToast(res.message || 'Da cap nhat ho so', 'success');
+        showToast(res.message || 'Đã cập nhật hồ sơ', 'success');
         if (res.data && res.data.admin) currentAdmin = res.data.admin;
       } else {
-        showToast(res.message || 'Khong the cap nhat ho so', 'error');
+        showToast(res.message || 'Không thể cập nhật hồ sơ', 'error');
       }
     } catch (e) {
-      showToast('Loi ket noi khi cap nhat ho so', 'error');
+      showToast('Lỗi kết nối khi cập nhật hồ sơ', 'error');
     } finally {
       if (button) button.disabled = false;
     }

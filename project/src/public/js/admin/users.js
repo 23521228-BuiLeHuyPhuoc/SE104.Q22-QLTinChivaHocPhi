@@ -47,24 +47,12 @@ function openBatchStudentModal() {
     result.classList.add('hidden');
     result.textContent = '';
   }
-  hideLegacyBatchFields();
   filterBatchMajors();
   document.getElementById('batch-student-modal').classList.add('active');
 }
 
 function closeBatchStudentModal() {
   document.getElementById('batch-student-modal').classList.remove('active');
-}
-
-function hideLegacyBatchFields() {
-  ['batch-password', 'batch-note'].forEach(function(id) {
-    var input = document.getElementById(id);
-    var row = input && input.closest('.form-row');
-    if (row) row.classList.add('hidden');
-  });
-  var mssv = document.getElementById('batch-mssv-list');
-  var group = mssv && mssv.closest('.form-group');
-  if (group) group.classList.add('hidden');
 }
 
 function escapeHtml(value) {
@@ -78,7 +66,7 @@ function togglePasswordVisibility(button) {
   var mask = button && button.parentElement ? button.parentElement.querySelector('.password-mask') : null;
   if (!mask) return;
   var shown = mask.getAttribute('data-visible') === 'true';
-  mask.textContent = shown ? '********' : (mask.getAttribute('data-password') || '');
+  mask.textContent = shown ? '********' : decodeURIComponent(mask.getAttribute('data-password') || '');
   mask.setAttribute('data-visible', shown ? 'false' : 'true');
   var icon = button.querySelector('.material-symbols-rounded');
   if (icon) icon.textContent = shown ? 'visibility' : 'visibility_off';
@@ -96,7 +84,9 @@ function renderCredentialRows(rows) {
   if (!rows || !rows.length) return '<div class=empty-state>Chua co tai khoan sinh vien nao duoc tao.</div>';
   var html = '<div class=credential-table-wrap><table class=data-table><thead><tr><th>MSSV</th><th>Sinh vien</th><th>Tai khoan</th><th>Mat khau</th><th>Email</th><th>Gmail</th></tr></thead><tbody>';
   rows.forEach(function(row) {
-    var password = escapeHtml(row.MatKhauTam || row.temporaryPassword || '');
+    var password = encodeURIComponent(row.MatKhauTam || row.temporaryPassword || '').replace(/[!'()*]/g, function(ch) {
+      return '%' + ch.charCodeAt(0).toString(16).toUpperCase();
+    });
     html += '<tr><td class=mono>' + escapeHtml(row.MaSv || '') + '</td>' +
       '<td>' + escapeHtml(row.HoTen || '-') + '</td>' +
       '<td><strong>' + escapeHtml(row.TenDangNhap || '') + '</strong></td>' +
@@ -287,32 +277,6 @@ async function removeAccount(id, username) {
   }
 }
 
-function resetAccountPassword(el) {
-  var id = parseInt(el.getAttribute('data-id'), 10);
-  var username = el.getAttribute('data-username') || '';
-  resetPassword(id, username);
-}
-
-async function resetPassword(id, username) {
-  if (!id) return;
-  if (!confirm('Reset mật khẩu tài khoản "' + username + '" về mặc định?')) return;
-
-  try {
-    var res = await apiFetch('/api/roles/accounts/' + id + '/reset-password', {
-      method: 'PUT',
-      body: {}
-    });
-    if (res.success) {
-      var password = res.data && res.data.defaultPassword ? ' Mật khẩu: ' + res.data.defaultPassword : '';
-      showToast((res.message || 'Đã reset mật khẩu') + password, 'success');
-    } else {
-      showToast(res.message || 'Không thể reset mật khẩu', 'error');
-    }
-  } catch (e) {
-    showToast('Lỗi kết nối', 'error');
-  }
-}
-
 async function batchCreateStudentAccounts() {
   var button = document.getElementById('btn-batch-create');
   var result = document.getElementById('batch-result');
@@ -322,11 +286,7 @@ async function batchCreateStudentAccounts() {
   };
 
   if (!body.MaKhoa && !body.MaNganh) {
-    showToast('Vui lòng chọn khoa/ngành hoặc nhập danh sách MSSV', 'error');
-    return;
-  }
-  if (false) {
-    showToast('Mật khẩu mặc định phải có ít nhất 6 ký tự', 'error');
+    showToast('Vui lòng chọn khoa hoặc ngành', 'error');
     return;
   }
 
@@ -347,7 +307,6 @@ async function batchCreateStudentAccounts() {
       if (data.skippedCount) message += ', bỏ qua ' + data.skippedCount + ' sinh viên';
       showCredentialRows(data.created || [], 'batch-result');
       showToast(res.message || message, 'success');
-      if (false) setTimeout(function() { location.reload(); }, 900);
     } else {
       if (result) result.textContent = res.message || 'Không thể tạo tài khoản hàng loạt';
       showToast(res.message || 'Không thể tạo tài khoản hàng loạt', 'error');

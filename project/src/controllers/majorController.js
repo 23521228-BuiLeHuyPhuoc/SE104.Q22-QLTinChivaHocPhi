@@ -166,10 +166,10 @@ const updateCurriculumItem = async (req, res) => {
     const existing = await prisma.CHUONGTRINHHOC.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn trong chương trình' });
     if (req.body.MaNganh !== undefined && normalizeText(req.body.MaNganh).toUpperCase() !== existing.MaNganh) {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng Ä‘Æ°á»£c phÃ©p sá»­a ngÃ nh cá»§a dÃ²ng chÆ°Æ¡ng trÃ¬nh há»c' });
+      return res.status(400).json({ success: false, message: 'Khong duoc phep sua nganh cua dong chuong trinh hoc' });
     }
     if (req.body.MaMonHoc !== undefined && normalizeText(req.body.MaMonHoc).toUpperCase() !== existing.MaMonHoc) {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng Ä‘Æ°á»£c phÃ©p sá»­a mÃ´n há»c cá»§a dÃ²ng chÆ°Æ¡ng trÃ¬nh há»c' });
+      return res.status(400).json({ success: false, message: 'Khong duoc phep sua mon hoc cua dong chuong trinh hoc' });
     }
     const validated = await validateCurriculumPlacement({
       MaNganh: existing.MaNganh,

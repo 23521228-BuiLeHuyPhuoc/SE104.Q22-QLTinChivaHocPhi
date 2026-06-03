@@ -748,13 +748,24 @@ select.ui-readonly-field,
   justify-content: flex-end;
 }
 
-.users-toolbar button[onclick^=resetAccountPassword],
-.account-actions button[onclick^=resetAccountPassword] {
-  display: none !important;
+.user-action-cell {
+  min-width: 260px;
+  width: 280px;
 }
 
-.user-action-cell {
-  min-width: 300px;
+.stacked-cell strong,
+.stacked-cell small {
+  display: block;
+}
+
+.stacked-cell small {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  margin-top: 3px;
+}
+
+.stacked-cell .badge + .badge {
+  margin-top: 6px;
 }
 
 .credential-table-wrap {
@@ -773,6 +784,23 @@ select.ui-readonly-field,
   height: 32px;
   justify-content: center;
   width: 36px;
+}
+
+.password-eye {
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  width: 36px;
+}
+
+.password-eye .material-symbols-rounded {
+  font-size: 18px;
 }
 
 .credential-table .password-eye .material-symbols-rounded {

@@ -84,9 +84,15 @@ const getRemainingAmount = (registration) => {
   return Math.max(amountDue - paid + refunded, 0);
 };
 
-const assertMinimumCreditsForPayment = async (registration) => {
+const getMinimumCreditsForPayment = async () => {
   const settings = await prisma.THAMSO.findFirst({ select: { SoTinChiDangKyToiThieu: true } });
-  const minimumCredits = Number(settings?.SoTinChiDangKyToiThieu || 0);
+  return Number(settings?.SoTinChiDangKyToiThieu || 0);
+};
+
+const assertMinimumCreditsForPayment = async (registration, configuredMinimumCredits) => {
+  const minimumCredits = configuredMinimumCredits === undefined
+    ? await getMinimumCreditsForPayment()
+    : Number(configuredMinimumCredits || 0);
   const registeredCredits = Number(registration?.TongTinChi || 0);
   if (minimumCredits > 0 && registeredCredits < minimumCredits) {
     throw {
@@ -307,6 +313,7 @@ const createBulkPayments = async (req, res) => {
       include: { HOCKY: true, PHIEUTHUHOCPHI: true, SINHVIEN: true }
     });
 
+    const minimumCreditsForPayment = await getMinimumCreditsForPayment();
     const created = [];
     const skipped = [];
     for (const registration of registrations) {
@@ -321,6 +328,15 @@ const createBulkPayments = async (req, res) => {
       if (getActiveReceipt(registration)) {
         skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, reason: 'Đã có phiếu thu' });
         continue;
+      }
+      try {
+        await assertMinimumCreditsForPayment(registration, minimumCreditsForPayment);
+      } catch (error) {
+        if (error.code === 'REGISTRATION_MIN_CREDITS_NOT_MET') {
+          skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, reason: error.message });
+          continue;
+        }
+        throw error;
       }
 
       const payment = await prisma.PHIEUTHUHOCPHI.create({

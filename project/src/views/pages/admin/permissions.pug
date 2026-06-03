@@ -6,13 +6,12 @@ block content
       h2.page-title Phân quyền hệ thống
       p Quản lý nhóm người dùng và quyền truy cập theo từng cổng.
     .filter-group
-      button.btn.btn-outline(type="button" onclick="switchTab('functions')") Quyền truy cập
       button.btn.btn-primary(type="button" onclick="openGroupModal('add')") Thêm nhóm
       a.btn.btn-outline(href="/admin/trash?entity=groups") Thùng rác nhóm
 
   .permission-tabs(role="tablist")
-    button.permission-tab-btn.active(type="button" data-tab="groups" onclick="switchTab('groups')") Nhom nguoi dung
-    button.permission-tab-btn(type="button" data-tab="functions" onclick="switchTab('functions')") Quyen truy cap
+    button.permission-tab-btn.active(type="button" data-tab="groups" onclick="switchTab('groups')") Nhóm người dùng
+    button.permission-tab-btn(type="button" data-tab="functions" onclick="switchTab('functions')") Quyền truy cập
 
   //- Tab: Groups
   #tab-groups.tab-panel
@@ -63,7 +62,6 @@ block content
       .toolbar-title
         h2.page-title Quyền truy cập
       .filter-group
-        button.btn.btn-outline(type="button" onclick="switchTab('groups')") Nhóm người dùng
         button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm quyền
         a.btn.btn-outline(href="/admin/trash?entity=functions") Thùng rác quyền
     .card
