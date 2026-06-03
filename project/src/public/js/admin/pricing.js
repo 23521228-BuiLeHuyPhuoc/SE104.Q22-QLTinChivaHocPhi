@@ -36,6 +36,20 @@ function updatePricingSearchPlaceholder() {
   };
   input.placeholder = placeholders[scope.value] || 'Nhập từ khóa tìm kiếm';
 }
+function formatPricingDateTime(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(date);
+}
 document.addEventListener('DOMContentLoaded', updatePricingSearchPlaceholder);
 function openModal(mode, data) {
   editMode = mode === 'edit'; editId = editMode ? data.id : null;
@@ -45,6 +59,12 @@ function openModal(mode, data) {
   document.getElementById('pr-dongia').value = editMode ? Number(data.DonGia || 0) : '';
   document.getElementById('pr-hocky').value = editMode ? (data.MaHocKy || '') : '';
   document.getElementById('pr-ghichu').value = editMode ? (data.GhiChu || '') : '';
+  var auditPanel = document.getElementById('pricing-audit-panel');
+  var updater = document.getElementById('pr-updater');
+  var updatedAt = document.getElementById('pr-updated-at');
+  if (auditPanel) auditPanel.classList.toggle('hidden', !editMode);
+  if (updater) updater.textContent = editMode ? (data.NguoiCapNhatTen || data.NguoiCapNhat || '-') : '-';
+  if (updatedAt) updatedAt.textContent = editMode ? formatPricingDateTime(data.NgayCapNhat) : '-';
   document.getElementById('pricing-modal').classList.add('active');
 }
 function closeModal() { document.getElementById('pricing-modal').classList.remove('active'); }

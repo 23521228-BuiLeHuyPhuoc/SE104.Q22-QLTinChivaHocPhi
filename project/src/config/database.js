@@ -16,6 +16,8 @@ const AUDITED_SOFT_DELETE_TABLES = [
   'LOP',
   'PHONGHOC',
   'GIANGVIEN',
+  'PHONGHOCHOCKY',
+  'GIANGVIENHOCKY',
   'HOCKY',
   'KHOA',
   'NGANHHOC',
@@ -26,7 +28,9 @@ const AUDITED_SOFT_DELETE_TABLES = [
   'THONGBAO',
   'CHUCNANG',
   'NHOMNGUOIDUNG',
-  'TIETHOC'
+  'TIETHOC',
+  'TINH',
+  'PHUONGXA'
 ];
 
 const ensureDefaultAuthorizationData = async () => {
@@ -185,6 +189,49 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "MATKHAUTAMTAIKHOAN" (
+      id SERIAL NOT NULL,
+      "MaTaiKhoan" INTEGER NOT NULL,
+      "MaSv" VARCHAR(15) NOT NULL,
+      "TenDangNhap" VARCHAR(50) NOT NULL,
+      "MatKhauTam" VARCHAR(100) NOT NULL,
+      "Email" VARCHAR(100),
+      "TrangThaiGuiEmail" VARCHAR(30) DEFAULT 'pending',
+      "LoiGuiEmail" VARCHAR(300),
+      "NguoiTao" INTEGER,
+      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT mat_khau_tam_tai_khoan_pkey PRIMARY KEY (id)
+    )
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "MATKHAUTAMTAIKHOAN"
+      ADD COLUMN IF NOT EXISTS "MaTaiKhoan" INTEGER,
+      ADD COLUMN IF NOT EXISTS "MaSv" VARCHAR(15),
+      ADD COLUMN IF NOT EXISTS "TenDangNhap" VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS "MatKhauTam" VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS "Email" VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS "TrangThaiGuiEmail" VARCHAR(30) DEFAULT 'pending',
+      ADD COLUMN IF NOT EXISTS "LoiGuiEmail" VARCHAR(300),
+      ADD COLUMN IF NOT EXISTS "NguoiTao" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_mkttk_tk') THEN
+        ALTER TABLE "MATKHAUTAMTAIKHOAN"
+          ADD CONSTRAINT fk_mkttk_tk FOREIGN KEY ("MaTaiKhoan")
+          REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_mkttk_masv ON "MATKHAUTAMTAIKHOAN" ("MaSv")');
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_mkttk_ngaytao ON "MATKHAUTAMTAIKHOAN" ("NgayTao")');
+
+  await prisma.$executeRawUnsafe(`
     ALTER TABLE "SINHVIEN"
       ADD COLUMN IF NOT EXISTS "HoTenCha" VARCHAR(100),
       ADD COLUMN IF NOT EXISTS "SdtCha" VARCHAR(15),
@@ -222,7 +269,9 @@ const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "NAMHOC"
       ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
-      ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NguoiCapNhat" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -362,9 +411,11 @@ const ensureAuthSchema = async () => {
     CREATE TABLE IF NOT EXISTS "GIANGVIEN" (
       "MaGiangVien" VARCHAR(20) NOT NULL,
       "HoTen" VARCHAR(100) NOT NULL,
+      "HocHam" VARCHAR(20),
+      "HocVi" VARCHAR(20),
       "HocHamHocVi" VARCHAR(50),
       "MaKhoa" VARCHAR(10),
-      "Email" VARCHAR(100),
+      "Email" VARCHAR(100) NOT NULL,
       "Sdt" VARCHAR(15),
       "MoTa" VARCHAR(300),
       "TrangThai" BOOLEAN DEFAULT TRUE,
@@ -381,6 +432,8 @@ const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "GIANGVIEN"
       ADD COLUMN IF NOT EXISTS "HoTen" VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS "HocHam" VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS "HocVi" VARCHAR(20),
       ADD COLUMN IF NOT EXISTS "HocHamHocVi" VARCHAR(50),
       ADD COLUMN IF NOT EXISTS "MaKhoa" VARCHAR(10),
       ADD COLUMN IF NOT EXISTS "Email" VARCHAR(100),
@@ -393,6 +446,78 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS "NguoiXoa" INTEGER,
       ADD COLUMN IF NOT EXISTS "NgayXoa" TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "PHONGHOCHOCKY" (
+      id SERIAL NOT NULL,
+      "MaPhong" VARCHAR(50) NOT NULL,
+      "MaHocKy" VARCHAR(15) NOT NULL,
+      "TrangThai" BOOLEAN DEFAULT TRUE,
+      "GhiChu" VARCHAR(200),
+      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "NguoiCapNhat" INTEGER,
+      "NgayCapNhat" TIMESTAMP,
+      "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+      "NguoiXoa" INTEGER,
+      "NgayXoa" TIMESTAMP,
+      CONSTRAINT phong_hoc_hoc_ky_pkey PRIMARY KEY (id),
+      CONSTRAINT uq_phong_hoc_hoc_ky UNIQUE ("MaPhong", "MaHocKy")
+    )
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "GIANGVIENHOCKY" (
+      id SERIAL NOT NULL,
+      "MaGiangVien" VARCHAR(20) NOT NULL,
+      "MaHocKy" VARCHAR(15) NOT NULL,
+      "TrangThai" BOOLEAN DEFAULT TRUE,
+      "GhiChu" VARCHAR(200),
+      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "NguoiCapNhat" INTEGER,
+      "NgayCapNhat" TIMESTAMP,
+      "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+      "NguoiXoa" INTEGER,
+      "NgayXoa" TIMESTAMP,
+      CONSTRAINT giang_vien_hoc_ky_pkey PRIMARY KEY (id),
+      CONSTRAINT uq_giang_vien_hoc_ky UNIQUE ("MaGiangVien", "MaHocKy")
+    )
+  `);
+
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_phong_hoc_hoc_ky_hk ON "PHONGHOCHOCKY" ("MaHocKy")');
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_giang_vien_hoc_ky_hk ON "GIANGVIENHOCKY" ("MaHocKy")');
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_phong_hoc_hoc_ky_phong') THEN
+        ALTER TABLE "PHONGHOCHOCKY"
+          ADD CONSTRAINT fk_phong_hoc_hoc_ky_phong
+          FOREIGN KEY ("MaPhong") REFERENCES "PHONGHOC"("MaPhong")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_phong_hoc_hoc_ky_hoc_ky') THEN
+        ALTER TABLE "PHONGHOCHOCKY"
+          ADD CONSTRAINT fk_phong_hoc_hoc_ky_hoc_ky
+          FOREIGN KEY ("MaHocKy") REFERENCES "HOCKY"("MaHocKy")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_giang_vien_hoc_ky_giang_vien') THEN
+        ALTER TABLE "GIANGVIENHOCKY"
+          ADD CONSTRAINT fk_giang_vien_hoc_ky_giang_vien
+          FOREIGN KEY ("MaGiangVien") REFERENCES "GIANGVIEN"("MaGiangVien")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_giang_vien_hoc_ky_hoc_ky') THEN
+        ALTER TABLE "GIANGVIENHOCKY"
+          ADD CONSTRAINT fk_giang_vien_hoc_ky_hoc_ky
+          FOREIGN KEY ("MaHocKy") REFERENCES "HOCKY"("MaHocKy")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -789,22 +914,41 @@ const ensureAuthSchema = async () => {
               FROM giang_vien_nguon_raw
               ORDER BY "MaGiangVien", "GiangVienDayDu"
             )
-            INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHamHocVi", "MaKhoa", "TrangThai")
+            INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHam", "HocVi", "HocHamHocVi", "MaKhoa", "Email", "TrangThai")
             SELECT
               "MaGiangVien",
-              NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(PGS\\.TS|TS\\.|ThS\\.)\\s+', '')), ''),
+              NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(GS\.TS|PGS\.TS|GS\.|PGS\.|TS\.|ThS\.)\s+', '')), ''),
               CASE
+                WHEN "GiangVienDayDu" LIKE 'GS.%' THEN 'GS'
+                WHEN "GiangVienDayDu" LIKE 'PGS.%' THEN 'PGS'
+                ELSE NULL
+              END,
+              CASE
+                WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
+                ELSE NULL
+              END,
+              CASE
+                WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'GS.TS'
                 WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'PGS.TS'
-                WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS.'
-                WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS.'
+                WHEN "GiangVienDayDu" LIKE 'GS. %' THEN 'GS'
+                WHEN "GiangVienDayDu" LIKE 'PGS. %' THEN 'PGS'
+                WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
                 ELSE NULL
               END,
               "MaKhoa",
+              LOWER("MaGiangVien") || '@uit.edu.vn',
               TRUE
             FROM giang_vien_nguon
             ON CONFLICT ("MaGiangVien") DO UPDATE SET
               "HoTen" = COALESCE("GIANGVIEN"."HoTen", EXCLUDED."HoTen"),
+              "HocHam" = COALESCE("GIANGVIEN"."HocHam", EXCLUDED."HocHam"),
+              "HocVi" = COALESCE("GIANGVIEN"."HocVi", EXCLUDED."HocVi"),
               "HocHamHocVi" = COALESCE("GIANGVIEN"."HocHamHocVi", EXCLUDED."HocHamHocVi"),
+              "Email" = COALESCE(NULLIF("GIANGVIEN"."Email", ''), EXCLUDED."Email"),
               "MaKhoa" = COALESCE("GIANGVIEN"."MaKhoa", EXCLUDED."MaKhoa"),
               "DaXoa" = FALSE,
               "NguoiXoa" = NULL,
@@ -831,22 +975,41 @@ const ensureAuthSchema = async () => {
               WHERE l."GiangVien" IS NOT NULL AND TRIM(l."GiangVien") <> ''
               GROUP BY TRIM(l."GiangVien")
             )
-            INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHamHocVi", "MaKhoa", "TrangThai")
+            INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHam", "HocVi", "HocHamHocVi", "MaKhoa", "Email", "TrangThai")
             SELECT
               "MaGiangVien",
-              NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(PGS\\.TS|TS\\.|ThS\\.)\\s+', '')), ''),
+              NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(GS\.TS|PGS\.TS|GS\.|PGS\.|TS\.|ThS\.)\s+', '')), ''),
               CASE
+                WHEN "GiangVienDayDu" LIKE 'GS.%' THEN 'GS'
+                WHEN "GiangVienDayDu" LIKE 'PGS.%' THEN 'PGS'
+                ELSE NULL
+              END,
+              CASE
+                WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
+                ELSE NULL
+              END,
+              CASE
+                WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'GS.TS'
                 WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'PGS.TS'
-                WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS.'
-                WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS.'
+                WHEN "GiangVienDayDu" LIKE 'GS. %' THEN 'GS'
+                WHEN "GiangVienDayDu" LIKE 'PGS. %' THEN 'PGS'
+                WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+                WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
                 ELSE NULL
               END,
               "MaKhoa",
+              LOWER("MaGiangVien") || '@uit.edu.vn',
               TRUE
             FROM giang_vien_nguon
             ON CONFLICT ("MaGiangVien") DO UPDATE SET
               "HoTen" = COALESCE("GIANGVIEN"."HoTen", EXCLUDED."HoTen"),
+              "HocHam" = COALESCE("GIANGVIEN"."HocHam", EXCLUDED."HocHam"),
+              "HocVi" = COALESCE("GIANGVIEN"."HocVi", EXCLUDED."HocVi"),
               "HocHamHocVi" = COALESCE("GIANGVIEN"."HocHamHocVi", EXCLUDED."HocHamHocVi"),
+              "Email" = COALESCE(NULLIF("GIANGVIEN"."Email", ''), EXCLUDED."Email"),
               "MaKhoa" = COALESCE("GIANGVIEN"."MaKhoa", EXCLUDED."MaKhoa"),
               "DaXoa" = FALSE,
               "NguoiXoa" = NULL,
@@ -1279,6 +1442,101 @@ const ensureAuthSchema = async () => {
     WHERE l."MaLop" = lm."MaLop"
       AND COALESCE(lm."TrangThai", TRUE) = TRUE
   `);
+
+  await prisma.$executeRawUnsafe(`
+    WITH ranked_rooms AS (
+      SELECT p."MaPhong", ROW_NUMBER() OVER (ORDER BY p."MaPhong") AS rn
+      FROM "PHONGHOC" p
+      WHERE COALESCE(p."DaXoa", FALSE) = FALSE
+    ), semester_room_limit AS (
+      SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+      FROM "HOCKY" hk
+      WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+        AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%'
+    ), used_rooms AS (
+      SELECT DISTINCT COALESCE(lh."MaPhong", NULLIF(TRIM(lh."PhongHoc"), '')) AS "MaPhong", lm."MaHocKy"
+      FROM "LICHHOCLOP" lh
+      JOIN "LOPMO" lm ON lm.id = lh."LopMoId"
+      WHERE COALESCE(lh."TrangThai", TRUE) = TRUE
+        AND COALESCE(lm."TrangThai", TRUE) = TRUE
+        AND COALESCE(lh."MaPhong", NULLIF(TRIM(lh."PhongHoc"), '')) IS NOT NULL
+    ), room_allocations AS (
+      SELECT rr."MaPhong", srl."MaHocKy", 'Seed theo tap phong hoc cua hoc ky' AS "GhiChu"
+      FROM ranked_rooms rr
+      CROSS JOIN semester_room_limit srl
+      WHERE rr.rn <= CASE WHEN srl."ThuTu" = 3 THEN 4 WHEN srl."ThuTu" = 2 THEN 7 ELSE 9 END
+      UNION
+      SELECT ur."MaPhong", ur."MaHocKy", 'Tu dong them vi co lich lop dang dung phong'
+      FROM used_rooms ur
+      JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
+    )
+    INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
+    SELECT "MaPhong", "MaHocKy", TRUE, "GhiChu"
+    FROM room_allocations
+    ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
+      "TrangThai" = TRUE,
+      "DaXoa" = FALSE,
+      "NguoiXoa" = NULL,
+      "NgayXoa" = NULL,
+      "GhiChu" = COALESCE("PHONGHOCHOCKY"."GhiChu", EXCLUDED."GhiChu")
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    WITH ranked_lecturers AS (
+      SELECT gv."MaGiangVien", ROW_NUMBER() OVER (ORDER BY gv."MaGiangVien") AS rn
+      FROM "GIANGVIEN" gv
+      WHERE COALESCE(gv."DaXoa", FALSE) = FALSE
+    ), semester_lecturer_limit AS (
+      SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+      FROM "HOCKY" hk
+      WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+        AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%'
+    ), used_lecturers AS (
+      SELECT DISTINCT lm."MaGiangVien", lm."MaHocKy"
+      FROM "LOPMO" lm
+      WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+        AND NULLIF(TRIM(lm."MaGiangVien"), '') IS NOT NULL
+    ), lecturer_allocations AS (
+      SELECT rl."MaGiangVien", sll."MaHocKy", 'Seed theo tap giang vien cua hoc ky' AS "GhiChu"
+      FROM ranked_lecturers rl
+      CROSS JOIN semester_lecturer_limit sll
+      WHERE rl.rn <= CASE WHEN sll."ThuTu" = 3 THEN 6 WHEN sll."ThuTu" = 2 THEN 12 ELSE 16 END
+      UNION
+      SELECT ul."MaGiangVien", ul."MaHocKy", 'Tu dong them vi co lop mo dang phan cong'
+      FROM used_lecturers ul
+      JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
+    )
+    INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
+    SELECT "MaGiangVien", "MaHocKy", TRUE, "GhiChu"
+    FROM lecturer_allocations
+    ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
+      "TrangThai" = TRUE,
+      "DaXoa" = FALSE,
+      "NguoiXoa" = NULL,
+      "NgayXoa" = NULL,
+      "GhiChu" = COALESCE("GIANGVIENHOCKY"."GhiChu", EXCLUDED."GhiChu")
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "GIANGVIEN"
+    SET
+      "HocHam" = COALESCE("HocHam", CASE
+        WHEN "HocHamHocVi" ILIKE 'GS.%' OR "HocHamHocVi" = 'GS' THEN 'GS'
+        WHEN "HocHamHocVi" ILIKE 'PGS.%' OR "HocHamHocVi" = 'PGS' THEN 'PGS'
+        ELSE NULL
+      END),
+      "HocVi" = COALESCE("HocVi", CASE
+        WHEN "HocHamHocVi" ILIKE '%TS%' THEN 'TS'
+        WHEN "HocHamHocVi" ILIKE '%ThS%' THEN 'ThS'
+        ELSE NULL
+      END),
+      "Email" = COALESCE(NULLIF(TRIM("Email"), ''), LOWER("MaGiangVien") || '@uit.edu.vn')
+    WHERE NULLIF(TRIM(COALESCE("Email", '')), '') IS NULL
+       OR "HocHam" IS NULL
+       OR "HocVi" IS NULL
+  `);
+
+  await prisma.$executeRawUnsafe('ALTER TABLE "GIANGVIEN" ALTER COLUMN "Email" SET NOT NULL');
 
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "LOPMO"
@@ -1887,6 +2145,18 @@ const ensureAuthSchema = async () => {
     ALTER TABLE "PHUONGXA"
       ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "PHUONGXA"
+    SET "Loai" = 'Xã'
+    WHERE "Loai" = 'Thị trấn'
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "PHUONGXA"
+      DROP CONSTRAINT IF EXISTS chk_loai_phuong_xa,
+      ADD CONSTRAINT chk_loai_phuong_xa CHECK ("Loai" IN ('Phường', 'Xã'))
   `);
 
   await prisma.$executeRawUnsafe(`

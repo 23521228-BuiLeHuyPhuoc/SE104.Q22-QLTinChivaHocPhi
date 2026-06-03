@@ -6,10 +6,12 @@ var curriculumCourseLoadToken = 0;
 function applyCurriculumProgramFilters() {
   var params = new URLSearchParams();
   var search = document.getElementById('cp-search');
+  var searchField = document.getElementById('cp-search-field');
   var major = document.getElementById('cp-major');
   var status = document.getElementById('cp-status');
 
   if (search && search.value.trim()) params.set('search', search.value.trim());
+  if (searchField && searchField.value) params.set('searchField', searchField.value);
   if (major && major.value) params.set('major', major.value);
   if (status && status.value) params.set('status', status.value);
 
@@ -25,6 +27,107 @@ function debounceCurriculumProgramSearch() {
 function curriculumCourseOptionLabel(course) {
   if (!course) return '';
   return (course.MaMonHoc || '') + ' - ' + (course.TenMonHoc || '');
+}
+
+function curriculumEscapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function setCurriculumCourseSelection(courseOrCode, label) {
+  var hidden = document.getElementById('cp-item-course');
+  var title = document.getElementById('cp-item-course-title');
+  var subtitle = document.getElementById('cp-item-course-subtitle');
+  var course = typeof courseOrCode === 'object' && courseOrCode ? courseOrCode : null;
+  var code = course ? course.MaMonHoc : (courseOrCode || '');
+  var name = course ? course.TenMonHoc : (label || '');
+  if (hidden) hidden.value = code || '';
+  if (title) title.textContent = code ? (name || code) : 'ChÆ°a chá»n mÃ´n há»c';
+  if (subtitle) {
+    subtitle.textContent = code
+      ? [code, course && course.KHOA ? course.KHOA.TenKhoa : '', course && course.SoTinChi ? course.SoTinChi + ' TC' : ''].filter(Boolean).join(' Â· ')
+      : 'Báº¥m tÃ¬m kiáº¿m Ä‘á»ƒ chá»n mÃ´n há»c';
+  }
+}
+
+function setCurriculumProgramLockedState(locked) {
+  var major = document.getElementById('cp-item-major');
+  var picker = document.getElementById('cp-item-course-picker');
+  var summary = document.getElementById('cp-item-course-summary');
+  if (major) {
+    major.disabled = !!locked;
+    major.classList.toggle('is-locked', !!locked);
+  }
+  [picker, summary].forEach(function(element) {
+    if (element) element.classList.toggle('is-locked', !!locked);
+  });
+}
+
+function notifyCurriculumLockedField() {
+  showToast('NgÃ nh vÃ  mÃ´n há»c khÃ´ng Ä‘Æ°á»£c phÃ©p sá»­a. HÃ£y gá»¡ dÃ²ng nÃ y vÃ  thÃªm láº¡i náº¿u chá»n sai.', 'error');
+}
+
+function openCurriculumCoursePicker() {
+  if (editingCurriculumProgramId) {
+    notifyCurriculumLockedField();
+    return;
+  }
+  var modal = document.getElementById('curriculum-course-picker-modal');
+  var input = document.getElementById('curriculum-course-picker-search');
+  if (!modal) return;
+  if (input) input.value = '';
+  modal.classList.add('active');
+  loadCurriculumCoursePickerRows();
+  setTimeout(function() { if (input) input.focus(); }, 50);
+}
+
+function closeCurriculumCoursePicker() {
+  var modal = document.getElementById('curriculum-course-picker-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+async function loadCurriculumCoursePickerRows() {
+  var body = document.getElementById('curriculum-course-picker-body');
+  var input = document.getElementById('curriculum-course-picker-search');
+  if (!body) return;
+  var params = new URLSearchParams({ all: 'true', TrangThai: 'true' });
+  if (input && input.value.trim()) params.set('search', input.value.trim());
+  body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Äang táº£i mÃ´n há»c...</div></td></tr>';
+  try {
+    var res = await apiFetch('/api/courses?' + params.toString());
+    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5"><div class="empty-state">KhÃ´ng tÃ¬m tháº¥y mÃ´n há»c phÃ¹ há»£p</div></td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(course) {
+      var record = curriculumEscapeHtml(JSON.stringify(course));
+      return '<tr>' +
+        '<td class="mono">' + curriculumEscapeHtml(course.MaMonHoc || '-') + '</td>' +
+        '<td>' + curriculumEscapeHtml(course.TenMonHoc || '-') + '</td>' +
+        '<td>' + curriculumEscapeHtml((course.KHOA && course.KHOA.TenKhoa) || course.TenKhoa || '-') + '</td>' +
+        '<td>' + curriculumEscapeHtml(course.SoTinChi || '-') + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" type="button" data-course="' + record + '" onclick="selectCurriculumCourseFromPicker(this)">Chá»n</button></td>' +
+      '</tr>';
+    }).join('');
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">KhÃ´ng thá»ƒ táº£i danh sÃ¡ch mÃ´n há»c</div></td></tr>';
+  }
+}
+
+function selectCurriculumCourseFromPicker(button) {
+  if (!button) return;
+  try {
+    var course = JSON.parse(button.dataset.course || '{}');
+    setCurriculumCourseSelection(course);
+    closeCurriculumCoursePicker();
+  } catch (error) {
+    showToast('KhÃ´ng thá»ƒ chá»n mÃ´n há»c nÃ y', 'error');
+  }
 }
 
 function appendCurriculumCourseOption(list, value, label) {

@@ -55,6 +55,8 @@ DROP TABLE IF EXISTS "LICHHOCLOP" CASCADE;
 DROP TABLE IF EXISTS "DONGIATINCHI" CASCADE;
 DROP TABLE IF EXISTS "LOPMO" CASCADE;
 DROP TABLE IF EXISTS "MONHOCMO" CASCADE;
+DROP TABLE IF EXISTS "GIANGVIENHOCKY" CASCADE;
+DROP TABLE IF EXISTS "PHONGHOCHOCKY" CASCADE;
 DROP TABLE IF EXISTS "CHUONGTRINHHOC" CASCADE;
 DROP TABLE IF EXISTS "HOCKY" CASCADE;
 DROP TABLE IF EXISTS "NAMHOC" CASCADE;
@@ -90,6 +92,11 @@ CREATE TABLE "TINH" (
     "LoaiTinh" VARCHAR(30) DEFAULT 'Tỉnh',
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT tinh_pkey PRIMARY KEY ("MaTinh"),
     CONSTRAINT chk_loai_tinh CHECK ("LoaiTinh" IN ('Tỉnh', 'Thành phố'))
 );
@@ -120,10 +127,15 @@ CREATE TABLE "PHUONGXA" (
     "KhuVuc" VARCHAR(10) DEFAULT 'KV1',
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT phuong_xa_pkey PRIMARY KEY ("MaPhuongXa"),
     CONSTRAINT fk_phuong_xa_tinh FOREIGN KEY ("MaTinh")
         REFERENCES "TINH"("MaTinh") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT chk_loai_phuong_xa CHECK ("Loai" IN ('Phường', 'Xã', 'Thị trấn')),
+    CONSTRAINT chk_loai_phuong_xa CHECK ("Loai" IN ('Phường', 'Xã')),
     CONSTRAINT chk_khu_vuc CHECK ("KhuVuc" IN ('KV1', 'KV2', 'KV2-NT', 'KV3'))
 );
 
@@ -487,9 +499,11 @@ CREATE TABLE "PHONGHOC" (
 CREATE TABLE "GIANGVIEN" (
     "MaGiangVien" VARCHAR(20) NOT NULL,
     "HoTen" VARCHAR(100) NOT NULL,
+    "HocHam" VARCHAR(20),
+    "HocVi" VARCHAR(20),
     "HocHamHocVi" VARCHAR(50),
     "MaKhoa" VARCHAR(10),
-    "Email" VARCHAR(100),
+    "Email" VARCHAR(100) NOT NULL,
     "Sdt" VARCHAR(15),
     "MoTa" VARCHAR(300),
     "TrangThai" BOOLEAN DEFAULT TRUE,
@@ -503,6 +517,56 @@ CREATE TABLE "GIANGVIEN" (
     CONSTRAINT fk_giangvien_khoa FOREIGN KEY ("MaKhoa")
         REFERENCES "KHOA"("MaKhoa") ON DELETE SET NULL ON UPDATE CASCADE
 );
+
+-- =====================================================
+-- 14.1. BANG "PHONGHOCHOCKY" - Phong hoc ap dung theo hoc ky
+-- =====================================================
+CREATE TABLE "PHONGHOCHOCKY" (
+    id SERIAL NOT NULL,
+    "MaPhong" VARCHAR(50) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "GhiChu" VARCHAR(200),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT phong_hoc_hoc_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_phong_hoc_hoc_ky UNIQUE ("MaPhong", "MaHocKy"),
+    CONSTRAINT fk_phong_hoc_hoc_ky_phong FOREIGN KEY ("MaPhong")
+        REFERENCES "PHONGHOC"("MaPhong") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_phong_hoc_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_phong_hoc_hoc_ky_hk ON "PHONGHOCHOCKY" ("MaHocKy");
+
+-- =====================================================
+-- 14.2. BANG "GIANGVIENHOCKY" - Giang vien giang day theo hoc ky
+-- =====================================================
+CREATE TABLE "GIANGVIENHOCKY" (
+    id SERIAL NOT NULL,
+    "MaGiangVien" VARCHAR(20) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "GhiChu" VARCHAR(200),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT giang_vien_hoc_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_giang_vien_hoc_ky UNIQUE ("MaGiangVien", "MaHocKy"),
+    CONSTRAINT fk_giang_vien_hoc_ky_giang_vien FOREIGN KEY ("MaGiangVien")
+        REFERENCES "GIANGVIEN"("MaGiangVien") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_giang_vien_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_giang_vien_hoc_ky_hk ON "GIANGVIENHOCKY" ("MaHocKy");
 
 -- =====================================================
 -- 13. BẢNG "LOP" - Lớp học
@@ -573,6 +637,8 @@ CREATE TABLE "NAMHOC" (
     "NamKetThuc" INTEGER NOT NULL,
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
     CONSTRAINT nam_hoc_pkey PRIMARY KEY ("MaNamHoc")
 );
 
@@ -11959,22 +12025,41 @@ WITH giang_vien_nguon AS (
   WHERE l."GiangVien" IS NOT NULL AND TRIM(l."GiangVien") <> ''
   GROUP BY TRIM(l."GiangVien")
 )
-INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHamHocVi", "MaKhoa", "TrangThai")
+INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHam", "HocVi", "HocHamHocVi", "MaKhoa", "Email", "TrangThai")
 SELECT
   "MaGiangVien",
-  NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(PGS\.TS|TS\.|ThS\.)\s+', '')), ''),
+  NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(GS\.TS|PGS\.TS|GS\.|PGS\.|TS\.|ThS\.)\s+', '')), ''),
   CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.%' THEN 'GS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.%' THEN 'PGS'
+    ELSE NULL
+  END,
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
+    ELSE NULL
+  END,
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'GS.TS'
     WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'PGS.TS'
-    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS.'
-    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS.'
+    WHEN "GiangVienDayDu" LIKE 'GS. %' THEN 'GS'
+    WHEN "GiangVienDayDu" LIKE 'PGS. %' THEN 'PGS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
     ELSE NULL
   END,
   "MaKhoa",
+  LOWER("MaGiangVien") || '@uit.edu.vn',
   TRUE
 FROM giang_vien_nguon
 ON CONFLICT ("MaGiangVien") DO UPDATE SET
   "HoTen" = EXCLUDED."HoTen",
-  "HocHamHocVi" = EXCLUDED."HocHamHocVi",
+  "HocHam" = COALESCE("GIANGVIEN"."HocHam", EXCLUDED."HocHam"),
+  "HocVi" = COALESCE("GIANGVIEN"."HocVi", EXCLUDED."HocVi"),
+  "HocHamHocVi" = COALESCE("GIANGVIEN"."HocHamHocVi", EXCLUDED."HocHamHocVi"),
+  "Email" = COALESCE(NULLIF("GIANGVIEN"."Email", ''), EXCLUDED."Email"),
   "MaKhoa" = COALESCE("GIANGVIEN"."MaKhoa", EXCLUDED."MaKhoa"),
   "DaXoa" = FALSE,
   "NguoiXoa" = NULL,
@@ -13175,6 +13260,95 @@ JOIN LATERAL (
 ) lh ON TRUE
 WHERE l."MaLop" = lm."MaLop"
   AND COALESCE(lm."TrangThai", TRUE) = TRUE;
+
+-- Seed phong hoc va giang vien theo tung hoc ky. Cac dong da dung trong lich lop
+-- luon duoc giu; phan con lai lay theo thu tu on dinh de moi hoc ky co tap du lieu rieng.
+WITH ranked_rooms AS (
+  SELECT p."MaPhong", ROW_NUMBER() OVER (ORDER BY p."MaPhong") AS rn
+  FROM "PHONGHOC" p
+  WHERE COALESCE(p."DaXoa", FALSE) = FALSE
+), semester_room_limit AS (
+  SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+  FROM "HOCKY" hk
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%'
+), used_rooms AS (
+  SELECT DISTINCT COALESCE(lh."MaPhong", NULLIF(TRIM(lh."PhongHoc"), '')) AS "MaPhong", lm."MaHocKy"
+  FROM "LICHHOCLOP" lh
+  JOIN "LOPMO" lm ON lm.id = lh."LopMoId"
+  WHERE COALESCE(lh."TrangThai", TRUE) = TRUE
+    AND COALESCE(lm."TrangThai", TRUE) = TRUE
+    AND COALESCE(lh."MaPhong", NULLIF(TRIM(lh."PhongHoc"), '')) IS NOT NULL
+), room_allocations AS (
+  SELECT rr."MaPhong", srl."MaHocKy", 'Seed theo tap phong hoc cua hoc ky' AS "GhiChu"
+  FROM ranked_rooms rr
+  CROSS JOIN semester_room_limit srl
+  WHERE rr.rn <= CASE WHEN srl."ThuTu" = 3 THEN 4 WHEN srl."ThuTu" = 2 THEN 7 ELSE 9 END
+  UNION
+  SELECT ur."MaPhong", ur."MaHocKy", 'Tu dong them vi co lich lop dang dung phong'
+  FROM used_rooms ur
+  JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
+)
+INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
+SELECT "MaPhong", "MaHocKy", TRUE, "GhiChu"
+FROM room_allocations
+ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("PHONGHOCHOCKY"."GhiChu", EXCLUDED."GhiChu");
+
+WITH ranked_lecturers AS (
+  SELECT gv."MaGiangVien", ROW_NUMBER() OVER (ORDER BY gv."MaGiangVien") AS rn
+  FROM "GIANGVIEN" gv
+  WHERE COALESCE(gv."DaXoa", FALSE) = FALSE
+), semester_lecturer_limit AS (
+  SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+  FROM "HOCKY" hk
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%'
+), used_lecturers AS (
+  SELECT DISTINCT lm."MaGiangVien", lm."MaHocKy"
+  FROM "LOPMO" lm
+  WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+    AND NULLIF(TRIM(lm."MaGiangVien"), '') IS NOT NULL
+), lecturer_allocations AS (
+  SELECT rl."MaGiangVien", sll."MaHocKy", 'Seed theo tap giang vien cua hoc ky' AS "GhiChu"
+  FROM ranked_lecturers rl
+  CROSS JOIN semester_lecturer_limit sll
+  WHERE rl.rn <= CASE WHEN sll."ThuTu" = 3 THEN 6 WHEN sll."ThuTu" = 2 THEN 12 ELSE 16 END
+  UNION
+  SELECT ul."MaGiangVien", ul."MaHocKy", 'Tu dong them vi co lop mo dang phan cong'
+  FROM used_lecturers ul
+  JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
+)
+INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
+SELECT "MaGiangVien", "MaHocKy", TRUE, "GhiChu"
+FROM lecturer_allocations
+ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("GIANGVIENHOCKY"."GhiChu", EXCLUDED."GhiChu");
+
+UPDATE "GIANGVIEN"
+SET
+  "HocHam" = COALESCE("HocHam", CASE
+    WHEN "HocHamHocVi" ILIKE 'GS.%' OR "HocHamHocVi" = 'GS' THEN 'GS'
+    WHEN "HocHamHocVi" ILIKE 'PGS.%' OR "HocHamHocVi" = 'PGS' THEN 'PGS'
+    ELSE NULL
+  END),
+  "HocVi" = COALESCE("HocVi", CASE
+    WHEN "HocHamHocVi" ILIKE '%TS%' THEN 'TS'
+    WHEN "HocHamHocVi" ILIKE '%ThS%' THEN 'ThS'
+    ELSE NULL
+  END),
+  "Email" = COALESCE(NULLIF(TRIM("Email"), ''), LOWER("MaGiangVien") || '@uit.edu.vn')
+WHERE NULLIF(TRIM(COALESCE("Email", '')), '') IS NULL
+   OR "HocHam" IS NULL
+   OR "HocVi" IS NULL;
 
 -- =====================================================
 -- INSERT DATA - Đối tượng của Sinh viên (Student Priority Objects)

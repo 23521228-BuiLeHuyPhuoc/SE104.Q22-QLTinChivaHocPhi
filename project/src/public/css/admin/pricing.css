@@ -91,6 +91,32 @@
   min-height: 44px;
 }
 
+.pricing-audit-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--spacing-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.pricing-audit-item span {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.pricing-audit-item strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
 @media (max-width: 1180px) {
   .pricing-filter-grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
@@ -122,5 +148,9 @@
   .pricing-filter-field-wide,
   .pricing-clear-actions {
     grid-column: auto;
+  }
+
+  .pricing-audit-panel {
+    grid-template-columns: 1fr;
   }
 }

@@ -13,16 +13,40 @@ function beneficiaryEscapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function setBeneficiaryCodeReadonly(readonly) {
+  var input = document.getElementById('ben-ma');
+  if (!input) return;
+  input.disabled = false;
+  input.readOnly = !!readonly;
+  input.toggleAttribute('data-ui-readonly', !!readonly);
+  input.classList.toggle('ui-readonly-field', !!readonly);
+  if (!readonly) input.removeAttribute('title');
+}
+
+function updateBeneficiaryPriorityPreview(data) {
+  var preview = document.getElementById('ben-uutien-preview');
+  if (!preview) return;
+  if (!editMode) {
+    preview.textContent = 'Tự động tính khi lưu';
+    return;
+  }
+  preview.textContent = 'Tự động: ' + (data.DoUuTien || '-') + ' theo tỉ lệ ' + Number(data.TiLeGiamHocPhi || 0) + '%';
+}
+
 function openModal(mode, data) {
   editMode = mode === 'edit';
   editId = editMode ? data.MaDoiTuong : null;
   document.getElementById('modal-title').textContent = editMode ? 'Sửa đối tượng' : 'Thêm đối tượng';
   document.getElementById('ben-ma').value = editMode ? data.MaDoiTuong : '';
-  document.getElementById('ben-ma').disabled = editMode;
+  setBeneficiaryCodeReadonly(editMode);
   document.getElementById('ben-ten').value = editMode ? data.TenDoiTuong : '';
   document.getElementById('ben-tile').value = editMode ? Number(data.TiLeGiamHocPhi || 0) : '';
-  document.getElementById('ben-uutien').value = editMode ? data.DoUuTien : '';
+  updateBeneficiaryPriorityPreview(data || {});
   document.getElementById('ben-mota').value = editMode ? (data.MoTa || '') : '';
+  if (window.AdminUI) {
+    AdminUI.markReadonlyFields(document.getElementById('beneficiary-modal'));
+    AdminUI.initReadonlyNotices(document.getElementById('beneficiary-modal'));
+  }
   document.getElementById('beneficiary-modal').classList.add('active');
 }
 
@@ -31,25 +55,20 @@ function closeModal() {
 }
 
 async function saveBeneficiary() {
+  var beneficiaryId = document.getElementById('ben-ma').value.trim();
   var body = {
-    MaDoiTuong: document.getElementById('ben-ma').value.trim(),
     TenDoiTuong: document.getElementById('ben-ten').value.trim(),
     TiLeGiamHocPhi: document.getElementById('ben-tile').value,
-    DoUuTien: document.getElementById('ben-uutien').value,
     MoTa: document.getElementById('ben-mota').value.trim()
   };
+  if (!editMode) body.MaDoiTuong = beneficiaryId;
   var discountPercent = Number(body.TiLeGiamHocPhi);
-  var priority = Number(body.DoUuTien);
-  if (!body.MaDoiTuong || !body.TenDoiTuong || body.TiLeGiamHocPhi === '' || body.DoUuTien === '') {
+  if (!beneficiaryId || !body.TenDoiTuong || body.TiLeGiamHocPhi === '') {
     showToast('Vui lòng nhập đầy đủ thông tin', 'error');
     return;
   }
   if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
     showToast('Tỉ lệ giảm học phí phải từ 0 đến 100', 'error');
-    return;
-  }
-  if (!Number.isInteger(priority) || priority <= 0) {
-    showToast('Độ ưu tiên phải là số nguyên dương', 'error');
     return;
   }
   var url = editMode ? '/api/beneficiaries/' + editId : '/api/beneficiaries';
@@ -155,8 +174,10 @@ function debounceSearch() {
 
 function applyFilters() {
   var searchInput = document.getElementById('search-input');
+  var searchField = document.getElementById('beneficiary-search-field');
   var search = searchInput ? searchInput.value.trim() : '';
   var url = '/admin/beneficiaries?page=1';
+  if (searchField && searchField.value) url += '&searchField=' + encodeURIComponent(searchField.value);
   if (search) url += '&search=' + encodeURIComponent(search);
   window.location.href = url;
 }

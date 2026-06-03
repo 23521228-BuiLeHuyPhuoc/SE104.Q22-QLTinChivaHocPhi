@@ -1,6 +1,7 @@
 extends ../../layouts/admin
 
 block styles
+  link(rel="stylesheet" href="/css/admin/course-tools.css")
   link(rel="stylesheet" href="/css/admin/curriculum-programs.css")
 
 block content
@@ -13,9 +14,15 @@ block content
         span.material-symbols-rounded add
         span Thêm môn
 
+  - const cpSearchField = searchField || 'majorCode'
   form.curriculum-filter-panel(method="get" action="/admin/curriculum-programs")
     .curriculum-filter-grid
       .curriculum-filter-field.curriculum-filter-search-field
+        select.form-control#cp-search-field(name="searchField" onchange="applyCurriculumProgramFilters()")
+          option(value="majorCode" selected=(cpSearchField === 'majorCode')) MÃ£ ngÃ nh
+          option(value="majorName" selected=(cpSearchField === 'majorName')) TÃªn ngÃ nh
+          option(value="courseCode" selected=(cpSearchField === 'courseCode')) MÃ£ mÃ´n
+          option(value="courseName" selected=(cpSearchField === 'courseName')) TÃªn mÃ´n
         label(for="cp-search") Từ khóa
         .search-box.curriculum-search-box
           input#cp-search(type="text" name="search" value=(search || '') placeholder="Tìm mã ngành, tên ngành, mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceCurriculumProgramSearch()")
@@ -100,7 +107,6 @@ block content
                           .curriculum-course-meta
                             span.curriculum-chip= row.LoaiMon || '-'
                             span.curriculum-chip #{row.SoTinChi} TC
-                            span.curriculum-chip(class=(row.BatBuoc ? 'curriculum-chip-required' : 'curriculum-chip-elective'))= row.BatBuocLabel
                             span.curriculum-chip(class=(row.TrangThai ? 'curriculum-chip-active' : 'curriculum-chip-paused'))= row.TrangThaiLabel
                           if row.GhiChu
                             p.curriculum-course-note= row.GhiChu
@@ -135,7 +141,7 @@ block modals
           .curriculum-program-form-grid
             .form-group
               label(for="cp-item-major") Ngành
-              select.form-control#cp-item-major(required)
+              select.form-control.lockable-field#cp-item-major(required)
                 option(value="") Chọn ngành
                 each item in majors || []
                   option(value=item.MaNganh)= `${item.MaNganh} - ${item.TenNganh}`
@@ -144,13 +150,14 @@ block modals
               input.form-control#cp-item-semester(type="number" min="1" max="20" value="1" required)
             .form-group.form-group-wide
               label(for="cp-item-course") Môn học
-              input.form-control#cp-item-course(type="text" list="cp-course-options" required placeholder="Nhập mã môn hoặc tên môn để tìm" autocomplete="off")
-              datalist#cp-course-options
-            .form-group
-              label(for="cp-item-required") Tính chất
-              select.form-control#cp-item-required
-                option(value="true") Bắt buộc
-                option(value="false") Tự chọn
+              input#cp-item-course(type="hidden" required)
+              .course-picker-control#cp-item-course-control
+                .course-picker-summary#cp-item-course-summary
+                  strong#cp-item-course-title ChÆ°a chá»n mÃ´n há»c
+                  small#cp-item-course-subtitle Báº¥m tÃ¬m kiáº¿m Ä‘á»ƒ chá»n mÃ´n há»c
+                button.btn.btn-outline#cp-item-course-picker(type="button" onclick="openCurriculumCoursePicker()")
+                  span.material-symbols-rounded search
+                  span TÃ¬m mÃ´n
             .form-group
               label(for="cp-item-active") Hiệu lực
               select.form-control#cp-item-active
@@ -166,6 +173,33 @@ block modals
         button#curriculum-program-save-btn.btn.btn-primary(type="button" onclick="saveCurriculumProgramItem()")
           span.material-symbols-rounded save
           span.curriculum-program-save-label Lưu
+
+  #curriculum-course-picker-modal.modal-overlay(onclick="if(event.target===this)closeCurriculumCoursePicker()")
+    .modal.lookup-modal
+      .modal-header
+        div
+          h2 Chá»n mÃ´n há»c
+          p.entity-picker-subtitle TÃ¬m theo mÃ£ mÃ´n hoáº·c tÃªn mÃ´n há»c
+        button.modal-close(type="button" onclick="closeCurriculumCoursePicker()" aria-label="ÄÃ³ng") Ã—
+      .modal-body
+        .lookup-search-row
+          input.form-control#curriculum-course-picker-search(type="text" placeholder="Nháº­p mÃ£ hoáº·c tÃªn mÃ´n" autocomplete="off")
+          button.btn.btn-outline(type="button" onclick="loadCurriculumCoursePickerRows()")
+            span.material-symbols-rounded search
+            span TÃ¬m
+        .table-container.lookup-table-container
+          table.data-table.lookup-table
+            thead
+              tr
+                th MÃ£ mÃ´n
+                th TÃªn mÃ´n
+                th Khoa
+                th TC
+                th
+            tbody#curriculum-course-picker-body
+              tr
+                td(colspan="5")
+                  .empty-state ChÆ°a cÃ³ dá»¯ liá»‡u
 
 block scripts
   script(src="/js/admin/curriculum-programs.js")

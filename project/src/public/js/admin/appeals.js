@@ -7,6 +7,42 @@ function appealSafe(value) {
     .replace(/'/g, '&#039;');
 }
 
+var appealSearchTimer = null;
+
+function updateAppealSearchPlaceholder() {
+  var scope = document.getElementById('appeal-search-scope');
+  var input = document.getElementById('appeal-search-input');
+  if (!scope || !input) return;
+  var selectedOption = scope.options[scope.selectedIndex];
+  input.placeholder = selectedOption && selectedOption.dataset.placeholder ? selectedOption.dataset.placeholder : 'Nhập từ khóa tìm kiếm';
+}
+
+function debounceAppealSearch() {
+  clearTimeout(appealSearchTimer);
+  appealSearchTimer = setTimeout(function() { loadAppeals(1); }, 400);
+}
+
+function resetAppealFilters() {
+  var search = document.getElementById('appeal-search-input');
+  var scope = document.getElementById('appeal-search-scope');
+  var semester = document.getElementById('appeal-semester');
+  var type = document.getElementById('appeal-type');
+  var status = document.getElementById('appeal-status');
+  if (search) search.value = '';
+  if (scope) scope.value = 'studentId';
+  if (semester) semester.value = '';
+  if (type) type.value = '';
+  if (status) status.value = '';
+  updateAppealSearchPlaceholder();
+  loadAppeals(1);
+}
+
+function appealErrorMessage(res, fallback) {
+  var message = (res && res.message) || fallback;
+  if (res && res.code && message.indexOf(res.code) < 0) message += ' (' + res.code + ')';
+  return message;
+}
+
 function appealBadge(status) {
   if (status === 'cho_duyet') return 'badge-warning';
   if (status === 'da_duyet') return 'badge-success';
@@ -86,9 +122,13 @@ function renderAppealPagination(meta) {
 function buildAppealParams(page) {
   var params = new URLSearchParams();
   params.set('page', String(page || 1));
+  var search = document.getElementById('appeal-search-input');
+  var searchScope = document.getElementById('appeal-search-scope');
   var semester = document.getElementById('appeal-semester');
   var type = document.getElementById('appeal-type');
   var status = document.getElementById('appeal-status');
+  if (search && search.value.trim()) params.set('search', search.value.trim());
+  if (searchScope && searchScope.value) params.set('searchScope', searchScope.value);
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (type && type.value) params.set('LoaiDon', type.value);
   if (status && status.value) params.set('TrangThai', status.value);
@@ -118,12 +158,16 @@ async function loadAppeals(page) {
 
 async function approveAppeal(id) {
   if (!confirm('Duyệt đơn cứu xét này?')) return;
-  var res = await apiFetch('/api/appeals/' + encodeURIComponent(id) + '/approve', { method: 'PUT' });
-  if (res && res.success) {
-    showToast('Đã duyệt đơn cứu xét', 'success');
-    loadAppeals(1);
-  } else {
-    showToast((res && res.message) || 'Không thể duyệt đơn', 'error');
+  try {
+    var res = await apiFetch('/api/appeals/' + encodeURIComponent(id) + '/approve', { method: 'PUT' });
+    if (res && res.success) {
+      showToast('Đã duyệt đơn cứu xét', 'success');
+      loadAppeals(1);
+    } else {
+      showToast(appealErrorMessage(res, 'Không thể duyệt đơn cứu xét'), 'error');
+    }
+  } catch (error) {
+    showToast(error.message || 'Không thể duyệt đơn cứu xét', 'error');
   }
 }
 
@@ -135,11 +179,12 @@ async function rejectAppeal(id) {
     showToast('Đã từ chối đơn cứu xét', 'success');
     loadAppeals(1);
   } else {
-    showToast((res && res.message) || 'Không thể từ chối đơn', 'error');
+    showToast(appealErrorMessage(res, 'Không thể từ chối đơn cứu xét'), 'error');
   }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  updateAppealSearchPlaceholder();
   renderAppealActivityPanel();
   loadAppeals(1);
 });

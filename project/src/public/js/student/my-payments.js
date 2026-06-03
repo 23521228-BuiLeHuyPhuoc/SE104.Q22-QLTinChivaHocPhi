@@ -44,12 +44,12 @@ async function loadMyPayments(page) {
       tbody.innerHTML = res.data.map(function(p) {
         studentPaymentCache[p.SoPhieuThu] = p;
         var status = p.TrangThai || 'Thành công';
-        var badgeClass = status === 'Thành công' ? 'badge-success' : status === 'Chờ xác nhận' ? 'badge-warning' : 'badge-error';
+        var badgeClass = status === 'Thành công' ? 'badge-success' : (status === 'Chờ xác nhận' || status === 'Chưa thanh toán') ? 'badge-warning' : status === 'Đã hủy' ? 'badge-secondary' : 'badge-error';
         return '<tr>' +
           '<td class="mono">' + paymentEscapeHtml(p.SoPhieuThu || '-') + '</td>' +
       '<td>' + paymentEscapeHtml(paymentSemesterText(p)) + '</td>' +
           '<td class="currency">' + formatCurrency(p.SoTienThu || 0) + '</td>' +
-          '<td>' + paymentEscapeHtml(p.HinhThucThu || '-') + '</td>' +
+          '<td>' + paymentEscapeHtml(p.HinhThucThu || 'Chưa chọn') + '</td>' +
           '<td>' + (p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-') + '</td>' +
           '<td><span class="badge ' + badgeClass + '">' + paymentEscapeHtml(status) + '</span></td>' +
           '<td>' + paymentEscapeHtml(p.GhiChu || '-') + '</td>' +
@@ -133,11 +133,18 @@ function printStudentPayment(id) {
     showToast('Trình duyệt đang chặn cửa sổ in', 'error');
     return;
   }
-  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Phiếu thu học phí</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#111}.center{text-align:center}.box{border:1px solid #111;padding:18px;margin-top:18px}.row{display:flex;justify-content:space-between;margin:10px 0}.sign{display:flex;justify-content:space-between;margin-top:48px;text-align:center}</style></head><body><div class="center"><h2>TRƯỜNG ĐẠI HỌC</h2><h1>PHIẾU THU HỌC PHÍ</h1><p>Số phiếu: ' + paymentEscapeHtml(p.SoPhieuThu) + '</p></div><div class="box"><div class="row"><span>MSSV:</span><strong>' + paymentEscapeHtml(p.MaSv) + '</strong></div><div class="row"><span>Học kỳ:</span><strong>' + paymentEscapeHtml(paymentSemesterText(p)) + '</strong></div><div class="row"><span>Số tiền:</span><strong>' + formatCurrency(p.SoTienThu || 0) + '</strong></div><div class="row"><span>Bằng chữ:</span><strong>' + paymentEscapeHtml(numberToVietnamesePayment(p.SoTienThu)) + '</strong></div><div class="row"><span>Phương thức:</span><span>' + paymentEscapeHtml(p.HinhThucThu || '-') + '</span></div><div class="row"><span>Trạng thái:</span><span>' + paymentEscapeHtml(p.TrangThai || '-') + '</span></div></div><p style="text-align:right">Ngày ' + today.getDate() + ' tháng ' + (today.getMonth() + 1) + ' năm ' + today.getFullYear() + '</p><div class="sign"><div><strong>Người nộp</strong><p>(Ký, ghi rõ họ tên)</p></div><div><strong>Người thu</strong><p>(Ký, ghi rõ họ tên)</p></div></div><script>window.onload=function(){window.print();}</script></body></html>');
+  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Phiếu thu học phí</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#111}.center{text-align:center}.box{border:1px solid #111;padding:18px;margin-top:18px}.row{display:flex;justify-content:space-between;margin:10px 0}.sign{display:flex;justify-content:space-between;margin-top:48px;text-align:center}</style></head><body><div class="center"><h2>TRƯỜNG ĐẠI HỌC</h2><h1>PHIẾU THU HỌC PHÍ</h1><p>Số phiếu: ' + paymentEscapeHtml(p.SoPhieuThu) + '</p></div><div class="box"><div class="row"><span>MSSV:</span><strong>' + paymentEscapeHtml(p.MaSv) + '</strong></div><div class="row"><span>Học kỳ:</span><strong>' + paymentEscapeHtml(paymentSemesterText(p)) + '</strong></div><div class="row"><span>Số tiền:</span><strong>' + formatCurrency(p.SoTienThu || 0) + '</strong></div><div class="row"><span>Bằng chữ:</span><strong>' + paymentEscapeHtml(numberToVietnamesePayment(p.SoTienThu)) + '</strong></div><div class="row"><span>Phương thức:</span><span>' + paymentEscapeHtml(p.HinhThucThu || 'Chưa chọn') + '</span></div><div class="row"><span>Trạng thái:</span><span>' + paymentEscapeHtml(p.TrangThai || '-') + '</span></div></div><p style="text-align:right">Ngày ' + today.getDate() + ' tháng ' + (today.getMonth() + 1) + ' năm ' + today.getFullYear() + '</p><div class="sign"><div><strong>Người nộp</strong><p>(Ký, ghi rõ họ tên)</p></div><div><strong>Người thu</strong><p>(Ký, ghi rõ họ tên)</p></div></div><script>window.onload=function(){window.print();}</script></body></html>');
   win.document.close();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  var params = new URLSearchParams(window.location.search || '');
+  var paymentResult = params.get('payment');
+  if (paymentResult === 'success') showToast('Thanh toán thành công. Danh sách phiếu thu đã được cập nhật.', 'success');
+  if (paymentResult === 'failed') showToast('Thanh toán thất bại. Phiếu thu đã được cập nhật trạng thái.', 'error');
+  if (paymentResult && window.history && window.history.replaceState) {
+    window.history.replaceState(null, '', window.location.pathname);
+  }
   loadPaymentSemesters();
   loadMyPayments(1);
 });

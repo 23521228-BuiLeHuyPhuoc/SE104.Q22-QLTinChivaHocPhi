@@ -3,13 +3,23 @@ extends ../../layouts/admin
 block content
   .toolbar
     .search-box
-      input#search-input(type="text" placeholder="Tìm mã phòng, tên phòng, tòa nhà..." value=(search || '') onkeyup="debounceRoomSearch()")
+      input#search-input(type="text" placeholder="Tìm phòng học..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceRoomSearch()")
     .filter-group
+      select.form-control#filter-semester(onchange="applyRoomFilters()")
+        if semesterOptions && semesterOptions.length
+          each semester in semesterOptions
+            option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+        else
+          option(value="" selected) Chưa có học kỳ
       select.form-control#filter-type(onchange="applyRoomFilters()")
         option(value="" selected=(!type)) Tất cả loại phòng
         option(value="ly_thuyet" selected=(type === 'ly_thuyet')) Lý thuyết
         option(value="thuc_hanh" selected=(type === 'thuc_hanh')) Thực hành
         option(value="lab" selected=(type === 'lab')) Lab
+      select.form-control#filter-used-status(onchange="applyRoomFilters()")
+        option(value="" selected=(!usedStatus)) Tất cả tình trạng dùng
+        option(value="in_use" selected=(usedStatus === 'in_use')) Đang có lớp
+        option(value="free" selected=(usedStatus === 'free')) Chưa có lớp
       select.form-control#filter-status(onchange="applyRoomFilters()")
         option(value="" selected=(!status)) Tất cả trạng thái
         option(value="active" selected=(status === 'active')) Đang dùng
@@ -20,9 +30,9 @@ block content
   .card
     .card-header
       h3 Danh sách phòng học
-      span.card-count= rooms ? `${rooms.length} bản ghi` : '0 bản ghi'
+      span.card-count= rooms ? (rooms.length + ' bản ghi') : '0 bản ghi'
     .table-container
-      table.data-table
+      table.data-table#rooms-table
         thead
           tr
             th Mã phòng
@@ -30,7 +40,7 @@ block content
             th Tòa nhà
             th Sức chứa
             th Loại phòng
-            th Đang dùng
+            th Học kỳ
             th Trạng thái
             th Sửa bởi
             th Sửa lúc
@@ -38,7 +48,7 @@ block content
         tbody
           if rooms && rooms.length > 0
             each room in rooms
-              tr
+              tr(data-record=JSON.stringify(room))
                 td.mono= room.MaPhong
                 td
                   strong= room.TenPhong
@@ -47,14 +57,15 @@ block content
                 td= room.ToaNha || '-'
                 td= room.SucChua || '-'
                 td= room.LoaiPhong === 'thuc_hanh' ? 'Thực hành' : room.LoaiPhong === 'lab' ? 'Lab' : 'Lý thuyết'
-                td #{room._count ? room._count.LOP : 0} lớp / #{room._count ? room._count.LICHHOCLOP : 0} lịch
+                td= room.HocKyLabel || room.MaHocKy || '-'
                 td
                   span.badge(class=room.TrangThai === false ? 'badge-secondary' : 'badge-success')= room.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
                 td= room.NguoiCapNhatTen || room.NguoiCapNhat || '-'
                 td= room.NgayCapNhat ? new Date(room.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(room) onclick="openRoomModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" data-maphong=room.MaPhong onclick="deleteRoom(this.dataset.maphong)") Xóa
+                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(room) data-no-row-detail="true" onclick="openRoomModal('edit', JSON.parse(this.dataset.record))") Sửa
+                  button.btn.btn-sm.btn-outline(type="button" data-maphong=room.MaPhong data-no-row-detail="true" onclick="openRoomClasses(this.dataset.maphong)") Lớp đang dùng
+                  button.btn.btn-sm.btn-danger(type="button" data-maphong=room.MaPhong data-no-row-detail="true" onclick="deleteRoom(this.dataset.maphong)") Xóa
           else
             tr
               td(colspan="10")
@@ -72,36 +83,76 @@ block modals
         form#room-form
           .form-row
             .form-group
+              label(for="room-hocky") Học kỳ áp dụng
+              select.form-control#room-hocky(required)
+                if semesterOptions && semesterOptions.length
+                  each semester in semesterOptions
+                    option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+                else
+                  option(value="") Chưa có học kỳ
+            .form-group
               label(for="room-ma") Mã phòng
-              input.form-control#room-ma(type="text" required placeholder="VD: C.101")
+              input.form-control#room-ma(type="text" required placeholder="VD: C.101" data-readonly-message="Mã phòng là khóa chính nên không được sửa sau khi tạo.")
+          .form-row
             .form-group
               label(for="room-ten") Tên phòng
               input.form-control#room-ten(type="text" required placeholder="VD: Phòng C.101")
-          .form-row
             .form-group
               label(for="room-toanha") Tòa nhà
               input.form-control#room-toanha(type="text" placeholder="VD: C")
+          .form-row
             .form-group
               label(for="room-succhua") Sức chứa
               input.form-control#room-succhua(type="number" min="1" value="60")
-          .form-row
             .form-group
               label(for="room-loai") Loại phòng
               select.form-control#room-loai
                 option(value="ly_thuyet") Lý thuyết
                 option(value="thuc_hanh") Thực hành
                 option(value="lab") Lab
+          .form-row
             .form-group
               label(for="room-trangthai") Trạng thái
               select.form-control#room-trangthai
                 option(value="true") Đang dùng
                 option(value="false") Tạm khóa
-          .form-group
-            label(for="room-mota") Mô tả
-            textarea.form-control#room-mota(rows="3")
+            .form-group
+              label(for="room-mota") Mô tả
+              input.form-control#room-mota(type="text")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeRoomModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveRoom()") Lưu
+
+  #room-classes-modal.modal-overlay(onclick="if(event.target===this)closeRoomClassesModal()")
+    .modal.modal-wide
+      .modal-header
+        h2#room-classes-title Lớp đang dùng
+        button.modal-close(type="button" onclick="closeRoomClassesModal()" aria-label="Đóng") ×
+      .modal-body
+        .form-row
+          .form-group
+            label(for="room-classes-semester") Học kỳ
+            select.form-control#room-classes-semester(onchange="reloadRoomClasses()")
+              if semesterOptions && semesterOptions.length
+                each semester in semesterOptions
+                  option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+              else
+                option(value="") Chưa có học kỳ
+        .table-container
+          table.data-table
+            thead
+              tr
+                th Mã lớp
+                th Môn học
+                th Giảng viên
+                th Lịch học
+                th Đã đăng ký
+            tbody#room-classes-body
+              tr
+                td(colspan="5")
+                  .empty-state Chọn phòng để xem lớp đang dùng
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeRoomClassesModal()") Đóng
 
 block scripts
   script(src="/js/admin/rooms.js")

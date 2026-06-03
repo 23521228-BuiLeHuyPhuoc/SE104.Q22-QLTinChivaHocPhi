@@ -27,8 +27,18 @@ const getAllMajors = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { search, MaKhoa, all } = req.query;
+    const searchField = ['MaNganh', 'TenNganh', 'TenKhoa'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = notDeleted();
-    if (search) where.OR = [{ MaNganh: { contains: search, mode: 'insensitive' } }, { TenNganh: { contains: search, mode: 'insensitive' } }];
+    if (search) {
+      const searchMap = {
+        MaNganh: [{ MaNganh: { contains: search, mode: 'insensitive' } }],
+        TenNganh: [{ TenNganh: { contains: search, mode: 'insensitive' } }],
+        TenKhoa: [{ KHOA: { is: { TenKhoa: { contains: search, mode: 'insensitive' } } } }]
+      };
+      where.OR = searchField === 'all'
+        ? [...searchMap.MaNganh, ...searchMap.TenNganh, ...searchMap.TenKhoa]
+        : searchMap[searchField];
+    }
     if (MaKhoa) where.MaKhoa = MaKhoa;
     const [majors, total] = await Promise.all([
       prisma.NGANHHOC.findMany({ where, skip: all === 'true' ? undefined : skip, take: all === 'true' ? undefined : limit, orderBy: { MaNganh: 'asc' }, include: { KHOA: true, _count: { select: { SINHVIEN: true } } } }),

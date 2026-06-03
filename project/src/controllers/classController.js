@@ -463,7 +463,23 @@ const getClassById = async (req, res) => {
         PHONGHOC: true,
         TIETHOC_LOP_MaTietBatDauToTIETHOC: true,
         TIETHOC_LOP_MaTietKetThucToTIETHOC: true,
-        LOPMO: { include: { HOCKY: true, GIANGVIEN: true, LICHHOCLOP: { include: { PHONGHOC: true } } } }
+        CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, select: { id: true } },
+        LOPMO: {
+          include: {
+            HOCKY: { include: { NAMHOC: true } },
+            GIANGVIEN: true,
+            LICHHOCLOP: {
+              where: { TrangThai: true },
+              include: {
+                PHONGHOC: true,
+                TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
+                TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+              },
+              orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
+            }
+          },
+          orderBy: { NgayTao: 'desc' }
+        }
       }
     });
     if (!cls) return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });

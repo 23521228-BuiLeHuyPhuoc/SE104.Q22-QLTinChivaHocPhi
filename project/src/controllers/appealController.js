@@ -62,6 +62,19 @@ const trimOrNull = (value) => {
   return text || null;
 };
 
+const APPEAL_SEARCH_SCOPES = ['studentId', 'studentName', 'classCode', 'courseName', 'semester', 'reason'];
+
+const normalizeAppealSearchScope = (value) => (
+  APPEAL_SEARCH_SCOPES.includes(value) ? value : 'studentId'
+);
+
+const containsInsensitive = (value) => ({ contains: value, mode: 'insensitive' });
+
+const appendAndCondition = (where, condition) => {
+  if (!condition) return;
+  where.AND = [...(where.AND || []), condition];
+};
+
 const appealInclude = {
   SINHVIEN: { select: { MaSv: true, HoTen: true, Email: true } },
   HOCKY: { include: { NAMHOC: true } },
@@ -109,13 +122,28 @@ const buildAppealWhere = (query = {}) => {
 
   const search = String(query.search || '').trim();
   if (search) {
-    where.OR = [
-      { MaSv: { contains: search, mode: 'insensitive' } },
-      { SINHVIEN: { HoTen: { contains: search, mode: 'insensitive' } } },
-      { MaLopHuy: { contains: search, mode: 'insensitive' } },
-      { MaLopThem: { contains: search, mode: 'insensitive' } },
-      { LyDo: { contains: search, mode: 'insensitive' } }
-    ];
+    const scope = normalizeAppealSearchScope(query.searchScope);
+    const scopedSearch = {
+      studentName: { SINHVIEN: { HoTen: containsInsensitive(search) } },
+      classCode: { OR: [{ MaLopHuy: containsInsensitive(search) }, { MaLopThem: containsInsensitive(search) }] },
+      courseName: {
+        OR: [
+          { LOP_HUY: { is: { MONHOC: { TenMonHoc: containsInsensitive(search) } } } },
+          { LOP_THEM: { is: { MONHOC: { TenMonHoc: containsInsensitive(search) } } } }
+        ]
+      },
+      semester: {
+        OR: [
+          { MaHocKy: containsInsensitive(search) },
+          { HOCKY: { TenHocKy: containsInsensitive(search) } },
+          { HOCKY: { NAMHOC: { MaNamHoc: containsInsensitive(search) } } },
+          { HOCKY: { NAMHOC: { TenNamHoc: containsInsensitive(search) } } }
+        ]
+      },
+      reason: { OR: [{ LyDo: containsInsensitive(search) }, { LyDoTuChoi: containsInsensitive(search) }] },
+      studentId: { MaSv: containsInsensitive(search) }
+    };
+    appendAndCondition(where, scopedSearch[scope]);
   }
   return where;
 };
@@ -395,7 +423,8 @@ const approveAppeal = async (req, res) => {
     res.json({ success: true, message: 'Đã duyệt đơn cứu xét', data: toAppealDto(result) });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message, code: error.code });
-    return sendErrorResponse(res, error, 'Không thể duyệt đơn cứu xét', 'Approve appeal error:');
+    const detail = error && error.message ? `Không thể duyệt đơn cứu xét: ${error.message}` : 'Không thể duyệt đơn cứu xét';
+    return sendErrorResponse(res, error, detail, 'Approve appeal error:');
   }
 };
 

@@ -4,6 +4,7 @@ const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 
 const CONDITION_TYPES = new Set(['tien_quyet', 'hoc_truoc']);
+const SEARCH_FIELDS = new Set(['code', 'courseName', 'requiredName']);
 
 const normalizeCode = (value) => String(value || '').trim().toUpperCase();
 const normalizeType = (value) => String(value || 'hoc_truoc').trim();
@@ -20,26 +21,22 @@ const includeCourses = {
 const getPrerequisites = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search = '', LoaiDieuKien = '', TrangThai = '' } = req.query;
+    const { search = '', searchField = 'code', LoaiDieuKien = '', TrangThai = '' } = req.query;
     const where = notDeleted();
     if (CONDITION_TYPES.has(LoaiDieuKien)) where.LoaiDieuKien = LoaiDieuKien;
     if (TrangThai !== '') where.TrangThai = TrangThai === 'true';
     if (search) {
-      where.OR = [
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { MaMonDieuKien: { contains: search, mode: 'insensitive' } },
-        { MoTa: { contains: search, mode: 'insensitive' } },
-        {
-          MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC: {
-            TenMonHoc: { contains: search, mode: 'insensitive' }
-          }
-        },
-        {
-          MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: {
-            TenMonHoc: { contains: search, mode: 'insensitive' }
-          }
-        }
-      ];
+      const field = SEARCH_FIELDS.has(searchField) ? searchField : 'code';
+      if (field === 'courseName') {
+        where.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC = { TenMonHoc: { contains: search, mode: 'insensitive' } };
+      } else if (field === 'requiredName') {
+        where.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC = { TenMonHoc: { contains: search, mode: 'insensitive' } };
+      } else {
+        where.OR = [
+          { MaMonHoc: { contains: search, mode: 'insensitive' } },
+          { MaMonDieuKien: { contains: search, mode: 'insensitive' } }
+        ];
+      }
     }
 
     const [rows, total] = await Promise.all([

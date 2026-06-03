@@ -1,0 +1,86 @@
+extends ../../layouts/admin
+
+block content
+  .page-shell
+    .toolbar
+      .toolbar-title
+        h2.page-title Sinh viên chưa hoàn thành học phí
+        p Theo dõi sinh viên còn nợ, đóng một phần hoặc quá hạn học phí theo học kỳ.
+      .filter-group
+        select#report-semester(onchange="loadReports()")
+          option(value="") Tất cả học kỳ
+          if semesters && semesters.length
+            each semester in semesters
+              option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+        button.btn.btn-outline(type="button" onclick="exportIncompleteCsv()")
+          span.material-symbols-rounded(aria-hidden="true") download
+          span Excel
+        button.btn.btn-outline(type="button" onclick="printIncompleteReport()")
+          span.material-symbols-rounded(aria-hidden="true") picture_as_pdf
+          span PDF
+
+    .card
+      .card-header
+        h3 Danh sách sinh viên chưa hoàn thành học phí
+      .card-body
+        .toolbar
+          .search-box
+            input#debt-search(type="text" placeholder="Tìm MSSV hoặc họ tên..." onkeyup="debounceDebtSearch()")
+          .filter-group
+            select#debt-faculty(onchange="filterDebtMajors(); loadIncompleteTuition()")
+              option(value="") Tất cả khoa
+              if faculties && faculties.length
+                each faculty in faculties
+                  option(value=faculty.MaKhoa)= faculty.TenKhoa || faculty.MaKhoa
+            select#debt-major(onchange="loadIncompleteTuition()")
+              option(value="") Tất cả ngành
+              if majors && majors.length
+                each major in majors
+                  option(value=major.MaNganh data-faculty=major.MaKhoa)= `${major.TenNganh || major.MaNganh}${major.KHOA ? ' - ' + major.KHOA.TenKhoa : ''}`
+            select#debt-status(onchange="loadIncompleteTuition()")
+              option(value="") Tất cả trạng thái nợ
+              option(value="Chưa đóng") Chưa đóng
+              option(value="Đóng một phần") Đóng một phần
+              option(value="Quá hạn") Quá hạn
+            select#debt-overdue(onchange="loadIncompleteTuition()")
+              option(value="") Quá hạn và chưa quá hạn
+              option(value="true") Chỉ quá hạn
+              option(value="false") Chưa quá hạn
+        .stats-grid
+          .stat-card
+            .stat-info
+              h3#debt-total-students --
+              p SV chưa hoàn thành
+          .stat-card
+            .stat-info
+              h3#debt-total-amount --
+              p Tổng còn nợ
+          .stat-card
+            .stat-info
+              h3#debt-overdue-students --
+              p SV quá hạn
+          .stat-card
+            .stat-info
+              h3#debt-partial-students --
+              p SV đóng một phần
+        .table-container
+          table.data-table
+            thead
+              tr
+                th MSSV
+                th Họ tên
+                th Ngành/Khoa
+                th Học kỳ
+                th Phải đóng
+                th Đã đóng
+                th Còn nợ
+                th Hạn đóng
+                th Ngày quá hạn
+                th Trạng thái
+            tbody#incomplete-tuition-table
+              tr
+                td(colspan="10")
+                  .empty-state Đang tải dữ liệu...
+
+block scripts
+  script(src="/js/admin/reports.js")

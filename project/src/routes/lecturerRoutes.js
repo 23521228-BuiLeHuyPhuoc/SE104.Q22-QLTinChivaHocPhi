@@ -7,6 +7,7 @@ router.use(authenticateToken);
 router.use(authorizeAdmin);
 
 router.get('/', lecturerController.getAllLecturers);
+router.get('/:id/classes', lecturerController.getLecturerClasses);
 router.post('/', lecturerController.createLecturer);
 router.put('/:id', lecturerController.updateLecturer);
 router.delete('/:id', lecturerController.deleteLecturer);

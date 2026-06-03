@@ -5,6 +5,7 @@ const { assertRegistrationOpen, getRegistrationWindowState, getAppealWindowState
 const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { buildRegistrationStudentRows, buildRegistrationDistribution, getRegistrationSemesterName } = require('../utils/registrationStats');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../utils/businessConstants');
+const { createCourseRegistrationNotification } = require('../utils/notificationEvents');
 
 const ACTIVE_REGISTRATION_STATUS = REGISTRATION_STATUS.ACTIVE;
 const CANCELLED_REGISTRATION_STATUS = REGISTRATION_STATUS.CANCELLED;
@@ -399,14 +400,16 @@ const getEnglishLimitInfo = async (tx, maSv, maHocKy) => {
     .map((item) => item.trim())
     .filter(Boolean);
   const normalMax = Number(settings?.SoTinChiDangKyToiDa || 24);
+  const absoluteMax = Number(settings?.SoTinChiDangKyToiDaKhiVuot || normalMax);
   const limitedMax = Number(settings?.GioiHanTinChiChuaDatAnhVan || 14);
   const checkYears = Number(settings?.NamKiemTraAnhVan || 2);
-  if (!student?.NgayNhapHoc || !englishCourses.length) return { maxCredits: normalMax, limited: false, missingCourses: [] };
+  const baseLimit = { maxCredits: normalMax, absoluteMaxCredits: Math.max(normalMax, absoluteMax), limited: false, missingCourses: [], checkYears };
+  if (!student?.NgayNhapHoc || !englishCourses.length) return baseLimit;
 
   const cutoff = new Date(student.NgayNhapHoc);
   cutoff.setFullYear(cutoff.getFullYear() + checkYears);
   const semesterStart = semester?.NgayBatDau ? new Date(semester.NgayBatDau) : new Date();
-  if (semesterStart <= cutoff) return { maxCredits: normalMax, limited: false, missingCourses: [] };
+  if (semesterStart <= cutoff) return baseLimit;
 
   const passed = await tx.MONDAHOC.findMany({
     where: { MaSv: maSv, MaMonHoc: { in: englishCourses }, KetQua: 'qua_mon', DaXoa: false },
@@ -414,8 +417,8 @@ const getEnglishLimitInfo = async (tx, maSv, maHocKy) => {
   });
   const passedSet = new Set(passed.map((item) => item.MaMonHoc));
   const missingCourses = englishCourses.filter((course) => !passedSet.has(course));
-  if (!missingCourses.length) return { maxCredits: normalMax, limited: false, missingCourses: [] };
-  return { maxCredits: Math.min(normalMax, limitedMax), limited: true, missingCourses };
+  if (!missingCourses.length) return baseLimit;
+  return { ...baseLimit, maxCredits: Math.min(normalMax, limitedMax), limited: true, missingCourses };
 };
 
 const ensureCreditLimit = async (tx, maSv, maHocKy, soPhieu, creditsToAdd) => {
@@ -426,6 +429,10 @@ const ensureCreditLimit = async (tx, maSv, maHocKy, soPhieu, creditsToAdd) => {
   const currentCredits = phieu?.CHITIETDANGKY.reduce((sum, item) => sum + Number(item.SoTinChi || 0), 0) || 0;
   const limitInfo = await getEnglishLimitInfo(tx, maSv, maHocKy);
   const nextCredits = currentCredits + Number(creditsToAdd || 0);
+  const absoluteMaxCredits = Number(limitInfo.absoluteMaxCredits || limitInfo.maxCredits);
+  if (nextCredits > absoluteMaxCredits) {
+    throw { status: 400, message: `Tổng tín chỉ ${nextCredits} vượt giới hạn hệ thống cho phép ${absoluteMaxCredits}` };
+  }
   if (nextCredits > limitInfo.maxCredits) {
     const reason = limitInfo.limited
       ? `Sinh viên chưa hoàn tất ${limitInfo.missingCourses.join(', ')} sau cuối năm ${Number((await tx.THAMSO.findFirst())?.NamKiemTraAnhVan || 2)}, tối đa ${limitInfo.maxCredits} tín chỉ`
@@ -1164,6 +1171,16 @@ const registerCourse = async (req, res) => {
         })
         : await tx.CHITIETDANGKY.create({ data });
       const tuitionSummary = await recalculateRegistrationTotals(tx, phieu.SoPhieu);
+      await createCourseRegistrationNotification(tx, {
+        MaSv,
+        MaHocKy,
+        MaLop,
+        MaMonHoc: course.MaMonHoc,
+        TenMonHoc: course.TenMonHoc,
+        SoTinChi: credits,
+        TongTinChi: tuitionSummary.TongTinChi,
+        SoPhieu: phieu.SoPhieu
+      });
       return { registration, tuitionSummary };
     }, { isolationLevel: 'Serializable' });
 
@@ -1232,11 +1249,37 @@ const getRegistrationStats = async (req, res) => {
   try {
     const where = {};
     if (req.query.MaHocKy) where.MaHocKy = req.query.MaHocKy;
-    const [totalReg, totalDetails] = await Promise.all([
+    const [totalReg, totalDetails, registrations] = await Promise.all([
       prisma.PHIEUDANGKY.count({ where }),
-      prisma.CHITIETDANGKY.count({ where: { TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: where } })
+      prisma.CHITIETDANGKY.count({ where: { TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: where } }),
+      prisma.PHIEUDANGKY.findMany({
+        where,
+        orderBy: { NgayLap: 'desc' },
+        include: {
+          SINHVIEN: {
+            include: {
+              NGANHHOC: { include: { KHOA: true } }
+            }
+          },
+          HOCKY: { include: { NAMHOC: true } },
+          CHITIETDANGKY: {
+            where: { TrangThai: ACTIVE_REGISTRATION_STATUS },
+            select: { id: true, SoTinChi: true }
+          }
+        }
+      })
     ]);
-    res.json({ success: true, data: { totalRegistrations: totalReg, totalCourses: totalDetails } });
+    const studentRows = buildRegistrationStudentRows(registrations);
+    res.json({
+      success: true,
+      data: {
+        totalRegistrations: totalReg,
+        totalCourses: totalDetails,
+        totalStudents: studentRows.length,
+        byFaculty: buildRegistrationDistribution(studentRows, 'faculty'),
+        byMajor: buildRegistrationDistribution(studentRows, 'major')
+      }
+    });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get registration stats error:');
   }

@@ -105,7 +105,10 @@ const academicYearSelect = (year) => ({
   TenNamHoc: year.TenNamHoc,
   NamBatDau: year.NamBatDau,
   NamKetThuc: year.NamKetThuc,
-  TrangThai: year.TrangThai
+  TrangThai: year.TrangThai,
+  NguoiCapNhat: year.NguoiCapNhat,
+  NguoiCapNhatTen: year.NguoiCapNhatTen,
+  NgayCapNhat: year.NgayCapNhat
 });
 
 const parseAcademicYearCode = (value) => {
@@ -807,8 +810,28 @@ const deleteSemester = async (req, res) => {
 
 const getAcademicYears = async (req, res) => {
   try {
-    const years = await prisma.NAMHOC.findMany({ where: { TrangThai: true }, orderBy: { TenNamHoc: 'desc' } });
-    res.json({ success: true, data: years.map(academicYearSelect) });
+    const search = String(req.query.search || '').trim();
+    const searchField = ['MaNamHoc', 'TenNamHoc'].includes(req.query.searchField) ? req.query.searchField : 'all';
+    const status = String(req.query.status || '').trim();
+    const where = {};
+
+    if (status === 'active') where.TrangThai = true;
+    else if (status === 'inactive') where.TrangThai = false;
+    else where.TrangThai = true;
+
+    if (search) {
+      const searchMap = {
+        MaNamHoc: [{ MaNamHoc: { contains: search, mode: 'insensitive' } }],
+        TenNamHoc: [{ TenNamHoc: { contains: search, mode: 'insensitive' } }]
+      };
+      where.OR = searchField === 'all'
+        ? [...searchMap.MaNamHoc, ...searchMap.TenNamHoc]
+        : searchMap[searchField];
+    }
+
+    const years = await prisma.NAMHOC.findMany({ where, orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }] });
+    const withUpdaterNames = await attachUpdaterNames(years);
+    res.json({ success: true, data: withUpdaterNames.map(academicYearSelect) });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi server', 'Get academic years error:');
   }
@@ -841,7 +864,8 @@ const createAcademicYear = async (req, res) => {
         TenNamHoc: String(TenNamHoc || code).trim(),
         NamBatDau: start,
         NamKetThuc: end,
-        TrangThai: parseAcademicYearStatus(TrangThai)
+        TrangThai: parseAcademicYearStatus(TrangThai),
+        ...updateAudit(req)
       }
     });
 
@@ -865,7 +889,8 @@ const updateAcademicYear = async (req, res) => {
 
     const data = {
       NamBatDau: start,
-      NamKetThuc: end
+      NamKetThuc: end,
+      ...updateAudit(req)
     };
     if (TenNamHoc !== undefined) {
       data.TenNamHoc = String(TenNamHoc || '').trim();

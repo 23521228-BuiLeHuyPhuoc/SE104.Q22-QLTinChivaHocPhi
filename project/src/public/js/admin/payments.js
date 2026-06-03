@@ -326,7 +326,7 @@ function renderPaymentDetail(p) {
     '<div class="info-list">' +
       '<div><span class="label">Sinh viên</span><span>' + paymentSafe(p.MaSv) + ' - ' + paymentSafe(p.HoTen) + '</span></div>' +
       '<div><span class="label">Học kỳ</span><span>' + paymentSafe(paymentSemesterText(p)) + '</span></div>' +
-      '<div><span class="label">Phương thức</span><span>' + paymentSafe(p.HinhThucThu || p.PaymentProvider || '-') + '</span></div>' +
+      '<div><span class="label">Phương thức</span><span>' + paymentSafe(p.HinhThucThu || 'Chưa chọn') + '</span></div>' +
       '<div><span class="label">Người thu</span><span>' + paymentSafe(p.NguoiThu || '-') + '</span></div>' +
       '<div><span class="label">Ngày lập</span><span>' + (p.NgayLap ? formatDate(p.NgayLap) : '-') + '</span></div>' +
       '<div><span class="label">Ngày xác nhận</span><span>' + (p.NgayXacNhan ? formatDate(p.NgayXacNhan) : '-') + '</span></div>' +
@@ -406,7 +406,7 @@ function buildPrintHtml(p) {
     '<div class="row"><span>Học kỳ:</span><strong>' + paymentSafe(paymentSemesterText(p)) + '</strong></div>' +
     '<div class="row"><span>Số tiền:</span><span class="money">' + formatCurrency(p.SoTienThu || 0) + '</span></div>' +
     '<div class="row"><span>Bằng chữ:</span><strong>' + paymentSafe(numberToVietnamese(p.SoTienThu)) + '</strong></div>' +
-    '<div class="row"><span>Phương thức:</span><span>' + paymentSafe(p.HinhThucThu || '-') + '</span></div>' +
+    '<div class="row"><span>Phương thức:</span><span>' + paymentSafe(p.HinhThucThu || 'Chưa chọn') + '</span></div>' +
     '<div class="row"><span>Mã giao dịch:</span><span>' + paymentSafe(p.MaGiaoDich || '-') + '</span></div>' +
     '<div class="row"><span>Người thu:</span><span>' + paymentSafe(p.NguoiThu || '-') + '</span></div>' +
     '</div>' +

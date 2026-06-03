@@ -97,6 +97,7 @@ async function checkoutPayment() {
 function tuitionStatusBadge(status, overdue) {
   if (status === 'Thành công') return 'badge-success';
   if (status === 'Chờ xác nhận') return 'badge-warning';
+  if (status === 'Chưa thanh toán') return 'badge-warning';
   if (status === 'Đã đóng đủ') return 'badge-success';
   if (status === 'Đóng một phần') return 'badge-warning';
   if (status === 'Chưa phát sinh') return 'badge-secondary';
@@ -121,7 +122,7 @@ function renderTuitionDetail(data) {
       '<td class="mono">' + tuitionEscapeHtml(payment.SoPhieuThu || '-') + '</td>' +
       '<td>' + (payment.NgayLap ? formatDate(payment.NgayLap) : '-') + '</td>' +
       '<td class="currency">' + formatCurrency(payment.SoTienThu || 0) + '</td>' +
-      '<td>' + tuitionEscapeHtml(payment.HinhThucThu || '-') + '</td>' +
+      '<td>' + tuitionEscapeHtml(payment.HinhThucThu || 'Chưa chọn') + '</td>' +
       '<td><span class="badge ' + tuitionStatusBadge(payment.TrangThai, false) + '">' + tuitionEscapeHtml(payment.TrangThai || '-') + '</span></td>' +
     '</tr>';
   }).join('');

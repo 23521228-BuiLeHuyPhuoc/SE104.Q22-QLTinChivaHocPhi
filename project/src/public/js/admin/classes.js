@@ -59,12 +59,14 @@ function applyFilters() {
   var scope = document.getElementById('filter-search-scope');
   var semester = document.getElementById('filter-semester');
   var status = document.getElementById('filter-open-status');
+  var capacitySort = document.getElementById('filter-capacity-sort');
 
   params.set('page', '1');
   if (search && search.value.trim()) params.set('search', search.value.trim());
   if (scope && scope.value) params.set('searchScope', scope.value);
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (status && status.value) params.set('openStatus', status.value);
+  if (capacitySort && capacitySort.value) params.set('capacitySort', capacitySort.value);
   window.location.href = '/admin/classes?' + params.toString();
 }
 
@@ -283,6 +285,80 @@ function selectEntityPickerOption(button) {
   if (!type || !button) return;
   setPickerValue(type, button.dataset.value || '', button.dataset.label || '');
   closeEntityPicker();
+}
+
+function classDetailValue(label, value) {
+  return '<div><strong>' + classEscapeHtml(label) + '</strong><span>' + classEscapeHtml(value || '-') + '</span></div>';
+}
+
+function classDetailSemester(opened) {
+  if (!opened) return '-';
+  var semester = opened.HOCKY || {};
+  var year = semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : '';
+  return (semester.TenHocKy || opened.MaHocKy || '-') + year;
+}
+
+function classDetailScheduleText(schedule) {
+  if (!schedule) return '-';
+  var day = Number(schedule.ThuTrongTuan) === 1 ? 'Chá»§ nháº­t' : 'Thá»© ' + (schedule.ThuTrongTuan || '-');
+  var room = schedule.PHONGHOC ? roomOptionLabel(schedule.PHONGHOC) : (schedule.PhongHoc || schedule.MaPhong || '-');
+  return day + ', tiáº¿t ' + (schedule.MaTietBatDau || '-') + '-' + (schedule.MaTietKetThuc || '-') + ', phÃ²ng ' + room;
+}
+
+function renderClassDetail(cls) {
+  var content = document.getElementById('class-detail-content');
+  if (!content) return;
+  var openedRows = cls.LOPMO || [];
+  var activeOpened = openedRows.find(function(item) { return item.TrangThai !== false; }) || openedRows[0] || null;
+  var schedules = activeOpened && activeOpened.LICHHOCLOP ? activeOpened.LICHHOCLOP : [];
+  var course = cls.MONHOC || {};
+  var lecturer = activeOpened && activeOpened.GIANGVIEN
+    ? lecturerOptionLabel(activeOpened.GIANGVIEN)
+    : (cls.GIANGVIEN ? lecturerOptionLabel(cls.GIANGVIEN) : '');
+  var room = cls.PHONGHOC ? roomOptionLabel(cls.PHONGHOC) : (cls.PhongHoc || cls.MaPhong || '-');
+  var registeredCount = activeOpened ? Number(activeOpened.SoLuongDaDangKy || 0) : (cls.CHITIETDANGKY ? cls.CHITIETDANGKY.length : 0);
+  var status = activeOpened ? (activeOpened.TrangThai === false ? 'ÄÃ£ Ä‘Ã³ng' : 'Äang má»Ÿ') : 'ChÆ°a má»Ÿ';
+  var scheduleRows = schedules.length
+    ? schedules.map(function(schedule) {
+        return '<li>' + classEscapeHtml(classDetailScheduleText(schedule)) + '</li>';
+      }).join('')
+    : '<li>ChÆ°a cÃ³ lá»‹ch má»Ÿ lá»›p</li>';
+
+  content.innerHTML =
+    '<div class="detail-grid">' +
+      classDetailValue('MÃ£ lá»›p', cls.MaLop) +
+      classDetailValue('TÃªn lá»›p', cls.TenLop) +
+      classDetailValue('MÃ´n há»c', (course.TenMonHoc || cls.MaMonHoc) + (cls.MaMonHoc ? ' (' + cls.MaMonHoc + ')' : '')) +
+      classDetailValue('Khoa', course.KHOA && course.KHOA.TenKhoa) +
+      classDetailValue('Giáº£ng viÃªn', lecturer || cls.GiangVien) +
+      classDetailValue('PhÃ²ng máº·c Ä‘á»‹nh', room) +
+      classDetailValue('Há»c ká»³ Ä‘ang má»Ÿ', classDetailSemester(activeOpened)) +
+      classDetailValue('Tráº¡ng thÃ¡i', status) +
+      classDetailValue('SÄ© sá»‘', registeredCount + ' / ' + (cls.SoLuongToiDa || '-')) +
+      classDetailValue('Cáº­p nháº­t', classFormatDate(cls.NgayCapNhat || cls.NgayTao)) +
+    '</div>' +
+    '<div class="detail-note"><strong>Lá»‹ch há»c</strong><ul class="class-detail-schedules">' + scheduleRows + '</ul></div>';
+}
+
+async function openClassDetail(id) {
+  if (window.event && window.event.target && window.event.target.closest('button, a')) return;
+  var modal = document.getElementById('class-detail-modal');
+  var content = document.getElementById('class-detail-content');
+  if (!id || !modal || !content) return;
+  modal.classList.add('active');
+  content.innerHTML = '<div class="empty-state">Äang táº£i thÃ´ng tin lá»›p há»c...</div>';
+  try {
+    var res = await apiFetch('/api/classes/' + encodeURIComponent(id));
+    if (!res || res.success === false) throw new Error((res && res.message) || 'KhÃ´ng thá»ƒ táº£i chi tiáº¿t lá»›p');
+    renderClassDetail(res.data || {});
+  } catch (error) {
+    content.innerHTML = '<div class="empty-state">' + classEscapeHtml(error.message || 'KhÃ´ng thá»ƒ táº£i chi tiáº¿t lá»›p') + '</div>';
+  }
+}
+
+function closeClassDetail() {
+  var modal = document.getElementById('class-detail-modal');
+  if (modal) modal.classList.remove('active');
 }
 
 function openModal(mode, cl) {

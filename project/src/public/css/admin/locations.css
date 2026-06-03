@@ -128,6 +128,23 @@
   max-width: none;
 }
 
+.location-search-control {
+  align-items: center;
+  display: flex;
+  flex: 1 1 360px;
+  gap: var(--spacing-sm);
+  min-width: 280px;
+}
+
+.location-search-control .search-box {
+  flex: 1 1 auto;
+  min-width: 180px;
+}
+
+.location-search-field {
+  flex: 0 0 132px;
+}
+
 .location-toolbar .filter-group {
   flex: 2 1 420px;
   justify-content: flex-end;
@@ -150,7 +167,11 @@
 }
 
 .location-table {
-  min-width: 860px;
+  min-width: 980px;
+}
+
+.location-table-wide {
+  min-width: 1180px;
 }
 
 .location-table td:nth-last-child(2),
@@ -160,6 +181,58 @@
 
 .location-table .table-actions {
   flex-wrap: nowrap;
+}
+
+.location-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.location-clickable:hover {
+  background: var(--bg-secondary);
+}
+
+.readonly-control,
+.readonly-control:focus {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.location-detail-modal {
+  max-width: 680px;
+}
+
+.location-detail-grid {
+  display: grid;
+  gap: var(--spacing-sm);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.location-detail-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: var(--spacing-md);
+}
+
+.location-detail-item span {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.location-detail-item strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .location-pagination {
@@ -181,7 +254,18 @@
   .location-section-header .btn,
   .location-toolbar .filter-group,
   .location-toolbar .filter-group .btn,
-  .location-toolbar .search-box {
+  .location-toolbar .search-box,
+  .location-search-control {
+    width: 100%;
+  }
+
+  .location-search-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .location-search-field {
+    flex-basis: auto;
     width: 100%;
   }
 
@@ -217,5 +301,9 @@
   .location-pagination {
     padding-left: var(--spacing-md);
     padding-right: var(--spacing-md);
+  }
+
+  .location-detail-grid {
+    grid-template-columns: 1fr;
   }
 }

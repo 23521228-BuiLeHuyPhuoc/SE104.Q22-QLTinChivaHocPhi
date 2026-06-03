@@ -1,5 +1,6 @@
-var editingId = null;
+﻿var editingId = null;
 var searchTimer;
+var selectedCourseImportFile = null;
 
 function courseEscapeHtml(value) {
   return String(value || '')
@@ -14,7 +15,12 @@ function syncCredits() {
   var type = document.getElementById('mh-loai').value;
   var lessons = parseInt(document.getElementById('mh-sotiet').value, 10) || 0;
   var divisor = type === 'TH' ? 30 : 15;
-  document.getElementById('mh-tc').value = Math.max(1, Math.floor(lessons / divisor) || 1);
+  document.getElementById('mh-tc').value = Math.floor(lessons / divisor) || 0;
+}
+
+function showLockedCourseFieldMessage(input) {
+  if (!input || !input.readOnly) return;
+  showToast(input.dataset.lockMessage || 'Trường này không được sửa trực tiếp', 'info');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,12 +28,17 @@ document.addEventListener('DOMContentLoaded', function() {
   var lessons = document.getElementById('mh-sotiet');
   if (type) type.addEventListener('change', syncCredits);
   if (lessons) lessons.addEventListener('input', syncCredits);
+  Array.prototype.forEach.call(document.querySelectorAll('.lockable-field'), function(input) {
+    input.addEventListener('click', function() { showLockedCourseFieldMessage(input); });
+    input.addEventListener('focus', function() { showLockedCourseFieldMessage(input); });
+  });
 });
 
 function openModal(mode, c) {
   editingId = null;
   document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa môn học' : 'Thêm môn học';
-  document.getElementById('mh-ma').disabled = mode === 'edit';
+  document.getElementById('mh-ma').readOnly = mode === 'edit';
+  document.getElementById('mh-ma').classList.toggle('is-locked', mode === 'edit');
 
   if (mode === 'edit' && c) {
     editingId = c.MaMonHoc;
@@ -101,10 +112,12 @@ async function deleteCourse(id) {
 
 function applyCourseFilters() {
   var params = new URLSearchParams();
+  var searchField = document.getElementById('course-search-field').value;
   var search = document.getElementById('search-input').value.trim();
   var faculty = document.getElementById('faculty-filter').value;
   var type = document.getElementById('type-filter').value;
   params.set('page', '1');
+  if (searchField) params.set('searchField', searchField);
   if (search) params.set('search', search);
   if (faculty) params.set('MaKhoa', faculty);
   if (type) params.set('LoaiMon', type);
@@ -118,9 +131,11 @@ function debounceSearch() {
 
 async function exportCourses() {
   var params = new URLSearchParams();
+  var searchField = document.getElementById('course-search-field').value;
   var search = document.getElementById('search-input').value.trim();
   var faculty = document.getElementById('faculty-filter').value;
   var type = document.getElementById('type-filter').value;
+  if (searchField) params.set('searchField', searchField);
   if (search) params.set('search', search);
   if (faculty) params.set('MaKhoa', faculty);
   if (type) params.set('LoaiMon', type);
@@ -156,26 +171,99 @@ async function openCourseDetail(id) {
     var res = await apiFetch('/api/courses/' + encodeURIComponent(id));
     if (!res.success) throw new Error(res.message || 'Không tải được chi tiết');
     var c = res.data || {};
-    var prereqs = (c.prerequisites || []).map(function(item) {
-      return '<li><span class="mono">' + courseEscapeHtml(item.MaMonDieuKien) + '</span> - ' + courseEscapeHtml(item.TenMonDieuKien) + ' (' + courseEscapeHtml(item.LoaiDieuKien) + ')</li>';
-    }).join('');
-    var classes = (c.openedClasses || []).map(function(item) {
-      return '<tr><td class="mono">' + courseEscapeHtml(item.MaLop) + '</td><td>' + courseEscapeHtml(item.TenLop) + '</td><td>' + courseEscapeHtml(item.GiangVien || '-') + '</td><td>' + courseEscapeHtml((item.TenHocKy || item.MaHocKy || '-') + (item.TenNamHoc ? ' - ' + item.TenNamHoc : '')) + '</td></tr>';
-    }).join('');
-    var curricula = (c.curricula || []).map(function(item) {
-      return '<li>' + courseEscapeHtml(item.TenNganh || item.MaNganh) + ' - HK ' + courseEscapeHtml(item.HocKyDuKien) + ' - ' + (item.BatBuoc ? 'Bắt buộc' : 'Tự chọn') + '</li>';
-    }).join('');
     content.innerHTML =
       '<div class="detail-grid">' +
         '<div><strong>Mã môn</strong><span>' + courseEscapeHtml(c.MaMonHoc) + '</span></div>' +
         '<div><strong>Tên môn</strong><span>' + courseEscapeHtml(c.TenMonHoc) + '</span></div>' +
         '<div><strong>Khoa</strong><span>' + courseEscapeHtml(c.TenKhoa || c.MaKhoa) + '</span></div>' +
         '<div><strong>Tín chỉ</strong><span>' + Number(c.SoTinChi || 0) + '</span></div>' +
+        '<div><strong>Loại môn</strong><span>' + courseEscapeHtml(c.LoaiMon || '-') + '</span></div>' +
+        '<div><strong>Số tiết</strong><span>' + courseEscapeHtml(c.SoTiet || '-') + '</span></div>' +
+        '<div><strong>Trạng thái</strong><span>' + (c.TrangThai === false ? 'Tạm khóa' : 'Đang dùng') + '</span></div>' +
+        '<div><strong>Cập nhật</strong><span>' + courseEscapeHtml(c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-') + '</span></div>' +
       '</div>' +
-      '<h4>Môn điều kiện</h4><ul>' + (prereqs || '<li>Không có</li>') + '</ul>' +
-      '<h4>Chương trình đào tạo</h4><ul>' + (curricula || '<li>Chưa gắn vào chương trình</li>') + '</ul>' +
-      '<h4>Lớp đã mở</h4><div class="table-container"><table class="data-table"><thead><tr><th>Mã lớp</th><th>Tên lớp</th><th>Giảng viên</th><th>Học kỳ</th></tr></thead><tbody>' + (classes || '<tr><td colspan="4"><div class="empty-state">Chưa mở lớp</div></td></tr>') + '</tbody></table></div>';
+      '<div class="detail-note">' + courseEscapeHtml(c.MoTa || 'Không có mô tả') + '</div>';
   } catch (error) {
     content.textContent = error.message || 'Không tải được chi tiết';
+  }
+}
+
+function openCourseImportModal() {
+  selectedCourseImportFile = null;
+  var input = document.getElementById('course-import-file');
+  var result = document.getElementById('course-import-result');
+  if (input) input.value = '';
+  if (result) {
+    result.classList.add('hidden');
+    result.innerHTML = '';
+  }
+  document.getElementById('course-import-modal').classList.add('active');
+}
+
+function closeCourseImportModal() {
+  document.getElementById('course-import-modal').classList.remove('active');
+}
+
+function setCourseImportSaving(isSaving) {
+  var button = document.getElementById('course-import-submit');
+  if (!button) return;
+  button.disabled = !!isSaving;
+  button.textContent = isSaving ? 'Đang nhập...' : 'Nhập Excel';
+}
+
+function renderCourseImportResults(rows, summary) {
+  var result = document.getElementById('course-import-result');
+  if (!result) return;
+  rows = rows || [];
+  result.classList.remove('hidden');
+  var html = '<div class="import-summary">Thành công: <strong>' + Number(summary.successCount || 0) + '</strong> | Thất bại: <strong>' + Number(summary.errorCount || 0) + '</strong></div>';
+  html += '<div class="table-container"><table class="data-table import-result-table"><thead><tr><th>Dòng</th><th>Mã môn</th><th>Tên môn</th><th>Kết quả</th><th>Chi tiết</th></tr></thead><tbody>';
+  if (!rows.length) {
+    html += '<tr><td colspan="5"><div class="empty-state">Không có dòng kết quả</div></td></tr>';
+  } else {
+    rows.forEach(function(row) {
+      var ok = row.status === 'success';
+      html += '<tr class="' + (ok ? 'import-row-success' : 'import-row-failed') + '">';
+      html += '<td>' + courseEscapeHtml(row.row || '-') + '</td>';
+      html += '<td class="mono">' + courseEscapeHtml(row.MaMonHoc || '-') + '</td>';
+      html += '<td>' + courseEscapeHtml(row.TenMonHoc || '-') + '</td>';
+      html += '<td><span class="badge ' + (ok ? 'badge-success' : 'badge-error') + '">' + (ok ? 'Thành công' : 'Thất bại') + '</span></td>';
+      html += '<td>' + courseEscapeHtml(row.message || '-') + '</td>';
+      html += '</tr>';
+    });
+  }
+  html += '</tbody></table></div>';
+  result.innerHTML = html;
+}
+
+async function importCoursesFromExcel() {
+  var input = document.getElementById('course-import-file');
+  selectedCourseImportFile = input && input.files ? input.files[0] : null;
+  if (!selectedCourseImportFile) {
+    showToast('Vui lòng chọn file Excel', 'error');
+    return;
+  }
+
+  try {
+    setCourseImportSaving(true);
+    var formData = new FormData();
+    formData.append('file', selectedCourseImportFile);
+    var res = await apiFetch('/api/courses/import', { method: 'POST', body: formData });
+    if (res.success) {
+      var data = res.data || {};
+      renderCourseImportResults(data.rows || [], data);
+      showToast(res.message || 'Nhập Excel hoàn tất', data.errorCount ? 'info' : 'success');
+      if (data.successCount && !data.errorCount) {
+        setTimeout(function() { location.reload(); }, 900);
+      }
+    } else {
+      showToast(res.message || 'Không thể nhập Excel', 'error');
+    }
+  } catch (e) {
+    showToast('Lỗi kết nối khi nhập Excel', 'error');
+  } finally {
+    setCourseImportSaving(false);
+    if (input) input.value = '';
+    selectedCourseImportFile = null;
   }
 }

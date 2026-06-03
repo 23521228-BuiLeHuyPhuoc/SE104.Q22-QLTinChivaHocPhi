@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const prisma = require('../config/database');
 const { isSystemAdminUser } = require('../middleware/auth');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
@@ -9,6 +11,107 @@ const normalizeEmail = (value) => normalize(value).toLowerCase();
 const isStudentGroup = (MaNhom) => normalize(MaNhom).toUpperCase() === 'SINHVIEN';
 const roleFromGroup = (MaNhom) => (isStudentGroup(MaNhom) ? 'student' : 'admin');
 const DEFAULT_ACCOUNT_PASSWORD = process.env.DEFAULT_ACCOUNT_PASSWORD || '123456';
+const RANDOM_STUDENT_PASSWORD_LENGTH = Math.max(8, Number(process.env.STUDENT_RANDOM_PASSWORD_LENGTH || 10));
+const ACCOUNT_SEARCH_FIELDS = new Set(['all', 'TenDangNhap', 'HoTen', 'Email', 'MaSv']);
+
+const getCurrentUserId = (user) => Number(user?.id || user?.MaTaiKhoan || 0) || null;
+
+const normalizeAccountSearchField = (value) => {
+  const field = normalize(value) || 'all';
+  return ACCOUNT_SEARCH_FIELDS.has(field) ? field : 'all';
+};
+
+const buildAccountSearchWhere = (search, searchField) => {
+  const term = normalize(search);
+  if (!term) return null;
+  const field = normalizeAccountSearchField(searchField);
+  const clause = { contains: term, mode: 'insensitive' };
+  if (field === 'TenDangNhap') return { TenDangNhap: clause };
+  if (field === 'HoTen') return { HoTen: clause };
+  if (field === 'Email') return { Email: clause };
+  if (field === 'MaSv') return { MaSv: clause };
+  return {
+    OR: [
+      { TenDangNhap: clause },
+      { HoTen: clause },
+      { Email: clause },
+      { MaSv: clause }
+    ]
+  };
+};
+
+const generateRandomPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < RANDOM_STUDENT_PASSWORD_LENGTH; i += 1) {
+    password += alphabet[crypto.randomInt(0, alphabet.length)];
+  }
+  return password;
+};
+
+const truncateText = (value, maxLength) => {
+  const text = normalize(value);
+  return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text;
+};
+
+const createMailer = () => {
+  if (!process.env.SMTP_HOST) return null;
+  const port = Number(process.env.SMTP_PORT || 587);
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: port === 465,
+    auth: process.env.SMTP_USER && process.env.SMTP_PASS
+      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      : undefined
+  });
+};
+
+const sendStudentCredentialEmail = async (transporter, credential) => {
+  if (!credential.Email) {
+    return { TrangThaiGuiEmail: 'missing_email', LoiGuiEmail: 'Sinh viên chưa có email' };
+  }
+  if (!transporter) {
+    return { TrangThaiGuiEmail: 'not_configured', LoiGuiEmail: 'Chưa cấu hình SMTP để gửi Gmail' };
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com',
+      to: credential.Email,
+      subject: 'Tài khoản hệ thống đăng ký môn học và học phí',
+      text: [
+        `Xin chào ${credential.HoTen || credential.MaSv},`,
+        '',
+        'Tài khoản sinh viên của bạn đã được tạo.',
+        `Tên đăng nhập: ${credential.TenDangNhap}`,
+        `Mật khẩu: ${credential.MatKhauTam}`,
+        '',
+        'Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.'
+      ].join('\n'),
+      html: `
+        <p>Xin chào ${credential.HoTen || credential.MaSv},</p>
+        <p>Tài khoản sinh viên của bạn đã được tạo.</p>
+        <p><strong>Tên đăng nhập:</strong> ${credential.TenDangNhap}</p>
+        <p><strong>Mật khẩu:</strong> ${credential.MatKhauTam}</p>
+        <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>
+      `
+    });
+    return { TrangThaiGuiEmail: 'sent', LoiGuiEmail: null };
+  } catch (error) {
+    return { TrangThaiGuiEmail: 'failed', LoiGuiEmail: truncateText(error.message, 300) };
+  }
+};
+
+const updateCredentialEmailStatus = async (id, status) => {
+  if (!id) return status;
+  await prisma.MATKHAUTAMTAIKHOAN.update({
+    where: { id },
+    data: status,
+    select: { id: true }
+  }).catch(() => null);
+  return status;
+};
 
 const adminTitleFromGroup = (group) => {
   const MaNhom = normalize(group?.MaNhom).toUpperCase();
@@ -91,7 +194,7 @@ const getMyRole = async (req, res) => {
 const getAllAccounts = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search, Role: filterRole, role, MaNhom } = req.query;
+    const { search, searchField, Role: filterRole, role, MaNhom } = req.query;
     const where = {};
     const allowedGroups = await getCreatableGroups(req.user);
     const allowedGroupCodes = allowedGroups.map((group) => group.MaNhom);
@@ -100,13 +203,8 @@ const getAllAccounts = async (req, res) => {
       return res.json({ success: true, data: [], pagination: getPaginationMeta(0, page, limit) });
     }
 
-    if (search) {
-      where.OR = [
-        { TenDangNhap: { contains: search, mode: 'insensitive' } },
-        { HoTen: { contains: search, mode: 'insensitive' } },
-        { Email: { contains: search, mode: 'insensitive' } }
-      ];
-    }
+    const searchWhere = buildAccountSearchWhere(search, searchField);
+    if (searchWhere) Object.assign(where, searchWhere);
     const roleFilter = filterRole || role;
     if (roleFilter && ['admin', 'student'].includes(roleFilter)) where.Role = roleFilter;
     where.MaNhom = MaNhom || { in: allowedGroupCodes };
@@ -159,11 +257,16 @@ const createAccount = async (req, res) => {
 
     const targetRole = roleFromGroup(targetGroup.MaNhom);
     const rawPassword = String(req.body.password || req.body.MatKhau || '');
+    const confirmPassword = String(req.body.passwordConfirm || req.body.confirmPassword || req.body.XacNhanMatKhau || '');
     if (rawPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
     }
 
-    const currentUserId = Number(req.user.id || req.user.MaTaiKhoan || 0) || null;
+    if (confirmPassword && confirmPassword !== rawPassword) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu xác nhận không khớp' });
+    }
+
+    const currentUserId = getCurrentUserId(req.user);
     const hashed = await bcrypt.hash(rawPassword, 10);
 
     if (targetRole === 'student') {
@@ -213,7 +316,7 @@ const createAccount = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
       }
 
-      const account = await prisma.$transaction(async (tx) => {
+      const studentAccountResult = await prisma.$transaction(async (tx) => {
         const created = await tx.TAIKHOAN.create({
           data: {
             TenDangNhap: username,
@@ -251,13 +354,41 @@ const createAccount = async (req, res) => {
           select: { MaSv: true }
         });
 
-        return created;
+        const credential = await tx.MATKHAUTAMTAIKHOAN.create({
+          data: {
+            MaTaiKhoan: created.MaTaiKhoan,
+            MaSv: student.MaSv,
+            TenDangNhap: created.TenDangNhap,
+            MatKhauTam: rawPassword,
+            Email: email || null,
+            TrangThaiGuiEmail: 'pending',
+            NguoiTao: currentUserId
+          },
+          select: { id: true }
+        });
+
+        return { account: created, credentialId: credential.id };
       });
+
+      const emailStatus = await updateCredentialEmailStatus(
+        studentAccountResult.credentialId,
+        await sendStudentCredentialEmail(createMailer(), {
+          ...student,
+          Email: email || student.Email,
+          TenDangNhap: studentAccountResult.account.TenDangNhap,
+          MatKhauTam: rawPassword
+        })
+      );
 
       return res.status(201).json({
         success: true,
         message: 'Tạo tài khoản sinh viên thành công',
-        data: account
+        data: {
+          ...studentAccountResult.account,
+          temporaryPassword: rawPassword,
+          emailStatus: emailStatus.TrangThaiGuiEmail,
+          emailError: emailStatus.LoiGuiEmail
+        }
       });
     }
 

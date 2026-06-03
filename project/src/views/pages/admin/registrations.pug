@@ -36,9 +36,7 @@ block content
           option(value="Đã đăng ký" selected=(status === 'Đã đăng ký')) Đã đăng ký
           option(value="Đã hủy" selected=(status === 'Đã hủy')) Đã hủy
       .registration-filter-actions
-        button.btn.btn-outline#registration-stats-toggle(type="button" aria-controls="registration-stats-panel" aria-expanded="false" onclick="toggleRegistrationStats()") Thống kê đăng ký môn học
         a.btn.btn-outline(href="/admin/registrations") Xóa lọc
-        button.btn.btn-outline(type="button" onclick="exportRegistrations()") Xuất thống kê Excel
 
   .activity-window-panel#registration-activity-panel
     .activity-window-main
@@ -55,60 +53,15 @@ block content
       .activity-window-item
         span Kết thúc
         strong#registration-window-end -
-      .activity-window-item
-        span Đơn chờ duyệt
-        strong#registration-pending-appeals -
     .activity-window-actions
       button.btn.btn-primary#finalize-registration-btn(type="button" onclick="finalizeSelectedRegistration()" disabled)
         span.material-symbols-rounded(aria-hidden="true") task_alt
         span Chốt đăng ký
 
-  #registration-stats-panel.registration-stat-grid(hidden)
-    .registration-stat-card
-      .registration-stat-header
-        div
-          h3 Theo khoa
-          p Sinh viên đăng ký được nhóm theo khoa quản lý ngành học.
-        span.registration-stat-total #{registrationStatsByFaculty ? registrationStatsByFaculty.length : 0} khoa
-      if registrationStatsByFaculty && registrationStatsByFaculty.length > 0
-        .registration-stat-list
-          each item in registrationStatsByFaculty
-            .registration-stat-row
-              .registration-stat-main
-                strong= item.name
-                span #{item.code} · #{item.registrationCount} phiếu · #{item.courseCount} môn · #{item.creditCount} tín chỉ
-              .registration-stat-count
-                strong= item.studentCount
-                span SV
-              .registration-stat-meter
-                span(style=`width: ${item.percent}%`)
-      else
-        .empty-state Không có dữ liệu thống kê theo khoa
-    .registration-stat-card
-      .registration-stat-header
-        div
-          h3 Theo ngành
-          p Sinh viên đăng ký được nhóm theo ngành học hiện tại.
-        span.registration-stat-total #{registrationStatsByMajor ? registrationStatsByMajor.length : 0} ngành
-      if registrationStatsByMajor && registrationStatsByMajor.length > 0
-        .registration-stat-list
-          each item in registrationStatsByMajor
-            .registration-stat-row
-              .registration-stat-main
-                strong= item.name
-                span #{item.code}#{item.parentName ? ' · ' + item.parentName : ''} · #{item.registrationCount} phiếu · #{item.courseCount} môn · #{item.creditCount} tín chỉ
-              .registration-stat-count
-                strong= item.studentCount
-                span SV
-              .registration-stat-meter
-                span(style=`width: ${item.percent}%`)
-      else
-        .empty-state Không có dữ liệu thống kê theo ngành
-
   .card
     .card-header
-      h3 Sinh viên đã đăng ký môn học
-      span.card-count= typeof totalRegistrationStudents !== 'undefined' ? `${totalRegistrationStudents} sinh viên` : (registrations ? `${registrations.length} sinh viên` : '0 sinh viên')
+      h3 Phiếu đăng ký môn học
+      span.card-count= typeof totalRegistrationStudents !== 'undefined' ? `${totalRegistrationStudents} phiếu đăng ký` : (registrations ? `${registrations.length} phiếu đăng ký` : '0 phiếu đăng ký')
     .table-container
       table.data-table
         thead
@@ -141,7 +94,7 @@ block content
                 td
                   span.badge(class=((r.TrangThaiTongHop || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThaiTongHop || 'Đã đăng ký'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem chi tiết" aria-label="Xem chi tiết" data-ma-sv=r.MaSv onclick="openStudentRegistrationDetail(this.dataset.maSv)")
+                  button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem chi tiết" aria-label="Xem chi tiết" data-so-phieu=r.SoPhieu data-ma-sv=r.MaSv data-ma-hoc-ky=r.MaHocKy onclick="openRegistrationDetail(this.dataset.soPhieu)")
                     span.material-symbols-rounded(aria-hidden="true") visibility
           else
             tr

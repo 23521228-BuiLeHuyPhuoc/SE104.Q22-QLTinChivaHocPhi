@@ -5,6 +5,10 @@ block content
   - const statusClass = (value, overdue) => value === 'Đã đóng đủ' ? 'badge-success' : overdue || value === 'Quá hạn' ? 'badge-error' : value === 'Đóng một phần' ? 'badge-warning' : value === 'Chưa phát sinh' ? 'badge-secondary' : 'badge-error'
   .toolbar
     .search-box
+      select#search-field(onchange="applyFilters()")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="MaSv" selected=(searchField === 'MaSv')) MSSV
+        option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
       input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-semester(onchange="applyFilters()")

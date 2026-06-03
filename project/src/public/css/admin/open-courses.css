@@ -93,20 +93,23 @@
 }
 
 .open-courses-table th:nth-child(2) {
-  width: 230px;
+  width: 130px;
 }
 
 .open-courses-table th:nth-child(3) {
-  width: 165px;
+  width: 240px;
 }
 
-.open-courses-table th:nth-child(4),
+.open-courses-table th:nth-child(4) {
+  width: 100px;
+}
+
 .open-courses-table th:nth-child(5) {
-  width: 78px;
+  width: 170px;
 }
 
 .open-courses-table th:nth-child(6) {
-  width: 108px;
+  width: 110px;
 }
 
 .open-courses-table th:nth-child(7) {

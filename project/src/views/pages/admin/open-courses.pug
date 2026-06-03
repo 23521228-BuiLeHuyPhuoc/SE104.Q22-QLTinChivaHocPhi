@@ -2,6 +2,7 @@ extends ../../layouts/admin
 
 block styles
   link(rel="stylesheet" href="/css/admin/open-courses.css")
+  link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
   .toolbar.open-courses-toolbar
@@ -17,12 +18,15 @@ block content
     .open-courses-filter-grid
       .open-courses-filter-field.open-courses-search-field
         label(for="oc-search") Từ khóa
-        .search-box.open-courses-search-box
+        .search-box.open-courses-search-box.search-with-scope
+          select.form-control#oc-search-field(name="searchField" onchange="applyOpenCourseFilters()" aria-label="Tiêu chí tìm kiếm")
+            option(value="MaMonHoc" selected=((openCourseSearchField || 'MaMonHoc') === 'MaMonHoc')) Mã môn
+            option(value="TenMonHoc" selected=(openCourseSearchField === 'TenMonHoc')) Tên môn
           input#oc-search(type="text" name="search" value=(search || '') placeholder="Nhập mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceOpenCourseSearch()")
       .open-courses-filter-field
         label(for="oc-filter-hocky") Học kỳ
         select.form-control#oc-filter-hocky(name="MaHocKy" onchange="applyOpenCourseFilters()")
-          option(value="") Tất cả học kỳ
+          option(value="all" selected=(!filterHocKy)) Tất cả học kỳ
           each semester in semesters || []
             option(value=semester.MaHocKy selected=(filterHocKy === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
       .open-courses-filter-field
@@ -51,32 +55,28 @@ block content
         thead
           tr
             th Học kỳ
-            th Môn học
+            th Mã môn
+            th Tên môn học
+            th Loại môn
             th Khoa
-            th Tín chỉ
-            th Lớp mở
             th Trạng thái
             th Cập nhật
             th Thao tác
         tbody
           if openCourses && openCourses.length > 0
             each item in openCourses
-              tr
+              tr.open-course-row.clickable-row(data-id=item.id onclick="openOpenCourseDetail(this.dataset.id)")
                 td.open-course-semester-cell
                   span.open-course-semester= item.TenHocKy || item.MaHocKy
                   small= item.TenNamHoc || item.MaHocKy
+                td.open-course-code-cell
+                  span.open-course-code.mono= item.MaMonHoc
                 td.open-course-course-cell
-                  span.open-course-title= item.TenMonHoc || item.MaMonHoc
-                  .open-course-course-meta
-                    span.open-course-code.mono= item.MaMonHoc
-                    if item.LoaiMon
-                      span.open-course-type= item.LoaiMon
+                  span.open-course-title= item.TenMonHoc || '-'
+                td.open-course-type-cell
+                  span.open-course-type= item.LoaiMon || '-'
                 td.open-course-faculty-cell
                   span= item.TenKhoa || item.MaKhoa || '-'
-                td.open-course-credit-cell
-                  span.open-course-credit= item.SoTinChi || 0
-                td.open-course-count-cell
-                  span.open-course-count= item.SoLopMo || 0
                 td.open-course-status-cell
                   if item.TrangThai === false
                     span.badge.badge-warning Tạm dừng
@@ -85,7 +85,7 @@ block content
                 td.open-course-update-cell
                   span= item.NguoiCapNhatTen || item.NguoiCapNhat || '-'
                   small= item.NgayCapNhat ? new Date(item.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.open-course-actions-cell
+                td.open-course-actions-cell(onclick="event.stopPropagation()")
                   .open-course-actions
                     button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(item) onclick="openCourseModal('edit', JSON.parse(this.dataset.record))")
                       span.material-symbols-rounded edit
@@ -124,10 +124,12 @@ block modals
                 option(value="false") Tạm dừng
             .form-group.form-group-wide
               label(for="oc-mamonhoc") Môn học
-              select.form-control#oc-mamonhoc(required)
-                option(value="") Chọn môn học đang hoạt động
-                each course in courses || []
-                  option(value=course.MaMonHoc) #{course.MaMonHoc} - #{course.TenMonHoc}
+              input#oc-mamonhoc(type="hidden" required)
+              .course-picker-control
+                .course-picker-summary#oc-course-summary
+                  strong Chưa chọn môn học
+                  small Tìm theo mã hoặc tên môn học
+                button.btn.btn-outline(type="button" onclick="openOpenCoursePicker()") Chọn môn học
             .form-group.form-group-wide
               label(for="oc-ghichu") Ghi chú
               textarea.form-control#oc-ghichu(rows="3" placeholder="Ghi chú nội bộ")
@@ -138,6 +140,36 @@ block modals
         button#open-course-save-btn.btn.btn-primary(type="button" onclick="saveOpenCourse()")
           span.material-symbols-rounded save
           span.open-course-save-label Lưu
+
+  #open-course-picker-modal.modal-overlay(onclick="if(event.target===this)closeOpenCoursePicker()")
+    .modal.modal-wide.lookup-modal
+      .modal-header
+        h2 Chọn môn học
+        button.modal-close(type="button" onclick="closeOpenCoursePicker()" aria-label="Đóng") ×
+      .modal-body
+        .lookup-search-row
+          input.form-control#open-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeyup="debounceOpenCoursePickerSearch()")
+          button.btn.btn-outline(type="button" onclick="loadOpenCoursePickerResults()") Tìm
+        .table-container.lookup-table-container
+          table.data-table.lookup-table
+            thead
+              tr
+                th Mã môn
+                th Tên môn học
+                th Loại
+                th Khoa
+                th Chọn
+            tbody#open-course-picker-results
+              tr
+                td(colspan="5")
+                  .empty-state Chọn học kỳ rồi tìm môn học
+
+  #open-course-detail-modal.modal-overlay(onclick="if(event.target===this)closeOpenCourseDetail()")
+    .modal.modal-wide
+      .modal-header
+        h2 Chi tiết môn học mở
+        button.modal-close(type="button" onclick="closeOpenCourseDetail()" aria-label="Đóng") ×
+      .modal-body#open-course-detail-content Đang tải...
 
 block scripts
   script(src="/js/admin/open-courses.js")

@@ -675,6 +675,115 @@ const updateStudentProfile = async (req, res) => {
   }
 };
 
+const updateAdminProfile = async (req, res) => {
+  try {
+    if ((req.user.Role || req.user.role) !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Chỉ quản trị viên mới được cập nhật hồ sơ quản trị' });
+    }
+
+    const allowedFields = new Set(['HoTen', 'Email', 'Sdt', 'PhongBan']);
+    const blocked = Object.keys(req.body || {}).find((key) => !allowedFields.has(key));
+    if (blocked) {
+      return res.status(400).json({ success: false, message: 'Trường này không được phép chỉnh sửa trong hồ sơ quản trị viên' });
+    }
+
+    const data = {};
+    if (req.body.HoTen !== undefined) {
+      data.HoTen = normalize(req.body.HoTen);
+      if (!data.HoTen) return res.status(400).json({ success: false, message: 'Họ tên không được để trống' });
+    }
+    if (req.body.Email !== undefined) {
+      data.Email = normalizeEmail(req.body.Email);
+      if (!data.Email) return res.status(400).json({ success: false, message: 'Email không được để trống' });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.Email)) {
+        return res.status(400).json({ success: false, message: 'Email không hợp lệ' });
+      }
+    }
+    if (req.body.Sdt !== undefined) data.Sdt = normalize(req.body.Sdt) || null;
+    if (req.body.PhongBan !== undefined) data.PhongBan = normalize(req.body.PhongBan) || null;
+
+    if (!Object.keys(data).length) {
+      return res.status(400).json({ success: false, message: 'Không có thông tin hợp lệ để cập nhật' });
+    }
+
+    const userId = Number(req.user.id || req.user.MaTaiKhoan || 0);
+    const account = await prisma.TAIKHOAN.findUnique({
+      where: { MaTaiKhoan: userId },
+      select: {
+        MaTaiKhoan: true,
+        TenDangNhap: true,
+        Role: true,
+        HoTen: true,
+        Email: true,
+        Sdt: true,
+        QUANTRIVIEN: true
+      }
+    });
+    if (!account || account.Role !== 'admin') {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ quản trị viên' });
+    }
+
+    if (data.Email) {
+      const duplicate = await prisma.TAIKHOAN.findFirst({
+        where: {
+          MaTaiKhoan: { not: account.MaTaiKhoan },
+          Email: { equals: data.Email, mode: 'insensitive' }
+        },
+        select: { MaTaiKhoan: true }
+      });
+      if (duplicate) return res.status(400).json({ success: false, message: 'Email đã được sử dụng bởi tài khoản khác' });
+    }
+
+    const accountData = {};
+    if (Object.prototype.hasOwnProperty.call(data, 'HoTen')) accountData.HoTen = data.HoTen;
+    if (Object.prototype.hasOwnProperty.call(data, 'Email')) accountData.Email = data.Email;
+    if (Object.prototype.hasOwnProperty.call(data, 'Sdt')) accountData.Sdt = data.Sdt;
+
+    const adminData = {};
+    ['HoTen', 'Email', 'Sdt', 'PhongBan'].forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(data, field)) adminData[field] = data[field];
+    });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Object.keys(accountData).length) {
+        await tx.TAIKHOAN.update({
+          where: { MaTaiKhoan: account.MaTaiKhoan },
+          data: { ...accountData, NgayCapNhat: new Date() },
+          select: { MaTaiKhoan: true }
+        });
+      }
+
+      return tx.QUANTRIVIEN.upsert({
+        where: { MaTaiKhoan: account.MaTaiKhoan },
+        create: {
+          MaTaiKhoan: account.MaTaiKhoan,
+          HoTen: data.HoTen || account.HoTen || account.TenDangNhap,
+          Email: Object.prototype.hasOwnProperty.call(data, 'Email') ? data.Email : account.Email,
+          Sdt: Object.prototype.hasOwnProperty.call(data, 'Sdt') ? data.Sdt : account.Sdt,
+          PhongBan: Object.prototype.hasOwnProperty.call(data, 'PhongBan') ? data.PhongBan : null,
+          ChucVu: account.QUANTRIVIEN?.ChucVu || req.user.ChucVu || 'Quản trị viên',
+          TrangThai: true,
+          NgayCapNhat: new Date()
+        },
+        update: { ...adminData, NgayCapNhat: new Date() }
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật hồ sơ quản trị viên thành công',
+      data: { admin: updated }
+    });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Không thể cập nhật hồ sơ quản trị viên', 'Update admin profile error:');
+  }
+};
+
+const updateProfile = (req, res) => {
+  if ((req.user.Role || req.user.role) === 'admin') return updateAdminProfile(req, res);
+  return updateStudentProfile(req, res);
+};
+
 const uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
@@ -807,7 +916,9 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getMe,
+  updateProfile,
   updateStudentProfile,
+  updateAdminProfile,
   uploadAvatar,
   changePassword
 };

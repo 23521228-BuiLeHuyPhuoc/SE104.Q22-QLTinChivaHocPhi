@@ -90,7 +90,7 @@ block content
                 td
                   strong= p.HocKyDisplay || '-'
                 td.currency= money(p.SoTienThu)
-                td= p.HinhThucThu || '-'
+                td= p.HinhThucThu || 'Chưa chọn'
                 td= p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-'
                 td= p.NguoiThu || '-'
                 td

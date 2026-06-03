@@ -1,10 +1,36 @@
 var editingPeriodId = null;
 var periodSearchTimer = null;
 
+function formatAdminDateTime(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+}
+
+function formatPeriodStatus(value) {
+  return value === false ? 'Tạm khóa' : 'Đang dùng';
+}
+
+function setPeriodCodeReadonly(isReadonly) {
+  var input = document.getElementById('period-ma');
+  input.readOnly = isReadonly;
+  input.classList.toggle('ui-readonly-field', isReadonly);
+  if (window.AdminUI) AdminUI.markReadonlyFields(document.getElementById('period-form'));
+}
+
 function openPeriodModal(mode, period) {
   editingPeriodId = null;
   document.getElementById('period-modal-title').textContent = mode === 'edit' ? 'Sửa tiết học' : 'Thêm tiết học';
-  document.getElementById('period-ma').disabled = mode === 'edit';
+  setPeriodCodeReadonly(mode === 'edit');
 
   if (mode === 'edit' && period) {
     editingPeriodId = period.MaTiet;
@@ -19,6 +45,7 @@ function openPeriodModal(mode, period) {
     document.getElementById('period-form').reset();
     document.getElementById('period-thutu').value = 1;
     document.getElementById('period-trangthai').value = 'true';
+    setPeriodCodeReadonly(false);
   }
 
   document.getElementById('period-modal').classList.add('active');
@@ -71,10 +98,40 @@ async function deletePeriod(id) {
   }
 }
 
+function applyPeriodFilters() {
+  var search = document.getElementById('search-input').value.trim();
+  var searchField = document.getElementById('period-search-field').value;
+  var params = new URLSearchParams({ page: '1' });
+  if (search) params.set('search', search);
+  if (searchField && searchField !== 'all') params.set('searchField', searchField);
+  window.location.href = '/admin/periods?' + params.toString();
+}
+
 function debounceSearch() {
   clearTimeout(periodSearchTimer);
-  periodSearchTimer = setTimeout(function() {
-    var search = document.getElementById('search-input').value.trim();
-    window.location.href = '/admin/periods?page=1&search=' + encodeURIComponent(search);
-  }, 400);
+  periodSearchTimer = setTimeout(applyPeriodFilters, 400);
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({
+    rowSelector: 'tbody tr[data-record]',
+    title: 'Chi tiết tiết học',
+    buildDetail: function(record) {
+      return {
+        title: 'Chi tiết ' + (record.TenTiet || record.MaTiet || 'tiết học'),
+        rows: [
+          { label: 'Mã tiết', value: record.MaTiet },
+          { label: 'Tên tiết', value: record.TenTiet },
+          { label: 'Thứ tự', value: record.ThuTu },
+          { label: 'Giờ bắt đầu', value: record.GioBatDauText },
+          { label: 'Giờ kết thúc', value: record.GioKetThucText },
+          { label: 'Trạng thái', value: formatPeriodStatus(record.TrangThai) },
+          { label: 'Mô tả', value: record.MoTa },
+          { label: 'Sửa bởi', value: record.NguoiCapNhatTen || record.NguoiCapNhat || '-' },
+          { label: 'Sửa lúc', value: formatAdminDateTime(record.NgayCapNhat) }
+        ]
+      };
+    }
+  });
+});

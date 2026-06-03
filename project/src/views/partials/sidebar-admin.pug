@@ -91,12 +91,12 @@ nav.sidebar.sidebar-admin(id="sidebar")
     if isSystem || isFinance
       .sidebar-section
         .sidebar-section-title Tài chính
-        a.sidebar-link(href="/admin/tuition" title="Học phí" class=(active === 'tuition' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded account_balance_wallet
-          span.link-label Học phí
         a.sidebar-link(href="/admin/payments" title="Phiếu thu" class=(active === 'payments' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded receipt_long
           span.link-label Phiếu thu
+        a.sidebar-link(href="/admin/tuition" title="Công nợ học phí" class=(active === 'tuition' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded account_balance_wallet
+          span.link-label Công nợ học phí
         a.sidebar-link(href="/admin/pricing" title="Đơn giá tín chỉ" class=(active === 'pricing' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded price_change
           span.link-label Đơn giá tín chỉ
@@ -110,6 +110,12 @@ nav.sidebar.sidebar-admin(id="sidebar")
         a.sidebar-link(href="/admin/reports" title="Thống kê" class=(active === 'reports' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded analytics
           span.link-label Thống kê
+        a.sidebar-link(href='/admin/reports/incomplete-tuition' title='Sinh viên chưa hoàn thành học phí' class=(active === 'reports-incomplete-tuition' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded account_balance_wallet
+          span.link-label Chưa hoàn thành học phí
+        a.sidebar-link(href="/admin/reports#registration-statistics" title="Thống kê đăng ký môn học")
+          span.sidebar-icon.material-symbols-rounded app_registration
+          span.link-label Thống kê đăng ký
 
     .sidebar-section
       .sidebar-section-title Hệ thống

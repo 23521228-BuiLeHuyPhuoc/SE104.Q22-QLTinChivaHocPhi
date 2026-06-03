@@ -1,6 +1,7 @@
 extends ../../layouts/admin
 
 block styles
+  link(rel="stylesheet" href="/css/admin/course-tools.css")
   link(rel="stylesheet" href="/css/admin/classes.css")
 
 block content
@@ -37,6 +38,12 @@ block content
           option(value="") Tất cả học kỳ
           each semester in semesterOptions || []
             option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.TenNamHoc ? ' - ' + semester.TenNamHoc : ''}
+      .class-filter-field.class-filter-capacity
+        label(for="filter-capacity-sort") SÄ© sá»‘
+        select.form-control#filter-capacity-sort(name="capacitySort" onchange="applyFilters()")
+          option(value="" selected=(!capacitySort)) Máº·c Ä‘á»‹nh
+          option(value="capacity_asc" selected=(capacitySort === 'capacity_asc')) TÄƒng dáº§n
+          option(value="capacity_desc" selected=(capacitySort === 'capacity_desc')) Giáº£m dáº§n
       .class-filter-field.class-filter-status
         span.class-filter-label Trạng thái mở lớp
         input#filter-open-status(type="hidden" name="openStatus" value=(openStatus || ''))
@@ -68,7 +75,7 @@ block content
         tbody
           if classes && classes.length > 0
             each cl in classes
-              tr
+              tr.clickable-row(data-id=cl.MaLop onclick="openClassDetail(this.dataset.id)")
                 td.class-identity-cell
                   span.class-code.mono= cl.MaLop
                   span.class-name= cl.TenLop
@@ -94,7 +101,7 @@ block content
                 td.class-actions-cell
                   .class-actions
                     if cl.LopMoHienTaiId
-                      button.btn.btn-sm.btn-close-class(type="button" data-lopmoid=cl.LopMoHienTaiId onclick="closeOpenedClass(this.dataset.lopmoid)")
+                      button.btn.btn-sm.btn-close-class(type="button" data-lopmoid=cl.LopMoHienTaiId onclick="event.stopPropagation(); closeOpenedClass(this.dataset.lopmoid)")
                         span.material-symbols-rounded block
                         span Đóng
                     else if selectedSemester && !cl.MonHocDaMoTrongHocKy
@@ -102,7 +109,7 @@ block content
                         span.material-symbols-rounded event_available
                         span Môn chưa mở
                     else
-                      button.btn.btn-sm.btn-open-class(type="button" data-record=JSON.stringify(cl) onclick="openClass(JSON.parse(this.dataset.record))")
+                      button.btn.btn-sm.btn-open-class(type="button" data-record=JSON.stringify(cl) onclick="event.stopPropagation(); openClass(JSON.parse(this.dataset.record))")
                         span.material-symbols-rounded add_circle
                         span Mở
                     button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(cl) onclick="openModal('edit', JSON.parse(this.dataset.record))" title="Sửa lớp")
@@ -122,6 +129,15 @@ block content
   include ../../partials/pagination
 
 block modals
+  #class-detail-modal.modal-overlay(onclick="if(event.target===this)closeClassDetail()")
+    .modal.modal-wide
+      .modal-header
+        h2 Chi tiáº¿t lá»›p há»c
+        button.modal-close(type="button" onclick="closeClassDetail()" aria-label="ÄÃ³ng") Ã—
+      .modal-body
+        #class-detail-content
+          .empty-state Äang táº£i thÃ´ng tin lá»›p há»c...
+
   #class-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
     .modal.class-form-modal
       .modal-header

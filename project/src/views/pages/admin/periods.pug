@@ -2,8 +2,12 @@ extends ../../layouts/admin
 
 block content
   .toolbar
-    .search-box
-      input#search-input(type="text" placeholder="Tìm mã, tên hoặc mô tả tiết học..." value=(search || '') onkeyup="debounceSearch()")
+    .search-box.search-box-with-criterion
+      select.form-control.ui-search-criterion-select#period-search-field(onchange="applyPeriodFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="MaTiet" selected=(searchField === 'MaTiet')) Mã tiết
+        option(value="TenTiet" selected=(searchField === 'TenTiet')) Tên tiết
+      input#search-input(type="text" placeholder="Tìm mã tiết hoặc tên tiết..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       button.btn.btn-primary(type="button" onclick="openPeriodModal('add')") Thêm tiết học
       a.btn.btn-outline(href="/admin/trash?entity=periods") Thùng rác
@@ -28,7 +32,7 @@ block content
         tbody
           if periods && periods.length > 0
             each p in periods
-              tr
+              tr(data-record=JSON.stringify(p))
                 td.mono= p.MaTiet
                 td
                   strong= p.TenTiet
@@ -40,8 +44,8 @@ block content
                 td
                   span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
                 td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
-                td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
+                td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'
+                td.table-actions(data-no-row-detail="true")
                   button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPeriodModal('edit', JSON.parse(this.dataset.record))") Sửa
                   button.btn.btn-sm.btn-danger(type="button" onclick=`deletePeriod('${p.MaTiet}')`) Xóa
           else
@@ -62,7 +66,7 @@ block modals
           .form-row
             .form-group
               label(for="period-ma") Mã tiết
-              input.form-control#period-ma(type="text" required placeholder="VD: T1")
+              input.form-control#period-ma(type="text" required placeholder="VD: T1" data-readonly-message="Mã tiết không được sửa.")
             .form-group
               label(for="period-ten") Tên tiết
               input.form-control#period-ten(type="text" required placeholder="VD: Tiết 1")

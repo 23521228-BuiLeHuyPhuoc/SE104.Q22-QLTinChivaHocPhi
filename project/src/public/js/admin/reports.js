@@ -29,6 +29,19 @@ function setText(id, value) {
   if (el) el.textContent = value;
 }
 
+function getFieldValue(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function hasReportStatsSection() {
+  return !!(document.getElementById('stat-students') || document.getElementById('student-stats-table') || document.getElementById('registration-total-receipts'));
+}
+
+function hasIncompleteTuitionSection() {
+  return !!document.getElementById('incomplete-tuition-table');
+}
+
 function renderChart(canvasId, existingChart, config) {
   var canvas = document.getElementById(canvasId);
   if (!canvas || typeof Chart === 'undefined') return null;
@@ -36,7 +49,40 @@ function renderChart(canvasId, existingChart, config) {
   return new Chart(canvas, config);
 }
 
+function renderRegistrationDistribution(listId, countId, rows, unitLabel) {
+  var list = document.getElementById(listId);
+  var count = document.getElementById(countId);
+  rows = rows || [];
+  if (count) count.textContent = rows.length + ' ' + unitLabel;
+  if (!list) return;
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty-state">Không có dữ liệu thống kê</div>';
+    return;
+  }
+  list.innerHTML = rows.map(function(item) {
+    var meta = [item.code, item.parentName, (item.registrationCount || 0) + ' phiếu', (item.courseCount || 0) + ' môn', (item.creditCount || 0) + ' tín chỉ']
+      .filter(Boolean)
+      .join(' · ');
+    return '<div class="registration-stat-row">' +
+      '<div class="registration-stat-main"><strong>' + reportSafe(item.name || item.code || '-') + '</strong><span>' + reportSafe(meta) + '</span></div>' +
+      '<div class="registration-stat-count"><strong>' + (item.studentCount || 0) + '</strong><span>SV</span></div>' +
+      '<div class="registration-stat-meter"><span style="width:' + Number(item.percent || 0) + '%"></span></div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderRegistrationStats(data) {
+  data = data || {};
+  setText('registration-total-receipts', data.totalRegistrations || 0);
+  setText('registration-total-students', data.totalStudents || 0);
+  setText('registration-total-courses', data.totalCourses || 0);
+  renderRegistrationDistribution('registration-by-faculty', 'registration-faculty-count', data.byFaculty || [], 'khoa');
+  renderRegistrationDistribution('registration-by-major', 'registration-major-count', data.byMajor || [], 'ngành');
+}
+
 async function loadReportStats() {
+  if (!hasReportStatsSection()) return;
+
   var responses = await Promise.all([
     apiFetch('/api/students/stats').catch(function() { return null; }),
     apiFetch('/api/courses/stats').catch(function() { return null; }),
@@ -60,11 +106,15 @@ async function loadReportStats() {
     stats.forEach(function(s) {
       studentHtml += '<tr><td>' + reportSafe(s.TrangThai || s.trang_thai || '-') + '</td><td>' + (s.count || 0) + '</td></tr>';
     });
-    document.getElementById('student-stats-table').innerHTML = studentHtml || '<tr><td colspan="2"><div class="empty-state">Không có dữ liệu</div></td></tr>';
+    var studentStatsTable = document.getElementById('student-stats-table');
+    if (studentStatsTable) studentStatsTable.innerHTML = studentHtml || '<tr><td colspan="2"><div class="empty-state">Không có dữ liệu</div></td></tr>';
   }
 
   if (cRes && cRes.success) setText('stat-courses', cRes.data.total || 0);
-  if (rRes && rRes.success) setText('stat-registrations', rRes.data.totalRegistrations || rRes.data.total || 0);
+  if (rRes && rRes.success) {
+    setText('stat-registrations', rRes.data.totalRegistrations || rRes.data.total || 0);
+    renderRegistrationStats(rRes.data);
+  }
   if (tRes && tRes.success) {
     setText('stat-paid', formatCurrency(tRes.data.total_paid || tRes.data.paidAmount || 0));
     setText('stat-remaining', formatCurrency(tRes.data.total_remaining || tRes.data.remainingAmount || 0));
@@ -77,7 +127,8 @@ async function loadReportStats() {
       paymentHtml += '<tr><td>' + reportSafe(m.HinhThucThu || m.phuong_thuc || '-') + '</td><td>' + (m.count || 0) + '</td><td>' + formatCurrency(m.total || 0) + '</td></tr>';
     });
     if (!paymentHtml) paymentHtml = '<tr><td>Tất cả</td><td>' + (pRes.data.totalReceipts || 0) + '</td><td>' + formatCurrency(pRes.data.totalAmount || 0) + '</td></tr>';
-    document.getElementById('payment-stats-table').innerHTML = paymentHtml;
+    var paymentStatsTable = document.getElementById('payment-stats-table');
+    if (paymentStatsTable) paymentStatsTable.innerHTML = paymentHtml;
 
     methodChart = renderChart('method-chart', methodChart, {
       type: 'pie',
@@ -108,11 +159,11 @@ async function loadReportStats() {
 function buildDebtQuery() {
   var params = new URLSearchParams();
   var semester = getReportSemester();
-  var search = document.getElementById('debt-search').value.trim();
-  var faculty = document.getElementById('debt-faculty').value;
-  var major = document.getElementById('debt-major').value;
-  var status = document.getElementById('debt-status').value;
-  var overdue = document.getElementById('debt-overdue').value;
+  var search = getFieldValue('debt-search').trim();
+  var faculty = getFieldValue('debt-faculty');
+  var major = getFieldValue('debt-major');
+  var status = getFieldValue('debt-status');
+  var overdue = getFieldValue('debt-overdue');
   if (semester) params.set('MaHocKy', semester);
   if (search) params.set('search', search);
   if (faculty) params.set('MaKhoa', faculty);
@@ -152,6 +203,7 @@ function renderIncompleteTuition(data) {
   setText('debt-partial-students', currentIncompleteSummary.partialStudents || 0);
 
   var tbody = document.getElementById('incomplete-tuition-table');
+  if (!tbody) return;
   if (!currentIncompleteRows.length) {
     tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Không có sinh viên còn nợ theo bộ lọc</div></td></tr>';
     return;
@@ -175,7 +227,8 @@ function renderIncompleteTuition(data) {
 
 async function loadIncompleteTuition() {
   var tbody = document.getElementById('incomplete-tuition-table');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Đang tải dữ liệu...</div></td></tr>';
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Đang tải dữ liệu...</div></td></tr>';
   try {
     var query = buildDebtQuery();
     var res = await apiFetch('/api/dashboard/incomplete-tuition' + (query ? '?' + query : ''));
@@ -195,8 +248,8 @@ function debounceDebtSearch() {
 }
 
 function loadReports() {
-  loadReportStats();
-  loadIncompleteTuition();
+  if (hasReportStatsSection()) loadReportStats();
+  if (hasIncompleteTuitionSection()) loadIncompleteTuition();
 }
 
 function exportIncompleteCsv() {
@@ -234,6 +287,38 @@ function exportIncompleteCsv() {
   URL.revokeObjectURL(url);
 }
 
+async function exportRegistrationStats() {
+  var semester = getReportSemester();
+  var url = '/api/registrations/export' + (semester ? '?MaHocKy=' + encodeURIComponent(semester) : '');
+  try {
+    var token = getToken();
+    var headers = token ? { Authorization: 'Bearer ' + token } : {};
+    var res = await fetch(url, { headers: headers });
+    if (!res.ok) {
+      var errorText = await res.text();
+      try {
+        var errorJson = JSON.parse(errorText);
+        showToast(errorJson.message || 'Không thể xuất Excel đăng ký', 'error');
+      } catch (e) {
+        showToast(errorText || 'Không thể xuất Excel đăng ký', 'error');
+      }
+      return;
+    }
+
+    var blob = await res.blob();
+    var downloadUrl = window.URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'thong-ke-dang-ky-mon-hoc.xls';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    showToast('Không thể xuất Excel đăng ký', 'error');
+  }
+}
+
 function printIncompleteReport() {
   if (!currentIncompleteRows.length) {
     showToast('Không có dữ liệu để in', 'info');
@@ -252,6 +337,6 @@ function printIncompleteReport() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  filterDebtMajors();
+  if (hasIncompleteTuitionSection()) filterDebtMajors();
   loadReports();
 });

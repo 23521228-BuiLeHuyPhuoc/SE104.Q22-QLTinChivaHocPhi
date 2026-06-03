@@ -7,13 +7,17 @@ const getAllFaculties = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { search } = req.query;
+    const searchField = ['MaKhoa', 'TenKhoa', 'TenVietTat'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = notDeleted();
     if (search) {
-      where.OR = [
-        { MaKhoa: { contains: search, mode: 'insensitive' } },
-        { TenKhoa: { contains: search, mode: 'insensitive' } },
-        { TenVietTat: { contains: search, mode: 'insensitive' } }
-      ];
+      const searchMap = {
+        MaKhoa: [{ MaKhoa: { contains: search, mode: 'insensitive' } }],
+        TenKhoa: [{ TenKhoa: { contains: search, mode: 'insensitive' } }],
+        TenVietTat: [{ TenVietTat: { contains: search, mode: 'insensitive' } }]
+      };
+      where.OR = searchField === 'all'
+        ? [...searchMap.MaKhoa, ...searchMap.TenKhoa, ...searchMap.TenVietTat]
+        : searchMap[searchField];
     }
     const [faculties, total] = await Promise.all([
       prisma.KHOA.findMany({
