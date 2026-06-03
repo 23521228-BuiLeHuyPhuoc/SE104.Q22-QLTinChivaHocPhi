@@ -168,6 +168,38 @@
     if (button) button.addEventListener('click', saveProfile);
   }
 
+  function profileEscapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function renderBeneficiaries(student) {
+    var box = document.getElementById('profile-beneficiaries');
+    if (!box) return;
+
+    var rows = student && student.DOITUONGSINHVIEN ? student.DOITUONGSINHVIEN : [];
+    if (!rows.length) {
+      box.innerHTML = '<div class=empty-state>Chua thuoc doi tuong uu tien nao</div>';
+      return;
+    }
+
+    box.innerHTML = rows.map(function(row) {
+      var dt = row.DOITUONG || {};
+      return [
+        '<div class=beneficiary-readonly-item>',
+        '<strong>' + profileEscapeHtml(dt.MaDoiTuong || row.MaDoiTuong || '-') + ' - ' + profileEscapeHtml(dt.TenDoiTuong || '-') + '</strong>',
+        '<small>Ti le giam: ' + profileEscapeHtml(Number(dt.TiLeGiamHocPhi || 0)) + '%</small>',
+        '<small>Do uu tien: ' + profileEscapeHtml(dt.DoUuTien || '-') + '</small>',
+        dt.MoTa ? '<small>Mo ta: ' + profileEscapeHtml(dt.MoTa) + '</small>' : '',
+        row.GhiChu ? '<small>Ghi chu SV: ' + profileEscapeHtml(row.GhiChu) + '</small>' : '',
+        '</div>'
+      ].join('');
+    }).join('');
+  }
+
   async function loadProfile() {
     try {
       var meRes = await apiFetch('/api/auth/me');
@@ -191,6 +223,7 @@
         document.getElementById('p-trangthai').value = s.TrangThai || '';
         document.getElementById('p-khoahoc').value = s.NgayNhapHoc ? new Date(s.NgayNhapHoc).getFullYear() : '';
         setAvatarPreview(s.AnhDaiDien || (meRes.data.user && meRes.data.user.AnhDaiDien), s.HoTen);
+        renderBeneficiaries(s);
       }
     } catch (e) {
       document.getElementById('loading').classList.add('hidden');

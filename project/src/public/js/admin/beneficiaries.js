@@ -1,6 +1,8 @@
 var editMode = false;
 var editId = null;
 var currentBeneficiaryId = null;
+var selectedBeneficiaryImportFile = null;
+var beneficiarySearchTimer = null;
 
 function beneficiaryEscapeHtml(value) {
   return String(value || '')
@@ -76,6 +78,14 @@ async function openStudentsModal(id, name) {
   document.getElementById('students-modal-title').textContent = 'SV thuoc: ' + name;
   document.getElementById('students-modal').classList.add('active');
   document.getElementById('add-sv-masv').value = '';
+  selectedBeneficiaryImportFile = null;
+  var importInput = document.getElementById('beneficiary-import-input');
+  var importResult = document.getElementById('beneficiary-import-result');
+  if (importInput) importInput.value = '';
+  if (importResult) {
+    importResult.classList.add('hidden');
+    importResult.innerHTML = '';
+  }
   await loadStudentList();
 }
 
@@ -133,5 +143,102 @@ async function removeStudent(masv) {
     await loadStudentList();
   } else {
     showToast(res.message || 'Loi', 'error');
+  }
+}
+
+function debounceSearch() {
+  clearTimeout(beneficiarySearchTimer);
+  beneficiarySearchTimer = setTimeout(function() {
+    applyFilters();
+  }, 400);
+}
+
+function applyFilters() {
+  var searchInput = document.getElementById('search-input');
+  var search = searchInput ? searchInput.value.trim() : '';
+  var url = '/admin/beneficiaries?page=1';
+  if (search) url += '&search=' + encodeURIComponent(search);
+  window.location.href = url;
+}
+
+function onBeneficiaryImportFileChange() {
+  var input = document.getElementById('beneficiary-import-input');
+  var result = document.getElementById('beneficiary-import-result');
+
+  selectedBeneficiaryImportFile = input && input.files ? input.files[0] : null;
+
+  if (result) {
+    result.classList.toggle('hidden', !selectedBeneficiaryImportFile);
+    result.innerHTML = selectedBeneficiaryImportFile
+      ? [
+          '<div class=card><div class=card-body>',
+          '<h3>Nhap sinh vien vao doi tuong</h3>',
+          '<p>Da chon file: <strong>' + beneficiaryEscapeHtml(selectedBeneficiaryImportFile.name) + '</strong></p>',
+          '<button class=btn type=button onclick=importStudentsToBeneficiary()>Xac nhan nhap</button>',
+          '</div></div>'
+        ].join('')
+      : '';
+  }
+}
+
+async function importStudentsToBeneficiary() {
+  if (!currentBeneficiaryId) {
+    showToast('Vui long mo doi tuong uu tien truoc', 'error');
+    return;
+  }
+
+  if (!selectedBeneficiaryImportFile) {
+    showToast('Vui long chon file Excel', 'error');
+    return;
+  }
+
+  var result = document.getElementById('beneficiary-import-result');
+  if (result) {
+    result.classList.remove('hidden');
+    result.innerHTML = '<div class=card><div class=card-body>Dang nhap du lieu...</div></div>';
+  }
+
+  try {
+    var formData = new FormData();
+    formData.append('file', selectedBeneficiaryImportFile);
+
+    var res = await apiFetch('/api/beneficiaries/' + encodeURIComponent(currentBeneficiaryId) + '/students/import', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.success) {
+      var data = res.data || {};
+      var html = [
+        '<div class=card><div class=card-body>',
+        '<h3>Ket qua nhap Excel</h3>',
+        '<p>Thanh cong: <strong>' + Number(data.successCount || 0) + '</strong> | Loi: <strong>' + Number(data.errorCount || 0) + '</strong></p>'
+      ].join('');
+
+      if (data.errors && data.errors.length) {
+        html += '<table class=data-table><thead><tr><th>Dong</th><th>MSSV</th><th>Ly do loi</th></tr></thead><tbody>';
+        data.errors.forEach(function(error) {
+          html += '<tr>';
+          html += '<td>' + beneficiaryEscapeHtml(error.row || '-') + '</td>';
+          html += '<td>' + beneficiaryEscapeHtml(error.MaSv || '-') + '</td>';
+          html += '<td>' + beneficiaryEscapeHtml(error.reason || '-') + '</td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table>';
+      }
+
+      html += '</div></div>';
+      if (result) result.innerHTML = html;
+      showToast(res.message || 'Nhap Excel hoan tat', 'success');
+      await loadStudentList();
+    } else {
+      showToast(res.message || 'Khong the nhap Excel', 'error');
+    }
+  } catch (e) {
+    showToast('Loi ket noi khi nhap Excel', 'error');
+  } finally {
+    var importInput = document.getElementById('beneficiary-import-input');
+    if (importInput) importInput.value = '';
+    selectedBeneficiaryImportFile = null;
   }
 }

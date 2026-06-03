@@ -62,6 +62,26 @@ describe.skip('core business regressions', () => {
       });
   });
 
+  test('REG-REVIEW-002 tien_quyet pass row in the same or a later semester is rejected', async () => {
+    const seed = await seedOpenClass({
+      prerequisite: {
+        MaMonDieuKien: 'M_PRE_001',
+        KetQua: 'qua_mon',
+        completedSemesterPosition: 'same-or-later'
+      }
+    });
+    const token = await authTokenFor('student', seed.MaSv);
+
+    await request(app)
+      .post('/api/registrations')
+      .set('Authorization', token)
+      .send({ MaHocKy: seed.MaHocKy, MaLop: seed.MaLop })
+      .expect(400)
+      .expect((res) => {
+        expect(['PREREQUISITE_NOT_SATISFIED', 'PREREQUISITE_SEMESTER_ORDER_UNKNOWN']).toContain(res.body.code);
+      });
+  });
+
   test('REG-BUG-003 two concurrent registrations for the final seat cannot both succeed', async () => {
     const seed = await seedOpenClass({ SoLuongToiDa: 1, SoLuongDaDangKy: 0 });
     const tokenA = await authTokenFor('student', 'SV_RACE_A');
@@ -82,9 +102,31 @@ describe.skip('core business regressions', () => {
     expect(activeCount).toBeLessThanOrEqual(1);
   });
 
+  test('REG-REVIEW-003 null SoLuongDaDangKy is coalesced to zero during atomic seat reservation', async () => {
+    const seed = await seedOpenClass({ SoLuongToiDa: 2, SoLuongDaDangKy: null });
+    const token = await authTokenFor('student', seed.MaSv);
+
+    await request(app)
+      .post('/api/registrations')
+      .set('Authorization', token)
+      .send({ MaHocKy: seed.MaHocKy, MaLop: seed.MaLop })
+      .expect(201);
+
+    const opened = await prisma.LOPMO.findFirst({ where: { MaHocKy: seed.MaHocKy, MaLop: seed.MaLop } });
+    expect(Number(opened.SoLuongDaDangKy)).toBe(1);
+  });
+
   test('PAY-BUG-004 stale online callback cannot turn failed or unpaid receipt into success after another payment succeeded', async () => {
     // TODO: seed one PHIEUDANGKY with one failed receipt and one successful receipt.
     // TODO: call /api/payments/vnpay-ipn with a valid signed query for the failed receipt.
     // Expected: stale receipt remains failed, no additional successful payment is created.
+  });
+
+  test('PAY-REVIEW-001 provider callback amount mismatch is rejected before marking success', async () => {
+    // TODO: seed one pending VNPAY/ZaloPay receipt where SoTienThu equals the remaining debt.
+    // TODO: send a valid signed VNPAY IPN with vnp_Amount lower than SoTienThu * 100,
+    //       and a valid ZaloPay callback whose signed data.amount is lower than SoTienThu.
+    // Expected: VNPAY returns RspCode 04 or return API returns 400, ZaloPay returns failed,
+    //           and PHIEUTHUHOCPHI.TrangThai stays pending instead of success.
   });
 });

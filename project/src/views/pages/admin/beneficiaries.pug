@@ -5,6 +5,8 @@ block content
     .toolbar-title
       h2.page-title Đối tượng ưu tiên
       p Quản lý chính sách giảm học phí và đối tượng sinh viên được ưu tiên.
+    .search-box
+      input#search-input(type='text' placeholder='Tim ma hoac ten doi tuong...' value=(search || '') onkeyup='debounceSearch()')
     .filter-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đối tượng
       a.btn.btn-outline(href="/admin/trash?entity=beneficiaries") Thùng rác
@@ -93,6 +95,10 @@ block modals
             input.form-control#add-sv-masv(type="text" placeholder="Nhập MSSV để thêm...")
           .form-group
             button.btn.btn-primary(type="button" onclick="addStudent()") Thêm SV
+        .form-group
+          label.btn.btn-outline(for='beneficiary-import-input') Nhap DS sinh vien
+          input#beneficiary-import-input(type='file' accept='.xlsx' hidden onchange='onBeneficiaryImportFileChange()')
+        #beneficiary-import-result.hidden
         #students-list
           .empty-state Đang tải...
 

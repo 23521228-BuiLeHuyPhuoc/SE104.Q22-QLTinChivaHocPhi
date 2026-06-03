@@ -1022,6 +1022,28 @@ select.form-control,
   font-size: var(--font-size-xs);
 }
 
+.profile-readonly-panel {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+}
+
+.beneficiary-readonly-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 4px;
+  padding: var(--spacing-sm);
+}
+
+.beneficiary-readonly-item small {
+  color: var(--text-tertiary);
+}
+
 @media (max-width: 640px) {
   .profile-avatar-panel {
     align-items: flex-start;

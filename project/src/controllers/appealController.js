@@ -240,7 +240,7 @@ const addClassToRegistration = async (tx, { MaSv, MaHocKy, MaLop }) => {
   const credits = Number(course.SoTinChi || 0);
   const amount = price * credits;
 
-  await ensurePrerequisitesSatisfied(tx, MaSv, course.MaMonHoc);
+  await ensurePrerequisitesSatisfied(tx, MaSv, course.MaMonHoc, MaHocKy);
   await ensureNoScheduleConflict(tx, MaSv, MaHocKy, MaLop);
   await ensureCreditLimit(tx, MaSv, MaHocKy, phieu.SoPhieu, credits);
   await reserveOpenedClassSeat(tx, MaHocKy, MaLop, capacity);

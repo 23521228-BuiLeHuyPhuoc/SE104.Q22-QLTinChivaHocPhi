@@ -52,6 +52,23 @@ const studentInfoSelect = {
         }
       }
     }
+  },
+  DOITUONGSINHVIEN: {
+    select: {
+      id: true,
+      MaDoiTuong: true,
+      GhiChu: true,
+      DOITUONG: {
+        select: {
+          MaDoiTuong: true,
+          TenDoiTuong: true,
+          TiLeGiamHocPhi: true,
+          DoUuTien: true,
+          MoTa: true,
+          TrangThai: true
+        }
+      }
+    }
   }
 };
 

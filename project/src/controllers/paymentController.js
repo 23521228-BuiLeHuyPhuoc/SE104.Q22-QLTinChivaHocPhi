@@ -419,7 +419,32 @@ const checkoutPayment = async (req, res) => {
   }
 };
 
-const markOnlineResult = async (receiptId, success, transactionCode) => {
+const parseCallbackAmount = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const parseVnpayCallbackAmount = (query) => {
+  const rawAmount = parseCallbackAmount(query?.vnp_Amount);
+  return rawAmount === null ? null : rawAmount / 100;
+};
+
+const parseZalopayCallbackPayload = (body = {}) => {
+  let data = {};
+  if (body.data && typeof body.data === 'string') {
+    try {
+      data = JSON.parse(body.data);
+    } catch {
+      data = {};
+    }
+  } else if (body.data && typeof body.data === 'object') {
+    data = body.data;
+  }
+  return { ...body, ...data };
+};
+
+const markOnlineResult = async (receiptId, success, transactionCode, providerAmount) => {
   const id = parseInt(receiptId, 10);
   if (!Number.isFinite(id)) return null;
   const existing = await prisma.PHIEUTHUHOCPHI.findUnique({
@@ -443,8 +468,16 @@ const markOnlineResult = async (receiptId, success, transactionCode) => {
   if (existing.TrangThai !== PAYMENT_PENDING) return existing;
   if (success) {
     await assertPaymentWindowOpen(existing.PHIEUDANGKY);
+    const receiptAmount = Number(existing.SoTienThu || 0);
+    const confirmedAmount = Number(providerAmount);
+    if (!Number.isFinite(confirmedAmount) || confirmedAmount <= 0) {
+      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_INVALID', message: 'So tien callback tu cong thanh toan khong hop le' };
+    }
+    if (confirmedAmount !== receiptAmount) {
+      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_MISMATCH', message: 'So tien callback tu cong thanh toan khong khop phieu thu' };
+    }
     const remaining = getRemainingAmount(existing.PHIEUDANGKY);
-    if (Number(existing.SoTienThu || 0) !== remaining) {
+    if (receiptAmount !== remaining) {
       throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'So tien callback khong khop hoc phi con phai dong hoac phieu da duoc thanh toan bang giao dich khac' };
     }
   }
@@ -482,7 +515,8 @@ const vnpayReturn = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Chữ ký VNPAY không hợp lệ' });
     }
     const success = req.query.vnp_ResponseCode === '00';
-    const payment = await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo);
+    const providerAmount = parseVnpayCallbackAmount(req.query);
+    const payment = await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo, providerAmount);
     res.json({ success: true, data: payment, message: success ? 'Thanh toán VNPAY thành công' : 'Thanh toán VNPAY thất bại' });
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
@@ -496,10 +530,14 @@ const vnpayIpn = async (req, res) => {
       return res.json({ RspCode: '97', Message: 'Invalid Checksum' });
     }
     const success = req.query.vnp_ResponseCode === '00';
-    await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo);
+    const providerAmount = parseVnpayCallbackAmount(req.query);
+    await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo, providerAmount);
     res.json({ RspCode: '00', Message: 'Confirm Success' });
   } catch (error) {
     console.error('VNPAY IPN error:', error);
+    if (error.code === 'PAYMENT_PROVIDER_AMOUNT_INVALID' || error.code === 'PAYMENT_PROVIDER_AMOUNT_MISMATCH' || error.code === 'PAYMENT_AMOUNT_MISMATCH') {
+      return res.json({ RspCode: '04', Message: error.message });
+    }
     res.json({ RspCode: '99', Message: 'Unknown error' });
   }
 };
@@ -515,9 +553,11 @@ const zalopayCallback = async (req, res) => {
     if (!verifyZalopayMac(req.body)) {
       return res.json({ return_code: -1, return_message: 'mac not equal' });
     }
-    const receiptId = String(req.body.app_trans_id || '').split('_').pop();
-    const success = Number(req.body.status || req.body.return_code || 0) === 1;
-    await markOnlineResult(receiptId, success, req.body.zp_trans_id);
+    const payload = parseZalopayCallbackPayload(req.body);
+    const receiptId = String(payload.app_trans_id || '').split('_').pop();
+    const success = Number(payload.status || payload.return_code || 0) === 1;
+    const providerAmount = parseCallbackAmount(payload.amount);
+    await markOnlineResult(receiptId, success, payload.zp_trans_id, providerAmount);
     res.json({ return_code: 1, return_message: 'success' });
   } catch (error) {
     console.error('ZaloPay callback error:', error);

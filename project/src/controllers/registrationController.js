@@ -223,7 +223,46 @@ const determineRegistrationType = async (tx, maSv, maMonHoc) => {
   return 'hoc_moi';
 };
 
-const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc) => {
+const toValidDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getSemesterOrderData = async (tx, maHocKy) => tx.HOCKY.findFirst({
+  where: { MaHocKy: maHocKy, DaXoa: false },
+  select: {
+    MaHocKy: true,
+    ThuTu: true,
+    NgayBatDau: true,
+    NgayKetThuc: true,
+    NAMHOC: { select: { NamBatDau: true, NamKetThuc: true } }
+  }
+});
+
+const isCompletedBeforeTargetSemester = (completedSemester, targetSemester) => {
+  const completedEnd = toValidDate(completedSemester?.NgayKetThuc);
+  const targetStart = toValidDate(targetSemester?.NgayBatDau);
+  if (completedEnd && targetStart) return completedEnd < targetStart;
+
+  const completedYear = Number(completedSemester?.NAMHOC?.NamBatDau);
+  const targetYear = Number(targetSemester?.NAMHOC?.NamBatDau);
+  const completedOrder = Number(completedSemester?.ThuTu);
+  const targetOrder = Number(targetSemester?.ThuTu);
+  if ([completedYear, targetYear, completedOrder, targetOrder].every(Number.isFinite)) {
+    if (completedYear !== targetYear) return completedYear < targetYear;
+    return completedOrder < targetOrder;
+  }
+
+  return null;
+};
+
+const formatPrerequisiteNames = (items) => items.map((item) => {
+  const course = item.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC;
+  return course?.TenMonHoc ? `${item.MaMonDieuKien} - ${course.TenMonHoc}` : item.MaMonDieuKien;
+}).join(', ');
+
+const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc, maHocKy) => {
   const prerequisites = await tx.DIEUKIENMONHOC.findMany({
     where: {
       MaMonHoc: maMonHoc,
@@ -239,6 +278,14 @@ const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc) => {
   });
 
   if (!prerequisites.length) return;
+  if (!maHocKy) {
+    throw { status: 400, code: 'PREREQUISITE_TARGET_SEMESTER_REQUIRED', message: 'Khong xac dinh hoc ky dang ky de kiem tra mon tien quyet' };
+  }
+
+  const targetSemester = await getSemesterOrderData(tx, maHocKy);
+  if (!targetSemester) {
+    throw { status: 400, code: 'PREREQUISITE_TARGET_SEMESTER_NOT_FOUND', message: 'Khong tim thay hoc ky dang ky de kiem tra mon tien quyet' };
+  }
 
   const requiredCourseIds = prerequisites.map((item) => item.MaMonDieuKien);
   const passedRows = await tx.MONDAHOC.findMany({
@@ -248,17 +295,52 @@ const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc) => {
       KetQua: 'qua_mon',
       DaXoa: false
     },
-    select: { MaMonHoc: true }
+    select: {
+      MaMonHoc: true,
+      MaHocKy: true,
+      HOCKY: {
+        select: {
+          MaHocKy: true,
+          ThuTu: true,
+          NgayBatDau: true,
+          NgayKetThuc: true,
+          NAMHOC: { select: { NamBatDau: true, NamKetThuc: true } }
+        }
+      }
+    }
   });
-  const passedSet = new Set(passedRows.map((item) => item.MaMonHoc));
-  const missing = prerequisites.filter((item) => !passedSet.has(item.MaMonDieuKien));
+
+  const passedRowsByCourse = passedRows.reduce((map, row) => {
+    if (!map.has(row.MaMonHoc)) map.set(row.MaMonHoc, []);
+    map.get(row.MaMonHoc).push(row);
+    return map;
+  }, new Map());
+
+  const missing = [];
+  const unknownOrder = [];
+  prerequisites.forEach((item) => {
+    const rows = passedRowsByCourse.get(item.MaMonDieuKien) || [];
+    let hasUnknownOrder = false;
+    const satisfied = rows.some((row) => {
+      const orderResult = isCompletedBeforeTargetSemester(row.HOCKY, targetSemester);
+      if (orderResult === null) hasUnknownOrder = true;
+      return orderResult === true;
+    });
+    if (satisfied) return;
+    if (hasUnknownOrder) unknownOrder.push(item);
+    else missing.push(item);
+  });
+
+  if (unknownOrder.length) {
+    throw {
+      status: 400,
+      code: 'PREREQUISITE_SEMESTER_ORDER_UNKNOWN',
+      message: `Khong du du lieu hoc ky de xac dinh mon tien quyet da hoan thanh truoc hoc ky dang ky: ${formatPrerequisiteNames(unknownOrder)}`
+    };
+  }
 
   if (missing.length) {
-    const names = missing.map((item) => {
-      const course = item.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC;
-      return course?.TenMonHoc ? `${item.MaMonDieuKien} - ${course.TenMonHoc}` : item.MaMonDieuKien;
-    }).join(', ');
-    throw { status: 400, code: 'PREREQUISITE_NOT_SATISFIED', message: `Chua dat mon tien quyet: ${names}` };
+    throw { status: 400, code: 'PREREQUISITE_NOT_SATISFIED', message: `Chua dat mon tien quyet truoc hoc ky dang ky: ${formatPrerequisiteNames(missing)}` };
   }
 };
 
@@ -273,15 +355,23 @@ const ensureClassCapacityAvailable = async (tx, maHocKy, maLop, capacity) => {
 };
 
 const reserveOpenedClassSeat = async (tx, maHocKy, maLop, capacity) => {
-  const where = { MaHocKy: maHocKy, MaLop: maLop, TrangThai: true };
-  if (Number(capacity) > 0) where.SoLuongDaDangKy = { lt: Number(capacity) };
+  const numericCapacity = Number(capacity);
+  const effectiveCapacity = Number.isFinite(numericCapacity) ? numericCapacity : 0;
+  const sqlQuote = String.fromCharCode(34);
+  const updated = await tx.$executeRawUnsafe(
+    `UPDATE ${sqlQuote}LOPMO${sqlQuote}
+     SET ${sqlQuote}SoLuongDaDangKy${sqlQuote} = COALESCE(${sqlQuote}SoLuongDaDangKy${sqlQuote}, 0) + 1
+     WHERE ${sqlQuote}MaHocKy${sqlQuote} = $1
+       AND ${sqlQuote}MaLop${sqlQuote} = $2
+       AND COALESCE(${sqlQuote}TrangThai${sqlQuote}, TRUE) = TRUE
+       AND ($3 <= 0 OR COALESCE(${sqlQuote}SoLuongDaDangKy${sqlQuote}, 0) < $4)`,
+    maHocKy,
+    maLop,
+    effectiveCapacity,
+    effectiveCapacity
+  );
 
-  const updated = await tx.LOPMO.updateMany({
-    where,
-    data: { SoLuongDaDangKy: { increment: 1 } }
-  });
-
-  if (updated.count !== 1) {
+  if (Number(updated) !== 1) {
     throw { status: 409, code: 'CLASS_SEAT_RACE_CONDITION', message: 'Lop hoc da het cho hoac vua duoc sinh vien khac dang ky' };
   }
 };
@@ -1045,7 +1135,7 @@ const registerCourse = async (req, res) => {
       const credits = Number(course.SoTinChi || 0);
       const amount = price * credits;
 
-      await ensurePrerequisitesSatisfied(tx, MaSv, course.MaMonHoc);
+      await ensurePrerequisitesSatisfied(tx, MaSv, course.MaMonHoc, MaHocKy);
       await ensureNoScheduleConflict(tx, MaSv, MaHocKy, MaLop);
       await ensureCreditLimit(tx, MaSv, MaHocKy, phieu.SoPhieu, credits);
       await reserveOpenedClassSeat(tx, MaHocKy, MaLop, capacity);

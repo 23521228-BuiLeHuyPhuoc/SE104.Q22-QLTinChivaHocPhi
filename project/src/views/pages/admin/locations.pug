@@ -1,0 +1,182 @@
+extends ../../layouts/admin
+
+block content
+  .toolbar
+    .search-box
+      input#search-input(type='text' placeholder='Tim ma, ten tinh/phuong xa...' value=(search || '') onkeyup='debounceLocationSearch()')
+    .filter-group
+      a.btn(class=(tab === 'provinces' ? 'btn-primary' : 'btn-outline') href='/admin/locations?tab=provinces') Tinh/Thanh pho
+      a.btn(class=(tab === 'wards' ? 'btn-primary' : 'btn-outline') href='/admin/locations?tab=wards') Phuong/Xa
+      if tab === 'wards'
+        select.form-control#filter-province(onchange='applyLocationFilters()')
+          option(value='' selected=(!MaTinh)) Tat ca tinh
+          each p in provinceOptions
+            option(value=p.MaTinh selected=(MaTinh === p.MaTinh))= p.TenTinh + ' (' + p.MaTinh + ')'
+        select.form-control#filter-area(onchange='applyLocationFilters()')
+          option(value='' selected=(!KhuVuc)) Tat ca khu vuc
+          option(value='KV1' selected=(KhuVuc === 'KV1')) KV1
+          option(value='KV2' selected=(KhuVuc === 'KV2')) KV2
+          option(value='KV2-NT' selected=(KhuVuc === 'KV2-NT')) KV2-NT
+          option(value='KV3' selected=(KhuVuc === 'KV3')) KV3
+      select.form-control#filter-status(onchange='applyLocationFilters()')
+        option(value='' selected=(!status)) Tat ca trang thai
+        option(value='active' selected=(status === 'active')) Dang dung
+        option(value='inactive' selected=(status === 'inactive')) Tam khoa
+      if tab === 'provinces'
+        button.btn.btn-primary(type='button' onclick='openProvinceAdd()') Them tinh
+      else
+        button.btn.btn-primary(type='button' onclick='openWardAdd()') Them phuong/xa
+
+  if tab === 'provinces'
+    .card
+      .card-header
+        h3 Danh sach tinh/thanh pho
+        span.card-count= provinces ? provinces.length + ' ban ghi' : '0 ban ghi'
+      .table-container
+        table.data-table
+          thead
+            tr
+              th Ma tinh
+              th Ten tinh/thanh pho
+              th Loai
+              th So phuong/xa
+              th Trang thai
+              th Ngay tao
+              th Thao tac
+          tbody
+            if provinces && provinces.length
+              each p in provinces
+                tr
+                  td.mono= p.MaTinh
+                  td
+                    strong= p.TenTinh
+                  td= p.LoaiTinh || '-'
+                  td= p._count ? p._count.PHUONGXA : 0
+                  td
+                    span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tam khoa' : 'Dang dung'
+                  td= p.NgayTao ? new Date(p.NgayTao).toLocaleDateString('vi-VN') : '-'
+                  td.table-actions
+                    button.btn.btn-sm.btn-outline(type='button' data-record=JSON.stringify(p) onclick='openProvinceEdit(this)') Sua
+            else
+              tr
+                td(colspan='7')
+                  .empty-state Khong co tinh/thanh pho phu hop
+
+  if tab === 'wards'
+    .card
+      .card-header
+        h3 Danh sach phuong/xa
+        span.card-count= wards ? wards.length + ' ban ghi' : '0 ban ghi'
+      .table-container
+        table.data-table
+          thead
+            tr
+              th Ma phuong/xa
+              th Ten phuong/xa
+              th Loai
+              th Tinh/Thanh pho
+              th Khu vuc
+              th Trang thai
+              th Ngay tao
+              th Thao tac
+          tbody
+            if wards && wards.length
+              each w in wards
+                tr
+                  td.mono= w.MaPhuongXa
+                  td
+                    strong= w.TenPhuongXa
+                  td= w.Loai || '-'
+                  td= w.TINH ? w.TINH.TenTinh + ' (' + w.MaTinh + ')' : w.MaTinh
+                  td= w.KhuVuc || '-'
+                  td
+                    span.badge(class=w.TrangThai === false ? 'badge-secondary' : 'badge-success')= w.TrangThai === false ? 'Tam khoa' : 'Dang dung'
+                  td= w.NgayTao ? new Date(w.NgayTao).toLocaleDateString('vi-VN') : '-'
+                  td.table-actions
+                    button.btn.btn-sm.btn-outline(type='button' data-record=JSON.stringify(w) onclick='openWardEdit(this)') Sua
+            else
+              tr
+                td(colspan='8')
+                  .empty-state Khong co phuong/xa phu hop
+
+  include ../../partials/pagination
+
+block modals
+  #province-modal.modal-overlay(onclick='if(event.target===this)closeProvinceModal()')
+    .modal
+      .modal-header
+        h2#province-modal-title Them tinh
+        button.modal-close(type='button' onclick='closeProvinceModal()') x
+      .modal-body
+        form#province-form
+          .form-row
+            .form-group
+              label(for='province-ma') Ma tinh
+              input.form-control#province-ma(type='text' required placeholder='VD: 79')
+            .form-group
+              label(for='province-ten') Ten tinh/thanh pho
+              input.form-control#province-ten(type='text' required placeholder='VD: Thanh pho Ho Chi Minh')
+          .form-row
+            .form-group
+              label(for='province-loai') Loai
+              select.form-control#province-loai
+                option(value='Tỉnh') Tinh
+                option(value='Thành phố') Thanh pho
+            .form-group
+              label(for='province-trangthai') Trang thai
+              select.form-control#province-trangthai
+                option(value='true') Dang dung
+                option(value='false') Tam khoa
+      .modal-footer
+        button.btn.btn-outline(type='button' onclick='closeProvinceModal()') Huy
+        button.btn.btn-primary(type='button' onclick='saveProvince()') Luu
+
+  #ward-modal.modal-overlay(onclick='if(event.target===this)closeWardModal()')
+    .modal
+      .modal-header
+        h2#ward-modal-title Them phuong/xa
+        button.modal-close(type='button' onclick='closeWardModal()') x
+      .modal-body
+        form#ward-form
+          .form-row
+            .form-group
+              label(for='ward-ma') Ma phuong/xa
+              input.form-control#ward-ma(type='text' required placeholder='VD: 2659')
+            .form-group
+              label(for='ward-ten') Ten phuong/xa
+              input.form-control#ward-ten(type='text' required placeholder='VD: Phuong Vung Tau')
+          .form-row
+            .form-group
+              label(for='ward-tinh') Tinh/Thanh pho
+              select.form-control#ward-tinh(required)
+                option(value='') Chon tinh
+                each p in provinceOptions
+                  if p.TrangThai !== false
+                    option(value=p.MaTinh)= p.TenTinh + ' (' + p.MaTinh + ')'
+            .form-group
+              label(for='ward-loai') Loai
+              select.form-control#ward-loai
+                option(value='Phường') Phuong
+                option(value='Xã') Xa
+                option(value='Thị trấn') Thi tran
+          .form-row
+            .form-group
+              label(for='ward-khuvuc') Khu vuc
+              select.form-control#ward-khuvuc
+                option(value='KV1') KV1
+                option(value='KV2') KV2
+                option(value='KV2-NT') KV2-NT
+                option(value='KV3') KV3
+            .form-group
+              label(for='ward-trangthai') Trang thai
+              select.form-control#ward-trangthai
+                option(value='true') Dang dung
+                option(value='false') Tam khoa
+      .modal-footer
+        button.btn.btn-outline(type='button' onclick='closeWardModal()') Huy
+        button.btn.btn-primary(type='button' onclick='saveWard()') Luu
+
+block scripts
+  script.
+    window.locationTab = '#{tab}';
+  script(src='/js/admin/locations.js')

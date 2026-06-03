@@ -73,6 +73,9 @@ Pham vi: audit source code trong `project/src`, `project/prisma`, `project/tests
 | BUG-CORE-002 | `registrationController.registerCourse`; `appealController.approveAppeal/addClassToRegistration`; `DIEUKIENMONHOC` | High | Co bang/man hinh mon tien quyet nhung dang ky va duyet cuu xet them/doi khong kiem tra `tien_quyet`. | `registerCourse` chi check trung mon, lich, tin chi, lop day; khong query `DIEUKIENMONHOC`. | Da sua | Them `ensurePrerequisitesSatisfied` bat buoc co `MONDAHOC.KetQua='qua_mon'` cho `LoaiDieuKien='tien_quyet'`. |
 | BUG-CORE-003 | `registrationController.registerCourse`; `appealController.addClassToRegistration`; `LOPMO.SoLuongDaDangKy` | Critical | Race condition/double submit co the vuot suc chua slot cuoi vi check truoc roi increment sau khong atomic. | Code doc `SoLuongDaDangKy`, sau do `updateMany increment` khong co dieu kien `< SoLuongToiDa`; transaction dang ky truc tiep khong dat isolation. | Da sua | Them count active, `reserveOpenedClassSeat` update co dieu kien, transaction `Serializable`, map `P2034` thanh 409. |
 | BUG-CORE-004 | `paymentController.markOnlineResult`; VNPAY/ZaloPay callback | Critical | Callback online cu co the chuyen receipt `Thất bại`/`Chưa thanh toán` thanh `Thành công`, gay thanh toan trung sau khi co giao dich khac thanh cong. | `markOnlineResult` cho update neu status trong `[PENDING, FAILED, UNPAID]`; khong check cac success receipt khac cua phieu. | Da sua | Chi update receipt `Chờ xác nhận`; success callback kiem tra payment window va `SoTienThu == conNo` sau khi loai receipt hien tai. |
+| BUG-REVIEW-001 | `paymentController.markOnlineResult`; `vnpayReturn`; `vnpayIpn`; `zalopayCallback` | Critical | Callback success tu VNPAY/ZaloPay chua doi chieu amount provider confirm voi `PHIEUTHUHOCPHI.SoTienThu`. | Review chi ra success callback chi check receipt amount voi remaining debt; neu gateway tra amount nho hon receipt van co the mark success. | Da sua | Parse `vnp_Amount / 100` cho VNPAY, parse `amount` tu ZaloPay `data`/body, truyen vao `markOnlineResult`, bat buoc provider amount bang receipt amount truoc khi mark success. |
+| BUG-REVIEW-002 | `registrationController.ensurePrerequisitesSatisfied`; `appealController.addClassToRegistration` | High | `MONDAHOC.qua_mon` o cung hoc ky hoac hoc ky sau van duoc tinh la da dat tien quyet. | Review chi ra helper chi check co pass row, khong so sanh hoc ky cua pass row voi hoc ky dang ky. | Da sua | Check pass row phai thuoc hoc ky ket thuc truoc ngay bat dau hoc ky muc tieu, fallback `NAMHOC.NamBatDau` + `HOCKY.ThuTu`; khong du du lieu thi tra loi ro rang. |
+| BUG-REVIEW-003 | `registrationController.reserveOpenedClassSeat`; `LOPMO.SoLuongDaDangKy` | High | Row `LOPMO.SoLuongDaDangKy = NULL` khong match dieu kien `< capacity`, lam fail reserve du con cho. | Review chi ra cot nullable va du lieu cu co the NULL, trong khi code cu coi NULL nhu 0. | Da sua | Reserve seat bang atomic SQL update dung `COALESCE(SoLuongDaDangKy, 0)` cho ca increment va dieu kien capacity. |
 
 ## 5. Loi da sua truc tiep trong source
 
@@ -82,6 +85,9 @@ Pham vi: audit source code trong `project/src`, `project/prisma`, `project/tests
 | BUG-CORE-002 | `src/controllers/registrationController.js`, `src/controllers/appealController.js` | Backend | Dang ky/duyet cuu xet khong check mon tien quyet. | Check `DIEUKIENMONHOC.LoaiDieuKien='tien_quyet'` va `MONDAHOC.qua_mon`. | Business validation | Khong sua data cu; chi chan request moi. | Khong | REG-024..REG-026, APP-014, skeleton `REG-BUG-002` |
 | BUG-CORE-003 | `src/controllers/registrationController.js`, `src/controllers/appealController.js`, `src/utils/errorHandler.js` | Backend | Check suc chua roi increment khong atomic. | Reserve seat bang conditional update, transaction serializable, conflict tra 409. | Business validation + concurrency | Khong sua data cu; neu counter da lech can job doi soat rieng. | Khong | REG-014, REG-036, APP-015, skeleton `REG-BUG-003` |
 | BUG-CORE-004 | `src/controllers/paymentController.js` | Backend | Callback cu co the update failed/unpaid thanh success. | Chi callback receipt pending; check con no truoc success. | Payment + idempotency | Khong sua data cu; ngan callback moi gay double success. | Khong | PAY-021..PAY-024, skeleton `PAY-BUG-004` |
+| BUG-REVIEW-001 | `src/controllers/paymentController.js` | Backend | Success callback chua verify provider-confirmed amount. | `markOnlineResult` nhan amount callback, validate provider amount == receipt amount va receipt amount == remaining debt. | Payment validation | Khong sua data cu; mismatch moi se bi tu choi. | Khong | PAY-031, skeleton `PAY-REVIEW-001` |
+| BUG-REVIEW-002 | `src/controllers/registrationController.js`, `src/controllers/appealController.js` | Backend | Pass tien quyet o cung/sau hoc ky van duoc chap nhan. | `ensurePrerequisitesSatisfied` yeu cau pass row nam truoc hoc ky muc tieu theo date hoac nam hoc + thu tu. | Business validation | Khong sua data cu; chi chan request moi. | Khong | REG-041, APP-026, skeleton `REG-REVIEW-002` |
+| BUG-REVIEW-003 | `src/controllers/registrationController.js` | Backend | `SoLuongDaDangKy` NULL lam atomic reserve fail. | Atomic SQL update dung `COALESCE` de coi NULL la 0 nhung van giu guard capacity. | Business validation + concurrency | Khong sua data cu hang loat; row reserve moi se duoc normalize khi increment. | Khong | REG-042, skeleton `REG-REVIEW-003` |
 
 ## 6. Can xac nhan nghiep vu
 
@@ -121,7 +127,7 @@ Tinh trung tam tu `registrationController.recalculateRegistrationTotals`: chi la
 
 ### G. Thanh toan hoc phi
 
-Admin tao phieu thu dung con no sau khi payment window open. Student checkout receipt unpaid/failed, exact amount, thanh pending. Admin confirm chi pending va exact remaining. Callback VNPAY/ZaloPay verify signature/mac, sau sua chi cap nhat pending va idempotent.
+Admin tao phieu thu dung con no sau khi payment window open. Student checkout receipt unpaid/failed, exact amount, thanh pending. Admin confirm chi pending va exact remaining. Callback VNPAY/ZaloPay verify signature/mac, parse amount provider confirm, chi cap nhat pending khi amount provider bang receipt va receipt bang con no hien tai.
 
 ## 8. Bang test case nghiep vu loi
 
@@ -227,6 +233,8 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 | REG-038 | Student / Course Registration | Dang ky | Don gia default duoc dung neu hoc ky khong co | Happy path | Co default price | POST | DonGia default | `CHITIETDANGKY` | High | Supertest |
 | REG-039 | Student / Course Registration | Dang ky | API fail hien message UI | UI/API | Mock 400 | Click dang ky | Toast loi | Browser | Medium | Playwright |
 | REG-040 | Student / Course Registration | Dang ky | Token invalid bi 401 | Permission | No/invalid token | GET/POST | 401 | API | Critical | Supertest |
+| REG-041 | Student / Course Registration | Dang ky | Pass tien quyet cung/sau hoc ky khong hop le | Regression | `MONDAHOC.qua_mon` cua prereq nam cung hoac sau target HK | POST | 400 `PREREQUISITE_NOT_SATISFIED` hoac `PREREQUISITE_SEMESTER_ORDER_UNKNOWN` neu thieu du lieu thu tu | `MONDAHOC.HOCKY`, `DIEUKIENMONHOC` | Critical | Regression for BUG-REVIEW-002; Supertest |
+| REG-042 | Student / Course Registration | Dang ky | `SoLuongDaDangKy` NULL van reserve duoc neu con cho | Regression | Lop capacity > active count, `LOPMO.SoLuongDaDangKy=NULL` | POST | 201, counter thanh 1, khong vuot capacity | `LOPMO`, `CHITIETDANGKY` | High | Regression for BUG-REVIEW-003; Supertest |
 | CAN-001 | Student / My Courses | Xem mon da DK | Chi xem cua minh | Permission | SV A, SV B | GET SVB | 403 | API | Critical | Supertest |
 | CAN-002 | Student / My Courses | Xem mon da DK | Loc theo hoc ky | API | SV nhieu HK | MaHocKy | Chi HK do | `PHIEUDANGKY` | Medium | Supertest |
 | CAN-003 | Student / My Courses | Xem mon da DK | Khong tinh canceled khi includeCancelled=false | API | Co canceled | GET | Chi active | `CHITIETDANGKY` | High | Supertest |
@@ -272,6 +280,7 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 | APP-023 | Appeals | Cancel | Student chi huy don minh | Permission | SV A, don SV B | PUT cancel | 403 | DB | Critical | Supertest |
 | APP-024 | Appeals | Cancel | Chi huy pending | Business rule | Approved/rejected | PUT cancel | 400 | DB | High | Supertest |
 | APP-025 | Appeals | List | Admin loc MaHocKy/TrangThai/search | API | Nhieu don | GET | Dung pagination | `DONCUUXETDANGKY` | Medium | Supertest |
+| APP-026 | Appeals | Duyet them | Tien quyet phai truoc hoc ky target | Regression | Don them lop, prereq pass cung/sau HK | Approve | 400, don khong duyet, DB rollback | `DONCUUXETDANGKY`, `MONDAHOC.HOCKY` | Critical | Regression for BUG-REVIEW-002; Supertest |
 | TUI-001 | Tuition | Admin list | Loc hoc ky | API | Co PDK nhieu HK | GET `MaHocKy` | Dung rows | `PHIEUDANGKY` | Medium | Supertest |
 | TUI-002 | Tuition | Admin list | Loc status paid | API | Co success | status=paid | Chi da dong du | Payments | Medium | Supertest |
 | TUI-003 | Tuition | Student list | Student chi xem minh | Permission | SV A/B | GET SVB | 403 | API | Critical | Supertest |
@@ -336,6 +345,7 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 | PAY-022 | Payments | Callback | Pending success thanh success | Happy path | Pending receipt | Valid callback 00 | Success | DB | Critical | Supertest |
 | PAY-023 | Payments | Callback | Callback lap lai success idempotent | Regression | Already success | Valid callback | Khong double | DB one success | Critical | Regression for BUG-CORE-004 |
 | PAY-024 | Payments | Callback | Failed/unpaid khong bi stale callback doi success | Regression | Failed receipt + paid other | Valid old callback | Failed giu nguyen | DB | Critical | Regression for BUG-CORE-004 |
+| PAY-031 | Payments | Callback | Provider amount mismatch bi tu choi | Regression | Pending receipt 1,000,000; gateway callback amount 900,000 | VNPAY/ZaloPay success callback hop le signature/mac | Khong mark success, receipt van pending, VNPAY IPN tra `RspCode=04` hoac return API 400 | `PHIEUTHUHOCPHI` | Critical | Regression for BUG-REVIEW-001; Supertest |
 | PAY-025 | Payments | Confirm | Chi pending duoc confirm | Business rule | unpaid receipt | PUT confirm | 400 | DB | High | Supertest |
 | PAY-026 | Payments | Confirm | Amount phai bang con no | Data integrity | Pending stale amount | PUT confirm | 400 | DB | Critical | Supertest |
 | PAY-027 | Payments | Confirm | Success khoa dang ky/huy | Business rule | Confirm success | Try register/cancel | 400 | DB | Critical | Supertest |
@@ -399,7 +409,7 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 16. PRC-011 - Xoa price in-use bi chan.
 17. SEM-021 - Finalize huy lop duoi 75%.
 18. TUI-026 - Da dong + con no = phai dong.
-19. PAY-021 - Callback sai signature bi tu choi.
+19. PAY-021/PAY-031 - Callback sai signature hoac sai amount bi tu choi.
 20. REG-009/CAN-006/TUI-003/PAY-011 - Student khong truy cap SV khac.
 
 ## 11. Coverage matrix
@@ -431,11 +441,10 @@ Skeleton da them: `tests/api/core-business-regression.skeleton.test.js`. Repo hi
 
 | Lenh | Ket qua |
 |---|---|
-| `node --check src/controllers/registrationController.js` | Pass |
-| `node --check src/controllers/appealController.js` | Pass |
-| `node --check src/controllers/paymentController.js` | Pass |
-| `node --check src/utils/errorHandler.js` | Pass |
-| `node --check tests/api/core-business-regression.skeleton.test.js` | Pass |
+| `node --check src/controllers/registrationController.js` | Pass sau review fix |
+| `node --check src/controllers/appealController.js` | Pass sau review fix |
+| `node --check src/controllers/paymentController.js` | Pass sau review fix |
+| `node --check tests/api/core-business-regression.skeleton.test.js` | Pass sau review fix |
 | `npm test` | Fail dung theo script placeholder hien co: `Error: no test specified` va exit 1. Chua co test runner that trong `package.json`. |
 | `git diff --check` | Pass, khong co whitespace error; co warning line ending LF se duoc Git chuyen CRLF tren Windows. |
 | `npm run lint/build/typecheck` | Khong co script trong `package.json`. |

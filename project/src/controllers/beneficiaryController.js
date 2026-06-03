@@ -1,9 +1,17 @@
+const ExcelJS = require('exceljs');
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 
 const normalizeText = (value) => String(value || '').trim();
+
+const normalizeExcelValue = (value) => {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'object' && value.text) return String(value.text).trim();
+  if (typeof value === 'object' && value.result) return String(value.result).trim();
+  return String(value).trim();
+};
 
 const parseDiscountPercent = (value) => {
   if (value === undefined || value === null || value === '') return null;
@@ -20,7 +28,16 @@ const parsePositiveInteger = (value) => {
 const getAllBeneficiaries = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
+    const { search = '' } = req.query;
     const where = notDeleted();
+
+    if (search) {
+      where.OR = [
+        { MaDoiTuong: { contains: search, mode: 'insensitive' } },
+        { TenDoiTuong: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
     const [beneficiaries, total] = await Promise.all([
       prisma.DOITUONG.findMany({
         where,
@@ -156,6 +173,122 @@ const removeStudentFromBeneficiary = async (req, res) => {
   }
 };
 
+const importStudentsToBeneficiary = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Vui long chon file Excel' });
+    }
+
+    const beneficiary = await prisma.DOITUONG.findFirst({
+      where: { MaDoiTuong: id, DaXoa: false }
+    });
+
+    if (!beneficiary) {
+      return res.status(404).json({ success: false, message: 'Khong tim thay doi tuong uu tien' });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      return res.status(400).json({ success: false, message: 'File Excel khong co sheet du lieu' });
+    }
+
+    const results = {
+      successCount: 0,
+      errorCount: 0,
+      errors: []
+    };
+
+    const rows = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const MaSv = normalizeExcelValue(row.getCell(1).value);
+      if (!MaSv) {
+        results.errors.push({ row: rowNumber, MaSv: '', reason: 'Thieu MSSV' });
+        return;
+      }
+
+      rows.push({ rowNumber, MaSv });
+    });
+
+    const seen = new Set();
+    rows.forEach((item) => {
+      if (seen.has(item.MaSv)) {
+        results.errors.push({
+          row: item.rowNumber,
+          MaSv: item.MaSv,
+          reason: 'Trung MSSV trong file import'
+        });
+        return;
+      }
+
+      seen.add(item.MaSv);
+    });
+
+    const validRows = rows.filter((item) => !results.errors.some((error) => error.row === item.rowNumber));
+    const validStudentIds = validRows.map((item) => item.MaSv);
+
+    const [students, existingAssignments] = await Promise.all([
+      prisma.SINHVIEN.findMany({
+        where: { MaSv: { in: validStudentIds }, DaXoa: false },
+        select: { MaSv: true }
+      }),
+      prisma.DOITUONGSINHVIEN.findMany({
+        where: { MaDoiTuong: id, MaSv: { in: validStudentIds } },
+        select: { MaSv: true }
+      })
+    ]);
+
+    const studentSet = new Set(students.map((sv) => sv.MaSv));
+    const existingSet = new Set(existingAssignments.map((row) => row.MaSv));
+
+    for (const item of validRows) {
+      const rowErrors = [];
+      if (!studentSet.has(item.MaSv)) rowErrors.push('MSSV khong ton tai');
+      if (existingSet.has(item.MaSv)) rowErrors.push('Sinh vien da thuoc doi tuong nay');
+
+      if (rowErrors.length) {
+        results.errors.push({ row: item.rowNumber, MaSv: item.MaSv, reason: rowErrors.join('; ') });
+        continue;
+      }
+
+      try {
+        await prisma.DOITUONGSINHVIEN.create({
+          data: {
+            MaSv: item.MaSv,
+            MaDoiTuong: id,
+            GhiChu: 'Import Excel'
+          }
+        });
+
+        results.successCount += 1;
+        existingSet.add(item.MaSv);
+      } catch (error) {
+        results.errors.push({
+          row: item.rowNumber,
+          MaSv: item.MaSv,
+          reason: error.code === 'P2002' ? 'Sinh vien da thuoc doi tuong nay' : 'Khong the gan sinh vien'
+        });
+      }
+    }
+
+    results.errorCount = results.errors.length;
+
+    res.json({
+      success: true,
+      message: 'Thanh cong ' + results.successCount + ', loi ' + results.errorCount,
+      data: results
+    });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Khong the nhap danh sach sinh vien vao doi tuong', 'importStudentsToBeneficiary error:');
+  }
+};
+
 module.exports = {
   getAllBeneficiaries,
   createBeneficiary,
@@ -163,5 +296,6 @@ module.exports = {
   deleteBeneficiary,
   getBeneficiaryStudents,
   addStudentToBeneficiary,
-  removeStudentFromBeneficiary
+  removeStudentFromBeneficiary,
+  importStudentsToBeneficiary
 };

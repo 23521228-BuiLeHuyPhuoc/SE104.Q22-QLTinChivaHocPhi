@@ -1,7 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const studentController = require('../controllers/studentController');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { avatarUploadMiddleware } = require('../middleware/avatarUpload');
+
+const excelUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -26,7 +33,10 @@ router.get('/ethnicities', studentController.getEthnicities);
 
 
 // Get student by ID
+router.get('/export', adminMiddleware, studentController.exportStudents);
+router.post('/import', adminMiddleware, excelUpload.single('file'), studentController.importStudents);
 router.get('/:id', adminMiddleware, studentController.getStudentById);
+router.post('/:id/avatar', adminMiddleware, avatarUploadMiddleware, studentController.uploadStudentAvatar);
 
 // Admin only routes
 router.post('/', adminMiddleware, studentController.createStudent);

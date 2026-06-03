@@ -419,6 +419,8 @@ const adminStudents = async (req, res) => {
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
   const status = req.query.status || '';
+  const MaKhoa = req.query.MaKhoa || '';
+  const MaNganh = req.query.MaNganh || '';
   const where = { DaXoa: false };
 
   if (search) {
@@ -429,6 +431,8 @@ const adminStudents = async (req, res) => {
     ];
   }
   if (status) where.TrangThai = status;
+  if (MaKhoa) where.NGANHHOC = { MaKhoa };
+  if (MaNganh) where.MaNganh = MaNganh;
 
   try {
     const [students, total] = await Promise.all([
@@ -456,9 +460,11 @@ const adminStudents = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/students',
-      queryParams: { search, status, limit },
+      queryParams: { search, status, MaKhoa, MaNganh, limit },
       search,
-      status
+      status,
+      selectedFaculty: MaKhoa,
+      selectedMajor: MaNganh
     });
   } catch (err) {
     console.error('Error:', err);
@@ -1856,10 +1862,20 @@ const adminPricing = async (req, res) => {
 const adminBeneficiaries = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const where = { DaXoa: false };
+
+  if (search) {
+    where.OR = [
+      { MaDoiTuong: { contains: search, mode: 'insensitive' } },
+      { TenDoiTuong: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+
   try {
     const [beneficiaries, total] = await Promise.all([
-      prisma.DOITUONG.findMany({ where: { DaXoa: false }, skip: (page - 1) * limit, take: limit, orderBy: { DoUuTien: 'asc' }, include: { _count: { select: { DOITUONGSINHVIEN: true } } } }),
-      prisma.DOITUONG.count({ where: { DaXoa: false } })
+      prisma.DOITUONG.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { DoUuTien: 'asc' }, include: { _count: { select: { DOITUONGSINHVIEN: true } } } }),
+      prisma.DOITUONG.count({ where })
     ]);
     const displayBeneficiaries = await attachUpdaterNames(beneficiaries);
     renderAdmin(res, 'beneficiaries', 'beneficiaries', 'Đối tượng ưu tiên', req, {
@@ -1867,7 +1883,8 @@ const adminBeneficiaries = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/beneficiaries',
-      queryParams: { limit }
+      queryParams: { search, limit },
+      search
     });
   } catch (err) {
     console.error('Error:', err);
@@ -2184,6 +2201,100 @@ const adminCurriculumPrograms = async (req, res) => {
   }
 };
 
+const adminLocations = async (req, res) => {
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = DEFAULT_PAGE_SIZE;
+  const search = req.query.search || '';
+  const tab = req.query.tab === 'wards' ? 'wards' : 'provinces';
+  const status = req.query.status || '';
+  const MaTinh = req.query.MaTinh || '';
+  const KhuVuc = req.query.KhuVuc || '';
+
+  try {
+    const provinceWhere = {};
+    if (search && tab === 'provinces') {
+      provinceWhere.OR = [
+        { MaTinh: { contains: search, mode: 'insensitive' } },
+        { TenTinh: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    if (status === 'active') provinceWhere.TrangThai = true;
+    if (status === 'inactive') provinceWhere.TrangThai = false;
+
+    const wardWhere = {};
+    if (search && tab === 'wards') {
+      wardWhere.OR = [
+        { MaPhuongXa: { contains: search, mode: 'insensitive' } },
+        { TenPhuongXa: { contains: search, mode: 'insensitive' } },
+        { TINH: { TenTinh: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+    if (MaTinh) wardWhere.MaTinh = MaTinh;
+    if (KhuVuc) wardWhere.KhuVuc = KhuVuc;
+    if (status === 'active') wardWhere.TrangThai = true;
+    if (status === 'inactive') wardWhere.TrangThai = false;
+
+    const [provinces, wards, total, provinceOptions] = await Promise.all([
+      tab === 'provinces'
+        ? prisma.TINH.findMany({
+            where: provinceWhere,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { MaTinh: 'asc' },
+            include: { _count: { select: { PHUONGXA: true } } }
+          })
+        : Promise.resolve([]),
+      tab === 'wards'
+        ? prisma.PHUONGXA.findMany({
+            where: wardWhere,
+            skip: (page - 1) * limit,
+            take: limit,
+            orderBy: { MaPhuongXa: 'asc' },
+            include: { TINH: true }
+          })
+        : Promise.resolve([]),
+      tab === 'provinces'
+        ? prisma.TINH.count({ where: provinceWhere })
+        : prisma.PHUONGXA.count({ where: wardWhere }),
+      prisma.TINH.findMany({
+        orderBy: { TenTinh: 'asc' },
+        select: { MaTinh: true, TenTinh: true, TrangThai: true }
+      })
+    ]);
+
+    renderAdmin(res, 'locations', 'locations', 'Quan ly tinh / phuong xa', req, {
+      tab,
+      provinces,
+      wards,
+      provinceOptions,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/locations',
+      queryParams: { tab, search, status, MaTinh, KhuVuc, limit },
+      search,
+      status,
+      MaTinh,
+      KhuVuc
+    });
+  } catch (err) {
+    console.error('adminLocations error:', err);
+    renderAdmin(res, 'locations', 'locations', 'Quan ly tinh / phuong xa', req, {
+      tab,
+      provinces: [],
+      wards: [],
+      provinceOptions: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/locations',
+      queryParams: {},
+      search: '',
+      status: '',
+      MaTinh: '',
+      KhuVuc: ''
+    });
+  }
+};
+
 module.exports = {
   requireViewAuth,
   requireViewAdmin,
@@ -2232,5 +2343,6 @@ module.exports = {
   studentMySchedule,
   studentProfile,
   studentNotifications,
-  studentCurriculum
+  studentCurriculum,
+  adminLocations
 };

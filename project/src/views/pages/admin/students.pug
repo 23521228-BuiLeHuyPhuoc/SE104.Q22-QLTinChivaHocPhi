@@ -5,6 +5,10 @@ block content
     .search-box
       input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
+      select#filter-faculty(onchange='onFacultyFilterChange()')
+        option(value='') Tat ca khoa
+      select#filter-major(onchange='applyFilters()')
+        option(value='') Tat ca nganh
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(status === '' || !status)) Tất cả trạng thái
         option(value="Đang học" selected=(status === 'Đang học')) Đang học
@@ -13,6 +17,14 @@ block content
         option(value="Đã thôi học" selected=(status === 'Đã thôi học')) Đã thôi học
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm sinh viên
       a.btn.btn-outline(href="/admin/trash?entity=students") Thùng rác
+
+  .toolbar
+    .filter-group
+      button.btn.btn-outline(type='button' onclick='exportStudents()') Xuat Excel
+      label.btn.btn-outline(for='students-import-input') Nhap Excel
+      input#students-import-input(type='file' accept='.xlsx' hidden onchange='onImportStudentsFileChange()')
+
+  #students-import-result.hidden
 
   .card
     .card-header
@@ -74,6 +86,15 @@ block modals
         button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#student-form
+          .profile-avatar-panel
+            .profile-avatar-preview
+              img#sv-avatar-img.hidden(src='' alt='Anh dai dien')
+              span#sv-avatar-initials SV
+            .profile-avatar-actions
+              label.btn.btn-outline(for='sv-avatar-input') Chon anh
+              input#sv-avatar-input(type='file' accept='image/jpeg,image/png,image/webp,image/gif' hidden)
+              button.btn.btn-primary#btn-upload-student-avatar(type='button' disabled onclick='uploadStudentAvatar()') Cap nhat anh
+              small JPG, PNG, WebP hoac GIF, toi da 3MB. Can luu sinh vien truoc khi upload.
           .form-row
             .form-group
               label(for="sv-mssv") MSSV
@@ -129,6 +150,10 @@ block modals
           .form-group
             label(for="sv-diachi") Địa chỉ liên hệ
             input.form-control#sv-diachi(type="text" required)
+          .form-group
+            label Doi tuong uu tien hien tai
+            #student-beneficiaries-current.profile-readonly-panel
+              .empty-state Chua thuoc doi tuong uu tien nao
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu

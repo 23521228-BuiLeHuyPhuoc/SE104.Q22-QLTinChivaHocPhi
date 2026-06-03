@@ -24,6 +24,13 @@ nav.sidebar.sidebar-admin(id="sidebar")
 
     if isSystem || isTraining
       .sidebar-section
+        .sidebar-section-title Dia danh
+        a.sidebar-link(href='/admin/locations' title='Tinh/phuong xa' class=(active === 'locations' ? 'active' : ''))
+          span.sidebar-icon.material-symbols-rounded map
+          span.link-label Tinh/phuong xa
+
+    if isSystem || isTraining
+      .sidebar-section
         .sidebar-section-title Đào tạo
         a.sidebar-link(href="/admin/students" title="Sinh viên" class=(active === 'students' ? 'active' : ''))
           span.sidebar-icon.material-symbols-rounded groups
