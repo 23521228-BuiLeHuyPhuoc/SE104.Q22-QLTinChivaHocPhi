@@ -435,7 +435,7 @@ const ensureCreditLimit = async (tx, maSv, maHocKy, soPhieu, creditsToAdd) => {
   }
   if (nextCredits > limitInfo.maxCredits) {
     const reason = limitInfo.limited
-      ? `Sinh viên chưa hoàn tất ${limitInfo.missingCourses.join(', ')} sau cuối năm ${Number((await tx.THAMSO.findFirst())?.NamKiemTraAnhVan || 2)}, tối đa ${limitInfo.maxCredits} tín chỉ`
+      ? `Sinh viên chưa hoàn tất ${limitInfo.missingCourses.join(', ')} sau cuối năm ${Number(limitInfo.checkYears || 2)}, tối đa ${limitInfo.maxCredits} tín chỉ`
       : `Vượt quá số tín chỉ tối đa ${limitInfo.maxCredits}`;
     throw { status: 400, message: reason };
   }

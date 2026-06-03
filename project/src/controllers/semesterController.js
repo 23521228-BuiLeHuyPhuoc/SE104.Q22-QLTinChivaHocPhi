@@ -250,6 +250,8 @@ const buildSemesterWhere = (query = {}) => {
   const searchScope = ['semesterCode', 'semesterName', 'academicYear'].includes(query.searchScope) ? query.searchScope : 'semesterCode';
   const semesterKind = normalizeSemesterKind(query.semesterKind || (query.searchField === 'HocKy' ? query.search : ''));
   const status = String(query.status || '').trim();
+  const registrationFinalized = String(query.registrationFinalized || '').trim();
+  const tuitionOpen = String(query.tuitionOpen || '').trim();
   const requestedDateField = SEMESTER_DATE_FIELDS.has(query.dateField) ? query.dateField : 'all';
   const legacyDateSearch = query.searchField && SEMESTER_DATE_FIELDS.has(query.searchField) ? query.search : '';
   const exactDate = parseFilterDate(query.dateExact || query.date || legacyDateSearch, 'Ngày chính xác');
@@ -276,6 +278,10 @@ const buildSemesterWhere = (query = {}) => {
 
   if (semesterKind) and.push({ ThuTu: parseInt(semesterKind, 10) });
   if (status) and.push({ TrangThai: status });
+  if (registrationFinalized === 'finalized') and.push({ NgayChotDangKy: { not: null } });
+  if (registrationFinalized === 'not_finalized') and.push({ NgayChotDangKy: null });
+  if (tuitionOpen === 'open') and.push({ MoThuHocPhi: true });
+  if (tuitionOpen === 'closed') and.push({ MoThuHocPhi: false });
 
   if (dateFrom || dateTo) {
     const range = {};

@@ -614,7 +614,6 @@ CREATE TABLE "CHUONGTRINHHOC" (
     "MaMonHoc" VARCHAR(15) NOT NULL,
     "HocKy" INTEGER NOT NULL,
     "HocKyDuKien" INTEGER DEFAULT 1,
-    "BatBuoc" BOOLEAN DEFAULT TRUE,
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -954,7 +953,7 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
 -- =====================================================
 CREATE TABLE "THONGBAO" (
     "MaThongBao" SERIAL NOT NULL,
-    "MaTaiKhoanNhan" INTEGER NOT NULL,
+    "MaTaiKhoanNhan" INTEGER,
     "TieuDe" VARCHAR(200) NOT NULL,
     "NoiDung" TEXT NOT NULL,
     "DuongDan" VARCHAR(255),
@@ -4500,7 +4499,7 @@ DECLARE
     v_Mon1_DaXoa BOOLEAN; v_Mon1_TrangThai BOOLEAN;
     v_Mon2_DaXoa BOOLEAN; v_Mon2_TrangThai BOOLEAN;
 BEGIN
-    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+    IF NEW."MaTaiKhoanNhan" IS NOT NULL AND NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa", "TrangThai" INTO v_Mon1_DaXoa, v_Mon1_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon1_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon1_TrangThai, TRUE) = FALSE THEN
             RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
@@ -13628,33 +13627,17 @@ SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), GREATEST((SELE
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), GREATEST((SELECT MAX("SoPhieuThu") FROM "PHIEUTHUHOCPHI"), 104), true);
 
 -- =====================================================
--- INSERT DATA - Thông báo cá nhân (Personal Notifications)
--- Số tiền trong thông báo phải khớp với dữ liệu thực tế
+-- INSERT DATA - Thông báo hạn hệ thống
+-- Không seed sẵn thông báo phát sinh theo sự kiện như đăng ký môn hoặc thanh toán học phí.
 -- =====================================================
-INSERT INTO "THONGBAO" ("TieuDe", "NoiDung", "MaTaiKhoanNhan", "DuongDan", "DaDoc") VALUES
--- Thông báo cho sinh viên 22520001 ("MaTaiKhoan" từ subquery)
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Học phí: 378,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/phieu-dang-ky/1', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 378,000 VNĐ học phí HK2 2025-2026.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/phieu-thu/1', TRUE),
-('Nhắc nhở lịch học', 'Môn Cấu trúc dữ liệu và giải thuật sẽ bắt đầu vào Thứ 6, Tiết 1-3 tại phòng C.0917.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/lich-hoc', FALSE),
--- Thông báo cho sinh viên 22520002
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2025-2026. Tổng số tín chỉ: 17. Được giảm 50% học phí do thuộc đối tượng vùng sâu vùng xa. Học phí sau giảm: 229,500 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002'), '/phieu-dang-ky/2', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 229,500 VNĐ học phí HK2 2025-2026 (sau giảm 50%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002'), '/phieu-thu/2', TRUE),
--- Thông báo cho sinh viên 22520003
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Được giảm 50% học phí do thuộc hộ cận nghèo. Học phí sau giảm: 189,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003'), '/phieu-dang-ky/3', TRUE),
-('Nhắc nhở đóng học phí', 'Bạn còn nợ 39,000 VNĐ học phí HK2 2025-2026. Hạn đóng: 15/06/2026.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003'), '/cong-no', FALSE),
--- Thông báo cho sinh viên 22520004
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Được giảm 30% học phí do thuộc diện con thương binh, bệnh binh. Học phí sau giảm: 264,600 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004'), '/phieu-dang-ky/4', TRUE),
-('Nhắc nhở đóng học phí', 'Bạn còn nợ 64,600 VNĐ học phí HK2 2025-2026. Hạn đóng: 15/06/2026.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004'), '/cong-no', FALSE),
--- Thông báo cho sinh viên 22520005
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 12. Được giảm 30% học phí do thuộc dân tộc thiểu số. Học phí sau giảm: 226,800 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005'), '/phieu-dang-ky/5', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 226,800 VNĐ học phí HK2 2025-2026 (sau giảm 30%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005'), '/phieu-thu/5', TRUE),
--- Thông báo cho tài khoản demo student / MSSV 22520006
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Được giảm 50% học phí do thuộc đối tượng sinh viên khuyết tật. Học phí sau giảm: 189,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'student'), '/phieu-dang-ky/6', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 189,000 VNĐ học phí HK2 2025-2026 (sau giảm 50%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'student'), '/phieu-thu/6', TRUE),
-('Nhắc nhở lịch học', 'Môn Lập trình hướng đối tượng sẽ học vào Thứ 4, Tiết 6-8 tại phòng E.0915.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'student'), '/lich-hoc', FALSE),
--- Thông báo cho Admin
-('Báo cáo đăng ký HK2 2025-2026', 'Tổng số sinh viên đã đăng ký: 6. Tổng số lớp mở: 261. Tổng doanh thu dự kiến: 1,476,900 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/dang-ky', FALSE),
-('Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2025-2026. Tổng công nợ còn lại: 103,600 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/cong-no', FALSE);
+INSERT INTO "THONGBAO" (
+  "TieuDe", "NoiDung", "MaTaiKhoanNhan", "Loai", "LoaiThongBao", "DOITUONG",
+  "DuongDan", "GhimTop", "NgayHetHan", "DaDoc", "NguoiTao"
+) VALUES
+('Hạn đăng ký học phần HK1 2026-2027', 'Sinh viên hoàn tất đăng ký học phần HK1 2026-2027 trước 23:59 ngày 10/06/2026.', NULL, 'hoc_vu', 'han_dang_ky_hoc_phan', 'Sinh viên', '/student/course-registration', TRUE, '2026-06-10 23:59:59', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin')),
+('Hạn cứu xét đăng ký học phần HK1 2026-2027', 'Các đơn cứu xét đăng ký học phần HK1 2026-2027 chỉ tiếp nhận đến hết ngày 17/06/2026.', NULL, 'hoc_vu', 'han_he_thong', 'Sinh viên', '/student/my-courses', FALSE, '2026-06-17 23:59:59', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin')),
+('Hạn thu học phí HK2 2025-2026', 'Sinh viên còn công nợ học phí HK2 2025-2026 cần hoàn tất thanh toán trước ngày 30/06/2026.', NULL, 'tai_chinh', 'han_thu_hoc_phi', 'Sinh viên', '/student/my-tuition', TRUE, '2026-06-30 23:59:59', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin')),
+('Hạn bảo trì hệ thống đăng ký', 'Hệ thống đăng ký học phần tạm dừng bảo trì từ 22:00 ngày 05/06/2026 đến 02:00 ngày 06/06/2026.', NULL, 'he_thong', 'han_he_thong', 'Tất cả', '/student/notifications', FALSE, '2026-06-06 02:00:00', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'));
 
 -- =====================================================
 -- INSERT DATA - Môn đã học (Completed Courses)
@@ -14253,19 +14236,20 @@ WITH admin_account AS (
 )
 UPDATE "THONGBAO" tb
 SET
-  "Loai" = CASE
+  "Loai" = COALESCE(NULLIF(tb."Loai", ''), CASE
     WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'tai_chinh'
     WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'hoc_vu'
     WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'he_thong'
     ELSE 'chung'
-  END,
-  "LoaiThongBao" = CASE
-    WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'Tài chính'
-    WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'Học vụ'
-    WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'Hệ thống'
-    ELSE 'Chung'
-  END,
+  END),
+  "LoaiThongBao" = COALESCE(tb."LoaiThongBao", CASE
+    WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'han_thu_hoc_phi'
+    WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'han_dang_ky_hoc_phan'
+    WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'thong_bao_he_thong'
+    ELSE 'han_he_thong'
+  END),
   "DOITUONG" = CASE
+    WHEN tb."DOITUONG" IS NOT NULL AND tb."DOITUONG" <> '' THEN tb."DOITUONG"
     WHEN tb."MaTaiKhoanNhan" = (SELECT "MaTaiKhoan" FROM admin_account) THEN 'Admin'
     ELSE 'Sinh viên'
   END,

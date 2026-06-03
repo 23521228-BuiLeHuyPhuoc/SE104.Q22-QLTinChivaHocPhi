@@ -2,6 +2,7 @@ var searchTimer;
 var editMode = false;
 var editId = null;
 var importRows = [];
+var importPreviewValid = false;
 var classRosterRows = [];
 
 function completedEscapeHtml(value) {
@@ -25,16 +26,31 @@ function debounceSearch() {
 function applyFilters() {
   var params = new URLSearchParams();
   params.set('page', '1');
-  [['search', 'search-input'], ['MaHocKy', 'filter-hocky'], ['KetQua', 'filter-result'], ['MaKhoa', 'filter-khoa'], ['LoaiMon', 'filter-loai'], ['SoTinChi', 'filter-tinchi']].forEach(function(pair) {
+  [['search', 'search-input'], ['searchField', 'search-field'], ['MaHocKy', 'filter-hocky'], ['KetQua', 'filter-result']].forEach(function(pair) {
     var el = document.getElementById(pair[1]);
     if (el && el.value) params.set(pair[0], el.value);
   });
   window.location.href = '/admin/completed-courses?' + params.toString();
 }
 
+function notifyCompletedLockedField() {
+  showToast('Khong duoc phep sua MSSV, mon hoc, hoc ky hoac lan hoc. Hay xoa va them lai neu nhap sai.', 'error');
+}
+
+function setCompletedLockedFields(locked) {
+  ['cc-masv', 'cc-mamonhoc', 'cc-mahocky', 'cc-lanhoc'].forEach(function(id) {
+    var field = document.getElementById(id);
+    if (!field) return;
+    field.dataset.locked = locked ? 'true' : 'false';
+    field.readOnly = !!locked && field.tagName !== 'SELECT';
+    field.classList.toggle('is-locked', !!locked);
+  });
+}
+
 function openModal(mode, data) {
   editMode = mode === 'edit';
   editId = editMode ? data.id : null;
+  setCompletedLockedFields(editMode);
   document.getElementById('modal-title').textContent = editMode ? 'Sửa môn đã học' : 'Thêm môn đã học';
   document.getElementById('cc-masv').value = editMode ? (data.MaSv || (data.SINHVIEN ? data.SINHVIEN.MaSv : '')) : '';
   document.getElementById('cc-mamonhoc').value = editMode ? (data.MaMonHoc || (data.MONHOC ? data.MONHOC.MaMonHoc : '')) : '';
@@ -119,12 +135,19 @@ async function saveCompletedCourse() {
     KetQua: document.getElementById('cc-ketqua').value,
     GhiChu: document.getElementById('cc-ghichu').value.trim()
   };
+  if (editMode) {
+    body = {
+      MaLop: document.getElementById('cc-malop').value.trim() || null,
+      KetQua: document.getElementById('cc-ketqua').value,
+      GhiChu: document.getElementById('cc-ghichu').value.trim()
+    };
+  }
   var attemptNumber = Number(body.LanHoc);
-  if (!Number.isInteger(attemptNumber) || attemptNumber <= 0) {
+  if (!editMode && (!Number.isInteger(attemptNumber) || attemptNumber <= 0)) {
     showToast('Lan hoc phai la so nguyen duong', 'error');
     return;
   }
-  if (!body.MaSv || !body.MaMonHoc || !body.MaHocKy || !body.KetQua) {
+  if ((!editMode && (!body.MaSv || !body.MaMonHoc || !body.MaHocKy)) || !body.KetQua) {
     showToast('Vui lòng nhập MSSV, mã môn, học kỳ và kết quả', 'error');
     return;
   }
@@ -179,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
     file.addEventListener('change', function() {
       var selected = file.files[0];
       if (!selected) return;
+      if (/\.xlsx?$/i.test(selected.name || '')) return;
       selected.text().then(function(text) {
         importRows = parseDelimitedText(text);
         document.getElementById('import-preview').innerHTML = importRows.slice(0, 20).map(function(row) {
@@ -253,3 +277,85 @@ async function saveClassGrades() {
     showToast(res.message || 'Không thể lưu đồng loạt', 'error');
   }
 }
+
+function renderImportResult(rows, errors) {
+  var errorMap = {};
+  (errors || []).forEach(function(error) {
+    errorMap[error.index] = error.message || 'Dong khong hop le';
+  });
+  document.getElementById('import-preview').innerHTML = (rows || []).map(function(row, index) {
+    var failed = Boolean(errorMap[index]);
+    return '<tr class="' + (failed ? 'import-row-failed' : 'import-row-success') + '">' +
+      '<td>' + completedEscapeHtml(row.MaSv || row.MSSV || '') + '</td>' +
+      '<td>' + completedEscapeHtml(row.MaMonHoc || '') + '</td>' +
+      '<td>' + completedEscapeHtml(row.MaHocKy || row.HocKy || row.Hocky || '') + '</td>' +
+      '<td>' + completedEscapeHtml(row.KetQua || '') + '</td>' +
+      '<td>' + completedEscapeHtml(failed ? errorMap[index] : 'Hop le') + '</td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="5"><div class="empty-state">File khong co du lieu</div></td></tr>';
+}
+
+async function uploadCompletedImportFile(previewOnly) {
+  var input = document.getElementById('import-file');
+  var selected = input && input.files ? input.files[0] : null;
+  if (!selected) {
+    showToast('Chua chon file import', 'error');
+    return null;
+  }
+  var form = new FormData();
+  form.append('file', selected);
+  form.append('preview', previewOnly ? 'true' : 'false');
+  return await apiFetch('/api/completed-courses/import', { method: 'POST', body: form });
+}
+
+function openImportModal() {
+  importRows = [];
+  importPreviewValid = false;
+  var file = document.getElementById('import-file');
+  if (file) file.value = '';
+  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chon file Excel/CSV de kiem tra truoc khi import</div></td></tr>';
+  document.getElementById('import-modal').classList.add('active');
+}
+
+async function confirmImport() {
+  if (!importRows.length || !importPreviewValid) {
+    showToast('Chua co du lieu hop le de import', 'error');
+    return;
+  }
+  var res = await uploadCompletedImportFile(false);
+  if (res && res.success) {
+    renderImportResult(res.data || importRows, []);
+    showToast(res.message || 'Import thanh cong', 'success');
+    setTimeout(function() { location.reload(); }, 500);
+  } else {
+    renderImportResult(importRows, (res && res.errors) || [{ index: 0, message: (res && res.message) || 'Import that bai' }]);
+    showToast((res && res.message) || 'Import that bai', 'error');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  var file = document.getElementById('import-file');
+  if (file) {
+    file.addEventListener('change', async function() {
+      if (!file.files[0]) return;
+      document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Dang kiem tra file...</div></td></tr>';
+      var preview = await uploadCompletedImportFile(true);
+      importRows = preview && Array.isArray(preview.data) ? preview.data : [];
+      importPreviewValid = Boolean(preview && preview.success);
+      renderImportResult(importRows, preview ? preview.errors : [{ index: 0, message: 'Khong doc duoc file' }]);
+    });
+  }
+
+  ['cc-masv', 'cc-mamonhoc', 'cc-mahocky', 'cc-lanhoc'].forEach(function(id) {
+    var field = document.getElementById(id);
+    if (!field) return;
+    ['focus', 'mousedown', 'keydown'].forEach(function(eventName) {
+      field.addEventListener(eventName, function(event) {
+        if (field.dataset.locked === 'true') {
+          if (eventName !== 'focus') event.preventDefault();
+          notifyCompletedLockedField();
+        }
+      });
+    });
+  });
+});

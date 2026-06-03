@@ -143,10 +143,10 @@ const createCurriculumItem = async (req, res) => {
     if (validated.error) return res.status(400).json({ success: false, message: validated.error, violations: validated.violations || [] });
     const d = validated.data;
     const rows = await prisma.$queryRawUnsafe(
-      `INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy", "HocKyDuKien", "BatBuoc", "TrangThai", "GhiChu")
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      `INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy", "HocKyDuKien", "TrangThai", "GhiChu")
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       d.MaNganh, d.MaMonHoc, d.HocKyDuKien, d.HocKyDuKien,
-      d.BatBuoc ?? true, d.TrangThai ?? true, d.GhiChu || null
+      d.TrangThai ?? true, d.GhiChu || null
     );
     res.status(201).json({ success: true, message: 'Thêm môn vào chương trình thành công', data: rows[0] });
   } catch (error) {
@@ -165,20 +165,24 @@ const updateCurriculumItem = async (req, res) => {
     if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const existing = await prisma.CHUONGTRINHHOC.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn trong chương trình' });
+    if (req.body.MaNganh !== undefined && normalizeText(req.body.MaNganh).toUpperCase() !== existing.MaNganh) {
+      return res.status(400).json({ success: false, message: 'KhÃ´ng Ä‘Æ°á»£c phÃ©p sá»­a ngÃ nh cá»§a dÃ²ng chÆ°Æ¡ng trÃ¬nh há»c' });
+    }
+    if (req.body.MaMonHoc !== undefined && normalizeText(req.body.MaMonHoc).toUpperCase() !== existing.MaMonHoc) {
+      return res.status(400).json({ success: false, message: 'KhÃ´ng Ä‘Æ°á»£c phÃ©p sá»­a mÃ´n há»c cá»§a dÃ²ng chÆ°Æ¡ng trÃ¬nh há»c' });
+    }
     const validated = await validateCurriculumPlacement({
-      MaNganh: req.body.MaNganh ?? existing.MaNganh,
-      MaMonHoc: req.body.MaMonHoc ?? existing.MaMonHoc,
+      MaNganh: existing.MaNganh,
+      MaMonHoc: existing.MaMonHoc,
       HocKyDuKien: req.body.HocKyDuKien ?? existing.HocKyDuKien,
-      BatBuoc: req.body.BatBuoc ?? existing.BatBuoc,
       TrangThai: req.body.TrangThai ?? existing.TrangThai,
       GhiChu: req.body.GhiChu ?? existing.GhiChu
     }, id);
     if (validated.error) return res.status(400).json({ success: false, message: validated.error, violations: validated.violations || [] });
     const d = validated.data;
     const rows = await prisma.$queryRawUnsafe(
-      `UPDATE "CHUONGTRINHHOC" SET "MaNganh"=$1, "MaMonHoc"=$2, "HocKy"=$3, "HocKyDuKien"=$4, "BatBuoc"=$5, "TrangThai"=$6, "GhiChu"=$7 WHERE "id"=$8 RETURNING *`,
-      d.MaNganh, d.MaMonHoc, d.HocKyDuKien, d.HocKyDuKien,
-      d.BatBuoc ?? true, d.TrangThai ?? true, d.GhiChu || null, id
+      `UPDATE "CHUONGTRINHHOC" SET "HocKy"=$1, "HocKyDuKien"=$2, "TrangThai"=$3, "GhiChu"=$4 WHERE "id"=$5 RETURNING *`,
+      d.HocKyDuKien, d.HocKyDuKien, d.TrangThai ?? true, d.GhiChu || null, id
     );
     res.json({ success: true, message: 'Cập nhật chương trình thành công', data: rows[0] });
   } catch (error) {

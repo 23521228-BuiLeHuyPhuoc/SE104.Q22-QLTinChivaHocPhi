@@ -123,6 +123,10 @@
   min-width: 760px;
 }
 
+button[onclick="openClassGradeModal()"] {
+  display: none !important;
+}
+
 .import-row-success td {
   background: rgba(16, 185, 129, 0.06);
 }

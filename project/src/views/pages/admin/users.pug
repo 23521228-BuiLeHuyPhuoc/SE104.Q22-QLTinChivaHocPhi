@@ -3,8 +3,14 @@ extends ../../layouts/admin
 block content
   - const groups = groupOptions || []
   - const accountGroups = creatableGroups || groups.map(group => ({ ...group, Role: group.MaNhom === 'SINHVIEN' ? 'student' : 'admin' }))
-  .toolbar
-    .search-box
+  .toolbar.users-toolbar
+    .search-box.search-box-with-criterion
+      select#search-field.form-control(onchange="applyFilters()" aria-label="TiÃªu chÃ­ tÃ¬m kiáº¿m")
+        option(value="all" selected=(!searchField || searchField === 'all')) Táº¥t cáº£
+        option(value="TenDangNhap" selected=(searchField === 'TenDangNhap')) TÃªn Ä‘Äƒng nháº­p
+        option(value="HoTen" selected=(searchField === 'HoTen')) Há» tÃªn
+        option(value="Email" selected=(searchField === 'Email')) Email
+        option(value="MaSv" selected=(searchField === 'MaSv')) MÃ£ sinh viÃªn
       input#search-input(type="text" placeholder="Tìm tên đăng nhập, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-role(onchange="applyFilters()")
@@ -18,6 +24,9 @@ block content
       if canCreateAccounts
         button.btn.btn-primary(type="button" onclick="openAccountModal()") Tạo tài khoản
       if canManageAccounts
+        button.btn.btn-outline(type="button" onclick="openCredentialListModal()")
+          span.material-symbols-rounded(aria-hidden="true") visibility
+          span Danh sach TK
         button.btn.btn-outline(type="button" onclick="openBatchStudentModal()")
           span.material-symbols-rounded(aria-hidden="true") group_add
           span Tạo TK cho SV
@@ -114,6 +123,9 @@ block modals
             .form-group
               label(for="acc-password") Mật khẩu
               input.form-control#acc-password(type="password" required autocomplete="new-password")
+            .form-group
+              label(for="acc-password-confirm") Xac nhan mat khau
+              input.form-control#acc-password-confirm(type="password" required autocomplete="new-password")
           .form-row
             .form-group
               label(for="acc-hoten") Họ tên
@@ -171,6 +183,16 @@ block modals
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeBatchStudentModal()") Đóng
         button.btn.btn-primary#btn-batch-create(type="button" onclick="batchCreateStudentAccounts()") Tạo tài khoản
+
+  #credential-list-modal.modal-overlay(onclick="if(event.target===this)closeCredentialListModal()")
+    .modal.modal-wide
+      .modal-header
+        h2 Danh sach tai khoan da tao
+        button.modal-close(type="button" onclick="closeCredentialListModal()" aria-label="Dong") ×
+      .modal-body
+        #credential-list-content.empty-state Dang tai danh sach...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeCredentialListModal()") Dong
 
 block scripts
   script(src="/js/admin/users.js")

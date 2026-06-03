@@ -737,6 +737,75 @@ select.ui-readonly-field,
   align-items: center;
 }
 
+.users-toolbar {
+  align-items: stretch;
+  gap: var(--spacing-md);
+}
+
+.users-toolbar .filter-group {
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.users-toolbar button[onclick^=resetAccountPassword],
+.account-actions button[onclick^=resetAccountPassword] {
+  display: none !important;
+}
+
+.user-action-cell {
+  min-width: 300px;
+}
+
+.credential-table-wrap {
+  max-height: 460px;
+  overflow: auto;
+}
+
+.credential-table .password-eye {
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  width: 36px;
+}
+
+.credential-table .password-eye .material-symbols-rounded {
+  font-size: 18px;
+}
+
+.permission-tabs {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: var(--spacing-lg);
+  padding: 4px;
+}
+
+.permission-tab-btn {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.permission-tab-btn.active {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-primary);
+}
+
 /* ============================================================
    BADGES
    ============================================================ */
@@ -1720,6 +1789,32 @@ select.ui-readonly-field,
 
 .content-grid.two-columns {
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+}
+
+.settings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.settings-grid .form-group small {
+  display: block;
+  line-height: 1.45;
+  margin-top: 6px;
+}
+
+.settings-impact-table td:first-child {
+  min-width: 240px;
+}
+
+.settings-impact-table small {
+  color: var(--text-tertiary);
+  display: block;
+  font-size: var(--font-size-xs);
+  margin-top: 4px;
+}
+
+.settings-save-bar {
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
 }
 
 /* Action grid */

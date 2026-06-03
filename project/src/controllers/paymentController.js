@@ -84,9 +84,24 @@ const getRemainingAmount = (registration) => {
   return Math.max(amountDue - paid + refunded, 0);
 };
 
+const assertMinimumCreditsForPayment = async (registration) => {
+  const settings = await prisma.THAMSO.findFirst({ select: { SoTinChiDangKyToiThieu: true } });
+  const minimumCredits = Number(settings?.SoTinChiDangKyToiThieu || 0);
+  const registeredCredits = Number(registration?.TongTinChi || 0);
+  if (minimumCredits > 0 && registeredCredits < minimumCredits) {
+    throw {
+      status: 400,
+      code: 'REGISTRATION_MIN_CREDITS_NOT_MET',
+      message: `Phiếu đăng ký hiện có ${registeredCredits} tín chỉ, chưa đạt tối thiểu ${minimumCredits} tín chỉ để thanh toán học phí`
+    };
+  }
+};
+
 const assertPaymentWindowOpen = async (registration) => {
   const pendingAppeals = await getPendingAppealCount(registration?.MaHocKy, registration?.MaSv);
-  return assertRegistrationPeriodClosedForPayment(registration, new Date(), { pendingAppeals });
+  const block = assertRegistrationPeriodClosedForPayment(registration, new Date(), { pendingAppeals });
+  await assertMinimumCreditsForPayment(registration);
+  return block;
 };
 
 const getActiveReceipt = (registration) => (registration?.PHIEUTHUHOCPHI || [])

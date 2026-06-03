@@ -482,7 +482,6 @@ const getMyCurriculum = async (req, res) => {
         MaNganh: student.MaNganh,
         MaMonHoc: course.MaMonHoc,
         HocKyDuKien: Math.min(Math.floor(index / 6) + 1, 8),
-        BatBuoc: true,
         MONHOC: course
       }));
     }
@@ -535,7 +534,6 @@ const getMyCurriculum = async (req, res) => {
         LoaiMon: course.LoaiMon,
         SoTinChi: Number(course.SoTinChi || 0),
         HocKyDuKien: row.HocKyDuKien || 8,
-        BatBuoc: row.BatBuoc !== false,
         MaKhoa: course.MaKhoa,
         TenKhoa: course.KHOA?.TenKhoa,
         status,

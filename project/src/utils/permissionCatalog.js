@@ -18,6 +18,8 @@ const PERMISSION_PORTALS = {
 };
 
 const PERMISSION_CATALOG = [
+  { code: 'ADMIN_LOCATION_PROVINCES', name: 'Quan ly tinh thanh pho', screen: '/admin/locations/provinces', paths: ['/admin/locations/provinces', '/api/locations/provinces'] },
+  { code: 'ADMIN_LOCATION_WARDS', name: 'Quan ly phuong xa', screen: '/admin/locations/wards', paths: ['/admin/locations/wards', '/api/locations/wards'] },
   { code: 'ADMIN_DASHBOARD', name: 'Bảng điều khiển quản trị', screen: '/admin/dashboard', paths: ['/admin/dashboard', '/api/dashboard'] },
   { code: 'ADMIN_STUDENTS', name: 'Quản lý sinh viên', screen: '/admin/students', paths: ['/admin/students', '/api/students'] },
   { code: 'ADMIN_LOCATIONS', name: 'Quản lý địa danh', screen: '/admin/locations', paths: ['/admin/locations', '/api/locations'] },
@@ -71,6 +73,8 @@ const STUDENT_PERMISSION_CODES = PERMISSION_CATALOG
 const TRAINING_ADMIN_PERMISSIONS = [
   'ADMIN_DASHBOARD',
   'ADMIN_LOCATIONS',
+  'ADMIN_LOCATION_PROVINCES',
+  'ADMIN_LOCATION_WARDS',
   'ADMIN_STUDENTS',
   'ADMIN_COURSES',
   'ADMIN_OPEN_COURSES',

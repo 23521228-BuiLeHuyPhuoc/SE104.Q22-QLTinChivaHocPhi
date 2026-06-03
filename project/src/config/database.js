@@ -1741,9 +1741,13 @@ const ensureAuthSchema = async () => {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "CHUONGTRINHHOC"
       ADD COLUMN IF NOT EXISTS "HocKyDuKien" INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS "BatBuoc" BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "CHUONGTRINHHOC"
+      DROP COLUMN IF EXISTS "BatBuoc"
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -2174,6 +2178,11 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "NgayHetHan" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "NguoiTao" INTEGER,
       ADD COLUMN IF NOT EXISTS "TrangThai" BOOLEAN DEFAULT TRUE
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "THONGBAO"
+      ALTER COLUMN "MaTaiKhoanNhan" DROP NOT NULL
   `);
 
   for (const tableName of AUDITED_SOFT_DELETE_TABLES) {

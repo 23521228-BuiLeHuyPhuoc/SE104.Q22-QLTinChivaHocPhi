@@ -47,12 +47,73 @@ function openBatchStudentModal() {
     result.classList.add('hidden');
     result.textContent = '';
   }
+  hideLegacyBatchFields();
   filterBatchMajors();
   document.getElementById('batch-student-modal').classList.add('active');
 }
 
 function closeBatchStudentModal() {
   document.getElementById('batch-student-modal').classList.remove('active');
+}
+
+function hideLegacyBatchFields() {
+  ['batch-password', 'batch-note'].forEach(function(id) {
+    var input = document.getElementById(id);
+    var row = input && input.closest('.form-row');
+    if (row) row.classList.add('hidden');
+  });
+  var mssv = document.getElementById('batch-mssv-list');
+  var group = mssv && mssv.closest('.form-group');
+  if (group) group.classList.add('hidden');
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function togglePasswordVisibility(button) {
+  var mask = button && button.parentElement ? button.parentElement.querySelector('.password-mask') : null;
+  if (!mask) return;
+  var shown = mask.getAttribute('data-visible') === 'true';
+  mask.textContent = shown ? '********' : (mask.getAttribute('data-password') || '');
+  mask.setAttribute('data-visible', shown ? 'false' : 'true');
+  var icon = button.querySelector('.material-symbols-rounded');
+  if (icon) icon.textContent = shown ? 'visibility' : 'visibility_off';
+}
+
+function emailStatusLabel(status) {
+  if (status === 'sent') return 'Da gui Gmail';
+  if (status === 'missing_email') return 'Thieu email';
+  if (status === 'not_configured') return 'Chua cau hinh SMTP';
+  if (status === 'failed') return 'Gui loi';
+  return 'Cho gui';
+}
+
+function renderCredentialRows(rows) {
+  if (!rows || !rows.length) return '<div class=empty-state>Chua co tai khoan sinh vien nao duoc tao.</div>';
+  var html = '<div class=credential-table-wrap><table class=data-table><thead><tr><th>MSSV</th><th>Sinh vien</th><th>Tai khoan</th><th>Mat khau</th><th>Email</th><th>Gmail</th></tr></thead><tbody>';
+  rows.forEach(function(row) {
+    var password = escapeHtml(row.MatKhauTam || row.temporaryPassword || '');
+    html += '<tr><td class=mono>' + escapeHtml(row.MaSv || '') + '</td>' +
+      '<td>' + escapeHtml(row.HoTen || '-') + '</td>' +
+      '<td><strong>' + escapeHtml(row.TenDangNhap || '') + '</strong></td>' +
+      '<td><span class=password-mask data-password=' + password + '>********</span> ' +
+      '<button class=password-eye type=button onclick=togglePasswordVisibility(this)><span class=material-symbols-rounded>visibility</span></button></td>' +
+      '<td>' + escapeHtml(row.Email || '-') + '</td>' +
+      '<td><span class=badge>' + escapeHtml(emailStatusLabel(row.emailStatus || row.TrangThaiGuiEmail)) + '</span>' +
+      (row.emailError || row.LoiGuiEmail ? '<small>' + escapeHtml(row.emailError || row.LoiGuiEmail) + '</small>' : '') + '</td></tr>';
+  });
+  return html + '</tbody></table></div>';
+}
+
+function showCredentialRows(rows, targetId) {
+  var target = document.getElementById(targetId || 'batch-result');
+  if (!target) return;
+  target.classList.remove('hidden', 'empty-state');
+  target.innerHTML = renderCredentialRows(rows || []);
 }
 
 function filterBatchMajors() {
@@ -75,6 +136,7 @@ async function saveAccount() {
   var isStudent = role === 'student';
   var group = document.getElementById('acc-group').value;
   var password = document.getElementById('acc-password').value;
+  var passwordConfirm = document.getElementById('acc-password-confirm').value;
   var username = document.getElementById('acc-username').value.trim();
   var maSv = document.getElementById('acc-masv').value.trim();
   var hoTen = document.getElementById('acc-hoten').value.trim();
@@ -85,6 +147,10 @@ async function saveAccount() {
   }
   if (!password || password.length < 6) {
     showToast('Mật khẩu phải có ít nhất 6 ký tự', 'error');
+    return;
+  }
+  if (password !== passwordConfirm) {
+    showToast('Mat khau xac nhan khong khop', 'error');
     return;
   }
   if (isStudent && !maSv) {
@@ -103,6 +169,7 @@ async function saveAccount() {
     var body = {
       MaNhom: group,
       password: password,
+      passwordConfirm: passwordConfirm,
       username: username,
       MaSv: maSv,
       HoTen: hoTen,
@@ -138,10 +205,12 @@ function debounceSearch() {
 
 function applyFilters() {
   var search = document.getElementById('search-input').value;
+  var searchField = document.getElementById('search-field') ? document.getElementById('search-field').value : 'all';
   var role = document.getElementById('filter-role').value;
   var group = document.getElementById('filter-group').value;
   var url = '/admin/users?page=1';
   if (search) url += '&search=' + encodeURIComponent(search);
+  if (searchField && searchField !== 'all') url += '&searchField=' + encodeURIComponent(searchField);
   if (role) url += '&Role=' + encodeURIComponent(role);
   if (group) url += '&MaNhom=' + encodeURIComponent(group);
   window.location.href = url;
@@ -249,16 +318,14 @@ async function batchCreateStudentAccounts() {
   var result = document.getElementById('batch-result');
   var body = {
     MaKhoa: document.getElementById('batch-faculty').value,
-    MaNganh: document.getElementById('batch-major').value,
-    MaSvText: document.getElementById('batch-mssv-list').value.trim(),
-    password: document.getElementById('batch-password').value.trim() || '123456'
+    MaNganh: document.getElementById('batch-major').value
   };
 
-  if (!body.MaKhoa && !body.MaNganh && !body.MaSvText) {
+  if (!body.MaKhoa && !body.MaNganh) {
     showToast('Vui lòng chọn khoa/ngành hoặc nhập danh sách MSSV', 'error');
     return;
   }
-  if (body.password.length < 6) {
+  if (false) {
     showToast('Mật khẩu mặc định phải có ít nhất 6 ký tự', 'error');
     return;
   }
@@ -278,9 +345,9 @@ async function batchCreateStudentAccounts() {
       var data = res.data || {};
       var message = 'Đã tạo ' + (data.createdCount || 0) + ' tài khoản';
       if (data.skippedCount) message += ', bỏ qua ' + data.skippedCount + ' sinh viên';
-      if (result) result.textContent = message + '. Mật khẩu mặc định: ' + (data.defaultPassword || body.password);
+      showCredentialRows(data.created || [], 'batch-result');
       showToast(res.message || message, 'success');
-      setTimeout(function() { location.reload(); }, 900);
+      if (false) setTimeout(function() { location.reload(); }, 900);
     } else {
       if (result) result.textContent = res.message || 'Không thể tạo tài khoản hàng loạt';
       showToast(res.message || 'Không thể tạo tài khoản hàng loạt', 'error');
@@ -290,5 +357,29 @@ async function batchCreateStudentAccounts() {
     showToast('Lỗi kết nối', 'error');
   } finally {
     if (button) button.disabled = false;
+  }
+}
+
+function closeCredentialListModal() {
+  var modal = document.getElementById('credential-list-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+async function openCredentialListModal() {
+  var modal = document.getElementById('credential-list-modal');
+  var content = document.getElementById('credential-list-content');
+  if (!modal || !content) return;
+  modal.classList.add('active');
+  content.className = 'empty-state';
+  content.textContent = 'Dang tai danh sach...';
+  try {
+    var res = await apiFetch('/api/roles/accounts/student-credentials?limit=100');
+    if (res.success) {
+      showCredentialRows(res.data || [], 'credential-list-content');
+    } else {
+      content.textContent = res.message || 'Khong the tai danh sach tai khoan';
+    }
+  } catch (e) {
+    content.textContent = 'Loi ket noi';
   }
 }

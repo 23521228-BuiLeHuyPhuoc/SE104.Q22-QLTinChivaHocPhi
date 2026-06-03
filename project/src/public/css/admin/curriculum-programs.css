@@ -45,6 +45,33 @@
   width: 100%;
 }
 
+.curriculum-filter-search-field {
+  display: grid;
+  gap: 7px 8px;
+  grid-template-columns: minmax(132px, auto) minmax(220px, 1fr);
+}
+
+.curriculum-filter-search-field label {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-bottom: 0;
+}
+
+.curriculum-filter-search-field .curriculum-search-box,
+.curriculum-filter-search-field #cp-search-field {
+  min-width: 0;
+}
+
+.curriculum-filter-search-field #cp-search-field {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.curriculum-filter-search-field .curriculum-search-box {
+  grid-column: 2;
+  grid-row: 2;
+}
+
 .curriculum-filter-actions {
   align-items: center;
   display: flex;
@@ -423,10 +450,17 @@
   grid-column: 1 / -1;
 }
 
-#cp-item-course:disabled {
+#cp-item-course-summary.is-locked,
+#cp-item-course-picker.is-locked,
+#cp-item-major.is-locked {
   background: var(--bg-tertiary);
   cursor: not-allowed;
   opacity: 0.78;
+}
+
+#cp-item-course-picker.is-locked {
+  border-color: var(--border-color);
+  color: var(--text-tertiary);
 }
 
 #cp-item-note {
@@ -469,11 +503,14 @@
   .curriculum-filter-grid,
   .curriculum-summary-grid,
   .curriculum-major-header,
-  .curriculum-program-form-grid {
+  .curriculum-program-form-grid,
+  .curriculum-filter-search-field {
     grid-template-columns: 1fr;
   }
 
   .curriculum-filter-search-field,
+  .curriculum-filter-search-field .curriculum-search-box,
+  .curriculum-filter-search-field #cp-search-field,
   .curriculum-filter-actions,
   .curriculum-major-actions,
   .curriculum-program-form-grid .form-group-wide {

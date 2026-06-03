@@ -107,7 +107,6 @@ model CHUONGTRINHHOC {
   MaNganh     String    @db.VarChar(10)
   MaMonHoc    String    @db.VarChar(15)
   HocKyDuKien Int
-  BatBuoc     Boolean?  @default(true)
   GhiChu      String?   @db.VarChar(200)
   TrangThai   Boolean?  @default(true)
   NgayTao     DateTime? @default(now()) @db.Timestamp(6)

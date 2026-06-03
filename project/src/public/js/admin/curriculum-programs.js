@@ -59,7 +59,7 @@ function setCurriculumProgramLockedState(locked) {
   var picker = document.getElementById('cp-item-course-picker');
   var summary = document.getElementById('cp-item-course-summary');
   if (major) {
-    major.disabled = !!locked;
+    major.dataset.locked = locked ? 'true' : 'false';
     major.classList.toggle('is-locked', !!locked);
   }
   [picker, summary].forEach(function(element) {
@@ -181,24 +181,17 @@ function openCurriculumProgramModal(mode, row) {
   var form = document.getElementById('curriculum-program-form');
   var title = document.getElementById('curriculum-program-modal-title');
   var filterMajor = document.getElementById('cp-major');
-  var courseInput = document.getElementById('cp-item-course');
 
   if (form) form.reset();
   if (title) title.textContent = editingCurriculumProgramId ? 'Sửa môn trong chương trình' : 'Thêm môn vào chương trình';
   setCurriculumProgramSaving(false);
+  setCurriculumProgramLockedState(!!editingCurriculumProgramId);
 
   document.getElementById('cp-item-major').value = row.MaNganh || (filterMajor ? filterMajor.value : '');
   document.getElementById('cp-item-semester').value = row.HocKyDuKien || 1;
-  document.getElementById('cp-item-required').value = row.BatBuoc === false ? 'false' : 'true';
   document.getElementById('cp-item-active').value = row.TrangThai === false ? 'false' : 'true';
   document.getElementById('cp-item-note').value = row.GhiChu || '';
-
-  if (courseInput) {
-    courseInput.value = row.MaMonHoc || '';
-    courseInput.disabled = !!editingCurriculumProgramId;
-  }
-
-  loadCurriculumCourseOptions('', row.MaMonHoc || '', row.TenMonHoc ? curriculumCourseOptionLabel(row) : '');
+  setCurriculumCourseSelection(row.MaMonHoc || '', row.TenMonHoc ? curriculumCourseOptionLabel(row) : '');
   if (modal) modal.classList.add('active');
 }
 
@@ -221,7 +214,6 @@ async function saveCurriculumProgramItem() {
     MaNganh: document.getElementById('cp-item-major').value,
     MaMonHoc: document.getElementById('cp-item-course').value.trim().toUpperCase(),
     HocKyDuKien: document.getElementById('cp-item-semester').value,
-    BatBuoc: document.getElementById('cp-item-required').value === 'true',
     TrangThai: document.getElementById('cp-item-active').value === 'true',
     GhiChu: document.getElementById('cp-item-note').value.trim()
   };
@@ -269,25 +261,34 @@ async function deleteCurriculumProgramItem(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var courseInput = document.getElementById('cp-item-course');
-  if (courseInput) {
-    courseInput.addEventListener('input', function() {
-      clearTimeout(curriculumCourseSearchTimer);
-      curriculumCourseSearchTimer = setTimeout(function() {
-        loadCurriculumCourseOptions(courseInput.value);
-      }, 250);
+  var majorSelect = document.getElementById('cp-item-major');
+  if (majorSelect) {
+    ['mousedown', 'keydown'].forEach(function(eventName) {
+      majorSelect.addEventListener(eventName, function(event) {
+        if (majorSelect.dataset.locked === 'true') {
+          event.preventDefault();
+          notifyCurriculumLockedField();
+        }
+      });
     });
+  }
 
-    courseInput.addEventListener('focus', function() {
-      var options = document.getElementById('cp-course-options');
-      if (options && !options.options.length) loadCurriculumCourseOptions('');
+  var pickerSearch = document.getElementById('curriculum-course-picker-search');
+  if (pickerSearch) {
+    pickerSearch.addEventListener('input', function() {
+      clearTimeout(curriculumCourseSearchTimer);
+      curriculumCourseSearchTimer = setTimeout(loadCurriculumCoursePickerRows, 250);
     });
   }
 
   document.addEventListener('keydown', function(event) {
     var modal = document.getElementById('curriculum-program-modal');
+    var pickerModal = document.getElementById('curriculum-course-picker-modal');
     if (event.key === 'Escape' && modal && modal.classList.contains('active')) {
       closeCurriculumProgramModal();
+    }
+    if (event.key === 'Escape' && pickerModal && pickerModal.classList.contains('active')) {
+      closeCurriculumCoursePicker();
     }
   });
 });

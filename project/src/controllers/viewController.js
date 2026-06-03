@@ -16,6 +16,7 @@ const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
 const { APPEAL_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
 const { getRoomRows } = require('./roomController');
 const { getLecturerRows } = require('./lecturerController');
+const { SETTING_IMPACTS } = require('./settingsController');
 require('dotenv').config();
 
 function getTokenFromCookie(req) {
@@ -1672,6 +1673,7 @@ const adminUsers = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const searchField = req.query.searchField || 'all';
   const filterRole = req.query.Role || req.query.role || '';
   const filterGroup = req.query.MaNhom || req.query.group || '';
   const where = {};
@@ -1686,11 +1688,19 @@ const adminUsers = async (req, res) => {
     const filterGroupAllowed = !filterGroup || allowedGroupCodes.includes(filterGroup);
 
     if (search) {
-      where.OR = [
-        { TenDangNhap: { contains: search, mode: 'insensitive' } },
-        { HoTen: { contains: search, mode: 'insensitive' } },
-        { Email: { contains: search, mode: 'insensitive' } }
-      ];
+      const clause = { contains: search, mode: 'insensitive' };
+      if (searchField === 'TenDangNhap') where.TenDangNhap = clause;
+      else if (searchField === 'HoTen') where.HoTen = clause;
+      else if (searchField === 'Email') where.Email = clause;
+      else if (searchField === 'MaSv') where.MaSv = clause;
+      else {
+        where.OR = [
+          { TenDangNhap: clause },
+          { HoTen: clause },
+          { Email: clause },
+          { MaSv: clause }
+        ];
+      }
     }
     if (filterRole && ['admin', 'student'].includes(filterRole)) where.Role = filterRole;
     where.MaNhom = filterGroupAllowed && filterGroup ? filterGroup : { in: allowedGroupCodes };
@@ -1710,6 +1720,7 @@ const adminUsers = async (req, res) => {
           HoTen: true,
           MaSv: true,
           Email: true,
+          Sdt: true,
           TrangThai: true,
           QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } }
         }
@@ -1729,8 +1740,9 @@ const adminUsers = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/users',
-      queryParams: { search, Role: filterRole, MaNhom: filterGroup, limit },
+      queryParams: { search, searchField, Role: filterRole, MaNhom: filterGroup, limit },
       search,
+      searchField,
       filterRole,
       filterGroup
     });
@@ -1750,6 +1762,7 @@ const adminUsers = async (req, res) => {
       baseUrl: '/admin/users',
       queryParams: {},
       search: '',
+      searchField: 'all',
       filterRole: '',
       filterGroup: ''
     });
@@ -1823,40 +1836,36 @@ const adminCompletedCourses = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const searchField = ['MaSv', 'HoTen', 'MaHocKy'].includes(req.query.searchField) ? req.query.searchField : 'MaSv';
   const filterHocKy = req.query.MaHocKy || '';
   const filterResult = req.query.KetQua || '';
-  const filterKhoa = req.query.MaKhoa || '';
-  const filterLoaiMon = req.query.LoaiMon || '';
-  const filterTinChi = req.query.SoTinChi || '';
   const where = { DaXoa: false };
   if (filterHocKy) where.MaHocKy = filterHocKy;
   if (filterResult) where.KetQua = filterResult;
-  if (filterKhoa || filterLoaiMon || filterTinChi) where.MONHOC = { ...(filterKhoa ? { MaKhoa: filterKhoa } : {}), ...(filterLoaiMon ? { LoaiMon: filterLoaiMon } : {}), ...(filterTinChi ? { SoTinChi: parseInt(filterTinChi, 10) } : {}) };
   if (search) {
-    where.OR = [
-      { MaSv: { contains: search, mode: 'insensitive' } },
-      { SINHVIEN: { HoTen: { contains: search, mode: 'insensitive' } } },
-      { MaMonHoc: { contains: search, mode: 'insensitive' } },
-      { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
-      { MONHOC: { KHOA: { TenKhoa: { contains: search, mode: 'insensitive' } } } },
-      { MaLop: { contains: search, mode: 'insensitive' } },
-      { LOP: { GiangVien: { contains: search, mode: 'insensitive' } } }
+    if (searchField === 'MaSv') where.MaSv = { contains: search, mode: 'insensitive' };
+    else if (searchField === 'HoTen') where.SINHVIEN = { HoTen: { contains: search, mode: 'insensitive' } };
+    else where.OR = [
+      { MaHocKy: { contains: search, mode: 'insensitive' } },
+      { HOCKY: { TenHocKy: { contains: search, mode: 'insensitive' } } },
+      { HOCKY: { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } } },
+      { HOCKY: { MaNamHoc: { contains: search, mode: 'insensitive' } } }
     ];
   }
   try {
-    const [completedRows, semesters, faculties, courses, classes] = await Promise.all([
+    const [completedRows, semesters, courses, classes] = await Promise.all([
       prisma.MONDAHOC.findMany({
         where,
         orderBy: [{ NgayCapNhat: 'desc' }, { NgayTao: 'desc' }, { id: 'desc' }],
         include: {
           SINHVIEN: { select: { MaSv: true, HoTen: true } },
           MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true, KHOA: true } },
+          HOCKY: { include: { NAMHOC: true } },
           LOP: { select: { MaLop: true, TenLop: true, GiangVien: true } },
           TAIKHOAN: { select: { HoTen: true, TenDangNhap: true } }
         }
       }),
-      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' } }),
-      prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' }, select: { MaKhoa: true, TenKhoa: true } }),
+      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }], include: { NAMHOC: true } }),
       prisma.MONHOC.findMany({ where: { DaXoa: false }, orderBy: { MaMonHoc: 'asc' }, select: { MaMonHoc: true, TenMonHoc: true } }),
       prisma.LOP.findMany({ where: { DaXoa: false }, orderBy: { MaLop: 'asc' }, select: { MaLop: true, TenLop: true, MaMonHoc: true } })
     ]);
@@ -1905,10 +1914,45 @@ const adminCompletedCourses = async (req, res) => {
     const total = completedStudentRows.length;
     const completedStudents = completedStudentRows.slice((page - 1) * limit, page * limit);
 
-    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents, semesters, faculties, courses, classes, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/completed-courses', queryParams: { search, MaHocKy: filterHocKy, KetQua: filterResult, MaKhoa: filterKhoa, LoaiMon: filterLoaiMon, SoTinChi: filterTinChi, limit }, search, filterHocKy, filterResult, filterKhoa, filterLoaiMon, filterTinChi });
+    return renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, {
+      completedStudents,
+      semesters,
+      faculties: [],
+      courses,
+      classes,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      baseUrl: '/admin/completed-courses',
+      queryParams: { search, searchField, MaHocKy: filterHocKy, KetQua: filterResult, limit },
+      search,
+      searchField,
+      filterHocKy,
+      filterResult,
+      filterKhoa: '',
+      filterLoaiMon: '',
+      filterTinChi: ''
+    });
+
   } catch (err) {
     console.error('Error:', err);
-    renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, { completedStudents: [], semesters: [], faculties: [], courses: [], classes: [], currentPage: 1, totalPages: 0, baseUrl: '/admin/completed-courses', queryParams: {}, search: '', filterHocKy: '', filterResult: '', filterKhoa: '', filterLoaiMon: '', filterTinChi: '' });
+    return renderAdmin(res, 'completed-courses', 'completed-courses', 'Quản lý môn đã học', req, {
+      completedStudents: [],
+      semesters: [],
+      faculties: [],
+      courses: [],
+      classes: [],
+      currentPage: 1,
+      totalPages: 0,
+      baseUrl: '/admin/completed-courses',
+      queryParams: {},
+      search: '',
+      searchField: 'MaSv',
+      filterHocKy: '',
+      filterResult: '',
+      filterKhoa: '',
+      filterLoaiMon: '',
+      filterTinChi: ''
+    });
   }
 };
 
@@ -2124,10 +2168,10 @@ const adminNotifications = async (req, res) => {
 const adminSettings = async (req, res) => {
   try {
     const settings = await prisma.THAMSO.findFirst();
-    renderAdmin(res, 'settings', 'settings', 'Tham số hệ thống', req, { settings });
+    renderAdmin(res, 'settings', 'settings', 'Tham số hệ thống', req, { settings, settingImpacts: SETTING_IMPACTS });
   } catch (err) {
     console.error('Error:', err);
-    renderAdmin(res, 'settings', 'settings', 'Tham số hệ thống', req, { settings: null });
+    renderAdmin(res, 'settings', 'settings', 'Tham số hệ thống', req, { settings: null, settingImpacts: SETTING_IMPACTS });
   }
 };
 
