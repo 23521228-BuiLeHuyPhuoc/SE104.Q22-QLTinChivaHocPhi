@@ -13,7 +13,8 @@ const PRISMA_STATUS = {
   P2002: 409,
   P2003: 409,
   P2010: 400,
-  P2025: 404
+  P2025: 404,
+  P2034: 409
 };
 
 const decodeQuotedText = (value) => {
@@ -86,6 +87,7 @@ const formatPrismaMessage = (error) => {
   }
   if (error.code === 'P2003') return 'Dữ liệu đang tham chiếu không hợp lệ hoặc đang được sử dụng';
   if (error.code === 'P2025') return 'Không tìm thấy dữ liệu cần thao tác';
+  if (error.code === 'P2034') return 'Thao tac bi xung dot du lieu, vui long thu lai';
   return '';
 };
 

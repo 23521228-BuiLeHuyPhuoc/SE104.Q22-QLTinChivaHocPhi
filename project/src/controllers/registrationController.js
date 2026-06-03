@@ -205,7 +205,11 @@ const getCreditPrice = async (tx, loaiMon, loaiHoc, maHocKy) => {
   });
   if (defaultPrice) return Number(defaultPrice.DonGia);
 
-  return loaiMon === 'TH' ? 37000 : 27000;
+  throw {
+    status: 400,
+    code: 'MISSING_CREDIT_PRICE',
+    message: `Chua cau hinh don gia tin chi cho loai mon ${loaiMon}, loai hoc ${effectiveLoaiHoc}${maHocKy ? `, hoc ky ${maHocKy}` : ''}`
+  };
 };
 
 const determineRegistrationType = async (tx, maSv, maMonHoc) => {
@@ -217,6 +221,69 @@ const determineRegistrationType = async (tx, maSv, maMonHoc) => {
   if (history.some((item) => item.KetQua === 'qua_mon')) return 'hoc_cai_thien';
   if (history.some((item) => item.KetQua === 'rot')) return 'hoc_lai';
   return 'hoc_moi';
+};
+
+const ensurePrerequisitesSatisfied = async (tx, maSv, maMonHoc) => {
+  const prerequisites = await tx.DIEUKIENMONHOC.findMany({
+    where: {
+      MaMonHoc: maMonHoc,
+      LoaiDieuKien: 'tien_quyet',
+      DaXoa: false,
+      TrangThai: true
+    },
+    include: {
+      MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: {
+        select: { MaMonHoc: true, TenMonHoc: true }
+      }
+    }
+  });
+
+  if (!prerequisites.length) return;
+
+  const requiredCourseIds = prerequisites.map((item) => item.MaMonDieuKien);
+  const passedRows = await tx.MONDAHOC.findMany({
+    where: {
+      MaSv: maSv,
+      MaMonHoc: { in: requiredCourseIds },
+      KetQua: 'qua_mon',
+      DaXoa: false
+    },
+    select: { MaMonHoc: true }
+  });
+  const passedSet = new Set(passedRows.map((item) => item.MaMonHoc));
+  const missing = prerequisites.filter((item) => !passedSet.has(item.MaMonDieuKien));
+
+  if (missing.length) {
+    const names = missing.map((item) => {
+      const course = item.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC;
+      return course?.TenMonHoc ? `${item.MaMonDieuKien} - ${course.TenMonHoc}` : item.MaMonDieuKien;
+    }).join(', ');
+    throw { status: 400, code: 'PREREQUISITE_NOT_SATISFIED', message: `Chua dat mon tien quyet: ${names}` };
+  }
+};
+
+const ensureClassCapacityAvailable = async (tx, maHocKy, maLop, capacity) => {
+  if (!(Number(capacity) > 0)) return;
+  const activeCount = await tx.CHITIETDANGKY.count({
+    where: { MaLop: maLop, TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy: maHocKy } }
+  });
+  if (activeCount >= Number(capacity)) {
+    throw { status: 400, code: 'CLASS_FULL', message: 'Lop hoc da het cho' };
+  }
+};
+
+const reserveOpenedClassSeat = async (tx, maHocKy, maLop, capacity) => {
+  const where = { MaHocKy: maHocKy, MaLop: maLop, TrangThai: true };
+  if (Number(capacity) > 0) where.SoLuongDaDangKy = { lt: Number(capacity) };
+
+  const updated = await tx.LOPMO.updateMany({
+    where,
+    data: { SoLuongDaDangKy: { increment: 1 } }
+  });
+
+  if (updated.count !== 1) {
+    throw { status: 409, code: 'CLASS_SEAT_RACE_CONDITION', message: 'Lop hoc da het cho hoac vua duoc sinh vien khac dang ky' };
+  }
 };
 
 const getStudentDiscountRate = async (tx, maSv) => {
@@ -949,9 +1016,8 @@ const registerCourse = async (req, res) => {
 
       const lop = openedClass.LOP;
       const course = lop.MONHOC;
-      if (Number(lop.SoLuongToiDa || 0) > 0 && Number(openedClass.SoLuongDaDangKy || 0) >= Number(lop.SoLuongToiDa || 0)) {
-        throw { status: 400, message: 'Lớp học đã hết chỗ' };
-      }
+      const capacity = Number(lop.SoLuongToiDa || 0);
+      await ensureClassCapacityAvailable(tx, MaHocKy, MaLop, capacity);
 
       let phieu = await tx.PHIEUDANGKY.findFirst({
         where: { MaSv, MaHocKy },
@@ -979,8 +1045,10 @@ const registerCourse = async (req, res) => {
       const credits = Number(course.SoTinChi || 0);
       const amount = price * credits;
 
+      await ensurePrerequisitesSatisfied(tx, MaSv, course.MaMonHoc);
       await ensureNoScheduleConflict(tx, MaSv, MaHocKy, MaLop);
       await ensureCreditLimit(tx, MaSv, MaHocKy, phieu.SoPhieu, credits);
+      await reserveOpenedClassSeat(tx, MaHocKy, MaLop, capacity);
 
       const cancelledReg = await tx.CHITIETDANGKY.findFirst({
         where: { SoPhieu: phieu.SoPhieu, MaMonHoc: course.MaMonHoc, TrangThai: CANCELLED_REGISTRATION_STATUS }
@@ -1005,13 +1073,9 @@ const registerCourse = async (req, res) => {
           data: { ...data, NgayDangKy: new Date() }
         })
         : await tx.CHITIETDANGKY.create({ data });
-      await tx.LOPMO.updateMany({
-        where: { MaHocKy, MaLop, TrangThai: true },
-        data: { SoLuongDaDangKy: { increment: 1 } }
-      });
       const tuitionSummary = await recalculateRegistrationTotals(tx, phieu.SoPhieu);
       return { registration, tuitionSummary };
-    });
+    }, { isolationLevel: 'Serializable' });
 
     res.status(201).json({ success: true, message: 'Đăng ký thành công', data: result });
   } catch (error) {
@@ -1102,6 +1166,9 @@ module.exports = {
   getCreditPrice,
   getRegistrationTypeLabel,
   determineRegistrationType,
+  ensurePrerequisitesSatisfied,
+  ensureClassCapacityAvailable,
+  reserveOpenedClassSeat,
   ensureNoScheduleConflict,
   ensureCreditLimit,
   getStudentIdFromRequest,

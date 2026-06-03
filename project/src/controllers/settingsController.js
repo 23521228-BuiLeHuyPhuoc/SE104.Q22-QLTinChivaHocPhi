@@ -18,7 +18,8 @@ const updateSettings = async (req, res) => {
       SoTinChiDangKyToiDaKhiVuot,
       DanhSachMonAnhVanBatBuoc,
       NamKiemTraAnhVan,
-      GioiHanTinChiChuaDatAnhVan
+      GioiHanTinChiChuaDatAnhVan,
+      GioiHanTinChiNoKhoaLuan
     } = req.body;
 
     const toiThieu = parseInt(SoTinChiDangKyToiThieu, 10);
@@ -27,11 +28,15 @@ const updateSettings = async (req, res) => {
     const englishList = String(DanhSachMonAnhVanBatBuoc || 'ENG01,ENG02,ENG03').split(',').map((item) => item.trim()).filter(Boolean).join(',');
     const namKiemTra = parseInt(NamKiemTraAnhVan, 10) || 2;
     const gioiHanAnhVan = parseInt(GioiHanTinChiChuaDatAnhVan, 10) || 14;
+    const gioiHanNoKhoaLuan = GioiHanTinChiNoKhoaLuan === undefined || GioiHanTinChiNoKhoaLuan === null || GioiHanTinChiNoKhoaLuan === ''
+      ? 8
+      : parseInt(GioiHanTinChiNoKhoaLuan, 10);
 
     if (toiThieu < 1) return res.status(400).json({ success: false, message: 'Số tín chỉ tối thiểu phải >= 1' });
     if (toiDa <= toiThieu) return res.status(400).json({ success: false, message: 'Số tín chỉ tối đa phải > tối thiểu' });
     if (toiDaVuot < toiDa) return res.status(400).json({ success: false, message: 'Số tín chỉ tối đa khi vượt phải >= tối đa' });
     if (!englishList) return res.status(400).json({ success: false, message: 'Danh sách môn Anh văn không được rỗng' });
+    if (!Number.isInteger(gioiHanNoKhoaLuan) || gioiHanNoKhoaLuan < 0) return res.status(400).json({ success: false, message: 'Giới hạn tín chỉ nợ khóa luận phải là số nguyên không âm' });
 
     const data = {
       SoTinChiDangKyToiThieu: toiThieu,
@@ -40,6 +45,7 @@ const updateSettings = async (req, res) => {
       DanhSachMonAnhVanBatBuoc: englishList,
       NamKiemTraAnhVan: namKiemTra,
       GioiHanTinChiChuaDatAnhVan: gioiHanAnhVan,
+      GioiHanTinChiNoKhoaLuan: gioiHanNoKhoaLuan,
       NgayCapNhat: new Date()
     };
 

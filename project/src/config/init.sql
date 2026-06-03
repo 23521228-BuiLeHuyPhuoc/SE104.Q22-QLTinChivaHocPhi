@@ -448,6 +448,7 @@ CREATE TABLE "THAMSO" (
     "DanhSachMonAnhVanBatBuoc" VARCHAR(200) DEFAULT 'ENG01,ENG02,ENG03',
     "NamKiemTraAnhVan" INTEGER DEFAULT 2,
     "GioiHanTinChiChuaDatAnhVan" INTEGER DEFAULT 14,
+    "GioiHanTinChiNoKhoaLuan" INTEGER DEFAULT 8,
     "NgayCapNhat" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tham_so_pkey PRIMARY KEY (id),
     CONSTRAINT chk_tham_so_singleton CHECK (id = 1),
@@ -455,6 +456,7 @@ CREATE TABLE "THAMSO" (
         "SoTinChiDangKyToiThieu" >= 0
         AND "SoTinChiDangKyToiDa" >= "SoTinChiDangKyToiThieu"
         AND "SoTinChiDangKyToiDaKhiVuot" >= "SoTinChiDangKyToiDa"
+        AND "GioiHanTinChiNoKhoaLuan" >= 0
     )
 );
 
@@ -8311,8 +8313,9 @@ INSERT INTO "THAMSO" (
     "SoTinChiDangKyToiDaKhiVuot",
     "DanhSachMonAnhVanBatBuoc",
     "NamKiemTraAnhVan",
-    "GioiHanTinChiChuaDatAnhVan"
-) VALUES (1, 14, 24, 30, 'ENG01,ENG02,ENG03', 2, 14);
+    "GioiHanTinChiChuaDatAnhVan",
+    "GioiHanTinChiNoKhoaLuan"
+) VALUES (1, 14, 24, 30, 'ENG01,ENG02,ENG03', 2, 14, 8);
 
 -- =====================================================
 -- INSERT DATA - Nhóm người dùng, chức năng và phân quyền
@@ -13487,7 +13490,8 @@ UPDATE "THAMSO"
 SET
   "DanhSachMonAnhVanBatBuoc" = COALESCE(NULLIF("DanhSachMonAnhVanBatBuoc", ''), 'ENG01,ENG02,ENG03'),
   "NamKiemTraAnhVan" = COALESCE("NamKiemTraAnhVan", 2),
-  "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14);
+  "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14),
+  "GioiHanTinChiNoKhoaLuan" = COALESCE("GioiHanTinChiNoKhoaLuan", 8);
 
 -- =====================================================
 -- DATA COMPLETENESS - Điền đủ dữ liệu các trường đang hiển thị trên UI

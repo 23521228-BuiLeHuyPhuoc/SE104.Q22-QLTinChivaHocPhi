@@ -365,9 +365,9 @@ const getMyCurriculum = async (req, res) => {
           totalCredits,
           completedCredits,
           remainingCredits: Math.max(totalCredits - completedCredits, 0),
-          debtCredits: eligibility?.debtCredits || Math.max(totalCredits - completedCredits, 0),
-          thesisEligible: eligibility?.eligible || false,
-          thesisDebtLimit: eligibility?.debtLimit || 8,
+          debtCredits: eligibility?.debtCredits ?? Math.max(totalCredits - completedCredits, 0),
+          thesisEligible: eligibility?.eligible ?? false,
+          thesisDebtLimit: eligibility?.debtLimit ?? 8,
           missingCourses: eligibility?.missingCourses || []
         },
         semesters,

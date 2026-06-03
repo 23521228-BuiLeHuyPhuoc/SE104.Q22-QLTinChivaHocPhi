@@ -13,6 +13,8 @@ const {
   determineRegistrationType,
   ensureNoScheduleConflict,
   ensureCreditLimit,
+  ensurePrerequisitesSatisfied,
+  reserveOpenedClassSeat,
   getStudentIdFromRequest,
   ensureStudentAccess
 } = require('./registrationController');
@@ -219,6 +221,7 @@ const addClassToRegistration = async (tx, { MaSv, MaHocKy, MaLop }) => {
 
   const lop = openedClass.LOP;
   const course = lop.MONHOC;
+  const capacity = Number(lop.SoLuongToiDa || 0);
   const activeCount = await tx.CHITIETDANGKY.count({
     where: { MaLop, TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy } }
   });
@@ -237,8 +240,10 @@ const addClassToRegistration = async (tx, { MaSv, MaHocKy, MaLop }) => {
   const credits = Number(course.SoTinChi || 0);
   const amount = price * credits;
 
+  await ensurePrerequisitesSatisfied(tx, MaSv, course.MaMonHoc);
   await ensureNoScheduleConflict(tx, MaSv, MaHocKy, MaLop);
   await ensureCreditLimit(tx, MaSv, MaHocKy, phieu.SoPhieu, credits);
+  await reserveOpenedClassSeat(tx, MaHocKy, MaLop, capacity);
 
   const cancelledReg = await tx.CHITIETDANGKY.findFirst({
     where: { SoPhieu: phieu.SoPhieu, MaMonHoc: course.MaMonHoc, TrangThai: CANCELLED_REGISTRATION_STATUS }
@@ -261,11 +266,6 @@ const addClassToRegistration = async (tx, { MaSv, MaHocKy, MaLop }) => {
   const detail = cancelledReg
     ? await tx.CHITIETDANGKY.update({ where: { id: cancelledReg.id }, data: { ...data, NgayDangKy: new Date() } })
     : await tx.CHITIETDANGKY.create({ data });
-
-  await tx.LOPMO.updateMany({
-    where: { MaHocKy, MaLop, TrangThai: true },
-    data: { SoLuongDaDangKy: { increment: 1 } }
-  });
 
   return { phieu, detail };
 };

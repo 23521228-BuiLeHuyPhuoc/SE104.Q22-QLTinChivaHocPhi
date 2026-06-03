@@ -3,7 +3,7 @@ const prisma = require('../config/database');
 const ACTIVE_REGISTRATION_STATUS = '\u0110\u00e3 \u0111\u0103ng k\u00fd';
 const THESIS_COURSE_CODES = String(process.env.THESIS_COURSE_CODES || '').split(',').map((item) => item.trim()).filter(Boolean);
 const THESIS_COURSE_KEYWORDS = String(process.env.THESIS_COURSE_KEYWORDS || 'khoa luan,tot nghiep').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
-const THESIS_DEBT_LIMIT = Number(process.env.THESIS_DEBT_LIMIT || 8);
+const DEFAULT_THESIS_DEBT_LIMIT = Number(process.env.THESIS_DEBT_LIMIT || 8);
 
 const toBool = (value, fallback = true) => {
   if (value === undefined || value === null || value === '') return fallback;
@@ -267,17 +267,26 @@ const isThesisCourse = (course) => {
   return THESIS_COURSE_KEYWORDS.some((keyword) => name.includes(keyword));
 };
 
+const normalizeThesisDebtLimit = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_THESIS_DEBT_LIMIT;
+};
+
 const getThesisEligibility = async (MaSv, MaHocKy) => {
   const debt = await calculateCurriculumDebt(MaSv, MaHocKy);
   if (!debt) return null;
-  const thesisCourses = await prisma.CHUONGTRINHHOC.findMany({
-    where: { MaNganh: debt.student.MaNganh, TrangThai: true, MONHOC: { DaXoa: false } },
-    include: { MONHOC: true }
-  });
+  const [thesisCourses, settings] = await Promise.all([
+    prisma.CHUONGTRINHHOC.findMany({
+      where: { MaNganh: debt.student.MaNganh, TrangThai: true, MONHOC: { DaXoa: false } },
+      include: { MONHOC: true }
+    }),
+    prisma.THAMSO.findFirst({ select: { GioiHanTinChiNoKhoaLuan: true } })
+  ]);
+  const debtLimit = normalizeThesisDebtLimit(settings?.GioiHanTinChiNoKhoaLuan);
   return {
     ...debt,
-    debtLimit: THESIS_DEBT_LIMIT,
-    eligible: debt.debtCredits <= THESIS_DEBT_LIMIT,
+    debtLimit,
+    eligible: debt.debtCredits <= debtLimit,
     thesisCourses: thesisCourses.filter((row) => isThesisCourse(row.MONHOC)).map((row) => ({
       MaMonHoc: row.MaMonHoc,
       TenMonHoc: row.MONHOC?.TenMonHoc,

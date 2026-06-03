@@ -48,6 +48,7 @@ model THAMSO {
   DanhSachMonAnhVanBatBuoc   String?   @default("ENG01,ENG02,ENG03") @db.VarChar(200)
   NamKiemTraAnhVan           Int?      @default(2)
   GioiHanTinChiChuaDatAnhVan Int?      @default(14)
+  GioiHanTinChiNoKhoaLuan    Int?      @default(8)
   NgayCapNhat                DateTime? @default(now()) @db.Timestamp(6)
 }
 

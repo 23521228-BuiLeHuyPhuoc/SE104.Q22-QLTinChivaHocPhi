@@ -1455,6 +1455,16 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    ALTER TABLE "THAMSO"
+      ADD COLUMN IF NOT EXISTS "GioiHanTinChiNoKhoaLuan" INTEGER DEFAULT 8
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "THAMSO"
+    SET "GioiHanTinChiNoKhoaLuan" = COALESCE("GioiHanTinChiNoKhoaLuan", 8)
+  `);
+
+  await prisma.$executeRawUnsafe(`
     ALTER TABLE "CHITIETDANGKY"
       ADD COLUMN IF NOT EXISTS "MaMonHoc" VARCHAR(15),
       ADD COLUMN IF NOT EXISTS "SoTinChi" INTEGER DEFAULT 0,
@@ -1887,7 +1897,8 @@ const ensureAuthSchema = async () => {
     ALTER TABLE "THAMSO"
       ADD COLUMN IF NOT EXISTS "DanhSachMonAnhVanBatBuoc" VARCHAR(200) DEFAULT 'ENG01,ENG02,ENG03',
       ADD COLUMN IF NOT EXISTS "NamKiemTraAnhVan" INTEGER DEFAULT 2,
-      ADD COLUMN IF NOT EXISTS "GioiHanTinChiChuaDatAnhVan" INTEGER DEFAULT 14
+      ADD COLUMN IF NOT EXISTS "GioiHanTinChiChuaDatAnhVan" INTEGER DEFAULT 14,
+      ADD COLUMN IF NOT EXISTS "GioiHanTinChiNoKhoaLuan" INTEGER DEFAULT 8
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -1906,7 +1917,8 @@ const ensureAuthSchema = async () => {
     SET
       "DanhSachMonAnhVanBatBuoc" = COALESCE(NULLIF("DanhSachMonAnhVanBatBuoc", ''), 'ENG01,ENG02,ENG03'),
       "NamKiemTraAnhVan" = COALESCE("NamKiemTraAnhVan", 2),
-      "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14)
+      "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14),
+      "GioiHanTinChiNoKhoaLuan" = COALESCE("GioiHanTinChiNoKhoaLuan", 8)
   `);
 
   await prisma.$executeRawUnsafe(`

@@ -424,11 +424,30 @@ const markOnlineResult = async (receiptId, success, transactionCode) => {
   if (!Number.isFinite(id)) return null;
   const existing = await prisma.PHIEUTHUHOCPHI.findUnique({
     where: { SoPhieuThu: id },
-    include: { PHIEUDANGKY: { include: { HOCKY: true } } }
+    include: {
+      PHIEUDANGKY: {
+        include: {
+          HOCKY: true,
+          PHIEUTHUHOCPHI: {
+            where: {
+              SoPhieuThu: { not: id },
+              TrangThai: { in: [PAYMENT_SUCCESS, PAYMENT_REFUND] }
+            }
+          }
+        }
+      }
+    }
   });
   if (!existing) return null;
-  if (success) await assertPaymentWindowOpen(existing.PHIEUDANGKY);
-  if (![PAYMENT_PENDING, PAYMENT_FAILED, PAYMENT_UNPAID].includes(existing.TrangThai)) return existing;
+  if (existing.TrangThai === PAYMENT_SUCCESS) return existing;
+  if (existing.TrangThai !== PAYMENT_PENDING) return existing;
+  if (success) {
+    await assertPaymentWindowOpen(existing.PHIEUDANGKY);
+    const remaining = getRemainingAmount(existing.PHIEUDANGKY);
+    if (Number(existing.SoTienThu || 0) !== remaining) {
+      throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'So tien callback khong khop hoc phi con phai dong hoac phieu da duoc thanh toan bang giao dich khac' };
+    }
+  }
 
   return prisma.PHIEUTHUHOCPHI.update({
     where: { SoPhieuThu: id },

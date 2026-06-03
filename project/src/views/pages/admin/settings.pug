@@ -34,6 +34,14 @@ block content
           .form-group
             label(for="st-gioihananhvan") Giới hạn tín chỉ khi chưa đạt
             input.form-control#st-gioihananhvan(type="number" min="1" value=(settings && settings.GioiHanTinChiChuaDatAnhVan ? settings.GioiHanTinChiChuaDatAnhVan : 14))
+      .card
+        .card-header
+          h3 Điều kiện khóa luận
+        .card-body
+          .form-group
+            label(for="st-khoaluan-no") Số tín chỉ nợ tối đa khi đăng ký khóa luận
+            input.form-control#st-khoaluan-no(type="number" min="0" value=(settings && settings.GioiHanTinChiNoKhoaLuan !== null && settings.GioiHanTinChiNoKhoaLuan !== undefined ? settings.GioiHanTinChiNoKhoaLuan : 8))
+            small.text-muted Sinh viên chỉ đủ điều kiện đăng ký khóa luận khi số tín chỉ còn nợ không vượt quá giá trị này.
 
     .card
       .card-body.d-flex.justify-between.align-center
