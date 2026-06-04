@@ -15,6 +15,18 @@ const normalizeText = (value) => String(value || '').trim();
 
 const normalizeLookupText = (value) => normalizeText(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
+const getCourseRegexValues = (row, searchField = 'all') => {
+  const values = {
+    MaMonHoc: [row.MaMonHoc],
+    TenMonHoc: [row.TenMonHoc, normalizeLookupText(row.TenMonHoc)],
+    LoaiMon: [row.LoaiMon],
+    MaKhoa: [row.MaKhoa, row.KHOA?.TenKhoa, normalizeLookupText(row.KHOA?.TenKhoa)]
+  };
+  return VALID_COURSE_SEARCH_FIELDS.has(searchField) && searchField !== 'all'
+    ? values[searchField] || []
+    : Object.values(values).flat();
+};
+
 const parsePositiveInteger = (value) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
