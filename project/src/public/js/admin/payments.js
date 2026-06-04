@@ -53,7 +53,7 @@ function renderPaymentActivityPanel() {
   var workflow = activity.workflow || {};
   if (semesterEl) semesterEl.textContent = activity.label || activity.MaHocKy || '-';
   setActivityBadge(badge, getActivityBadgeMeta(windowState, { lockedLabel: 'Đã khóa thu' }));
-  if (start) start.textContent = formatActivityDateTime(activity.NgayMoThuHocPhi || windowState.paymentStart || windowState.start);
+  if (start) start.textContent = formatActivityDateTime(activity.NgayBatDauDongHocPhi || windowState.paymentStart || windowState.start);
   if (end) end.textContent = formatActivityDateTime(activity.HanDongHocPhi || windowState.paymentDeadline || windowState.deadline);
   if (finalized) finalized.textContent = activity.NgayChotDangKy ? formatActivityDateTime(activity.NgayChotDangKy) : 'Chưa chốt';
   if (openButton) {

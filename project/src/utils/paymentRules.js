@@ -43,9 +43,9 @@ const makePaymentWindowState = ({ isOpen, isClosed, reason, message, start, dead
 
 const getTuitionPaymentWindowState = (semester, now = new Date()) => {
   const current = toValidDate(now) || new Date();
-  const start = toValidDate(semester?.NgayMoThuHocPhi);
+  const start = toValidDate(semester?.NgayBatDauDongHocPhi);
   const deadline = getDeadlineEnd(semester?.HanDongHocPhi);
-  const wasOpened = Boolean(start);
+  const wasOpened = Boolean(semester?.NgayMoThuHocPhi);
 
   if (!semester?.MoThuHocPhi) {
     return makePaymentWindowState({
@@ -60,10 +60,10 @@ const getTuitionPaymentWindowState = (semester, now = new Date()) => {
 
   if (!start || !deadline) {
     return makePaymentWindowState({
-      isOpen: Boolean(start),
+      isOpen: false,
       isClosed: false,
-      reason: start ? 'open' : 'not_configured',
-      message: start ? PAYMENT_WINDOW_MESSAGES.open : PAYMENT_WINDOW_MESSAGES.not_configured,
+      reason: 'not_configured',
+      message: PAYMENT_WINDOW_MESSAGES.not_configured,
       start,
       deadline
     });
@@ -105,6 +105,7 @@ const getPaymentRegistrationBlock = (semester, now = new Date(), options = {}) =
   const pendingAppeals = Number(options.pendingAppeals || 0);
   const registrationWindow = getRegistrationWindowState(semester, now);
   const appealWindow = getAppealWindowState(semester, now);
+  const tuitionPaymentWindow = getTuitionPaymentWindowState(semester, now);
 
   if (registrationWindow.isOpen || registrationWindow.reason === 'not_started') {
     return {
@@ -112,7 +113,8 @@ const getPaymentRegistrationBlock = (semester, now = new Date(), options = {}) =
       reason: registrationWindow.reason === 'not_started' ? 'registration_not_started' : 'registration_deadline_open',
       message: PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE,
       registrationWindow,
-      appealWindow
+      appealWindow,
+      tuitionPaymentWindow
     };
   }
 
@@ -122,7 +124,8 @@ const getPaymentRegistrationBlock = (semester, now = new Date(), options = {}) =
       reason: appealWindow.reason === 'open' ? 'appeal_deadline_open' : `appeal_${appealWindow.reason}`,
       message: PAYMENT_BLOCKED_DURING_APPEAL_MESSAGE,
       registrationWindow,
-      appealWindow
+      appealWindow,
+      tuitionPaymentWindow
     };
   }
 
@@ -133,6 +136,7 @@ const getPaymentRegistrationBlock = (semester, now = new Date(), options = {}) =
       message: PAYMENT_BLOCKED_PENDING_APPEALS_MESSAGE,
       registrationWindow,
       appealWindow,
+      tuitionPaymentWindow,
       pendingAppeals
     };
   }
@@ -143,7 +147,8 @@ const getPaymentRegistrationBlock = (semester, now = new Date(), options = {}) =
       reason: 'registration_not_finalized',
       message: PAYMENT_BLOCKED_NOT_FINALIZED_MESSAGE,
       registrationWindow,
-      appealWindow
+      appealWindow,
+      tuitionPaymentWindow
     };
   }
 
@@ -153,11 +158,24 @@ const getPaymentRegistrationBlock = (semester, now = new Date(), options = {}) =
       reason: 'tuition_payment_not_open',
       message: PAYMENT_BLOCKED_NOT_OPEN_MESSAGE,
       registrationWindow,
-      appealWindow
+      appealWindow,
+      tuitionPaymentWindow
     };
   }
 
-  return { blocked: false, registrationWindow, appealWindow, pendingAppeals };
+  if (!tuitionPaymentWindow.isOpen) {
+    return {
+      blocked: true,
+      reason: `tuition_payment_${tuitionPaymentWindow.reason || 'closed'}`,
+      message: tuitionPaymentWindow.message || PAYMENT_BLOCKED_NOT_OPEN_MESSAGE,
+      registrationWindow,
+      appealWindow,
+      tuitionPaymentWindow,
+      pendingAppeals
+    };
+  }
+
+  return { blocked: false, registrationWindow, appealWindow, tuitionPaymentWindow, pendingAppeals };
 };
 
 const assertRegistrationPeriodClosedForPayment = (registration, now = new Date(), options = {}) => {

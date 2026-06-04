@@ -139,7 +139,7 @@ const getRegistrationWindowState = (semester, now = new Date()) => {
   };
 };
 
-const getAppealWindowState = (semester, now = new Date()) => {
+const getAppealPeriodState = (semester, now = new Date()) => {
   const state = getTimeWindowState({
     startValue: semester?.NgayBatDauCuuXet,
     endValue: semester?.NgayKetThucCuuXet,
@@ -147,6 +147,16 @@ const getAppealWindowState = (semester, now = new Date()) => {
     now,
     semesterEnded: semester?.TrangThai === SEMESTER_ENDED_STATUS
   });
+
+  return {
+    ...state,
+    appealStart: state.start,
+    appealDeadline: state.deadline
+  };
+};
+
+const getAppealWindowState = (semester, now = new Date()) => {
+  const state = getAppealPeriodState(semester, now);
 
   if (semester?.MoThuHocPhi) {
     return {
@@ -184,6 +194,7 @@ const getSemesterWorkflowState = (semester, options = {}) => {
   const pendingAppeals = Number(options.pendingAppeals || 0);
   const registrationWindow = getRegistrationWindowState(semester, now);
   const appealWindow = getAppealWindowState(semester, now);
+  const appealPeriodWindow = getAppealPeriodState(semester, now);
   const finalized = Boolean(semester?.NgayChotDangKy);
   const tuitionOpen = Boolean(semester?.MoThuHocPhi);
 
@@ -194,8 +205,12 @@ const getSemesterWorkflowState = (semester, options = {}) => {
   } else if (pendingAppeals > 0) {
     finalizeReason = FINALIZE_MESSAGES.pending_appeals;
   } else if (registrationWindow.isClosed && registrationWindow.reason === 'closed') {
-    canFinalize = true;
-    finalizeReason = null;
+    if (appealPeriodWindow.isClosed && appealPeriodWindow.reason === 'closed') {
+      canFinalize = true;
+      finalizeReason = null;
+    } else {
+      finalizeReason = appealPeriodWindow.message || FINALIZE_MESSAGES.appeal_not_closed;
+    }
   } else {
     finalizeReason = registrationWindow.message || FINALIZE_MESSAGES.registration_not_closed;
   }
@@ -206,6 +221,8 @@ const getSemesterWorkflowState = (semester, options = {}) => {
     openTuitionPaymentReason = PAYMENT_OPEN_MESSAGES.not_finalized;
   } else if (pendingAppeals > 0) {
     openTuitionPaymentReason = PAYMENT_OPEN_MESSAGES.pending_appeals;
+  } else if (!(appealPeriodWindow.isClosed && appealPeriodWindow.reason === 'closed')) {
+    openTuitionPaymentReason = appealPeriodWindow.message || PAYMENT_OPEN_MESSAGES.appeal_not_closed;
   } else {
     canOpenTuitionPayment = true;
     openTuitionPaymentReason = null;
