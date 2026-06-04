@@ -83,6 +83,7 @@ function renderTuitionDetail(data) {
     '<div class="info-list">' +
       '<div><span class="label">Sinh viên</span><span>' + tuitionSafe(data.MaSv) + ' - ' + tuitionSafe(data.HoTen) + '</span></div>' +
       '<div><span class="label">Học kỳ</span><span>' + tuitionSafe([data.TenHocKy, data.TenNamHoc].filter(Boolean).join(' - ')) + '</span></div>' +
+      '<div><span class="label">Bắt đầu đóng</span><span>' + (data.NgayBatDauDongHocPhi ? formatDate(data.NgayBatDauDongHocPhi) : '-') + '</span></div>' +
       '<div><span class="label">Hạn đóng</span><span>' + (data.HanDongHocPhi ? formatDate(data.HanDongHocPhi) : '-') + '</span></div>' +
       '<div><span class="label">Trạng thái</span><span><span class="badge ' + tuitionBadgeClass(data.TrangThai, data.QuaHan) + '">' + tuitionSafe(data.TrangThai) + '</span></span></div>' +
     '</div>' +

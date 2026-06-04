@@ -258,6 +258,7 @@ function initSemesterRowDetails() {
           { label: 'Trạng thái chốt đăng ký', value: formatSemesterDetailStatus(record.NgayChotDangKy, 'Đã chốt đăng ký', 'Chưa chốt đăng ký') },
           { label: 'Trạng thái mở thu', value: formatSemesterDetailStatus(record.MoThuHocPhi, 'Đang mở thu', 'Chưa mở thu') },
           { label: 'Ngày mở thu học phí', value: formatSemesterDate(record.NgayMoThuHocPhi) },
+          { label: 'Bắt đầu đóng học phí', value: formatSemesterDate(record.NgayBatDauDongHocPhi) },
           { label: 'Hạn đóng học phí', value: formatSemesterDate(record.HanDongHocPhi) },
           { label: 'Số lớp mở', value: record.SoLopMo || 0 },
           { label: 'Số sinh viên đăng ký', value: record.SoSinhVienDangKy || 0 },
@@ -296,7 +297,8 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Hạn đăng ký</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayKetThucDangKy)) + '</span></div>',
           '<div class="semester-field"><span class="semester-field-label">Bắt đầu cứu xét</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayBatDauCuuXet)) + '</span></div>',
           '<div class="semester-field"><span class="semester-field-label">Hạn cứu xét</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayKetThucCuuXet)) + '</span></div>',
-          '<div class="semester-field semester-field-wide"><span class="semester-field-label">Hạn học phí</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.HanDongHocPhi)) + '</span></div>',
+          '<div class="semester-field"><span class="semester-field-label">Bắt đầu học phí</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.NgayBatDauDongHocPhi)) + '</span></div>',
+          '<div class="semester-field"><span class="semester-field-label">Hạn học phí</span><span class="semester-field-value">' + escapeHtml(formatSemesterDate(s.HanDongHocPhi)) + '</span></div>',
         '</div>',
         '<div class="semester-state">',
           '<span class="badge ' + getSemesterStatusBadge(status) + '">' + escapeHtml(status) + '</span>',
@@ -444,6 +446,7 @@ function getStrictDateInputError(inputId, label) {
 
   var value = inputEl.value.trim();
   if (!value) {
+    if (inputEl.required) return 'Vui lòng nhập ' + label.charAt(0).toLowerCase() + label.slice(1);
     if (inputEl.checkValidity && !inputEl.checkValidity()) return label + ' không hợp lệ';
     return '';
   }
@@ -468,7 +471,7 @@ function getStrictDateInputError(inputId, label) {
   return '';
 }
 
-function validateDatePair(startId, endId, errorId, message, startLabel, endLabel) {
+function validateDatePair(startId, endId, errorId, message, startLabel, endLabel, allowSameDay) {
   var startError = getStrictDateInputError(startId, startLabel || 'Ngày bắt đầu');
   var endError = getStrictDateInputError(endId, endLabel || 'Ngày kết thúc');
   if (startError || endError) {
@@ -482,7 +485,7 @@ function validateDatePair(startId, endId, errorId, message, startLabel, endLabel
     setDatePairError(startId, endId, errorId, 'Cần nhập đủ ' + (startLabel || 'ngày bắt đầu') + ' và ' + (endLabel || 'ngày kết thúc'));
     return false;
   }
-  var hasError = Boolean(start && end && start >= end);
+  var hasError = Boolean(start && end && (allowSameDay ? start > end : start >= end));
   setDatePairError(startId, endId, errorId, hasError ? message : '');
   return !hasError;
 }
@@ -519,6 +522,9 @@ function getAppealDateRangeError() {
   if (registrationEnd && appealStart && appealStart <= registrationEnd) {
     return 'Thời gian cứu xét phải bắt đầu sau hạn đăng ký';
   }
+  if (termStart && appealStart && appealStart >= termStart) {
+    return 'Ngày bắt đầu cứu xét phải trước ngày bắt đầu học kỳ';
+  }
   if (termStart && appealEnd && appealEnd >= termStart) {
     return 'Hạn cứu xét phải trước ngày bắt đầu học kỳ';
   }
@@ -526,16 +532,25 @@ function getAppealDateRangeError() {
 }
 
 function getTuitionDueDateRangeError() {
-  var termStart = document.getElementById('hk-batdau').value;
+  var appealEnd = document.getElementById('hk-ketthuccx').value;
   var termEnd = document.getElementById('hk-ketthuc').value;
+  var tuitionStart = document.getElementById('hk-batdaudonghp').value;
   var tuitionDue = document.getElementById('hk-hanhocphi').value;
 
-  if (tuitionDue && (!termStart || !termEnd)) {
-    return 'Cần nhập ngày bắt đầu và ngày kết thúc học kỳ trước khi nhập hạn đóng học phí';
+  if ((tuitionStart || tuitionDue) && (!appealEnd || !termEnd)) {
+    return 'Cần nhập hạn cứu xét và ngày kết thúc học kỳ trước khi nhập thời gian đóng học phí';
   }
 
-  if (termStart && termEnd && tuitionDue && (tuitionDue < termStart || tuitionDue > termEnd)) {
-    return 'Hạn đóng học phí phải nằm trong khoảng thời gian học kỳ';
+  if (appealEnd && tuitionStart && tuitionStart <= appealEnd) {
+    return 'Ngày bắt đầu đóng học phí phải sau ngày kết thúc cứu xét';
+  }
+
+  if (tuitionStart && tuitionDue && tuitionStart > tuitionDue) {
+    return 'Ngày bắt đầu đóng học phí phải trước hoặc bằng hạn đóng học phí';
+  }
+
+  if (termEnd && tuitionDue && tuitionDue >= termEnd) {
+    return 'Hạn đóng học phí phải trước ngày kết thúc học kỳ';
   }
 
   return '';
@@ -564,7 +579,8 @@ function validateSemesterDates() {
     'hk-appeal-date-error',
     'Ngày bắt đầu cứu xét phải trước hoặc bằng ngày kết thúc cứu xét',
     'Ngày bắt đầu cứu xét',
-    'Ngày kết thúc cứu xét'
+    'Ngày kết thúc cứu xét',
+    true
   );
   if (termValid && registrationValid) {
     var rangeError = getRegistrationDateRangeError();
@@ -580,14 +596,15 @@ function validateSemesterDates() {
       appealValid = false;
     }
   }
-  var tuitionDateError = getStrictDateInputError('hk-hanhocphi', 'Hạn đóng học phí');
-  var tuitionError = tuitionDateError || (termValid ? getTuitionDueDateRangeError() : '');
-  setSingleDateError('hk-hanhocphi', 'hk-tuition-date-error', tuitionError);
+  var tuitionStartError = getStrictDateInputError('hk-batdaudonghp', 'Ngày bắt đầu đóng học phí');
+  var tuitionDueError = getStrictDateInputError('hk-hanhocphi', 'Hạn đóng học phí');
+  var tuitionError = tuitionStartError || tuitionDueError || (termValid && appealValid ? getTuitionDueDateRangeError() : '');
+  setDatePairError('hk-batdaudonghp', 'hk-hanhocphi', 'hk-tuition-date-error', tuitionError);
   return termValid && registrationValid && appealValid && !tuitionError;
 }
 
 function bindSemesterDateValidation() {
-  ['hk-batdau', 'hk-ketthuc', 'hk-batdaudk', 'hk-ketthucdk', 'hk-batdaucx', 'hk-ketthuccx', 'hk-hanhocphi'].forEach(function(id) {
+  ['hk-batdau', 'hk-ketthuc', 'hk-batdaudk', 'hk-ketthucdk', 'hk-batdaucx', 'hk-ketthuccx', 'hk-batdaudonghp', 'hk-hanhocphi'].forEach(function(id) {
     var input = document.getElementById(id);
     if (!input) return;
     input.addEventListener('input', validateSemesterDates);
@@ -613,6 +630,7 @@ function openModal(mode, s) {
     document.getElementById('hk-ketthucdk').value = asDateInput(s.NgayKetThucDangKy);
     document.getElementById('hk-batdaucx').value = asDateInput(s.NgayBatDauCuuXet);
     document.getElementById('hk-ketthuccx').value = asDateInput(s.NgayKetThucCuuXet);
+    document.getElementById('hk-batdaudonghp').value = asDateInput(s.NgayBatDauDongHocPhi);
     document.getElementById('hk-hanhocphi').value = asDateInput(s.HanDongHocPhi);
     document.getElementById('hk-trangthai').value = s.TrangThai || 'Sắp diễn ra';
   } else {
@@ -646,6 +664,7 @@ async function saveSemester() {
     NgayKetThucDangKy: document.getElementById('hk-ketthucdk').value || null,
     NgayBatDauCuuXet: document.getElementById('hk-batdaucx').value || null,
     NgayKetThucCuuXet: document.getElementById('hk-ketthuccx').value || null,
+    NgayBatDauDongHocPhi: document.getElementById('hk-batdaudonghp').value || null,
     HanDongHocPhi: document.getElementById('hk-hanhocphi').value || null,
     TrangThai: document.getElementById('hk-trangthai').value
   };

@@ -1,0 +1,21 @@
+.academic-years-toolbar:has(> .admin-search-group):has(> .academic-year-filter-group):has(> .admin-action-group) > .academic-year-filter-group {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  grid-template-columns: max-content;
+  justify-content: flex-start;
+  justify-self: flex-start;
+  width: auto;
+}
+
+.academic-year-filter-group #status-filter {
+  max-width: 100%;
+  min-width: max-content;
+  width: max-content;
+}
+
+@media (max-width: 860px) {
+  .academic-years-toolbar:has(> .admin-search-group):has(> .academic-year-filter-group):has(> .admin-action-group) > .academic-year-filter-group,
+  .academic-year-filter-group #status-filter {
+    width: 100%;
+  }
+}

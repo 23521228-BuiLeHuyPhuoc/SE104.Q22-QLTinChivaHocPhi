@@ -100,7 +100,7 @@ function renderRegistrationActivityPanel() {
   if (end) end.textContent = formatActivityDateTime(activity.NgayKetThucDangKy || windowState.registrationDeadline || windowState.deadline);
   if (tuitionStatus) {
     var paymentWindow = activity.tuitionPaymentWindow || {};
-    var paymentStart = activity.NgayMoThuHocPhi || paymentWindow.paymentStart || paymentWindow.start;
+    var paymentStart = activity.NgayBatDauDongHocPhi || paymentWindow.paymentStart || paymentWindow.start;
     tuitionStatus.textContent = workflow.tuitionOpen || activity.MoThuHocPhi
       ? 'Đã mở thu' + (paymentStart ? ' từ ' + formatActivityDateTime(paymentStart) : '')
       : 'Chưa mở thu';
