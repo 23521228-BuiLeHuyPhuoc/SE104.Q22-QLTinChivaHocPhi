@@ -64,6 +64,22 @@ const parseImportDate = (value) => {
 
 const getImportCell = (row, index) => normalizeImportValue(row.getCell(index).value);
 
+const normalizeStudentText = (value) => String(value || '').trim();
+
+const normalizeOptionalEmail = (value) => {
+  const email = normalizeStudentText(value).toLowerCase();
+  return email || null;
+};
+
+const normalizeOptionalPhone = (value) => {
+  const phone = normalizeStudentText(value).replace(/[\s().-]/g, '');
+  return phone || null;
+};
+
+const isValidStudentEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
+const isValidStudentPhone = (value) => /^0\d{9}$/.test(String(value || '')) || /^\+84\d{9}$/.test(String(value || ''));
+
 const getAllStudents = async (req, res) => {
   try {
     const { page, limit } = getPagination(req.query);
@@ -104,31 +120,44 @@ const createStudent = async (req, res) => {
   try {
     const {
       MaSv, HoTen, NgaySinh, GioiTinh, MaPhuongXa, MaNganh,
-      Email, Sdt, DiaChiLienHe, MaDanToc, Cccd
+      Email, Sdt, DiaChiLienHe, MaDanToc, Cccd, MaDoiTuongs
     } = req.body;
+    const beneficiaryIds = normalizeBeneficiaryIds(MaDoiTuongs);
+    const studentEmail = normalizeOptionalEmail(Email);
+    const studentPhone = normalizeOptionalPhone(Sdt);
 
     if (!MaSv || !HoTen || !NgaySinh || !GioiTinh || !MaPhuongXa || !MaNganh || !Cccd || !MaDanToc || !DiaChiLienHe) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin bắt buộc, gồm CCCD, dân tộc và địa chỉ' });
+    }
+    if (studentEmail && !isValidStudentEmail(studentEmail)) {
+      return res.status(400).json({ success: false, message: 'Email sinh viên không hợp lệ' });
+    }
+    if (studentPhone && !isValidStudentPhone(studentPhone)) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại phải có 10 chữ số bắt đầu bằng 0 hoặc dùng định dạng +84' });
     }
 
     const existing = await prisma.SINHVIEN.findUnique({ where: { MaSv } });
     if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã sinh viên đã tồn tại' });
 
-    const result = await prisma.SINHVIEN.create({
-      data: {
-        MaSv,
-        HoTen,
-        NgaySinh: new Date(NgaySinh),
-        GioiTinh,
-        Cccd,
-        MaPhuongXa,
-        MaNganh,
-        Email,
-        Sdt,
-        DiaChiLienHe,
-        MaDanToc,
-        ...updateAudit(req)
-      }
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.SINHVIEN.create({
+        data: {
+          MaSv,
+          HoTen,
+          NgaySinh: new Date(NgaySinh),
+          GioiTinh,
+          Cccd,
+          MaPhuongXa,
+          MaNganh,
+          Email: studentEmail,
+          Sdt: studentPhone,
+          DiaChiLienHe,
+          MaDanToc,
+          ...updateAudit(req)
+        }
+      });
+      await syncStudentBeneficiaries(tx, MaSv, beneficiaryIds);
+      return tx.SINHVIEN.findUnique({ where: { MaSv }, include: studentInclude });
     });
 
     res.status(201).json({ success: true, message: 'Tạo sinh viên thành công', data: result });
@@ -144,15 +173,29 @@ const updateStudent = async (req, res) => {
 
     const {
       HoTen, NgaySinh, GioiTinh, Email, Sdt, DiaChiLienHe,
-      MaPhuongXa, MaDanToc, MaNganh, TrangThai, AnhDaiDien, Cccd
+      MaPhuongXa, MaDanToc, MaNganh, TrangThai, AnhDaiDien, Cccd, MaDoiTuongs
     } = req.body;
+    const shouldSyncBeneficiaries = Object.prototype.hasOwnProperty.call(req.body, 'MaDoiTuongs');
+    const beneficiaryIds = shouldSyncBeneficiaries ? normalizeBeneficiaryIds(MaDoiTuongs) : [];
     const data = {};
     if (HoTen) data.HoTen = HoTen;
     if (NgaySinh) data.NgaySinh = new Date(NgaySinh);
     if (GioiTinh) data.GioiTinh = GioiTinh;
     if (Cccd !== undefined) data.Cccd = Cccd;
-    if (Email !== undefined) data.Email = Email;
-    if (Sdt !== undefined) data.Sdt = Sdt;
+    if (Email !== undefined) {
+      const studentEmail = normalizeOptionalEmail(Email);
+      if (studentEmail && !isValidStudentEmail(studentEmail)) {
+        return res.status(400).json({ success: false, message: 'Email sinh viên không hợp lệ' });
+      }
+      data.Email = studentEmail;
+    }
+    if (Sdt !== undefined) {
+      const studentPhone = normalizeOptionalPhone(Sdt);
+      if (studentPhone && !isValidStudentPhone(studentPhone)) {
+        return res.status(400).json({ success: false, message: 'Số điện thoại phải có 10 chữ số bắt đầu bằng 0 hoặc dùng định dạng +84' });
+      }
+      data.Sdt = studentPhone;
+    }
     if (DiaChiLienHe !== undefined) data.DiaChiLienHe = DiaChiLienHe;
     if (MaPhuongXa) data.MaPhuongXa = MaPhuongXa;
     if (MaDanToc) data.MaDanToc = MaDanToc;
@@ -167,7 +210,13 @@ const updateStudent = async (req, res) => {
     }
     Object.assign(data, updateAudit(req));
 
-    const updated = await prisma.SINHVIEN.update({ where: { MaSv: req.params.id }, data });
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.SINHVIEN.update({ where: { MaSv: req.params.id }, data });
+      if (shouldSyncBeneficiaries) {
+        await syncStudentBeneficiaries(tx, req.params.id, beneficiaryIds);
+      }
+      return tx.SINHVIEN.findUnique({ where: { MaSv: req.params.id }, include: studentInclude });
+    });
     res.json({ success: true, message: 'Cập nhật sinh viên thành công', data: updated });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Update student error:');
@@ -235,6 +284,43 @@ const getDistrictsByProvince = async (req, res) => {
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get districts error:');
   }
+};
+
+const normalizeBeneficiaryIds = (value) => {
+  const source = Array.isArray(value) ? value : (value ? [value] : []);
+  const seen = new Set();
+  return source
+    .map((item) => String(item || '').trim())
+    .filter((item) => {
+      if (!item || seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+};
+
+const syncStudentBeneficiaries = async (tx, maSv, beneficiaryIds) => {
+  if (!beneficiaryIds.length) {
+    await tx.DOITUONGSINHVIEN.deleteMany({ where: { MaSv: maSv } });
+    return;
+  }
+
+  const validBeneficiaries = await tx.DOITUONG.findMany({
+    where: { MaDoiTuong: { in: beneficiaryIds }, DaXoa: false },
+    select: { MaDoiTuong: true }
+  });
+  const validSet = new Set(validBeneficiaries.map((item) => item.MaDoiTuong));
+  const missingIds = beneficiaryIds.filter((item) => !validSet.has(item));
+  if (missingIds.length) {
+    throw { status: 400, message: 'Một hoặc nhiều đối tượng ưu tiên không tồn tại hoặc đã bị xóa' };
+  }
+
+  await tx.DOITUONGSINHVIEN.deleteMany({
+    where: { MaSv: maSv, MaDoiTuong: { notIn: beneficiaryIds } }
+  });
+  await tx.DOITUONGSINHVIEN.createMany({
+    data: beneficiaryIds.map((MaDoiTuong) => ({ MaSv: maSv, MaDoiTuong })),
+    skipDuplicates: true
+  });
 };
 
 const getEthnicities = async (req, res) => {
@@ -413,8 +499,8 @@ const importStudents = async (req, res) => {
         NgaySinh: parseImportDate(row.getCell(3).value),
         GioiTinh: getImportCell(row, 4),
         Cccd: getImportCell(row, 5),
-        Email: getImportCell(row, 6) || null,
-        Sdt: getImportCell(row, 7) || null,
+        Email: normalizeOptionalEmail(getImportCell(row, 6)),
+        Sdt: normalizeOptionalPhone(getImportCell(row, 7)),
         MaNganh: getImportCell(row, 8),
         MaDanToc: getImportCell(row, 9),
         MaPhuongXa: getImportCell(row, 10),
@@ -493,6 +579,8 @@ const importStudents = async (req, res) => {
       if (!majorSet.has(data.MaNganh)) rowErrors.push('Mã ngành không tồn tại hoặc đã khóa');
       if (!ethnicitySet.has(data.MaDanToc)) rowErrors.push('Mã dân tộc không tồn tại hoặc đã khóa');
       if (!wardSet.has(data.MaPhuongXa)) rowErrors.push('Mã phường xã không tồn tại hoặc đã khóa');
+      if (data.Email && !isValidStudentEmail(data.Email)) rowErrors.push('Email không hợp lệ');
+      if (data.Sdt && !isValidStudentPhone(data.Sdt)) rowErrors.push('Số điện thoại không hợp lệ');
 
       if (rowErrors.length) {
         results.errors.push({ row: rowNumber, MaSv: data.MaSv, reason: rowErrors.join('; ') });

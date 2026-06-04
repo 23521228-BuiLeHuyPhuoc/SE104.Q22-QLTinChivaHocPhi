@@ -98,21 +98,46 @@ const createPricing = async (req, res) => {
     const normalizedLoaiHoc = normalizeText(LoaiHoc);
     const unitPrice = parsePositiveMoney(DonGia);
 
+    // 1. Lỗi thiếu thông tin hoặc sai định dạng số tiền
     if (!normalizedLoaiMon || !normalizedLoaiHoc || !unitPrice) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin hợp lệ' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Vui lòng cung cấp đầy đủ Loại môn, Loại học và Đơn giá (Đơn giá phải là số lớn hơn 0)' 
+      });
     }
+
+    // 2. Lỗi sai Loại môn (chỉ nhận LT hoặc TH)
     if (!VALID_PRICING_COURSE_TYPES.has(normalizedLoaiMon)) {
-      return res.status(400).json({ success: false, message: 'Loại môn không hợp lệ' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Loại môn không hợp lệ. Vui lòng chọn "LT" (Lý thuyết) hoặc "TH" (Thực hành)' 
+      });
     }
+
+    // 3. Lỗi sai Loại học
     if (!REQUIRED_PRICE_TYPES.includes(normalizedLoaiHoc)) {
-      return res.status(400).json({ success: false, message: 'Loại học không hợp lệ' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Loại học không hợp lệ. Vui lòng chọn: hoc_moi, hoc_lai, hoc_cai_thien, hoặc hoc_he' 
+      });
     }
+
+    // 4. Lỗi đã cấu hình đủ 4 loại giá cho 1 môn/học kỳ
     if (await isPricingScopeComplete(normalizedLoaiMon, normalizedMaHocKy)) {
-      return res.status(400).json({ success: false, message: 'Phạm vi này đã đủ học mới, học lại, cải thiện và học hè' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Không thể thêm mới. Học kỳ và Loại môn này đã được thiết lập đủ 4 loại đơn giá' 
+      });
     }
+
+    // 5. Lỗi trùng lặp dữ liệu đang active
     if (await findActivePricing(normalizedLoaiMon, normalizedLoaiHoc, normalizedMaHocKy)) {
-      return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Đơn giá cho Loại môn và Loại học này trong Học kỳ đã tồn tại. Vui lòng chỉnh sửa thay vì tạo mới' 
+      });
     }
+
     const reusablePricing = await prisma.DONGIATINCHI.findFirst({
       where: {
         LoaiMon: normalizedLoaiMon,
@@ -143,10 +168,21 @@ const createPricing = async (req, res) => {
       await recalculatePricingScopes(tx, [row]);
       return row;
     });
-    res.status(reusablePricing ? 200 : 201).json({ success: true, message: 'Tạo đơn giá thành công', data: pricing });
+
+    res.status(reusablePricing ? 200 : 201).json({ 
+      success: true, 
+      message: 'Tạo đơn giá thành công', 
+      data: pricing 
+    });
   } catch (error) {
-    if (error.code === 'P2002') return res.status(400).json({ success: false, message: 'Đơn giá cho loại môn, loại học và học kỳ này đã tồn tại' });
-        return sendErrorResponse(res, error, 'Lỗi server', 'createPricing error:');
+    // 6. Xử lý lỗi trùng lặp từ Database (Unique Constraint P2002)
+    if (error.code === 'P2002') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Dữ liệu đã bị trùng lặp. Đơn giá này đã tồn tại trên hệ thống' 
+      });
+    }
+    return sendErrorResponse(res, error, 'Lỗi hệ thống trong quá trình tạo đơn giá', 'createPricing error:');
   }
 };
 

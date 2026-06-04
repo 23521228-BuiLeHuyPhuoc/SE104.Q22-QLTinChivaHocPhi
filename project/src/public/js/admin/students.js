@@ -2,6 +2,8 @@ var editingId = null;
 var selectedStudentAvatarFile = null;
 var selectedStudentsImportFile = null;
 var allMajors = [];
+var allBeneficiaries = [];
+var currentStudentBeneficiaryIds = [];
 
 function asDateInput(value) {
   if (!value) return '';
@@ -14,6 +16,23 @@ function studentEscapeHtml(value) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/'/g, '&#039;');
+}
+
+function normalizeStudentEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeStudentPhone(value) {
+  return String(value || '').trim().replace(/[\s().-]/g, '');
+}
+
+function isValidStudentEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function isValidStudentPhone(value) {
+  var phone = normalizeStudentPhone(value);
+  return /^0\d{9}$/.test(phone) || /^\+84\d{9}$/.test(phone);
 }
 
 (async function loadMajors() {
@@ -64,6 +83,32 @@ function studentEscapeHtml(value) {
       select.appendChild(opt);
     });
   } catch (e) {}
+})();
+
+(async function loadBeneficiaries() {
+  var box = document.getElementById('sv-doituong');
+
+  try {
+    var page = 1;
+    var totalPages = 1;
+    var rows = [];
+
+    do {
+      var res = await apiFetch('/api/beneficiaries?page=' + page);
+      if (!res.success) throw new Error(res.message || 'Không thể tải đối tượng ưu tiên');
+
+      rows = rows.concat(res.data || []);
+      totalPages = res.pagination && res.pagination.totalPages ? Number(res.pagination.totalPages) : 1;
+      page += 1;
+    } while (page <= totalPages);
+
+    allBeneficiaries = rows;
+    renderStudentBeneficiaries();
+  } catch (e) {
+    if (box) {
+      box.innerHTML = '<div class="empty-state">Không tải được đối tượng ưu tiên</div>';
+    }
+  }
 })();
 
 async function loadWards(provinceId, selectedWardId) {
@@ -144,26 +189,60 @@ async function onProvinceChange() {
   await loadWards(provinceId);
 }
 
+function getStudentBeneficiaryIds(sv) {
+  return (sv && sv.DOITUONGSINHVIEN ? sv.DOITUONGSINHVIEN : [])
+    .map(function(row) { return row.MaDoiTuong || (row.DOITUONG && row.DOITUONG.MaDoiTuong); })
+    .filter(Boolean);
+}
+
+function getSelectedStudentBeneficiaryIds() {
+  var box = document.getElementById('sv-doituong');
+  if (!box) return [];
+
+  return Array.prototype.slice.call(box.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(function(input) { return input.value; })
+    .filter(Boolean);
+}
+
+function formatBeneficiaryOption(beneficiary) {
+  var discount = Number(beneficiary.TiLeGiamHocPhi || 0);
+  var status = beneficiary.TrangThai === false ? ' - Ngưng áp dụng' : '';
+  return beneficiary.MaDoiTuong + ' - ' + beneficiary.TenDoiTuong + ' (' + discount + '%)' + status;
+}
+
 function renderStudentBeneficiaries(sv) {
-  var box = document.getElementById('student-beneficiaries-current');
+  var box = document.getElementById('sv-doituong');
   if (!box) return;
 
-  var rows = sv && sv.DOITUONGSINHVIEN ? sv.DOITUONGSINHVIEN : [];
-  if (!rows.length) {
-    box.innerHTML = '<div class=empty-state>Chưa thuộc đối tượng ưu tiên nào</div>';
+  if (sv !== undefined) currentStudentBeneficiaryIds = getStudentBeneficiaryIds(sv);
+  var selectedSet = new Set(currentStudentBeneficiaryIds);
+
+  box.innerHTML = '';
+  if (!allBeneficiaries.length) {
+    box.innerHTML = '<div class="empty-state">Chưa có đối tượng ưu tiên</div>';
     return;
   }
 
-  box.innerHTML = rows.map(function(row) {
-    var dt = row.DOITUONG || {};
-    return [
-      '<div class=beneficiary-readonly-item>',
-      '<strong>' + (dt.MaDoiTuong || row.MaDoiTuong || '-') + ' - ' + (dt.TenDoiTuong || '-') + '</strong>',
-      '<small>Tỉ lệ giảm: ' + Number(dt.TiLeGiamHocPhi || 0) + '%</small>',
-      '<small>Độ ưu tiên: ' + (dt.DoUuTien || '-') + '</small>',
-      '</div>'
-    ].join('');
-  }).join('');
+  allBeneficiaries.forEach(function(beneficiary, index) {
+    var checkboxId = 'sv-doituong-' + index;
+    var item = document.createElement('label');
+    item.className = 'student-beneficiary-check';
+    item.setAttribute('for', checkboxId);
+
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.id = checkboxId;
+    input.value = beneficiary.MaDoiTuong;
+    input.checked = selectedSet.has(beneficiary.MaDoiTuong);
+
+    var text = document.createElement('span');
+    text.className = 'student-beneficiary-check-text';
+    text.textContent = formatBeneficiaryOption(beneficiary);
+
+    item.appendChild(input);
+    item.appendChild(text);
+    box.appendChild(item);
+  });
 }
 
 function setStudentAvatarPreview(url, name) {
@@ -314,11 +393,13 @@ function closeModal() {
 }
 
 async function saveStudent() {
+  var email = normalizeStudentEmail(document.getElementById('sv-email').value);
+  var phone = normalizeStudentPhone(document.getElementById('sv-sdt').value);
   var data = {
     MaSv: document.getElementById('sv-mssv').value.trim(),
     HoTen: document.getElementById('sv-hoten').value.trim(),
-    Email: document.getElementById('sv-email').value.trim() || null,
-    Sdt: document.getElementById('sv-sdt').value.trim() || null,
+    Email: email || null,
+    Sdt: phone || null,
     NgaySinh: document.getElementById('sv-ngaysinh').value,
     GioiTinh: document.getElementById('sv-gioitinh').value,
     Cccd: document.getElementById('sv-cmnd').value.trim() || null,
@@ -326,11 +407,22 @@ async function saveStudent() {
     MaPhuongXa: document.getElementById('sv-phuongxa').value,
     DiaChiLienHe: document.getElementById('sv-diachi').value.trim() || null,
     MaNganh: document.getElementById('sv-nganh').value,
-    TrangThai: document.getElementById('sv-trangthai').value
+    TrangThai: document.getElementById('sv-trangthai').value,
+    MaDoiTuongs: getSelectedStudentBeneficiaryIds()
   };
 
   if (!data.Cccd || !data.MaDanToc || !data.DiaChiLienHe || !data.MaPhuongXa) {
     showToast('CCCD, dân tộc, địa chỉ liên hệ và phường/xã là bắt buộc', 'error');
+    return;
+  }
+
+  if (data.Email && !isValidStudentEmail(data.Email)) {
+    showToast('Email sinh viên không hợp lệ', 'error');
+    return;
+  }
+
+  if (data.Sdt && !isValidStudentPhone(data.Sdt)) {
+    showToast('Số điện thoại phải có 10 chữ số bắt đầu bằng 0 hoặc dùng định dạng +84', 'error');
     return;
   }
 
