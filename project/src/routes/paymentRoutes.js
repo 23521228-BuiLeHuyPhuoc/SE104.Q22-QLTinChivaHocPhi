@@ -19,8 +19,8 @@ router.get('/stats', adminMiddleware, paymentController.getPaymentStats);
 // Export payment list
 router.get('/export', adminMiddleware, paymentController.exportPayments);
 
-// Get payment by ID
-router.get('/:id', adminMiddleware, paymentController.getPaymentById);
+// Get payment by ID. Admin can view all; students can view their own receipts.
+router.get('/:id', paymentController.getPaymentById);
 
 // Create payment (admin only)
 router.post('/', adminMiddleware, paymentController.createPayment);

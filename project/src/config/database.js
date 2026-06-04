@@ -82,6 +82,13 @@ const ensureDefaultAuthorizationData = async () => {
 const ensureAuthSchema = async () => {
   const qi = String.fromCharCode(34);
   await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_schedule_effective_end_order(p_start_order INT, p_end_order INT)
+    RETURNS INT AS $$
+      SELECT CASE WHEN p_end_order >= p_start_order THEN p_end_order + 1 ELSE p_start_order + 1 END;
+    $$ LANGUAGE SQL IMMUTABLE;
+  `);
+
+  await prisma.$executeRawUnsafe(`
     ALTER TABLE ${qi}DONGIATINCHI${qi}
       ADD COLUMN IF NOT EXISTS ${qi}NgayApDung${qi} DATE DEFAULT CURRENT_DATE,
       ADD COLUMN IF NOT EXISTS ${qi}TrangThai${qi} BOOLEAN DEFAULT TRUE,
@@ -1321,7 +1328,7 @@ const ensureAuthSchema = async () => {
           AND lm."MaHocKy" = v_mahocky
           AND lm."TrangThai" = TRUE
           AND (
-            (v_bd_thutu < kt."ThuTu" AND bd."ThuTu" < v_kt_thutu)
+            (v_bd_thutu <= kt."ThuTu" AND bd."ThuTu" <= v_kt_thutu)
             OR (bd."ThuTu" = v_bd_thutu AND kt."ThuTu" = v_kt_thutu)
           )
       ) THEN
@@ -1372,7 +1379,7 @@ const ensureAuthSchema = async () => {
             AND lm2."MaHocKy" = NEW."MaHocKy"
             AND COALESCE(lm2."MaGiangVien", lm2."GiangVien") = v_giangvien
             AND (
-              (bd1."ThuTu" < kt2."ThuTu" AND bd2."ThuTu" < kt1."ThuTu")
+              (bd1."ThuTu" <= kt2."ThuTu" AND bd2."ThuTu" <= kt1."ThuTu")
               OR (bd1."ThuTu" = bd2."ThuTu" AND kt1."ThuTu" = kt2."ThuTu")
             )
         ) THEN
@@ -1500,7 +1507,7 @@ const ensureAuthSchema = async () => {
           AND COALESCE(lh."TrangThai", TRUE) = TRUE
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND (
-            (v_bd_thutu < kt."ThuTu" AND bd."ThuTu" < v_kt_thutu)
+            (v_bd_thutu <= kt."ThuTu" AND bd."ThuTu" <= v_kt_thutu)
             OR (bd."ThuTu" = v_bd_thutu AND kt."ThuTu" = v_kt_thutu)
           )
           AND (
@@ -1556,7 +1563,7 @@ const ensureAuthSchema = async () => {
           AND COALESCE(lm2."TrangThai", TRUE) = TRUE
           AND lm2."MaHocKy" = NEW."MaHocKy"
           AND (
-            (bd1."ThuTu" < kt2."ThuTu" AND bd2."ThuTu" < kt1."ThuTu")
+            (bd1."ThuTu" <= kt2."ThuTu" AND bd2."ThuTu" <= kt1."ThuTu")
             OR (bd1."ThuTu" = bd2."ThuTu" AND kt1."ThuTu" = kt2."ThuTu")
           )
           AND (
@@ -1850,8 +1857,10 @@ const ensureAuthSchema = async () => {
           AND COALESCE(l."TrangThai", TRUE) = TRUE
           AND l."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND COALESCE(l."MaPhong", l."PhongHoc") = v_phong
-          AND v_bd_thutu < CASE WHEN kt."ThuTu" > bd."ThuTu" THEN kt."ThuTu" ELSE bd."ThuTu" + 1 END
-          AND bd."ThuTu" < CASE WHEN v_kt_thutu > v_bd_thutu THEN v_kt_thutu ELSE v_bd_thutu + 1 END
+          AND v_bd_thutu <= v_kt_thutu
+          AND bd."ThuTu" <= kt."ThuTu"
+          AND v_bd_thutu <= kt."ThuTu"
+          AND bd."ThuTu" <= v_kt_thutu
       ) THEN
         RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Phong % bi trung lich voi lop khac.', v_phong;
       END IF;
@@ -1866,8 +1875,10 @@ const ensureAuthSchema = async () => {
           AND COALESCE(l."TrangThai", TRUE) = TRUE
           AND l."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND COALESCE(l."MaGiangVien", l."GiangVien") = v_giangvien
-          AND v_bd_thutu < CASE WHEN kt."ThuTu" > bd."ThuTu" THEN kt."ThuTu" ELSE bd."ThuTu" + 1 END
-          AND bd."ThuTu" < CASE WHEN v_kt_thutu > v_bd_thutu THEN v_kt_thutu ELSE v_bd_thutu + 1 END
+          AND v_bd_thutu <= v_kt_thutu
+          AND bd."ThuTu" <= kt."ThuTu"
+          AND v_bd_thutu <= kt."ThuTu"
+          AND bd."ThuTu" <= v_kt_thutu
       ) THEN
         RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Giang vien % bi trung lich voi lop khac.', v_giangvien;
       END IF;
@@ -2678,6 +2689,182 @@ const ensureAuthSchema = async () => {
   `);
 
   await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "GIAODICHTHANHTOANHOCPHI" (
+      "MaGiaoDichThanhToan" SERIAL PRIMARY KEY,
+      "SoPhieuThu" INTEGER NOT NULL,
+      "SoPhieuDangKy" INTEGER NOT NULL,
+      "MaSv" VARCHAR(15) NOT NULL,
+      "SoTienThanhToan" DECIMAL(15,0) NOT NULL,
+      "HinhThucThanhToan" VARCHAR(50),
+      "PaymentProvider" VARCHAR(30),
+      "PaymentChannel" VARCHAR(30),
+      "MaGiaoDich" VARCHAR(100),
+      "CheckoutUrl" VARCHAR(1000),
+      "QrPayload" TEXT,
+      "GhiChu" VARCHAR(300),
+      "TrangThai" VARCHAR(20) DEFAULT 'Chờ xác nhận',
+      "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      "NgayXacNhan" TIMESTAMP,
+      "NguoiXacNhan" VARCHAR(100),
+      "NgayCapNhat" TIMESTAMP,
+      CONSTRAINT chk_gdtt_so_tien CHECK ("SoTienThanhToan" > 0),
+      CONSTRAINT chk_gdtt_hinh_thuc CHECK ("HinhThucThanhToan" IS NULL OR "HinhThucThanhToan" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
+      CONSTRAINT chk_gdtt_trang_thai CHECK ("TrangThai" IN ('Chưa thanh toán', 'Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy', 'Hoàn tiền')),
+      CONSTRAINT fk_gdtt_pthp FOREIGN KEY ("SoPhieuThu") REFERENCES "PHIEUTHUHOCPHI"("SoPhieuThu") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT fk_gdtt_pdk FOREIGN KEY ("SoPhieuDangKy") REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE RESTRICT ON UPDATE CASCADE,
+      CONSTRAINT fk_gdtt_sv FOREIGN KEY ("MaSv") REFERENCES "SINHVIEN"("MaSv") ON DELETE RESTRICT ON UPDATE CASCADE
+    )
+  `);
+
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_gdtt_pthp ON "GIAODICHTHANHTOANHOCPHI"("SoPhieuThu")');
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_gdtt_pdk ON "GIAODICHTHANHTOANHOCPHI"("SoPhieuDangKy")');
+  await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS idx_gdtt_sv ON "GIAODICHTHANHTOANHOCPHI"("MaSv")');
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "GIAODICHTHANHTOANHOCPHI"
+    SET
+      "TrangThai" = CASE "TrangThai"
+        WHEN 'ChÆ°a thanh toÃ¡n' THEN 'Chưa thanh toán'
+        WHEN 'Chá» xÃ¡c nháº­n' THEN 'Chờ xác nhận'
+        WHEN 'ThÃ nh cÃ´ng' THEN 'Thành công'
+        WHEN 'Tháº¥t báº¡i' THEN 'Thất bại'
+        WHEN 'ÄÃ£ há»§y' THEN 'Đã hủy'
+        WHEN 'HoÃ n tiá»n' THEN 'Hoàn tiền'
+        ELSE "TrangThai"
+      END,
+      "HinhThucThanhToan" = CASE "HinhThucThanhToan"
+        WHEN 'Tiá»n máº·t' THEN 'Tiền mặt'
+        WHEN 'Chuyá»ƒn khoáº£n' THEN 'Chuyển khoản'
+        WHEN 'Tháº»' THEN 'Thẻ'
+        WHEN 'VÃ­ Ä‘iá»‡n tá»­' THEN 'Ví điện tử'
+        ELSE "HinhThucThanhToan"
+      END
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_gdtt_hinh_thuc') THEN
+        ALTER TABLE "GIAODICHTHANHTOANHOCPHI" DROP CONSTRAINT chk_gdtt_hinh_thuc;
+      END IF;
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_gdtt_trang_thai') THEN
+        ALTER TABLE "GIAODICHTHANHTOANHOCPHI" DROP CONSTRAINT chk_gdtt_trang_thai;
+      END IF;
+      ALTER TABLE "GIAODICHTHANHTOANHOCPHI"
+        ALTER COLUMN "TrangThai" SET DEFAULT 'Chờ xác nhận',
+        ADD CONSTRAINT chk_gdtt_hinh_thuc CHECK ("HinhThucThanhToan" IS NULL OR "HinhThucThanhToan" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
+        ADD CONSTRAINT chk_gdtt_trang_thai CHECK ("TrangThai" IN ('Chưa thanh toán', 'Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy', 'Hoàn tiền'));
+    END $$;
+  `);
+  await prisma.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS uq_gdtt_one_pending_per_receipt ON "GIAODICHTHANHTOANHOCPHI"("SoPhieuThu") WHERE "TrangThai" = \'Chờ xác nhận\'');
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO "GIAODICHTHANHTOANHOCPHI" (
+      "SoPhieuThu", "SoPhieuDangKy", "MaSv", "SoTienThanhToan", "HinhThucThanhToan",
+      "PaymentProvider", "PaymentChannel", "MaGiaoDich", "CheckoutUrl", "QrPayload",
+      "GhiChu", "TrangThai", "NgayTao", "NgayXacNhan", "NguoiXacNhan", "NgayCapNhat"
+    )
+    SELECT
+      p."SoPhieuThu", p."SoPhieuDangKy", p."MaSv", p."SoTienThu", p."HinhThucThu",
+      p."PaymentProvider", p."PaymentChannel", p."MaGiaoDich", p."CheckoutUrl", p."QrPayload",
+      p."GhiChu", p."TrangThai", COALESCE(p."NgayCapNhat", p."NgayLap", CURRENT_TIMESTAMP),
+      p."NgayXacNhan", p."NguoiThu", COALESCE(p."NgayCapNhat", p."NgayLap", CURRENT_TIMESTAMP)
+    FROM "PHIEUTHUHOCPHI" p
+    WHERE p."TrangThai" IN ('Thành công', 'Chờ xác nhận', 'Thất bại', 'Hoàn tiền')
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "GIAODICHTHANHTOANHOCPHI" gd
+        WHERE gd."SoPhieuThu" = p."SoPhieuThu"
+          AND gd."TrangThai" = p."TrangThai"
+          AND gd."SoTienThanhToan" = p."SoTienThu"
+          AND COALESCE(gd."MaGiaoDich", '') = COALESCE(p."MaGiaoDich", '')
+      )
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION trg_fn_gdtt_match_receipt()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_so_phieu_dang_ky INTEGER;
+      v_ma_sv VARCHAR(15);
+    BEGIN
+      SELECT "SoPhieuDangKy", "MaSv"
+      INTO v_so_phieu_dang_ky, v_ma_sv
+      FROM "PHIEUTHUHOCPHI"
+      WHERE "SoPhieuThu" = NEW."SoPhieuThu";
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION '[GDTT] Phieu thu % khong ton tai.', NEW."SoPhieuThu";
+      END IF;
+
+      IF NEW."SoPhieuDangKy" <> v_so_phieu_dang_ky OR NEW."MaSv" <> v_ma_sv THEN
+        RAISE EXCEPTION '[GDTT] Giao dich thanh toan khong khop voi phieu thu %.', NEW."SoPhieuThu";
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_gdtt_match_receipt ON "GIAODICHTHANHTOANHOCPHI"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_gdtt_match_receipt
+    BEFORE INSERT OR UPDATE OF "SoPhieuThu", "SoPhieuDangKy", "MaSv"
+    ON "GIAODICHTHANHTOANHOCPHI"
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_fn_gdtt_match_receipt();
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION trg_fn_gdtt_total_success()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_tong_phieu NUMERIC(15,0);
+      v_tong_pdk NUMERIC(15,0);
+      v_da_thu_phieu NUMERIC(15,0);
+      v_da_thu_pdk NUMERIC(15,0);
+    BEGIN
+      IF NEW."TrangThai" <> 'Thành công' THEN
+        RETURN NEW;
+      END IF;
+
+      SELECT "SoTienThu" INTO v_tong_phieu
+      FROM "PHIEUTHUHOCPHI"
+      WHERE "SoPhieuThu" = NEW."SoPhieuThu";
+
+      SELECT COALESCE("TongTienPhaiDong", 0) INTO v_tong_pdk
+      FROM "PHIEUDANGKY"
+      WHERE "SoPhieu" = NEW."SoPhieuDangKy";
+
+      SELECT COALESCE(SUM("SoTienThanhToan"), 0) INTO v_da_thu_phieu
+      FROM "GIAODICHTHANHTOANHOCPHI"
+      WHERE "SoPhieuThu" = NEW."SoPhieuThu" AND "TrangThai" = 'Thành công';
+
+      SELECT COALESCE(SUM("SoTienThanhToan"), 0) INTO v_da_thu_pdk
+      FROM "GIAODICHTHANHTOANHOCPHI"
+      WHERE "SoPhieuDangKy" = NEW."SoPhieuDangKy" AND "TrangThai" = 'Thành công';
+
+      IF v_da_thu_phieu > v_tong_phieu THEN
+        RAISE EXCEPTION '[GDTT] Tong tien thanh toan thanh cong (%) vuot so tien phieu thu (%).', v_da_thu_phieu, v_tong_phieu;
+      END IF;
+
+      IF v_da_thu_pdk > v_tong_pdk THEN
+        RAISE EXCEPTION '[GDTT] Tong tien thanh toan thanh cong (%) vuot hoc phi phai dong cua phieu dang ky (%).', v_da_thu_pdk, v_tong_pdk;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_gdtt_total_success ON "GIAODICHTHANHTOANHOCPHI"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_gdtt_total_success
+    AFTER INSERT OR UPDATE OF "SoTienThanhToan", "TrangThai", "SoPhieuThu", "SoPhieuDangKy"
+    ON "GIAODICHTHANHTOANHOCPHI"
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_fn_gdtt_total_success();
+  `);
+
+  await prisma.$executeRawUnsafe(`
     CREATE OR REPLACE FUNCTION fn_rbtv35_han_dong_hoc_phi(p_so_phieu INTEGER)
     RETURNS TIMESTAMP AS $$
     DECLARE
@@ -2737,6 +2924,14 @@ const ensureAuthSchema = async () => {
       SELECT COALESCE(SUM("SoTienThu"), 0)
       INTO v_tong_da_thu
       FROM "PHIEUTHUHOCPHI"
+      WHERE "SoPhieuDangKy" = p_so_phieu
+        AND "TrangThai" = 'Thành công'
+        AND "NgayXacNhan" >= v_bat_dau
+        AND "NgayXacNhan" < v_han_exclusive;
+
+      SELECT COALESCE(SUM("SoTienThanhToan"), v_tong_da_thu)
+      INTO v_tong_da_thu
+      FROM "GIAODICHTHANHTOANHOCPHI"
       WHERE "SoPhieuDangKy" = p_so_phieu
         AND "TrangThai" = 'Thành công'
         AND "NgayXacNhan" >= v_bat_dau
@@ -2817,6 +3012,15 @@ const ensureAuthSchema = async () => {
     CREATE TRIGGER trg_rbtv35_phieuthuhocphi_han_dong
     BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "TrangThai", "NgayXacNhan"
     ON "PHIEUTHUHOCPHI"
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong();
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_rbtv35_gdtt_han_dong ON "GIAODICHTHANHTOANHOCPHI"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_rbtv35_gdtt_han_dong
+    BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "TrangThai", "NgayXacNhan"
+    ON "GIAODICHTHANHTOANHOCPHI"
     FOR EACH ROW
     EXECUTE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong();
   `);
@@ -2966,8 +3170,10 @@ const ensureAuthSchema = async () => {
       JOIN "TIETHOC" teo ON teo."MaTiet" = lh_old."MaTietKetThuc"
       WHERE p_new."SoPhieu" = NEW."SoPhieu"
         AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
-        AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
-        AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END;
+        AND tbn."ThuTu" <= ten."ThuTu"
+        AND tbo."ThuTu" <= teo."ThuTu"
+        AND tbn."ThuTu" <= teo."ThuTu"
+        AND tbo."ThuTu" <= ten."ThuTu";
 
       IF conflict_count > 0 THEN
         RAISE EXCEPTION 'Sinh vien bi trung lich hoc trong hoc ky nay';

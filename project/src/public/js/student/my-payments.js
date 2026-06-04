@@ -60,7 +60,7 @@ async function loadMyPayments(page) {
       }).join('');
     } else {
       studentPaymentCache = {};
-      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Chưa có lịch sử thanh toán</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Chưa có phiếu thu</div></td></tr>';
     }
 
     renderClientPagination('payments-pagination', res.pagination, 'loadMyPayments');

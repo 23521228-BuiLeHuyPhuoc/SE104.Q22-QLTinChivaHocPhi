@@ -8,6 +8,7 @@ const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { buildRegistrationStudentRows, buildRegistrationDistribution, getRegistrationSemesterName } = require('../utils/registrationStats');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../utils/businessConstants');
 const { createCourseRegistrationNotification } = require('../utils/notificationEvents');
+const { getTransactionTotalsByRegistration, getEffectivePaid } = require('../utils/paymentLedger');
 
 const ACTIVE_REGISTRATION_STATUS = REGISTRATION_STATUS.ACTIVE;
 const CANCELLED_REGISTRATION_STATUS = REGISTRATION_STATUS.CANCELLED;
@@ -506,8 +507,10 @@ const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop, options = {}) 
       AND lm_new."MaLop" = ${maLop}
       AND COALESCE(lm_new."TrangThai", TRUE) = TRUE
       AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
-      AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
-      AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END
+      AND tbn."ThuTu" <= ten."ThuTu"
+      AND tbo."ThuTu" <= teo."ThuTu"
+      AND tbn."ThuTu" <= teo."ThuTu"
+      AND tbo."ThuTu" <= ten."ThuTu"
       ${excludeCurrentClassCondition}
     LIMIT 1
   `;
@@ -800,17 +803,27 @@ const getStudentCourses = async (req, res) => {
 
     const totalCreditsRegistered = Number(totals._sum.SoTinChi || 0);
     const totalTuitionBeforeDiscount = Number(totals._sum.ThanhTien || 0);
+    const paymentTotalsByRegistration = await getTransactionTotalsByRegistration(
+      prisma,
+      rows.map((row) => row.PHIEUDANGKY?.SoPhieu).filter(Boolean)
+    );
 
     const courses = rows.map((row) => {
       const monHoc = row.MONHOC || row.LOP?.MONHOC || {};
       const semesterDisplay = getRegistrationSemesterName(row.PHIEUDANGKY);
       const openedClasses = (row.LOP?.LOPMO || []).filter((item) => item.MaHocKy === row.PHIEUDANGKY?.MaHocKy);
       const currentOpened = openedClasses[0] || null;
-      const lockedByPayment = hasSuccessfulPayment(row.PHIEUDANGKY);
+      const paymentTotals = paymentTotalsByRegistration.get(Number(row.PHIEUDANGKY?.SoPhieu)) || null;
+      const paidAmount = paymentTotals ? getEffectivePaid(paymentTotals) : 0;
+      const lockedByPayment = paidAmount > 0 || hasSuccessfulPayment(row.PHIEUDANGKY);
       const registrationWindow = getRegistrationWindowState(row.PHIEUDANGKY?.HOCKY);
       const appealWindow = getAppealWindowState(row.PHIEUDANGKY?.HOCKY);
       const lockedByWindow = !registrationWindow.isOpen;
       const isActive = row.TrangThai === ACTIVE_REGISTRATION_STATUS;
+      const tuitionDueDate = row.PHIEUDANGKY?.HOCKY?.HanDongHocPhi ? new Date(row.PHIEUDANGKY.HOCKY.HanDongHocPhi) : null;
+      const amountDue = Number(row.PHIEUDANGKY?.TongTienPhaiDong || 0);
+      const camThiCuoiKy = isActive && amountDue > paidAmount && tuitionDueDate && tuitionDueDate < new Date();
+      const displayStatus = camThiCuoiKy ? 'Cấm thi cuối kỳ' : row.TrangThai;
       const canAppeal = appealWindow.isOpen && isActive && !lockedByPayment;
       const cancelLockMessage = lockedByPayment
         ? PAID_REGISTRATION_LOCK_MESSAGE
@@ -833,7 +846,10 @@ const getStudentCourses = async (req, res) => {
         LoaiDangKyLabel: getRegistrationTypeLabel(row.LoaiDangKy),
         DonGia: row.DonGia,
         ThanhTien: row.ThanhTien,
-        TrangThai: row.TrangThai,
+        TrangThai: displayStatus,
+        TrangThaiDangKy: row.TrangThai,
+        CamThiCuoiKy: Boolean(camThiCuoiKy),
+        LyDoCamThi: camThiCuoiKy ? 'Quá hạn đóng học phí và chưa hoàn thành học phí' : null,
         NgayDangKy: row.NgayDangKy,
         NgayHuy: row.NgayHuy,
         LyDoHuy: row.LyDoHuy,

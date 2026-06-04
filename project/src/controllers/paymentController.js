@@ -7,6 +7,19 @@ const { assertRegistrationPeriodClosedForPayment } = require('../utils/paymentRu
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { PAYMENT_STATUS, PAYMENT_METHOD, APPEAL_STATUS } = require('../utils/businessConstants');
 const { createTuitionPaymentNotification } = require('../utils/notificationEvents');
+const {
+  emptyTotals,
+  toNumber,
+  getTransactionTotalsByRegistration,
+  getTransactionTotalsByReceipt,
+  getReceiptTransactions,
+  getLatestPendingTransaction,
+  getTransactionById,
+  getEffectivePaid,
+  getReceiptRemaining,
+  getRegistrationRemaining,
+  attachReceiptSummaries
+} = require('../utils/paymentLedger');
 
 const PAYMENT_UNPAID = PAYMENT_STATUS.UNPAID;
 const PAYMENT_SUCCESS = PAYMENT_STATUS.SUCCESS;
@@ -14,7 +27,7 @@ const PAYMENT_PENDING = PAYMENT_STATUS.PENDING;
 const PAYMENT_FAILED = PAYMENT_STATUS.FAILED;
 const PAYMENT_CANCELLED = PAYMENT_STATUS.CANCELLED;
 const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
-const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING];
+const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_FAILED];
 const PAYMENT_SEARCH_FIELDS = new Set(['all', 'SoPhieuThu', 'MaSv', 'HoTen']);
 
 const getPaymentSearchValues = (row, searchField = 'all') => {
@@ -84,17 +97,17 @@ const getPendingAppealCount = (maHocKy, maSv) => prisma.DONCUUXETDANGKY.count({
   }
 });
 
-const getRemainingAmount = (registration) => {
-  const amountDue = Number(registration?.TongTienPhaiDong || 0);
-  const payments = registration?.PHIEUTHUHOCPHI || [];
-  const paid = payments
-    .filter((p) => p.TrangThai === PAYMENT_SUCCESS)
-    .reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
-  const refunded = payments
-    .filter((p) => p.TrangThai === PAYMENT_REFUND)
-    .reduce((sum, p) => sum + Number(p.SoTienThu || 0), 0);
-  return Math.max(amountDue - paid + refunded, 0);
+const getRegistrationPaymentTotals = async (registration, client = prisma) => {
+  const soPhieu = Number(registration?.SoPhieu);
+  if (!Number.isFinite(soPhieu)) return emptyTotals();
+  const totals = await getTransactionTotalsByRegistration(client, [soPhieu]);
+  return totals.get(soPhieu) || emptyTotals();
 };
+
+const getRemainingAmount = async (registration, client = prisma) => getRegistrationRemaining(
+  registration,
+  await getRegistrationPaymentTotals(registration, client)
+);
 
 const getMinimumCreditsForPayment = async () => {
   const settings = await prisma.THAMSO.findFirst({ select: { SoTinChiDangKyToiThieu: true } });
@@ -143,6 +156,12 @@ const toPaymentDto = (p) => ({
   HocKyLabel: getSemesterKindLabel(p.PHIEUDANGKY?.HOCKY),
   HocKyDisplay: getSemesterDisplayLabel(p.PHIEUDANGKY?.HOCKY),
   SoTienThu: Number(p.SoTienThu || 0),
+  TongTienDaThanhToan: Number(p.TongTienDaThanhToan || 0),
+  TongTienDangChoXacNhan: Number(p.TongTienDangChoXacNhan || 0),
+  ConNoPhieuThu: Number(p.ConNoPhieuThu || 0),
+  ConNoDangKy: Number(p.ConNoDangKy || 0),
+  SoTienThanhToanToiDa: Number(p.SoTienThanhToanToiDa || p.ConNoPhieuThu || 0),
+  LanThanhToan: p.LanThanhToan || p.transactions || [],
   HinhThucThu: p.HinhThucThu,
   PaymentProvider: p.PaymentProvider,
   PaymentChannel: p.PaymentChannel,
@@ -156,16 +175,16 @@ const toPaymentDto = (p) => ({
   QrPayload: p.QrPayload
 });
 
-const assertPayableAmount = (registration, amount) => {
+const assertPayableAmount = async (registration, amount) => {
   if (!registration) throw { status: 404, message: 'Không tìm thấy học phí cần đóng' };
-  const remaining = getRemainingAmount(registration);
+  const remaining = await getRemainingAmount(registration);
   const payAmount = amount === undefined || amount === null || amount === '' ? remaining : Number(amount);
   if (!Number.isFinite(payAmount) || payAmount <= 0) throw { status: 400, message: 'Số tiền thanh toán không hợp lệ' };
   if (payAmount > remaining) throw { status: 400, message: 'Số tiền thanh toán không được vượt số tiền còn phải đóng của phiếu' };
   return payAmount;
 };
 
-const buildVnpayUrl = (receipt, amount, req) => {
+const buildVnpayUrl = (receipt, amount, req, transactionRef = String(receipt.SoPhieuThu)) => {
   const tmnCode = process.env.VNPAY_TMN_CODE || 'SANDBOX';
   const secret = process.env.VNPAY_HASH_SECRET || 'sandbox-secret';
   const returnUrl = process.env.VNPAY_RETURN_URL || `${req.protocol}://${req.get('host')}/api/payments/vnpay-return`;
@@ -176,7 +195,7 @@ const buildVnpayUrl = (receipt, amount, req) => {
     vnp_TmnCode: tmnCode,
     vnp_Amount: Math.round(amount * 100),
     vnp_CurrCode: 'VND',
-    vnp_TxnRef: String(receipt.SoPhieuThu),
+    vnp_TxnRef: String(transactionRef),
     vnp_OrderInfo: `Thanh toán học phí ${receipt.SoPhieuThu}`,
     vnp_OrderType: 'billpayment',
     vnp_Locale: 'vn',
@@ -190,9 +209,9 @@ const buildVnpayUrl = (receipt, amount, req) => {
   return `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?${qs}&vnp_SecureHash=${secureHash}`;
 };
 
-const buildZalopayUrl = (receipt, amount) => {
+const buildZalopayUrl = (receipt, amount, transactionRef = String(receipt.SoPhieuThu)) => {
   const appId = process.env.ZALOPAY_APP_ID || '2553';
-  const appTransId = `${new Date().toISOString().slice(2, 10).replace(/-/g, '')}_${receipt.SoPhieuThu}`;
+  const appTransId = `${new Date().toISOString().slice(2, 10).replace(/-/g, '')}_${transactionRef}`;
   const payload = new URLSearchParams({
     app_id: appId,
     app_trans_id: appTransId,
@@ -215,6 +234,50 @@ const buildVietQrPayload = (registration, receipt, amount) => {
   return `https://img.vietqr.io/image/${bankBin}-${accountNo}-compact2.png?${query.toString()}`;
 };
 
+const syncReceiptStatus = async (client, receiptId, options = {}) => {
+  const receipt = await client.PHIEUTHUHOCPHI.findUnique({
+    where: { SoPhieuThu: Number(receiptId) },
+    include: { PHIEUDANGKY: true }
+  });
+  if (!receipt) return null;
+  if (receipt.TrangThai === PAYMENT_CANCELLED) return receipt;
+
+  const totalsByReceipt = await getTransactionTotalsByReceipt(client, [receipt.SoPhieuThu]);
+  const totals = totalsByReceipt.get(Number(receipt.SoPhieuThu)) || emptyTotals();
+  const remaining = getReceiptRemaining(receipt, totals);
+
+  let nextStatus = PAYMENT_UNPAID;
+  if (toNumber(totals.pending) > 0) nextStatus = PAYMENT_PENDING;
+  else if (remaining <= 0 && toNumber(receipt.SoTienThu) > 0) nextStatus = PAYMENT_SUCCESS;
+  else if (options.failed) nextStatus = PAYMENT_FAILED;
+
+  const latestRows = await client.$queryRaw`
+    SELECT *
+    FROM "GIAODICHTHANHTOANHOCPHI"
+    WHERE "SoPhieuThu" = ${Number(receipt.SoPhieuThu)}
+      AND "TrangThai" IN (${PAYMENT_SUCCESS}, ${PAYMENT_PENDING}, ${PAYMENT_FAILED})
+    ORDER BY "NgayCapNhat" DESC NULLS LAST, "NgayTao" DESC, "MaGiaoDichThanhToan" DESC
+    LIMIT 1
+  `;
+  const latest = latestRows[0] || null;
+
+  return client.PHIEUTHUHOCPHI.update({
+    where: { SoPhieuThu: receipt.SoPhieuThu },
+    data: {
+      TrangThai: nextStatus,
+      HinhThucThu: latest?.HinhThucThanhToan || receipt.HinhThucThu,
+      PaymentProvider: latest?.PaymentProvider || receipt.PaymentProvider,
+      PaymentChannel: latest?.PaymentChannel || receipt.PaymentChannel,
+      MaGiaoDich: latest?.MaGiaoDich || receipt.MaGiaoDich,
+      CheckoutUrl: latest?.CheckoutUrl || null,
+      QrPayload: latest?.QrPayload || null,
+      NguoiThu: nextStatus === PAYMENT_SUCCESS ? (latest?.NguoiXacNhan || receipt.NguoiThu) : receipt.NguoiThu,
+      NgayXacNhan: nextStatus === PAYMENT_SUCCESS ? (latest?.NgayXacNhan || new Date()) : null,
+      NgayCapNhat: new Date()
+    }
+  });
+};
+
 const getAllPayments = async (req, res) => {
   try {
     const { page, limit } = getPagination(req.query);
@@ -229,7 +292,10 @@ const getAllPayments = async (req, res) => {
       orderBy: { NgayLap: 'desc' },
       include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
     });
-    const filtered = filterRowsByRegex(rows, search, (row) => getPaymentSearchValues(row, searchField));
+    const totalsByReceipt = await getTransactionTotalsByReceipt(prisma, rows.map((row) => row.SoPhieuThu));
+    const totalsByRegistration = await getTransactionTotalsByRegistration(prisma, rows.map((row) => row.SoPhieuDangKy));
+    const enrichedRows = attachReceiptSummaries(rows, totalsByReceipt, totalsByRegistration);
+    const filtered = filterRowsByRegex(enrichedRows, search, (row) => getPaymentSearchValues(row, searchField));
     const data = paginateRows(filtered, page, limit).map(toPaymentDto);
     res.json({ success: true, data, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
@@ -241,7 +307,18 @@ const getPaymentById = async (req, res) => {
   try {
     const p = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: parseInt(req.params.id, 10) }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } });
     if (!p) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
-    res.json({ success: true, data: toPaymentDto(p) });
+    if (!(await ensureStudentAccess(req, res, p.MaSv))) return;
+    const [totalsByReceipt, totalsByRegistration, transactions] = await Promise.all([
+      getTransactionTotalsByReceipt(prisma, [p.SoPhieuThu]),
+      getTransactionTotalsByRegistration(prisma, [p.SoPhieuDangKy]),
+      getReceiptTransactions(prisma, p.SoPhieuThu)
+    ]);
+    const enriched = attachReceiptSummaries([p], totalsByReceipt, totalsByRegistration)[0];
+    enriched.LanThanhToan = transactions.map((item) => ({
+      ...item,
+      SoTienThanhToan: Number(item.SoTienThanhToan || 0)
+    }));
+    res.json({ success: true, data: toPaymentDto(enriched) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get payment by ID error:');
   }
@@ -263,9 +340,11 @@ const getStudentPayments = async (req, res) => {
       }),
       prisma.PHIEUTHUHOCPHI.count({ where })
     ]);
+    const totalsByReceipt = await getTransactionTotalsByReceipt(prisma, rows.map((row) => row.SoPhieuThu));
+    const totalsByRegistration = await getTransactionTotalsByRegistration(prisma, rows.map((row) => row.SoPhieuDangKy));
     res.json({
       success: true,
-      data: rows.map(toPaymentDto),
+      data: attachReceiptSummaries(rows, totalsByReceipt, totalsByRegistration).map(toPaymentDto),
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
@@ -280,7 +359,7 @@ const createPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng cung cấp phiếu đăng ký hoặc MSSV và học kỳ' });
     }
     const registration = await getRegistrationWithReceipts({ SoPhieu: SoPhieuDangKy, MaSv, MaHocKy });
-    const amount = assertPayableAmount(registration, SoTienThu);
+    const amount = await assertPayableAmount(registration, SoTienThu);
     await assertPaymentWindowOpen(registration);
 
     const activeReceipt = getActiveReceipt(registration);
@@ -330,10 +409,7 @@ const createBulkPayments = async (req, res) => {
     const created = [];
     const skipped = [];
     for (const registration of registrations) {
-      const amount = getRemainingAmount({
-        ...registration,
-        PHIEUTHUHOCPHI: registration.PHIEUTHUHOCPHI.filter((p) => [PAYMENT_SUCCESS, PAYMENT_REFUND].includes(p.TrangThai))
-      });
+      const amount = await getRemainingAmount(registration);
       if (amount <= 0) {
         skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, HoTen: registration.SINHVIEN?.HoTen || '', reason: 'Không còn nợ' });
         continue;
@@ -389,7 +465,7 @@ const createBulkPayments = async (req, res) => {
 const checkoutPayment = async (req, res) => {
   try {
     const receiptId = parseInt(req.params.id || req.body.SoPhieuThu || req.body.id, 10);
-    const { SoPhieu, MaSv, MaHocKy, SoTienThu, method = 'cash' } = req.body;
+    const { SoPhieu, MaSv, MaHocKy, SoTienThu, method = 'cash', paymentMode = 'full' } = req.body;
     let receipt = Number.isFinite(receiptId) ? await prisma.PHIEUTHUHOCPHI.findUnique({
       where: { SoPhieuThu: receiptId },
       include: {
@@ -413,7 +489,7 @@ const checkoutPayment = async (req, res) => {
       }
     }
 
-    if (!receipt) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu cần thanh toán' });
+    if (!receipt) return res.status(404).json({ success: false, message: 'Chưa có phiếu thu để thanh toán. Vui lòng liên hệ phòng tài chính hoặc chờ admin tạo phiếu thu.' });
     const registration = receipt.PHIEUDANGKY;
     if (!(await ensureStudentAccess(req, res, receipt.MaSv))) return;
     if (receipt.TrangThai === PAYMENT_SUCCESS) return res.status(400).json({ success: false, message: 'Phiếu thu đã thanh toán thành công' });
@@ -424,14 +500,15 @@ const checkoutPayment = async (req, res) => {
     const amount = Number(receipt.SoTienThu || 0);
     const requestedAmount = SoTienThu === undefined || SoTienThu === null || SoTienThu === '' ? amount : Number(SoTienThu);
     if (!Number.isFinite(requestedAmount) || requestedAmount !== amount) {
-      return res.status(400).json({ success: false, message: 'Số tiền thanh toán phải đúng bằng số tiền trên phiếu thu' });
+      return res.status(400).json({ success: false, message: 'Sinh viên chỉ được thanh toán đúng số tiền trên phiếu thu. Nếu cần đóng một phần khác, admin phải tạo phiếu thu cho phần đó.' });
     }
-    const remaining = getRemainingAmount(registration);
+    const remaining = await getRemainingAmount(registration);
     if (amount > remaining) {
       return res.status(400).json({ success: false, message: 'Số tiền trên phiếu thu không được vượt số tiền còn phải đóng hiện tại' });
     }
 
     const provider = String(method).toLowerCase();
+    const normalizedPaymentMode = String(paymentMode || 'full').toLowerCase() === 'partial' ? 'partial' : 'full';
     const isCash = provider === 'cash';
     const isQr = provider === 'qr' || provider === 'bank_qr';
     const hinhThuc = isCash ? PAYMENT_METHOD.CASH : isQr ? PAYMENT_METHOD.BANK_TRANSFER : PAYMENT_METHOD.E_WALLET;
@@ -456,7 +533,11 @@ const checkoutPayment = async (req, res) => {
         NgayCapNhat: new Date(),
         CheckoutUrl: checkoutUrl,
         QrPayload: qrPayload,
-        GhiChu: isCash ? 'Sinh viên đăng ký đóng tiền mặt' : null
+        GhiChu: [
+          receipt.GhiChu,
+          normalizedPaymentMode === 'partial' ? 'Sinh viên chọn thanh toán phiếu thu một phần do admin lập' : 'Sinh viên chọn thanh toán toàn bộ phiếu thu',
+          isCash ? 'Sinh viên đăng ký đóng tiền mặt' : null
+        ].filter(Boolean).join(' | ')
       }
     });
 
@@ -468,6 +549,151 @@ const checkoutPayment = async (req, res) => {
   } catch (error) {
     if (error.status) return res.status(error.status).json({ success: false, message: error.message });
         return sendErrorResponse(res, error, 'Lỗi server', 'Checkout payment error:');
+  }
+};
+
+const checkoutPaymentV2 = async (req, res) => {
+  try {
+    const receiptId = parseInt(req.params.id || req.body.SoPhieuThu || req.body.id, 10);
+    const { SoPhieu, MaSv, MaHocKy, SoTienThu, method = 'cash', paymentMode = 'full' } = req.body;
+    let receipt = Number.isFinite(receiptId) ? await prisma.PHIEUTHUHOCPHI.findUnique({
+      where: { SoPhieuThu: receiptId },
+      include: {
+        PHIEUDANGKY: { include: { HOCKY: true } },
+        SINHVIEN: true
+      }
+    }) : null;
+
+    if (!receipt && SoPhieu) {
+      const currentStudentId = req.user?.Role === 'admin' ? MaSv : await getStudentIdFromRequest(req);
+      const registrationWithReceipts = await getRegistrationWithReceipts({ SoPhieu, MaSv: currentStudentId || MaSv, MaHocKy });
+      receipt = (registrationWithReceipts?.PHIEUTHUHOCPHI || []).find((item) => [PAYMENT_UNPAID, PAYMENT_FAILED].includes(item.TrangThai));
+      if (receipt) {
+        receipt = await prisma.PHIEUTHUHOCPHI.findUnique({
+          where: { SoPhieuThu: receipt.SoPhieuThu },
+          include: {
+            PHIEUDANGKY: { include: { HOCKY: true } },
+            SINHVIEN: true
+          }
+        });
+      }
+    }
+
+    if (!receipt) {
+      return res.status(404).json({ success: false, message: 'Chưa có phiếu thu để thanh toán. Vui lòng liên hệ phòng tài chính hoặc chờ admin tạo phiếu thu.' });
+    }
+    const registration = receipt.PHIEUDANGKY;
+    if (!(await ensureStudentAccess(req, res, receipt.MaSv))) return;
+    if (receipt.TrangThai === PAYMENT_SUCCESS) return res.status(400).json({ success: false, message: 'Phiếu thu đã thanh toán thành công' });
+    if (receipt.TrangThai === PAYMENT_CANCELLED) return res.status(400).json({ success: false, message: 'Phiếu thu đã bị hủy' });
+
+    await assertPaymentWindowOpen(registration);
+    const pendingTransaction = await getLatestPendingTransaction(prisma, receipt.SoPhieuThu);
+    if (pendingTransaction) {
+      return res.status(400).json({ success: false, message: 'Phiếu thu đang có lần thanh toán chờ xác nhận. Vui lòng chờ admin xử lý trước khi thanh toán tiếp.' });
+    }
+
+    const [totalsByReceipt, totalsByRegistration] = await Promise.all([
+      getTransactionTotalsByReceipt(prisma, [receipt.SoPhieuThu]),
+      getTransactionTotalsByRegistration(prisma, [registration.SoPhieu])
+    ]);
+    const receiptTotals = totalsByReceipt.get(Number(receipt.SoPhieuThu)) || emptyTotals();
+    const registrationTotals = totalsByRegistration.get(Number(registration.SoPhieu)) || emptyTotals();
+    const receiptRemaining = getReceiptRemaining(receipt, receiptTotals);
+    const registrationRemaining = getRegistrationRemaining(registration, registrationTotals);
+    const maxPayableAmount = Math.max(Math.min(receiptRemaining || registrationRemaining, registrationRemaining || receiptRemaining), 0);
+    if (maxPayableAmount <= 0) {
+      await syncReceiptStatus(prisma, receipt.SoPhieuThu);
+      return res.status(400).json({ success: false, message: 'Phiếu thu đã được thanh toán đủ' });
+    }
+
+    const requestedAmount = SoTienThu === undefined || SoTienThu === null || SoTienThu === '' ? maxPayableAmount : Number(SoTienThu);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Số tiền thanh toán không hợp lệ' });
+    }
+    if (requestedAmount > maxPayableAmount) {
+      return res.status(400).json({ success: false, message: 'Số tiền thanh toán không được vượt số tiền còn nợ của phiếu thu/phiếu đăng ký' });
+    }
+
+    const provider = String(method).toLowerCase();
+    const normalizedPaymentMode = String(paymentMode || 'full').toLowerCase() === 'partial' ? 'partial' : 'full';
+    const isCash = provider === 'cash';
+    const isQr = provider === 'qr' || provider === 'bank_qr';
+    const hinhThuc = isCash ? PAYMENT_METHOD.CASH : isQr ? PAYMENT_METHOD.BANK_TRANSFER : PAYMENT_METHOD.E_WALLET;
+    const paymentChannel = req.user?.Role === 'admin' ? 'admin' : 'student';
+
+    const transaction = await prisma.$transaction(async (tx) => {
+      const insertedRows = await tx.$queryRaw`
+        INSERT INTO "GIAODICHTHANHTOANHOCPHI" (
+          "SoPhieuThu", "SoPhieuDangKy", "MaSv", "SoTienThanhToan", "HinhThucThanhToan",
+          "PaymentProvider", "PaymentChannel", "GhiChu", "TrangThai", "NgayTao", "NgayCapNhat"
+        ) VALUES (
+          ${receipt.SoPhieuThu}, ${registration.SoPhieu}, ${receipt.MaSv}, ${requestedAmount}, ${hinhThuc},
+          ${provider}, ${paymentChannel}, ${[
+            normalizedPaymentMode === 'partial' ? 'Sinh viên chọn thanh toán một phần' : 'Sinh viên chọn thanh toán toàn bộ phần còn nợ',
+            isCash ? 'Sinh viên đăng ký đóng tiền mặt' : null
+          ].filter(Boolean).join(' | ')}, ${PAYMENT_PENDING}, ${new Date()}, ${new Date()}
+        )
+        RETURNING *
+      `;
+      const paymentAttempt = insertedRows[0];
+      const transactionRef = `TX-${paymentAttempt.MaGiaoDichThanhToan}`;
+      const transactionCode = `${provider.toUpperCase()}-${Date.now()}-${receipt.SoPhieuThu}-${paymentAttempt.MaGiaoDichThanhToan}`;
+      const checkoutUrl = provider === 'vnpay'
+        ? buildVnpayUrl(receipt, requestedAmount, req, transactionRef)
+        : provider === 'zalopay'
+          ? buildZalopayUrl(receipt, requestedAmount, transactionRef)
+          : null;
+      const qrPayload = isQr ? buildVietQrPayload(registration, receipt, requestedAmount) : null;
+      const updatedRows = await tx.$queryRaw`
+        UPDATE "GIAODICHTHANHTOANHOCPHI"
+        SET "MaGiaoDich" = ${transactionCode},
+            "CheckoutUrl" = ${checkoutUrl},
+            "QrPayload" = ${qrPayload},
+            "NgayCapNhat" = ${new Date()}
+        WHERE "MaGiaoDichThanhToan" = ${paymentAttempt.MaGiaoDichThanhToan}
+        RETURNING *
+      `;
+      await tx.PHIEUTHUHOCPHI.update({
+        where: { SoPhieuThu: receipt.SoPhieuThu },
+        data: {
+          HinhThucThu: hinhThuc,
+          PaymentProvider: provider,
+          PaymentChannel: paymentChannel,
+          MaGiaoDich: transactionCode,
+          NguoiThu: null,
+          TrangThai: PAYMENT_PENDING,
+          NgayXacNhan: null,
+          NgayCapNhat: new Date(),
+          CheckoutUrl: checkoutUrl,
+          QrPayload: qrPayload
+        }
+      });
+      return updatedRows[0];
+    });
+
+    const refreshedReceipt = await prisma.PHIEUTHUHOCPHI.findUnique({
+      where: { SoPhieuThu: receipt.SoPhieuThu },
+      include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+    });
+    const refreshedTotalsByReceipt = await getTransactionTotalsByReceipt(prisma, [receipt.SoPhieuThu]);
+    const refreshedTotalsByRegistration = await getTransactionTotalsByRegistration(prisma, [registration.SoPhieu]);
+    const enrichedReceipt = attachReceiptSummaries([refreshedReceipt], refreshedTotalsByReceipt, refreshedTotalsByRegistration)[0];
+
+    res.status(201).json({
+      success: true,
+      message: 'Đã tạo yêu cầu thanh toán',
+      data: {
+        receipt: toPaymentDto(enrichedReceipt),
+        transaction: { ...transaction, SoTienThanhToan: Number(transaction.SoTienThanhToan || 0) },
+        checkoutUrl: transaction.CheckoutUrl,
+        qrPayload: transaction.QrPayload,
+        remainingAmount: Math.max(registrationRemaining - requestedAmount, 0)
+      }
+    });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+    return sendErrorResponse(res, error, 'Lỗi server', 'Checkout payment error:');
   }
 };
 
@@ -528,7 +754,7 @@ const markOnlineResult = async (receiptId, success, transactionCode, providerAmo
     if (confirmedAmount !== receiptAmount) {
       throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_MISMATCH', message: 'Số tiền callback từ cổng thanh toán không khớp phiếu thu' };
     }
-    const remaining = getRemainingAmount(existing.PHIEUDANGKY);
+    const remaining = await getRemainingAmount(existing.PHIEUDANGKY);
     if (receiptAmount > remaining) {
       throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'Số tiền callback không được vượt học phí còn phải đóng hoặc phiếu đã được thanh toán bằng giao dịch khác' };
     }
@@ -550,6 +776,66 @@ const markOnlineResult = async (receiptId, success, transactionCode, providerAmo
     MaGiaoDich: payment.MaGiaoDich,
     ThanhCong: payment.TrangThai === PAYMENT_SUCCESS,
     LyDo: payment.TrangThai === PAYMENT_FAILED ? 'Cổng thanh toán trả về kết quả thất bại' : null
+  });
+  return payment;
+};
+
+const parsePaymentTransactionRef = (value) => {
+  const text = String(value || '');
+  const match = /^TX-(\d+)$/.exec(text);
+  return match ? Number(match[1]) : null;
+};
+
+const markOnlineResultV2 = async (paymentRef, success, transactionCode, providerAmount) => {
+  let transactionId = parsePaymentTransactionRef(paymentRef);
+
+  if (!transactionId) {
+    const pending = await getLatestPendingTransaction(prisma, paymentRef);
+    transactionId = pending?.MaGiaoDichThanhToan || null;
+  }
+
+  if (!transactionId) return markOnlineResult(paymentRef, success, transactionCode, providerAmount);
+
+  const transaction = await getTransactionById(prisma, transactionId);
+  if (!transaction) return null;
+  const receipt = await prisma.PHIEUTHUHOCPHI.findUnique({
+    where: { SoPhieuThu: Number(transaction.SoPhieuThu) },
+    include: {
+      PHIEUDANGKY: { include: { HOCKY: true } }
+    }
+  });
+  if (!receipt) return null;
+  if (transaction.TrangThai !== PAYMENT_PENDING) return syncReceiptStatus(prisma, receipt.SoPhieuThu);
+
+  if (success) {
+    await assertPaymentWindowOpen(receipt.PHIEUDANGKY);
+    const amount = Number(transaction.SoTienThanhToan || 0);
+    const confirmedAmount = Number(providerAmount);
+    if (!Number.isFinite(confirmedAmount) || confirmedAmount <= 0) {
+      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_INVALID', message: 'Số tiền callback từ cổng thanh toán không hợp lệ' };
+    }
+    if (confirmedAmount !== amount) {
+      throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_MISMATCH', message: 'Số tiền callback từ cổng thanh toán không khớp lần thanh toán' };
+    }
+  }
+
+  await prisma.$queryRaw`
+    UPDATE "GIAODICHTHANHTOANHOCPHI"
+    SET "TrangThai" = ${success ? PAYMENT_SUCCESS : PAYMENT_FAILED},
+        "MaGiaoDich" = ${transactionCode || transaction.MaGiaoDich},
+        "NgayXacNhan" = ${success ? new Date() : null},
+        "NgayCapNhat" = ${new Date()}
+    WHERE "MaGiaoDichThanhToan" = ${transaction.MaGiaoDichThanhToan}
+    RETURNING *
+  `;
+  const payment = await syncReceiptStatus(prisma, receipt.SoPhieuThu, { failed: !success });
+  await createTuitionPaymentNotification(prisma, {
+    MaSv: transaction.MaSv,
+    SoPhieuThu: transaction.SoPhieuThu,
+    SoTienThu: transaction.SoTienThanhToan,
+    MaGiaoDich: transactionCode || transaction.MaGiaoDich,
+    ThanhCong: success,
+    LyDo: success ? null : 'Cổng thanh toán trả về kết quả thất bại'
   });
   return payment;
 };
@@ -577,7 +863,7 @@ const vnpayReturn = async (req, res) => {
     }
     const success = req.query.vnp_ResponseCode === '00';
     const providerAmount = parseVnpayCallbackAmount(req.query);
-    const payment = await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo, providerAmount);
+    const payment = await markOnlineResultV2(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo, providerAmount);
     const accepts = String(req.get('accept') || '').toLowerCase();
     const wantsJson = req.query.format === 'json' || (accepts.includes('application/json') && !accepts.includes('text/html'));
     if (!payment) {
@@ -603,7 +889,7 @@ const vnpayIpn = async (req, res) => {
     }
     const success = req.query.vnp_ResponseCode === '00';
     const providerAmount = parseVnpayCallbackAmount(req.query);
-    await markOnlineResult(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo, providerAmount);
+    await markOnlineResultV2(req.query.vnp_TxnRef, success, req.query.vnp_TransactionNo, providerAmount);
     res.json({ RspCode: '00', Message: 'Confirm Success' });
   } catch (error) {
     console.error('VNPAY IPN error:', error);
@@ -629,7 +915,7 @@ const zalopayCallback = async (req, res) => {
     const receiptId = String(payload.app_trans_id || '').split('_').pop();
     const success = Number(payload.status || payload.return_code || 0) === 1;
     const providerAmount = parseCallbackAmount(payload.amount);
-    await markOnlineResult(receiptId, success, payload.zp_trans_id, providerAmount);
+    await markOnlineResultV2(receiptId, success, payload.zp_trans_id, providerAmount);
     res.json({ return_code: 1, return_message: 'success' });
   } catch (error) {
     console.error('ZaloPay callback error:', error);
@@ -662,7 +948,7 @@ const confirmPayment = async (req, res) => {
     }
     await assertPaymentWindowOpen(existing.PHIEUDANGKY);
 
-    const remaining = getRemainingAmount(existing.PHIEUDANGKY);
+    const remaining = await getRemainingAmount(existing.PHIEUDANGKY);
     if (Number(existing.SoTienThu || 0) > remaining) {
       return res.status(400).json({ success: false, message: 'Số tiền phiếu thu không được vượt số học phí còn phải đóng' });
     }
@@ -743,6 +1029,154 @@ const failPayment = async (req, res) => {
   }
 };
 
+const getEnrichedReceiptById = async (receiptId) => {
+  const receipt = await prisma.PHIEUTHUHOCPHI.findUnique({
+    where: { SoPhieuThu: Number(receiptId) },
+    include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+  });
+  if (!receipt) return null;
+  const [totalsByReceipt, totalsByRegistration, transactions] = await Promise.all([
+    getTransactionTotalsByReceipt(prisma, [receipt.SoPhieuThu]),
+    getTransactionTotalsByRegistration(prisma, [receipt.SoPhieuDangKy]),
+    getReceiptTransactions(prisma, receipt.SoPhieuThu)
+  ]);
+  const enriched = attachReceiptSummaries([receipt], totalsByReceipt, totalsByRegistration)[0];
+  enriched.LanThanhToan = transactions.map((item) => ({
+    ...item,
+    SoTienThanhToan: Number(item.SoTienThanhToan || 0)
+  }));
+  return enriched;
+};
+
+const confirmPaymentV2 = async (req, res) => {
+  try {
+    const receiptId = parseInt(req.params.id, 10);
+    const existing = await prisma.PHIEUTHUHOCPHI.findUnique({
+      where: { SoPhieuThu: receiptId },
+      include: { PHIEUDANGKY: { include: { HOCKY: true } } }
+    });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
+    if (existing.TrangThai === PAYMENT_CANCELLED) return res.status(400).json({ success: false, message: 'Phiếu thu đã bị hủy' });
+
+    const pending = await getLatestPendingTransaction(prisma, receiptId);
+    if (!pending) {
+      if (existing.TrangThai === PAYMENT_SUCCESS) {
+        return res.json({ success: true, message: 'Phiếu thu đã được thanh toán đủ', data: toPaymentDto(await getEnrichedReceiptById(receiptId)) });
+      }
+      return res.status(400).json({ success: false, message: 'Phiếu thu không có lần thanh toán nào đang chờ xác nhận' });
+    }
+
+    await assertPaymentWindowOpen(existing.PHIEUDANGKY);
+    const [receiptTotalsMap, registrationTotalsMap] = await Promise.all([
+      getTransactionTotalsByReceipt(prisma, [receiptId]),
+      getTransactionTotalsByRegistration(prisma, [existing.SoPhieuDangKy])
+    ]);
+    const maxPayable = Math.max(Math.min(
+      getReceiptRemaining(existing, receiptTotalsMap.get(receiptId) || emptyTotals()),
+      getRegistrationRemaining(existing.PHIEUDANGKY, registrationTotalsMap.get(existing.SoPhieuDangKy) || emptyTotals())
+    ), 0);
+    if (Number(pending.SoTienThanhToan || 0) > maxPayable) {
+      return res.status(400).json({ success: false, message: 'Số tiền lần thanh toán vượt số tiền còn nợ hiện tại' });
+    }
+
+    const actor = getActorName(req);
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        UPDATE "GIAODICHTHANHTOANHOCPHI"
+        SET "TrangThai" = ${PAYMENT_SUCCESS},
+            "NguoiXacNhan" = ${actor},
+            "NgayXacNhan" = ${new Date()},
+            "NgayCapNhat" = ${new Date()}
+        WHERE "MaGiaoDichThanhToan" = ${pending.MaGiaoDichThanhToan}
+      `;
+      await syncReceiptStatus(tx, receiptId);
+    });
+
+    await createTuitionPaymentNotification(prisma, {
+      MaSv: pending.MaSv,
+      SoPhieuThu: pending.SoPhieuThu,
+      SoTienThu: pending.SoTienThanhToan,
+      MaGiaoDich: pending.MaGiaoDich,
+      ThanhCong: true
+    });
+
+    const data = await getEnrichedReceiptById(receiptId);
+    res.json({ success: true, message: 'Đã xác nhận lần thanh toán', data: toPaymentDto(data) });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+    return sendErrorResponse(res, error, 'Lỗi server', 'Confirm payment error:');
+  }
+};
+
+const failPaymentV2 = async (req, res) => {
+  try {
+    const receiptId = parseInt(req.params.id, 10);
+    const existing = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: receiptId } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
+    if (existing.TrangThai === PAYMENT_CANCELLED) return res.status(400).json({ success: false, message: 'Phiếu thu đã bị hủy' });
+    const pending = await getLatestPendingTransaction(prisma, receiptId);
+    if (!pending) return res.status(400).json({ success: false, message: 'Phiếu thu không có lần thanh toán nào đang chờ xác nhận' });
+    const reason = req.body?.LyDo ? String(req.body.LyDo).trim() : null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        UPDATE "GIAODICHTHANHTOANHOCPHI"
+        SET "TrangThai" = ${PAYMENT_FAILED},
+            "GhiChu" = ${reason || pending.GhiChu},
+            "NgayXacNhan" = NULL,
+            "NgayCapNhat" = ${new Date()}
+        WHERE "MaGiaoDichThanhToan" = ${pending.MaGiaoDichThanhToan}
+      `;
+      await syncReceiptStatus(tx, receiptId, { failed: true });
+    });
+
+    await createTuitionPaymentNotification(prisma, {
+      MaSv: pending.MaSv,
+      SoPhieuThu: pending.SoPhieuThu,
+      SoTienThu: pending.SoTienThanhToan,
+      MaGiaoDich: pending.MaGiaoDich,
+      ThanhCong: false,
+      LyDo: reason
+    });
+
+    const data = await getEnrichedReceiptById(receiptId);
+    res.json({ success: true, message: 'Đã đánh dấu lần thanh toán thất bại', data: toPaymentDto(data) });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'Fail payment error:');
+  }
+};
+
+const cancelPaymentV2 = async (req, res) => {
+  try {
+    const receiptId = parseInt(req.params.id, 10);
+    const existing = await prisma.PHIEUTHUHOCPHI.findUnique({ where: { SoPhieuThu: receiptId } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu' });
+    if (existing.TrangThai === PAYMENT_CANCELLED) return res.status(400).json({ success: false, message: 'Phiếu thu đã được hủy trước đó' });
+    const totalsByReceipt = await getTransactionTotalsByReceipt(prisma, [receiptId]);
+    const totals = totalsByReceipt.get(receiptId) || emptyTotals();
+    if (getEffectivePaid(totals) > 0) {
+      return res.status(400).json({ success: false, message: 'Không thể hủy phiếu thu đã có lần thanh toán thành công. Vui lòng dùng hoàn tiền/xử lý tài chính.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        UPDATE "GIAODICHTHANHTOANHOCPHI"
+        SET "TrangThai" = ${PAYMENT_CANCELLED},
+            "NgayCapNhat" = ${new Date()}
+        WHERE "SoPhieuThu" = ${receiptId}
+          AND "TrangThai" = ${PAYMENT_PENDING}
+      `;
+      await tx.PHIEUTHUHOCPHI.update({
+        where: { SoPhieuThu: receiptId },
+        data: { TrangThai: PAYMENT_CANCELLED, NgayCapNhat: new Date(), CheckoutUrl: null, QrPayload: null }
+      });
+    });
+    res.json({ success: true, message: 'Hủy phiếu thu thành công' });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'Cancel payment error:');
+  }
+};
+
 const getPaymentStats = async (req, res) => {
   try {
     const where = { TrangThai: PAYMENT_SUCCESS };
@@ -759,6 +1193,35 @@ const getPaymentStats = async (req, res) => {
     res.json({ success: true, data: { totalReceipts: rows.length, totalAmount, byMethod: Object.values(byMethodMap) } });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get payment stats error:');
+  }
+};
+
+const getPaymentStatsV2 = async (req, res) => {
+  try {
+    const rows = req.query.MaHocKy
+      ? await prisma.$queryRaw`
+        SELECT gd.*
+        FROM "GIAODICHTHANHTOANHOCPHI" gd
+        JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = gd."SoPhieuDangKy"
+        WHERE gd."TrangThai" = ${PAYMENT_SUCCESS}
+          AND pdk."MaHocKy" = ${req.query.MaHocKy}
+      `
+      : await prisma.$queryRaw`
+        SELECT gd.*
+        FROM "GIAODICHTHANHTOANHOCPHI" gd
+        WHERE gd."TrangThai" = ${PAYMENT_SUCCESS}
+      `;
+    const totalAmount = rows.reduce((sum, row) => sum + Number(row.SoTienThanhToan || 0), 0);
+    const byMethodMap = rows.reduce((acc, row) => {
+      const key = row.PaymentProvider || row.HinhThucThanhToan || 'Khác';
+      if (!acc[key]) acc[key] = { HinhThucThu: key, count: 0, total: 0 };
+      acc[key].count += 1;
+      acc[key].total += Number(row.SoTienThanhToan || 0);
+      return acc;
+    }, {});
+    res.json({ success: true, data: { totalReceipts: rows.length, totalAmount, byMethod: Object.values(byMethodMap) } });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'Get payment stats error:');
   }
 };
 
@@ -810,13 +1273,13 @@ module.exports = {
   getStudentPayments,
   createPayment,
   createBulkPayments,
-  checkoutPayment,
+  checkoutPayment: checkoutPaymentV2,
   vnpayReturn,
   vnpayIpn,
   zalopayCallback,
-  confirmPayment,
-  cancelPayment,
-  failPayment,
-  getPaymentStats,
+  confirmPayment: confirmPaymentV2,
+  cancelPayment: cancelPaymentV2,
+  failPayment: failPaymentV2,
+  getPaymentStats: getPaymentStatsV2,
   exportPayments
 };

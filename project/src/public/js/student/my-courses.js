@@ -34,6 +34,12 @@ function isCancelledRegistration(status) {
   return normalized.indexOf('hủy') >= 0 || normalized.indexOf('huy') >= 0;
 }
 
+function courseStatusBadgeClass(course, status) {
+  if (course.CamThiCuoiKy) return 'badge-error';
+  if (isCancelledRegistration(status)) return 'badge-error';
+  return 'badge-success';
+}
+
 function toNumber(value) {
   var number = Number(value || 0);
   return Number.isFinite(number) ? number : 0;
@@ -73,6 +79,7 @@ function semesterLabel(semester) {
 
 function registrationSemesterText(course) {
   var registration = course.PHIEUDANGKY || {};
+  var statusTitle = course.LyDoCamThi || '';
   var semester = registration.HOCKY || {};
   var year = semester.NAMHOC || {};
   var semesterName = semester.TenHocKy || registration.MaHocKy || '-';
@@ -225,7 +232,7 @@ function renderMyCourseRow(course) {
     '<td>' + myCoursesEscapeHtml(lop.GiangVien || '-') + '</td>' +
     '<td>' + myCoursesEscapeHtml(lop.LichHoc || '-') + '</td>' +
     '<td>' + myCoursesEscapeHtml(lop.PhongHoc || '-') + '</td>' +
-    '<td><span class="badge badge-success">' + myCoursesEscapeHtml(status) + '</span></td>' +
+    '<td><span class="badge ' + courseStatusBadgeClass(course, status) + '" title="' + myCoursesEscapeHtml(statusTitle) + '">' + myCoursesEscapeHtml(status) + '</span></td>' +
     '<td><div class="my-courses-action">' + renderCancelAction(course) + '</div></td>' +
   '</tr>';
 }

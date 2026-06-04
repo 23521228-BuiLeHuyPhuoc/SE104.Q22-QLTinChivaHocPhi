@@ -46,6 +46,7 @@
 -- Drop tables if exist (in correct order due to foreign keys)
 DROP TABLE IF EXISTS "THONGBAO" CASCADE;
 DROP TABLE IF EXISTS "DONCUUXETDANGKY" CASCADE;
+DROP TABLE IF EXISTS "GIAODICHTHANHTOANHOCPHI" CASCADE;
 DROP TABLE IF EXISTS "PHIEUTHUHOCPHI" CASCADE;
 DROP TABLE IF EXISTS "CHITIETDANGKY" CASCADE;
 DROP TABLE IF EXISTS "PHIEUDANGKY" CASCADE;
@@ -976,6 +977,47 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
 );
 
 -- =====================================================
+-- 23B. BẢNG "GIAODICHTHANHTOANHOCPHI" - Các lần thanh toán của một phiếu thu
+-- Một phiếu thu có thể có nhiều lần thanh toán một phần.
+-- =====================================================
+CREATE TABLE "GIAODICHTHANHTOANHOCPHI" (
+    "MaGiaoDichThanhToan" SERIAL NOT NULL,
+    "SoPhieuThu" INTEGER NOT NULL,
+    "SoPhieuDangKy" INTEGER NOT NULL,
+    "MaSv" VARCHAR(15) NOT NULL,
+    "SoTienThanhToan" DECIMAL(15,0) NOT NULL,
+    "HinhThucThanhToan" VARCHAR(50),
+    "PaymentProvider" VARCHAR(30),
+    "PaymentChannel" VARCHAR(30),
+    "MaGiaoDich" VARCHAR(100),
+    "CheckoutUrl" VARCHAR(1000),
+    "QrPayload" TEXT,
+    "GhiChu" VARCHAR(300),
+    "TrangThai" VARCHAR(20) DEFAULT 'Chờ xác nhận',
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NgayXacNhan" TIMESTAMP,
+    "NguoiXacNhan" VARCHAR(100),
+    "NgayCapNhat" TIMESTAMP,
+    CONSTRAINT giao_dich_thanh_toan_hoc_phi_pkey PRIMARY KEY ("MaGiaoDichThanhToan"),
+    CONSTRAINT chk_gdtt_so_tien CHECK ("SoTienThanhToan" > 0),
+    CONSTRAINT chk_gdtt_hinh_thuc CHECK ("HinhThucThanhToan" IS NULL OR "HinhThucThanhToan" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
+    CONSTRAINT chk_gdtt_trang_thai CHECK ("TrangThai" IN ('Chưa thanh toán', 'Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy', 'Hoàn tiền')),
+    CONSTRAINT fk_gdtt_pthp FOREIGN KEY ("SoPhieuThu")
+        REFERENCES "PHIEUTHUHOCPHI"("SoPhieuThu") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_gdtt_pdk FOREIGN KEY ("SoPhieuDangKy")
+        REFERENCES "PHIEUDANGKY"("SoPhieu") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_gdtt_sv FOREIGN KEY ("MaSv")
+        REFERENCES "SINHVIEN"("MaSv") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_gdtt_pthp ON "GIAODICHTHANHTOANHOCPHI"("SoPhieuThu");
+CREATE INDEX idx_gdtt_pdk ON "GIAODICHTHANHTOANHOCPHI"("SoPhieuDangKy");
+CREATE INDEX idx_gdtt_sv ON "GIAODICHTHANHTOANHOCPHI"("MaSv");
+CREATE UNIQUE INDEX uq_gdtt_one_pending_per_receipt
+    ON "GIAODICHTHANHTOANHOCPHI"("SoPhieuThu")
+    WHERE "TrangThai" = 'Chờ xác nhận';
+
+-- =====================================================
 -- 20. BẢNG "THONGBAO" - Thông báo cá nhân
 -- =====================================================
 CREATE TABLE "THONGBAO" (
@@ -1021,7 +1063,7 @@ BEGIN
             FROM "DOITUONGSINHVIEN"
             WHERE "MaSv" = NEW."MaSv" AND "MaDoiTuong" = 'DT06'
         ) THEN
-            RAISE EXCEPTION 'Lỗi RBTV01: Sinh viên % thuộc vùng sâu vùng xa nhưng chưa được gán đối tượng DT06.', NEW."MaSv";
+            RAISE EXCEPTION 'Lỗi: Sinh viên % thuộc vùng sâu vùng xa nhưng chưa được gán đối tượng DT06.', NEW."MaSv";
         END IF;
     END IF;
     RETURN NEW;
@@ -1049,7 +1091,7 @@ BEGIN
                   WHERE dtsv."MaSv" = sv."MaSv" AND dtsv."MaDoiTuong" = 'DT06'
               )
         ) THEN
-            RAISE EXCEPTION 'Lỗi RBTV01: Không thể cập nhật KhuVuc thành KV3 vì có sinh viên dân tộc thiểu số tại đây chưa có mã DT06.';
+            RAISE EXCEPTION 'Lỗi: Không thể cập nhật khu vực thành KV3 vì có sinh viên dân tộc thiểu số tại đây chưa có mã DT06.';
         END IF;
     END IF;
     RETURN NEW;
@@ -1077,7 +1119,7 @@ BEGIN
                   WHERE dtsv."MaSv" = sv."MaSv" AND dtsv."MaDoiTuong" = 'DT06'
               )
         ) THEN
-            RAISE EXCEPTION 'Lỗi RBTV01: Không thể cập nhật LaDanTocThieuSo thành TRUE vì có sinh viên ở KV3 thuộc dân tộc này chưa có mã DT06.';
+            RAISE EXCEPTION 'Lỗi: Không thể cập nhật trạng thái dân tộc thiểu số thành đúng vì có sinh viên ở KV3 thuộc dân tộc này chưa có mã DT06.';
         END IF;
     END IF;
     RETURN NEW;
@@ -1104,7 +1146,7 @@ BEGIN
                   AND px."KhuVuc" = 'KV3'
                   AND dt."LaDanTocThieuSo" = TRUE
             ) THEN
-                RAISE EXCEPTION 'Lỗi RBTV01: Không thể xóa/sửa đối tượng DT06 của sinh viên % vì sinh viên này thuộc vùng sâu vùng xa.', OLD."MaSv";
+                RAISE EXCEPTION 'Lỗi: Không thể xóa/sửa đối tượng DT06 của sinh viên % vì sinh viên này thuộc vùng sâu vùng xa.', OLD."MaSv";
             END IF;
         END IF;
     END IF;
@@ -1123,7 +1165,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
         IF OLD."MaDoiTuong" = 'DT06' THEN
-            RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+            RAISE EXCEPTION 'Lỗi: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
         END IF;
         RETURN OLD;
     END IF;
@@ -1131,7 +1173,7 @@ BEGIN
     IF TG_OP = 'UPDATE' THEN
         IF OLD."MaDoiTuong" = 'DT06'
            AND NEW."MaDoiTuong" IS DISTINCT FROM OLD."MaDoiTuong" THEN
-            RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+            RAISE EXCEPTION 'Lỗi: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
         END IF;
         RETURN NEW;
     END IF;
@@ -1160,7 +1202,7 @@ BEGIN
         WHERE "MaDoiTuong" = OLD."MaDoiTuong";
 
         IF v_ref_count > 0 THEN
-            RAISE EXCEPTION 'Lỗi RBTV_FK_DOITUONG: Không thể xóa đối tượng ưu tiên % vì đang có % sinh viên tham chiếu.', OLD."MaDoiTuong", v_ref_count;
+            RAISE EXCEPTION 'Lỗi: Không thể xóa đối tượng ưu tiên % vì đang có % sinh viên tham chiếu.', OLD."MaDoiTuong", v_ref_count;
         END IF;
     END IF;
 
@@ -1395,7 +1437,7 @@ BEGIN
 
     -- Kiểm tra 1: Sinh viên phải ở trạng thái 'Đang học'
     IF v_sv_trang_thai IS DISTINCT FROM 'Đang học' THEN
-        RAISE EXCEPTION 'Lỗi RBTV16: Sinh viên % đang ở trạng thái "%", không được phép lập phiếu đăng ký.', NEW."MaSv", v_sv_trang_thai;
+        RAISE EXCEPTION 'Lỗi: Sinh viên % đang ở trạng thái "%", không được phép lập phiếu đăng ký.', NEW."MaSv", v_sv_trang_thai;
     END IF;
 
     -- Kiểm tra 2: Nếu sinh viên có tài khoản, tài khoản đó phải đang Active (TRUE)
@@ -1405,7 +1447,7 @@ BEGIN
         WHERE "MaTaiKhoan" = v_ma_tk;
 
         IF v_nd_trang_thai = FALSE THEN
-            RAISE EXCEPTION 'Lỗi RBTV16: Tài khoản hệ thống của sinh viên % đã bị khóa, không thể lập phiếu đăng ký.', NEW."MaSv";
+            RAISE EXCEPTION 'Lỗi: Tài khoản hệ thống của sinh viên % đã bị khóa, không thể lập phiếu đăng ký.', NEW."MaSv";
         END IF;
     END IF;
 
@@ -1428,7 +1470,7 @@ BEGIN
 
         -- Nếu định đổi trạng thái khác 'Đang học'
         IF NEW."TrangThai" IS DISTINCT FROM 'Đang học' THEN
-            RAISE EXCEPTION 'Lỗi RBTV16: Sinh viên % đã có phiếu đăng ký, không thể chuyển trạng thái thành "%".', NEW."MaSv", NEW."TrangThai";
+            RAISE EXCEPTION 'Lỗi: Sinh viên % đã có phiếu đăng ký, không thể chuyển trạng thái thành "%".', NEW."MaSv", NEW."TrangThai";
         END IF;
 
         -- Nếu cập nhật lại Mã tài khoản
@@ -1437,7 +1479,7 @@ BEGIN
             FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan";
 
             IF v_nd_trang_thai = FALSE THEN
-                RAISE EXCEPTION 'Lỗi RBTV16: Sinh viên % đã có phiếu đăng ký, không thể gán một tài khoản đang bị khóa.', NEW."MaSv";
+                RAISE EXCEPTION 'Lỗi: Sinh viên % đã có phiếu đăng ký, không thể gán một tài khoản đang bị khóa.', NEW."MaSv";
             END IF;
         END IF;
     END IF;
@@ -1461,7 +1503,7 @@ BEGIN
             JOIN "PHIEUDANGKY" pdk ON sv."MaSv" = pdk."MaSv"
             WHERE sv."MaTaiKhoan" = NEW."MaTaiKhoan"
         ) THEN
-            RAISE EXCEPTION 'Lỗi RBTV16: Không thể khóa tài khoản % vì sinh viên sở hữu đang có phiếu đăng ký.', NEW."TenDangNhap";
+            RAISE EXCEPTION 'Lỗi: Không thể khóa tài khoản % vì sinh viên sở hữu đang có phiếu đăng ký.', NEW."TenDangNhap";
         END IF;
     END IF;
 
@@ -1486,7 +1528,7 @@ BEGIN
         (NEW."LoaiMon" = 'LT' AND NEW."SoTiet" % 15 = 0) OR
         (NEW."LoaiMon" = 'TH' AND NEW."SoTiet" % 30 = 0)
     ) THEN
-        RAISE EXCEPTION 'Vi phạm RBTV04: Số tiết không hợp lệ. Mon Ly thuyet phai chia het cho 15, mon Thuc hanh phai chia het cho 30.';
+        RAISE EXCEPTION 'Vi phạm: Số tiết không hợp lệ. Môn lý thuyết phải chia hết cho 15, môn thực hành phải chia hết cho 30.';
     END IF;
 
     RETURN NEW;
@@ -1512,7 +1554,7 @@ BEGIN
     IF NOT (
         NEW."MaMonHoc" <> NEW."MaMonDieuKien"
     ) THEN
-        RAISE EXCEPTION 'Vi phạm RBTV05: Một môn học không được là điều kiện của chính nó.';
+        RAISE EXCEPTION 'Vi phạm: Một môn học không được là điều kiện của chính nó.';
     END IF;
 
     RETURN NEW;
@@ -1575,7 +1617,7 @@ BEGIN
 
     -- Nếu tồn tại vòng lặp chu trình -> Tiến hành chặn và trả về thông tin sơ đồ lỗi
     IF v_has_cycle THEN
-        RAISE EXCEPTION 'Vi phạm RBTV06: Không được tạo vòng lặp điều kiện môn học! Sơ đồ lỗi chu trình: %', v_error_path;
+        RAISE EXCEPTION 'Vi phạm: Không được tạo vòng lặp điều kiện môn học! Sơ đồ lỗi chu trình: %', v_error_path;
     END IF;
 
     RETURN NULL; -- AFTER trigger luôn trả về NULL
@@ -1610,7 +1652,7 @@ BEGIN
                   OR (dk."LoaiDieuKien" = 'hoc_truoc' AND ctdk."HocKy" > NEW."HocKy")   -- Vi phạm điều kiện Học kỳ môn học trước phải nhỏ hơn hoặc bằng (<=)
               )
         ) THEN
-            RAISE EXCEPTION 'Vi phạm RBTV07: Môn học "%" thuộc ngành "%" xếp ở học kỳ % không hợp lý với cấu hình các môn điều kiện hiện tại.',
+            RAISE EXCEPTION 'Vi phạm: Môn học "%" thuộc ngành "%" xếp ở học kỳ % không hợp lý với cấu hình các môn điều kiện hiện tại.',
                 NEW."MaMonHoc", NEW."MaNganh", NEW."HocKy";
         END IF;
     END IF;
@@ -1633,7 +1675,7 @@ BEGIN
                   OR (dk."LoaiDieuKien" = 'hoc_truoc' AND NEW."HocKy" > ctm."HocKy")   -- Sửa học kỳ mới làm vi phạm quy tắc môn học trước
               )
         ) THEN
-            RAISE EXCEPTION 'Vi phạm RBTV07: Thao tác % môn "%" của ngành "%" gây ảnh hưởng hoặc làm sai lệch lộ trình học kỳ của môn phụ thuộc khác.',
+            RAISE EXCEPTION 'Vi phạm: Thao tác % môn "%" của ngành "%" gây ảnh hưởng hoặc làm sai lệch lộ trình học kỳ của môn phụ thuộc khác.',
                 CASE WHEN TG_OP = 'DELETE' THEN 'XÓA' ELSE 'CẬP NHẬT' END, OLD."MaMonHoc", OLD."MaNganh";
         END IF;
     END IF;
@@ -1666,7 +1708,7 @@ BEGIN
                   OR (dk."LoaiDieuKien" = 'hoc_truoc' AND ctdk."HocKy" > NEW."HocKy")   -- Vi phạm điều kiện Học kỳ môn học trước phải nhỏ hơn hoặc bằng (<=)
               )
         ) THEN
-            RAISE EXCEPTION 'Vi phạm RBTV07: Môn học "%" thuộc ngành "%" xếp ở học kỳ % không hợp lý với cấu hình các môn điều kiện hiện tại.',
+            RAISE EXCEPTION 'Vi phạm: Môn học "%" thuộc ngành "%" xếp ở học kỳ % không hợp lý với cấu hình các môn điều kiện hiện tại.',
                 NEW."MaMonHoc", NEW."MaNganh", NEW."HocKy";
         END IF;
     END IF;
@@ -1689,7 +1731,7 @@ BEGIN
                   OR (dk."LoaiDieuKien" = 'hoc_truoc' AND NEW."HocKy" > ctm."HocKy")   -- Sửa học kỳ mới làm vi phạm quy tắc môn học trước
               )
         ) THEN
-            RAISE EXCEPTION 'Vi phạm RBTV07: Thao tác % môn "%" của ngành "%" gây ảnh hưởng hoặc làm sai lệch lộ trình học kỳ của môn phụ thuộc khác.',
+            RAISE EXCEPTION 'Vi phạm: Thao tác % môn "%" của ngành "%" gây ảnh hưởng hoặc làm sai lệch lộ trình học kỳ của môn phụ thuộc khác.',
                 CASE WHEN TG_OP = 'DELETE' THEN 'XÓA' ELSE 'CẬP NHẬT' END, OLD."MaMonHoc", OLD."MaNganh";
         END IF;
     END IF;
@@ -1722,7 +1764,7 @@ BEGIN
                   OR (NEW."LoaiDieuKien" = 'hoc_truoc' AND ctdk."HocKy" > ctm."HocKy")   -- Vi phạm học kỳ môn học trước
               )
         ) THEN
-            RAISE EXCEPTION 'Vi phạm RBTV07: Không thể thiết lập điều kiện (Môn "%" cần môn "%" là "%") vì phân bổ học kỳ hiện tại trong chương trình học của ngành không tương thích.',
+            RAISE EXCEPTION 'Vi phạm: Không thể thiết lập điều kiện (Môn "%" cần môn "%" là "%") vì phân bổ học kỳ hiện tại trong chương trình học của ngành không tương thích.',
                 NEW."MaMonHoc", NEW."MaMonDieuKien", NEW."LoaiDieuKien";
         END IF;
     END IF;
@@ -1774,7 +1816,7 @@ BEGIN
         WHERE mdh."MaSv" = v_ma_sv AND mdh."MaMonHoc" = v_ma_mon_hoc;
 
         IF v_count_total > 0 THEN
-            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_moi" không hợp lệ. Sinh viên % đã có lịch sử học môn %',
+            RAISE EXCEPTION 'Loại đăng ký "học mới" không hợp lệ. Sinh viên % đã có lịch sử học môn %',
                 v_ma_sv, v_ma_mon_hoc;
         END IF;
 
@@ -1797,12 +1839,12 @@ BEGIN
 
         -- Phải có ít nhất 1 lần rớt và chưa qua
         IF v_count_rot = 0 THEN
-            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_lai" không hợp lệ. Sinh viên % chưa rớt môn %',
+            RAISE EXCEPTION 'Loại đăng ký "học lại" không hợp lệ. Sinh viên % chưa rớt môn %',
                 v_ma_sv, v_ma_mon_hoc;
         END IF;
 
         IF v_count_qua_mon > 0 THEN
-            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_lai" không hợp lệ. Sinh viên % đã qua môn % rồi',
+            RAISE EXCEPTION 'Loại đăng ký "học lại" không hợp lệ. Sinh viên % đã qua môn % rồi',
                 v_ma_sv, v_ma_mon_hoc;
         END IF;
 
@@ -1816,12 +1858,12 @@ BEGIN
           AND mdh."KetQua" = 'qua_mon';
 
         IF v_count_qua_mon = 0 THEN
-            RAISE EXCEPTION 'RBTV22: Loại đăng ký "hoc_cai_thien" không hợp lệ. Sinh viên % chưa qua môn %',
+            RAISE EXCEPTION 'Loại đăng ký "học cải thiện" không hợp lệ. Sinh viên % chưa qua môn %',
                 v_ma_sv, v_ma_mon_hoc;
         END IF;
 
     ELSE
-        RAISE EXCEPTION 'RBTV22: Loại đăng ký không hợp lệ: %', v_loai_dang_ky;
+        RAISE EXCEPTION 'Loại đăng ký không hợp lệ: %', v_loai_dang_ky;
     END IF;
 
     RETURN NEW;
@@ -1891,7 +1933,7 @@ BEGIN
               AND (TG_OP = 'DELETE' OR mdh."MaHocKy" != NEW."MaHocKy" OR mdh."MaSv" != NEW."MaSv");
 
             IF v_count_total > 0 THEN
-                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_moi" của SV % môn % trở nên không hợp lệ',
+                RAISE EXCEPTION 'Đăng ký "học mới" của sinh viên % môn % trở nên không hợp lệ',
                     v_ma_sv, v_ma_mon_hoc;
             END IF;
 
@@ -1912,12 +1954,12 @@ BEGIN
               AND mdh."KetQua" = 'qua_mon';
 
             IF v_count_rot = 0 THEN
-                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_lai" của SV % môn % trở nên không hợp lệ (không có rớt)',
+                RAISE EXCEPTION 'Đăng ký "học lại" của sinh viên % môn % trở nên không hợp lệ (không có rớt)',
                     v_ma_sv, v_ma_mon_hoc;
             END IF;
 
             IF v_count_qua_mon > 0 THEN
-                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_lai" của SV % môn % trở nên không hợp lệ (đã qua rồi)',
+                RAISE EXCEPTION 'Đăng ký "học lại" của sinh viên % môn % trở nên không hợp lệ (đã qua rồi)',
                     v_ma_sv, v_ma_mon_hoc;
             END IF;
 
@@ -1931,7 +1973,7 @@ BEGIN
               AND mdh."KetQua" = 'qua_mon';
 
             IF v_count_qua_mon = 0 THEN
-                RAISE EXCEPTION 'RBTV22: Đăng ký "hoc_cai_thien" của SV % môn % trở nên không hợp lệ (chưa qua)',
+                RAISE EXCEPTION 'Đăng ký "học cải thiện" của sinh viên % môn % trở nên không hợp lệ (chưa qua)',
                     v_ma_sv, v_ma_mon_hoc;
             END IF;
         END IF;
@@ -2030,7 +2072,7 @@ BEGIN
 
             -- Nếu không có môn tiên quyết → Lỗi
             IF v_count_tien_quyet = 0 THEN
-                RAISE EXCEPTION 'Vi phạm RBTV23: Sinh viên % chưa đạt tiên quyết % để đăng ký %',
+                RAISE EXCEPTION 'Vi phạm: Sinh viên % chưa đạt tiên quyết % để đăng ký %',
                     v_ma_sv, v_ma_mon_dieu_kien, v_ma_mon_hoc;
             END IF;
 
@@ -2058,7 +2100,7 @@ BEGIN
 
                 -- Nếu không đăng ký cùng phiếu → Lỗi
                 IF v_count_cung_phieu = 0 THEN
-                    RAISE EXCEPTION 'Vi phạm RBTV23: Sinh viên % phải học trước hoặc đăng ký cùng lúc %',
+                    RAISE EXCEPTION 'Vi phạm: Sinh viên % phải học trước hoặc đăng ký cùng lúc %',
                         v_ma_sv, v_ma_mon_dieu_kien;
                 END IF;
             END IF;
@@ -2135,7 +2177,7 @@ BEGIN
                       AND fn_rbtv23_get_semester_order(mdh."MaHocKy") < v_hoc_ky_dang_ky;
 
                     IF v_count_met = 0 THEN
-                        RAISE EXCEPTION 'Vi phạm RBTV23: Điều kiện tiên quyết vi phạm - SV: % môn: %',
+                        RAISE EXCEPTION 'Vi phạm: Điều kiện tiên quyết vi phạm - sinh viên: % môn: %',
                             v_ma_sv, v_ma_mon_hoc;
                     END IF;
 
@@ -2156,7 +2198,7 @@ BEGIN
                           AND ctdk."TrangThai" = 'Đã đăng ký';
 
                         IF v_count_met = 0 THEN
-                            RAISE EXCEPTION 'Vi phạm RBTV23: Điều kiện học trước vi phạm - SV: % môn: %',
+                            RAISE EXCEPTION 'Vi phạm: Điều kiện học trước vi phạm - sinh viên: % môn: %',
                                 v_ma_sv, v_ma_mon_hoc;
                         END IF;
                     END IF;
@@ -2259,7 +2301,7 @@ BEGIN
                           AND (TG_OP = 'DELETE' OR mdh.id != NEW.id);
 
                         IF v_count_met = 0 THEN
-                            RAISE EXCEPTION 'RBTV23: Thay đổi kết quả vi phạm tiên quyết - SV: % môn: %',
+                            RAISE EXCEPTION 'Thay đổi kết quả vi phạm tiên quyết - sinh viên: % môn: %',
                                 v_ma_sv, v_dependent_mon."MaMonHoc";
                         END IF;
                     END IF;
@@ -2274,7 +2316,7 @@ BEGIN
                           AND ctdk."TrangThai" = 'Đã đăng ký';
 
                         IF v_count_met = 0 THEN
-                            RAISE EXCEPTION 'Vi phạm RBTV23: Xóa kết quả học vi phạm học trước - SV: % môn: %',
+                            RAISE EXCEPTION 'Vi phạm: Xóa kết quả học vi phạm học trước - sinh viên: % môn: %',
                                 v_ma_sv, v_dependent_mon."MaMonHoc";
                         END IF;
                     END IF;
@@ -2302,7 +2344,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Kiểm tra điều kiện NamKetThuc phải lớn hơn NamBatDau
     IF NEW."NamKetThuc" <= NEW."NamBatDau" THEN
-        RAISE EXCEPTION 'Vi phạm RBTV08: Năm kết thúc (%) phải lớn hơn năm bắt đầu (%).', NEW."NamKetThuc", NEW."NamBatDau";
+        RAISE EXCEPTION 'Vi phạm: Năm kết thúc (%) phải lớn hơn năm bắt đầu (%).', NEW."NamKetThuc", NEW."NamBatDau";
     END IF;
 
     RETURN NEW;
@@ -2324,11 +2366,11 @@ RETURNS TRIGGER AS $$
 BEGIN
     /* 1. Kiểm tra thứ tự theo loại học kỳ */
     IF NEW."LoaiHocKy" = 'Chính' AND NEW."ThuTu" NOT IN (1, 2) THEN
-        RAISE EXCEPTION 'RBTV09: Học kỳ Chính phải có ThuTu là 1 hoặc 2.';
+        RAISE EXCEPTION 'Học kỳ chính phải có thứ tự là 1 hoặc 2.';
     END IF;
 
     IF NEW."LoaiHocKy" = 'Hè' AND NEW."ThuTu" != 3 THEN
-        RAISE EXCEPTION 'RBTV09: Học kỳ Hè phải có ThuTu là 3.';
+        RAISE EXCEPTION 'Học kỳ Hè phải có thứ tự là 3.';
     END IF;
 
     /* 2. Kiểm tra tính duy nhất UNIQUE(MaNamHoc, ThuTu) */
@@ -2338,7 +2380,7 @@ BEGIN
           AND "ThuTu" = NEW."ThuTu"
           AND "MaHocKy" IS DISTINCT FROM NEW."MaHocKy"
     ) THEN
-        RAISE EXCEPTION 'RBTV09: Học kỳ có thứ tự % đã tồn tại trong năm học %.', NEW."ThuTu", NEW."MaNamHoc";
+        RAISE EXCEPTION 'Học kỳ có thứ tự % đã tồn tại trong năm học %.', NEW."ThuTu", NEW."MaNamHoc";
     END IF;
 
     /* 3. Kiểm tra logic các mốc thời gian */
@@ -2350,73 +2392,73 @@ BEGIN
        OR NEW."NgayKetThucCuuXet" IS NULL
        OR NEW."NgayBatDauDongHocPhi" IS NULL
        OR NEW."HanDongHocPhi" IS NULL THEN
-        RAISE EXCEPTION 'RBTV09: Học kỳ phải cấu hình đầy đủ thời gian học kỳ, đăng ký, cứu xét và học phí.';
+        RAISE EXCEPTION 'Học kỳ phải cấu hình đầy đủ thời gian học kỳ, đăng ký, cứu xét và học phí.';
     END IF;
 
     IF NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
         IF NEW."NgayBatDau" >= NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDau phải nhỏ hơn NgayKetThuc.';
+            RAISE EXCEPTION 'ngày bắt đầu phải nhỏ hơn ngày kết thúc.';
         END IF;
     END IF;
 
     IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
         IF NEW."NgayBatDauDangKy" >= NEW."NgayKetThucDangKy" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayKetThucDangKy.';
+            RAISE EXCEPTION 'ngày bắt đầu đăng ký phải nhỏ hơn ngày kết thúc đăng ký.';
         END IF;
     END IF;
 
     IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
         IF NEW."NgayBatDauDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayBatDau học kỳ.';
+            RAISE EXCEPTION 'ngày bắt đầu đăng ký phải nhỏ hơn ngày bắt đầu học kỳ.';
         END IF;
     END IF;
 
     IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
         /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayKetThuc (kiểu DATE) */
         IF NEW."NgayKetThucDangKy"::DATE > NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy không được lớn hơn NgayKetThuc.';
+            RAISE EXCEPTION 'ngày kết thúc đăng ký không được lớn hơn ngày kết thúc.';
         END IF;
     END IF;
 
     IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
         IF NEW."NgayKetThucDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải nhỏ hơn NgayBatDau học kỳ.';
+            RAISE EXCEPTION 'ngày kết thúc đăng ký phải nhỏ hơn ngày bắt đầu học kỳ.';
         END IF;
     END IF;
 
     IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
         IF NEW."NgayBatDauCuuXet" > NEW."NgayKetThucCuuXet" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauCuuXet phải nhỏ hơn hoặc bằng NgayKetThucCuuXet.';
+            RAISE EXCEPTION 'ngày bắt đầu cứu xét phải nhỏ hơn hoặc bằng ngày kết thúc cứu xét.';
         END IF;
     END IF;
 
     IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
         IF NEW."NgayBatDauCuuXet" <= NEW."NgayKetThucDangKy" THEN
-            RAISE EXCEPTION 'RBTV09: Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký.';
+            RAISE EXCEPTION 'Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký.';
         END IF;
     END IF;
 
     IF NEW."NgayKetThucCuuXet" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
         IF NEW."NgayKetThucCuuXet"::DATE >= NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucCuuXet phải nhỏ hơn NgayBatDau học kỳ.';
+            RAISE EXCEPTION 'ngày kết thúc cứu xét phải nhỏ hơn ngày bắt đầu học kỳ.';
         END IF;
     END IF;
 
     IF NEW."NgayBatDauDongHocPhi" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
         IF NEW."NgayBatDauDongHocPhi"::TIMESTAMP <= NEW."NgayKetThucCuuXet" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải sau NgayKetThucCuuXet.';
+            RAISE EXCEPTION 'ngày bắt đầu đóng học phí phải sau ngày kết thúc cứu xét.';
         END IF;
     END IF;
 
     IF NEW."NgayBatDauDongHocPhi" IS NOT NULL AND NEW."HanDongHocPhi" IS NOT NULL THEN
         IF NEW."NgayBatDauDongHocPhi" > NEW."HanDongHocPhi" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải nhỏ hơn hoặc bằng HanDongHocPhi.';
+            RAISE EXCEPTION 'ngày bắt đầu đóng học phí phải nhỏ hơn hoặc bằng hạn đóng học phí.';
         END IF;
     END IF;
 
     IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
         IF NEW."HanDongHocPhi" >= NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nhỏ hơn NgayKetThuc học kỳ.';
+            RAISE EXCEPTION 'hạn đóng học phí phải nhỏ hơn ngày kết thúc học kỳ.';
         END IF;
     END IF;
 
@@ -2444,7 +2486,7 @@ BEGIN
             GROUP BY "ThuTu"
             HAVING COUNT(*) > 1
         ) THEN
-            RAISE EXCEPTION 'RBTV09: Thay đổi MaNamHoc dẫn đến trùng lặp thứ tự học kỳ bên bảng HOCKY.';
+            RAISE EXCEPTION 'Thay đổi mã năm học dẫn đến trùng lặp thứ tự học kỳ bên bảng học kỳ.';
         END IF;
     END IF;
 
@@ -2464,7 +2506,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     /* Kiểm tra SoLuongToiDa phải dương (> 0) */
     IF NEW."SoLuongToiDa" IS NOT NULL AND NEW."SoLuongToiDa" <= 0 THEN
-        RAISE EXCEPTION 'RBTV10: Sĩ số tối đa của lớp (%) phải lớn hơn 0.', NEW."SoLuongToiDa";
+        RAISE EXCEPTION 'Sĩ số tối đa của lớp (%) phải lớn hơn 0.', NEW."SoLuongToiDa";
     END IF;
 
     RETURN NEW;
@@ -2495,7 +2537,7 @@ BEGIN
 
     /* Kiểm tra ràng buộc: Thứ tự tiết bắt đầu <= Thứ tự tiết kết thúc */
     IF thu_tu_bat_dau > thu_tu_ket_thuc THEN
-        RAISE EXCEPTION 'RBTV11: Tiết bắt đầu (thứ tự %) không được sau tiết kết thúc (thứ tự %).', thu_tu_bat_dau, thu_tu_ket_thuc;
+        RAISE EXCEPTION 'Tiết bắt đầu (thứ tự %) không được sau tiết kết thúc (thứ tự %).', thu_tu_bat_dau, thu_tu_ket_thuc;
     END IF;
 
     RETURN NEW;
@@ -2522,7 +2564,7 @@ BEGIN
             WHERE l."MaTietBatDau" = NEW."MaTiet"
               AND NEW."ThuTu" > t_kt."ThuTu"
         ) THEN
-            RAISE EXCEPTION 'RBTV11: Việc cập nhật ThuTu làm vi phạm lịch học hiện tại (tiết bắt đầu sau tiết kết thúc).';
+            RAISE EXCEPTION 'Việc cập nhật thứ tự làm vi phạm lịch học hiện tại (tiết bắt đầu sau tiết kết thúc).';
         END IF;
 
         /* Trường hợp 2: Tiết đang sửa đóng vai trò là MaTietKetThuc trong LICHHOCLOP.
@@ -2535,7 +2577,7 @@ BEGIN
             WHERE l."MaTietKetThuc" = NEW."MaTiet"
               AND t_bd."ThuTu" > NEW."ThuTu"
         ) THEN
-            RAISE EXCEPTION 'RBTV11: Việc cập nhật ThuTu làm vi phạm lịch học hiện tại (tiết kết thúc trước tiết bắt đầu).';
+            RAISE EXCEPTION 'Việc cập nhật thứ tự làm vi phạm lịch học hiện tại (tiết kết thúc trước tiết bắt đầu).';
         END IF;
 
     END IF;
@@ -2551,7 +2593,7 @@ EXECUTE FUNCTION fn_check_rbtv11_tiethoc();
 
 CREATE OR REPLACE FUNCTION fn_schedule_effective_end_order(p_start_order INT, p_end_order INT)
 RETURNS INT AS $$
-    SELECT CASE WHEN p_end_order > p_start_order THEN p_end_order ELSE p_start_order + 1 END;
+    SELECT CASE WHEN p_end_order >= p_start_order THEN p_end_order + 1 ELSE p_start_order + 1 END;
 $$ LANGUAGE SQL IMMUTABLE;
 
 --RBTV12
@@ -2584,7 +2626,7 @@ BEGIN
           AND new_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
           AND bd."ThuTu" < fn_schedule_effective_end_order(new_bd_thutu, new_kt_thutu)
     ) THEN
-        RAISE EXCEPTION 'RBTV12: Lớp mở này đã có lịch học khác trùng/giao khoảng tiết vào Thứ %.', NEW."ThuTrongTuan";
+        RAISE EXCEPTION 'Lớp mở này đã có lịch học khác trùng/giao khoảng tiết vào Thứ %.', NEW."ThuTrongTuan";
     END IF;
 
     RETURN NEW;
@@ -2633,7 +2675,7 @@ BEGIN
                     (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
                 )
         ) THEN
-            RAISE EXCEPTION 'RBTV12: Không thể sửa ThuTu của tiết học này vì sẽ gián tiếp làm trùng lịch của một lớp mở đang vận hành.';
+            RAISE EXCEPTION 'Không thể sửa thứ tự của tiết học này vì sẽ gián tiếp làm trùng lịch của một lớp mở đang vận hành.';
         END IF;
 
     END IF;
@@ -2691,7 +2733,7 @@ BEGIN
           AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
           AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
-        RAISE EXCEPTION 'RBTV13: Phòng % đã có lớp khác học vào Thứ % (Học kỳ %).', COALESCE(NEW."MaPhong", NEW."PhongHoc"), NEW."ThuTrongTuan", v_mahocky;
+        RAISE EXCEPTION 'Phòng % đã có lớp khác học vào Thứ % (Học kỳ %).', COALESCE(NEW."MaPhong", NEW."PhongHoc"), NEW."ThuTrongTuan", v_mahocky;
     END IF;
 
     RETURN NEW;
@@ -2730,7 +2772,7 @@ BEGIN
               AND bd1."ThuTu" < fn_schedule_effective_end_order(bd2."ThuTu", kt2."ThuTu")
               AND bd2."ThuTu" < fn_schedule_effective_end_order(bd1."ThuTu", kt1."ThuTu")
         ) THEN
-            RAISE EXCEPTION 'RBTV13: Cập nhật thông tin lớp mở (%) gây trùng lịch phòng học trong học kỳ %.', NEW.id, NEW."MaHocKy";
+            RAISE EXCEPTION 'Cập nhật thông tin lớp mở (%) gây trùng lịch phòng học trong học kỳ %.', NEW.id, NEW."MaHocKy";
         END IF;
 
     END IF;
@@ -2779,7 +2821,7 @@ BEGIN
                       (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
                   )
         ) THEN
-            RAISE EXCEPTION 'RBTV13: Sửa ThuTu của tiết học này gián tiếp làm trùng phòng học giữa các lớp đang hoạt động.';
+            RAISE EXCEPTION 'Sửa thứ tự của tiết học này gián tiếp làm trùng phòng học giữa các lớp đang hoạt động.';
         END IF;
 
     END IF;
@@ -2833,7 +2875,7 @@ BEGIN
           AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
           AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
-        RAISE EXCEPTION 'RBTV14: Giảng viên % đã có lịch dạy trùng thời gian vào Thứ % (Học kỳ %).', v_giangvien, NEW."ThuTrongTuan", v_mahocky;
+        RAISE EXCEPTION 'Giảng viên % đã có lịch dạy trùng thời gian vào Thứ % (Học kỳ %).', v_giangvien, NEW."ThuTrongTuan", v_mahocky;
     END IF;
 
     RETURN NEW;
@@ -2879,7 +2921,7 @@ BEGIN
               AND bd1."ThuTu" < fn_schedule_effective_end_order(bd2."ThuTu", kt2."ThuTu")
               AND bd2."ThuTu" < fn_schedule_effective_end_order(bd1."ThuTu", kt1."ThuTu")
         ) THEN
-            RAISE EXCEPTION 'RBTV14: Cập nhật lớp mở % gây trùng lịch dạy của giảng viên % trong học kỳ %.', NEW.id, v_giangvien, NEW."MaHocKy";
+            RAISE EXCEPTION 'Cập nhật lớp mở % gây trùng lịch dạy của giảng viên % trong học kỳ %.', NEW.id, v_giangvien, NEW."MaHocKy";
         END IF;
 
     END IF;
@@ -2927,7 +2969,7 @@ BEGIN
                       (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
                   )
         ) THEN
-            RAISE EXCEPTION 'RBTV14: Sửa ThuTu của tiết học này gián tiếp làm trùng lịch dạy của giảng viên.';
+            RAISE EXCEPTION 'Sửa thứ tự của tiết học này gián tiếp làm trùng lịch dạy của giảng viên.';
         END IF;
     END IF;
     RETURN NEW;
@@ -2959,7 +3001,7 @@ BEGIN
           AND pdk."MaHocKy" = v_mahocky
           AND ctdk."TrangThai" = 'Đã đăng ký'
     ) THEN
-        RAISE EXCEPTION 'RBTV15: Không thể sửa hoặc xóa lịch học. Lớp % trong học kỳ % đã có sinh viên đăng ký.', v_malop, v_mahocky;
+        RAISE EXCEPTION 'Không thể sửa hoặc xóa lịch học. Lớp % trong học kỳ % đã có sinh viên đăng ký.', v_malop, v_mahocky;
     END IF;
 
     IF TG_OP = 'DELETE' THEN
@@ -2994,7 +3036,7 @@ BEGIN
                   AND pdk."MaHocKy" = OLD."MaHocKy"
                   AND ctdk."TrangThai" = 'Đã đăng ký'
             ) THEN
-                RAISE EXCEPTION 'RBTV15: Không thể đổi MaLop hoặc MaHocKy vì lớp mở này đang chứa lịch học và đã có sinh viên chốt đăng ký.';
+                RAISE EXCEPTION 'Không thể đổi mã lớp hoặc mã học kỳ vì lớp mở này đang chứa lịch học và đã có sinh viên chốt đăng ký.';
             END IF;
 
         END IF;
@@ -3041,7 +3083,7 @@ BEGIN
        OR CURRENT_TIMESTAMP < v_ngaybatdau
        OR CURRENT_TIMESTAMP > v_deadline
        OR v_trangthai = 'Đã kết thúc' THEN
-        RAISE EXCEPTION 'RBTV17: Không thể tạo phiếu đăng ký. Hiện tại không nằm trong thời gian đăng ký hoặc học kỳ đã kết thúc.';
+        RAISE EXCEPTION 'Không thể tạo phiếu đăng ký. Hiện tại không nằm trong thời gian đăng ký hoặc học kỳ đã kết thúc.';
     END IF;
 
     RETURN NEW;
@@ -3089,13 +3131,13 @@ BEGIN
            OR CURRENT_TIMESTAMP < v_ngaybatdau
            OR CURRENT_TIMESTAMP > v_deadline
            OR v_trangthai = 'Đã kết thúc' THEN
-            RAISE EXCEPTION 'RBTV17: Không thể đăng ký học phần ngoài khung thời gian quy định hoặc khi học kỳ đã kết thúc.';
+            RAISE EXCEPTION 'Không thể đăng ký học phần ngoài khung thời gian quy định hoặc khi học kỳ đã kết thúc.';
         END IF;
 
     /* TH 2: Hủy chi tiết học phần */
     ELSIF NEW."TrangThai" = 'Đã hủy' THEN
         IF v_deadline IS NULL OR (CURRENT_TIMESTAMP > v_deadline AND NOT v_is_finalize_cancel) THEN
-            RAISE EXCEPTION 'RBTV17: Không thể hủy học phần vì đã quá hạn kết thúc đăng ký của học kỳ.';
+            RAISE EXCEPTION 'Không thể hủy học phần vì đã quá hạn kết thúc đăng ký của học kỳ.';
         END IF;
     END IF;
 
@@ -3127,7 +3169,7 @@ BEGIN
             WHERE "MaHocKy" = NEW."MaHocKy"
               AND ("NgayLap" < NEW."NgayBatDauDangKy" OR "NgayLap" > NEW."NgayKetThucDangKy" OR NEW."TrangThai" = 'Đã kết thúc')
         ) THEN
-            RAISE EXCEPTION 'RBTV17: Không thể cập nhật học kỳ. Thời gian/Trạng thái mới gây mâu thuẫn với Ngày lập của các phiếu đăng ký hiện có.';
+            RAISE EXCEPTION 'Không thể cập nhật học kỳ. Thời gian/Trạng thái mới gây mâu thuẫn với Ngày lập của các phiếu đăng ký hiện có.';
         END IF;
 
         /* 2. Kiểm tra mâu thuẫn với các Chi tiết Đã đăng ký */
@@ -3139,7 +3181,7 @@ BEGIN
               AND ctdk."TrangThai" = 'Đã đăng ký'
               AND (ctdk."NgayDangKy" < NEW."NgayBatDauDangKy" OR ctdk."NgayDangKy" > NEW."NgayKetThucDangKy" OR NEW."TrangThai" = 'Đã kết thúc')
         ) THEN
-            RAISE EXCEPTION 'RBTV17: Không thể cập nhật học kỳ. Thời gian mới gây mâu thuẫn với các chi tiết môn học đã đăng ký.';
+            RAISE EXCEPTION 'Không thể cập nhật học kỳ. Thời gian mới gây mâu thuẫn với các chi tiết môn học đã đăng ký.';
         END IF;
 
         /* 3. Kiểm tra mâu thuẫn với các Chi tiết Đã hủy */
@@ -3151,7 +3193,7 @@ BEGIN
               AND ctdk."TrangThai" = 'Đã hủy'
               AND ctdk."NgayHuy" > NEW."NgayKetThucDangKy"
         ) THEN
-            RAISE EXCEPTION 'RBTV17: Không thể cập nhật học kỳ. Thời gian kết thúc mới gây mâu thuẫn với các chi tiết môn học đã bị hủy trước đó.';
+            RAISE EXCEPTION 'Không thể cập nhật học kỳ. Thời gian kết thúc mới gây mâu thuẫn với các chi tiết môn học đã bị hủy trước đó.';
         END IF;
 
     END IF;
@@ -3187,7 +3229,7 @@ BEGIN
               AND "MaLop" = NEW."MaLop"
               AND "TrangThai" = TRUE
         ) THEN
-            RAISE EXCEPTION 'RBTV18: Lớp % không được mở hoặc đã bị đóng trong học kỳ %.', NEW."MaLop", v_mahocky;
+            RAISE EXCEPTION 'Lớp % không được mở hoặc đã bị đóng trong học kỳ %.', NEW."MaLop", v_mahocky;
         END IF;
 
     END IF;
@@ -3221,7 +3263,7 @@ BEGIN
                     AND lm."TrangThai" = TRUE
               )
         ) THEN
-            RAISE EXCEPTION 'RBTV18: Không thể chuyển phiếu % sang học kỳ %. Có lớp đăng ký chưa được mở trong học kỳ này.', NEW."SoPhieu", NEW."MaHocKy";
+            RAISE EXCEPTION 'Không thể chuyển phiếu % sang học kỳ %. Có lớp đăng ký chưa được mở trong học kỳ này.', NEW."SoPhieu", NEW."MaHocKy";
         END IF;
 
     END IF;
@@ -3251,7 +3293,7 @@ BEGIN
               AND pdk."MaHocKy" = OLD."MaHocKy"
               AND ctdk."TrangThai" = 'Đã đăng ký'
         ) THEN
-            RAISE EXCEPTION 'RBTV18: Không thể thao tác trên lớp mở % (HK: %) vì đã có sinh viên đăng ký môn này.', OLD."MaLop", OLD."MaHocKy";
+            RAISE EXCEPTION 'Không thể thao tác trên lớp mở % (học kỳ: %) vì đã có sinh viên đăng ký môn này.', OLD."MaLop", OLD."MaHocKy";
         END IF;
 
     END IF;
@@ -3282,7 +3324,7 @@ BEGIN
 
     /* Đối chiếu với Mã môn học trong chi tiết đăng ký */
     IF NEW."MaMonHoc" IS DISTINCT FROM v_mamonhoc_goc THEN
-        RAISE EXCEPTION 'RBTV19: Mã môn học trong chi tiết đăng ký (%) không khớp với cấu hình môn học của lớp % (%).', NEW."MaMonHoc", NEW."MaLop", v_mamonhoc_goc;
+        RAISE EXCEPTION 'Mã môn học trong chi tiết đăng ký (%) không khớp với cấu hình môn học của lớp % (%).', NEW."MaMonHoc", NEW."MaLop", v_mamonhoc_goc;
     END IF;
 
     RETURN NEW;
@@ -3307,7 +3349,7 @@ BEGIN
             WHERE "MaLop" = NEW."MaLop"
               AND "MaMonHoc" IS DISTINCT FROM NEW."MaMonHoc"
         ) THEN
-            RAISE EXCEPTION 'RBTV19: Không thể đổi mã môn học của lớp % sang %. Lớp này đã có chi tiết đăng ký ghi nhận theo mã môn học cũ.', NEW."MaLop", NEW."MaMonHoc";
+            RAISE EXCEPTION 'Không thể đổi mã môn học của lớp % sang %. Lớp này đã có chi tiết đăng ký ghi nhận theo mã môn học cũ.', NEW."MaLop", NEW."MaMonHoc";
         END IF;
 
     END IF;
@@ -3337,7 +3379,7 @@ BEGIN
 
     /* Đối chiếu dữ liệu được truyền vào với dữ liệu gốc */
     IF NEW."SoTinChi" IS DISTINCT FROM v_sotinchi_goc OR NEW."LoaiMon" IS DISTINCT FROM v_loaimon_goc THEN
-        RAISE EXCEPTION 'RBTV20: Dữ liệu không khớp. Lớp % yêu cầu LoaiMon là % và SoTinChi là % (Dữ liệu nhập: %, %).',
+        RAISE EXCEPTION 'Dữ liệu không khớp. Lớp % yêu cầu loại môn là % và số tín chỉ là % (Dữ liệu nhập: %, %).',
                         NEW."MaLop", v_loaimon_goc, v_sotinchi_goc, NEW."LoaiMon", NEW."SoTinChi";
     END IF;
 
@@ -3370,7 +3412,7 @@ BEGIN
             WHERE "MaLop" = NEW."MaLop"
               AND ("SoTinChi" IS DISTINCT FROM v_sotinchi_moi OR "LoaiMon" IS DISTINCT FROM v_loaimon_moi)
         ) THEN
-            RAISE EXCEPTION 'RBTV20: Không thể đổi môn học của lớp %. Lớp này đã có sinh viên đăng ký với Số tín chỉ/Loại môn của môn học cũ.', NEW."MaLop";
+            RAISE EXCEPTION 'Không thể đổi môn học của lớp %. Lớp này đã có sinh viên đăng ký với Số tín chỉ/Loại môn của môn học cũ.', NEW."MaLop";
         END IF;
 
     END IF;
@@ -3408,7 +3450,7 @@ BEGIN
             WHERE l."MaMonHoc" = NEW."MaMonHoc"
               AND (ctdk."SoTinChi" IS DISTINCT FROM v_sotinchi_moi OR ctdk."LoaiMon" IS DISTINCT FROM NEW."LoaiMon")
         ) THEN
-            RAISE EXCEPTION 'RBTV20: Không thể đổi Loại môn hoặc Số tiết. Hành động này làm sai lệch Số tín chỉ/Loại môn của sinh viên đã đăng ký môn này trước đó.';
+            RAISE EXCEPTION 'Không thể đổi Loại môn hoặc Số tiết. Hành động này làm sai lệch Số tín chỉ/Loại môn của sinh viên đã đăng ký môn này trước đó.';
         END IF;
 
     END IF;
@@ -3441,7 +3483,7 @@ BEGIN
     LIMIT 1;
 
     IF v_DonGia IS NULL THEN
-        RAISE EXCEPTION 'RBTV21: Không tìm thấy bảng giá áp dụng cho Loại môn: %, Loại học: %, Học kỳ: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
+        RAISE EXCEPTION 'Không tìm thấy bảng giá áp dụng cho Loại môn: %, Loại học: %, Học kỳ: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
     END IF;
 
     RETURN v_DonGia;
@@ -3471,7 +3513,7 @@ BEGIN
     USING p_LoaiMon, p_LoaiGia, p_MaHocKy;
 
     IF v_DonGia IS NULL THEN
-        RAISE EXCEPTION 'RBTV21: Khong tim thay bang gia ap dung cho Loai mon: %, Loai hoc: %, Hoc ky: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
+        RAISE EXCEPTION 'Không tìm thấy bảng giá áp dụng cho Loại môn: %, Loại học: %, Học kỳ: %.', p_LoaiMon, p_LoaiGia, p_MaHocKy;
     END IF;
 
     RETURN v_DonGia;
@@ -3508,7 +3550,7 @@ BEGIN
 
     /* BƯỚC 4: Đối chiếu */
     IF NEW."DonGia" != v_DonGia_Chuan OR NEW."ThanhTien" != v_ThanhTien_Chuan THEN
-        RAISE EXCEPTION 'RBTV21: Sai lệch tài chính. Đơn giá yêu cầu: %, Thành tiền yêu cầu: % (Dữ liệu nhập: %, %)',
+        RAISE EXCEPTION 'Sai lệch tài chính. Đơn giá yêu cầu: %, Thành tiền yêu cầu: % (Dữ liệu nhập: %, %)',
                         v_DonGia_Chuan, v_ThanhTien_Chuan, NEW."DonGia", NEW."ThanhTien";
     END IF;
 
@@ -3525,7 +3567,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."MaHocKy" IS DISTINCT FROM OLD."MaHocKy" THEN
         IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "SoPhieu" = NEW."SoPhieu") THEN
-            RAISE EXCEPTION 'RBTV21: Không thể đổi Mã học kỳ. Phiếu % đã có môn đăng ký, thao tác này sẽ làm sai lệch Đơn giá và Thành tiền.', NEW."SoPhieu";
+            RAISE EXCEPTION 'Không thể đổi Mã học kỳ. Phiếu % đã có môn đăng ký, thao tác này sẽ làm sai lệch Đơn giá và Thành tiền.', NEW."SoPhieu";
         END IF;
     END IF;
     RETURN NEW;
@@ -3546,7 +3588,7 @@ BEGIN
             JOIN "PHIEUDANGKY" pdk ON ctdk."SoPhieu" = pdk."SoPhieu"
             WHERE pdk."MaHocKy" = NEW."MaHocKy"
         ) THEN
-            RAISE EXCEPTION 'RBTV21: Không thể đổi Loại học kỳ. Đã có sinh viên đăng ký, thao tác này sẽ phá vỡ công thức tính Giá trị tín chỉ.';
+            RAISE EXCEPTION 'Không thể đổi Loại học kỳ. Đã có sinh viên đăng ký, thao tác này sẽ phá vỡ công thức tính Giá trị tín chỉ.';
         END IF;
     END IF;
     RETURN NEW;
@@ -3575,7 +3617,7 @@ BEGIN
               AND (OLD."MaHocKy" IS NULL OR pdk."MaHocKy" = OLD."MaHocKy")
               AND ctdk."DonGia" = OLD."DonGia"
         ) THEN
-            RAISE EXCEPTION 'RBTV21: Không thể sửa Đơn giá hoặc Trạng thái. Mức giá này đang được sử dụng trong các Phiếu đăng ký đã lưu.';
+            RAISE EXCEPTION 'Không thể sửa Đơn giá hoặc Trạng thái. Mức giá này đang được sử dụng trong các Phiếu đăng ký đã lưu.';
         END IF;
     END IF;
     RETURN NEW;
@@ -3591,7 +3633,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."LoaiMon" IS DISTINCT FROM OLD."LoaiMon" OR NEW."SoTiet" IS DISTINCT FROM OLD."SoTiet" THEN
         IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaMonHoc" = NEW."MaMonHoc") THEN
-            RAISE EXCEPTION 'RBTV21: Không thể sửa Loại môn hoặc Số tiết. Việc này làm sai lệch công thức Đơn giá/Thành tiền của sinh viên đã đăng ký.';
+            RAISE EXCEPTION 'Không thể sửa Loại môn hoặc Số tiết. Việc này làm sai lệch công thức Đơn giá/Thành tiền của sinh viên đã đăng ký.';
         END IF;
     END IF;
     RETURN NEW;
@@ -3706,11 +3748,11 @@ BEGIN
 
     -- 6. Danh gia vi pham
     IF v_TongTinChi > v_SoTinChiDangKyToiDaKhiVuot THEN
-        RAISE EXCEPTION 'Tong tin chi (%) vuot qua gioi han he thong cho phep (%).', v_TongTinChi, v_SoTinChiDangKyToiDaKhiVuot;
+        RAISE EXCEPTION 'Tổng tín chỉ (%) vượt quá giới hạn hệ thống cho phép (%).', v_TongTinChi, v_SoTinChiDangKyToiDaKhiVuot;
     END IF;
 
     IF v_TongTinChi > v_GioiHanHienTai THEN
-        RAISE EXCEPTION 'Tong tin chi (%) vuot qua gioi han (%). SV co the chua dat dieu kien Anh van bat buoc.', v_TongTinChi, v_GioiHanHienTai;
+        RAISE EXCEPTION 'Tổng tín chỉ (%) vượt quá giới hạn (%). Sinh viên có thể chưa đạt điều kiện Anh văn bắt buộc.', v_TongTinChi, v_GioiHanHienTai;
     END IF;
 
     RETURN NEW;
@@ -3873,7 +3915,7 @@ BEGIN
        NEW."SoTinChiHocCaiThien" <> v_SoTinChiHocCaiThien OR
        NEW."TienHocCaiThien" <> v_TienHocCaiThien
     THEN
-        RAISE EXCEPTION 'Loi RBTV25: Cac cot tong hop tren PHIEUDANGKY (SoPhieu: %) khong khop voi tong chi tiet thuc te.', NEW."SoPhieu";
+        RAISE EXCEPTION 'Lỗi: Các cột tổng hợp trên phiếu đăng ký (số phiếu: %) không khớp với tổng chi tiết thực tế.', NEW."SoPhieu";
     END IF;
 
     RETURN NEW;
@@ -3931,11 +3973,11 @@ BEGIN
 
     -- Kiểm tra điều kiện RBTV
     IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
-        RAISE EXCEPTION 'RBTV26: Sĩ số đã đăng ký (%) không khớp số đăng ký thực tế (%) của lớp %.', v_sl_dang_ky, v_sl_thuc_te, v_ma_lop_check;
+        RAISE EXCEPTION 'Sĩ số đã đăng ký (%) không khớp số đăng ký thực tế (%) của lớp %.', v_sl_dang_ky, v_sl_thuc_te, v_ma_lop_check;
     END IF;
 
     IF v_sl_dang_ky < 0 OR v_sl_dang_ky > v_sl_toi_da THEN
-        RAISE EXCEPTION 'RBTV26: Sĩ số (%) vượt quá sức chứa tối đa (%) của lớp %.', v_sl_dang_ky, v_sl_toi_da, v_ma_lop_check;
+        RAISE EXCEPTION 'Sĩ số (%) vượt quá sức chứa tối đa (%) của lớp %.', v_sl_dang_ky, v_sl_toi_da, v_ma_lop_check;
     END IF;
 
     -- Nếu là UPDATE và đổi lớp, cần kiểm tra thêm lớp cũ
@@ -3953,7 +3995,7 @@ BEGIN
         WHERE "MaHocKy" = v_ma_hoc_ky AND "MaLop" = OLD."MaLop";
 
         IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
-            RAISE EXCEPTION 'RBTV26: Sĩ số đã đăng ký lớp cũ không khớp thực tế do đổi mã lớp.';
+            RAISE EXCEPTION 'Sĩ số đã đăng ký lớp cũ không khớp thực tế do đổi mã lớp.';
         END IF;
     END IF;
 
@@ -3985,11 +4027,11 @@ BEGIN
     WHERE "MaLop" = NEW."MaLop";
 
     IF NEW."SoLuongDaDangKy" != v_sl_thuc_te THEN
-        RAISE EXCEPTION 'RBTV26: Sĩ số trong LOPMO (%) không khớp với số đăng ký thực tế (%).', NEW."SoLuongDaDangKy", v_sl_thuc_te;
+        RAISE EXCEPTION 'Sĩ số trong lớp mở (%) không khớp với số đăng ký thực tế (%).', NEW."SoLuongDaDangKy", v_sl_thuc_te;
     END IF;
 
     IF NEW."SoLuongDaDangKy" < 0 OR NEW."SoLuongDaDangKy" > v_sl_toi_da THEN
-        RAISE EXCEPTION 'RBTV26: Sĩ số cập nhật (%) vi phạm giới hạn của lớp (Tối đa: %).', NEW."SoLuongDaDangKy", v_sl_toi_da;
+        RAISE EXCEPTION 'Sĩ số cập nhật (%) vi phạm giới hạn của lớp (Tối đa: %).', NEW."SoLuongDaDangKy", v_sl_toi_da;
     END IF;
 
     RETURN NEW;
@@ -4013,7 +4055,7 @@ BEGIN
         WHERE "MaLop" = NEW."MaLop"
     ) LOOP
         IF rec."SoLuongDaDangKy" > NEW."SoLuongToiDa" THEN
-            RAISE EXCEPTION 'RBTV26: Sức chứa mới (%) nhỏ hơn số sinh viên đã đăng ký (%) ở học kỳ %.', NEW."SoLuongToiDa", rec."SoLuongDaDangKy", rec."MaHocKy";
+            RAISE EXCEPTION 'Sức chứa mới (%) nhỏ hơn số sinh viên đã đăng ký (%) ở học kỳ %.', NEW."SoLuongToiDa", rec."SoLuongDaDangKy", rec."MaHocKy";
         END IF;
     END LOOP;
 
@@ -4053,7 +4095,7 @@ BEGIN
         WHERE "MaHocKy" = NEW."MaHocKy" AND "MaLop" = rec."MaLop";
 
         IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
-            RAISE EXCEPTION 'RBTV26: Cập nhật PHIEUDANGKY làm sai lệch tổng đăng ký.';
+            RAISE EXCEPTION 'Cập nhật phiếu đăng ký làm sai lệch tổng đăng ký.';
         END IF;
     END LOOP;
 
@@ -4076,7 +4118,7 @@ BEGIN
             WHERE "MaHocKy" = OLD."MaHocKy" AND "MaLop" = rec."MaLop";
 
             IF v_sl_dang_ky IS DISTINCT FROM v_sl_thuc_te THEN
-                RAISE EXCEPTION 'RBTV26: Đổi học kỳ làm sai lệch tổng đăng ký của học kỳ cũ.';
+                RAISE EXCEPTION 'Đổi học kỳ làm sai lệch tổng đăng ký của học kỳ cũ.';
             END IF;
         END LOOP;
     END IF;
@@ -4104,7 +4146,7 @@ BEGIN
             WHERE "SoPhieu" = NEW."SoPhieu"
               AND "TrangThai" = 'Đã đăng ký'
         ) THEN
-            RAISE EXCEPTION 'RBTV27: Lỗi! Không thể lưu trạng thái "Đã hủy" cho phiếu % vì vẫn còn môn học ở trạng thái "Đã đăng ký".', NEW."SoPhieu";
+            RAISE EXCEPTION 'Lỗi! Không thể lưu trạng thái "Đã hủy" cho phiếu % vì vẫn còn môn học ở trạng thái "Đã đăng ký".', NEW."SoPhieu";
         END IF;
     END IF;
 
@@ -4133,7 +4175,7 @@ BEGIN
 
         -- Nếu phiếu mẹ đã hủy thì không cho phép chi tiết đăng ký
         IF v_trang_thai_phieu = 'Đã hủy' THEN
-            RAISE EXCEPTION 'RBTV27: Lỗi! Không thể thêm hoặc giữ trạng thái "Đã đăng ký" cho chi tiết vì phiếu % đã bị "Đã hủy".', NEW."SoPhieu";
+            RAISE EXCEPTION 'Lỗi! Không thể thêm hoặc giữ trạng thái "Đã đăng ký" cho chi tiết vì phiếu % đã bị "Đã hủy".', NEW."SoPhieu";
         END IF;
     END IF;
 
@@ -4169,7 +4211,7 @@ CREATE OR REPLACE FUNCTION trg_fn_rbtv28_phieudangky_delete()
 RETURNS TRIGGER AS $$
 BEGIN
     IF fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
-        RAISE EXCEPTION '[RBTV28] Không thể xóa phiếu đăng ký SoPhieu=% vì đã có phiếu thu học phí thành công. Vui lòng hủy phiếu thu trước.', OLD."SoPhieu";
+        RAISE EXCEPTION 'Không thể xóa phiếu đăng ký số phiếu=% vì đã có phiếu thu học phí thành công. Vui lòng hủy phiếu thu trước.', OLD."SoPhieu";
     END IF;
     RETURN OLD;
 END;
@@ -4184,7 +4226,7 @@ CREATE OR REPLACE FUNCTION trg_fn_rbtv28_phieudangky_update()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = 'Đã hủy' AND OLD."TrangThai" <> 'Đã hủy' AND fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
-        RAISE EXCEPTION '[RBTV28] Không thể hủy phiếu đăng ký SoPhieu=% vì đã có phiếu thu học phí thành công. Vui lòng hủy phiếu thu trước.', OLD."SoPhieu";
+        RAISE EXCEPTION 'Không thể hủy phiếu đăng ký số phiếu=% vì đã có phiếu thu học phí thành công. Vui lòng hủy phiếu thu trước.', OLD."SoPhieu";
     END IF;
     RETURN NEW;
 END;
@@ -4199,7 +4241,7 @@ CREATE OR REPLACE FUNCTION trg_fn_rbtv28_chitietdangky_delete()
 RETURNS TRIGGER AS $$
 BEGIN
     IF fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
-        RAISE EXCEPTION '[RBTV28] Không thể xóa chi tiết id=% (SoPhieu=%) vì phiếu đăng ký đã có phiếu thu thành công.', OLD.id, OLD."SoPhieu";
+        RAISE EXCEPTION 'Không thể xóa chi tiết đăng ký % (số phiếu=%) vì phiếu đăng ký đã có phiếu thu thành công.', OLD.id, OLD."SoPhieu";
     END IF;
     RETURN OLD;
 END;
@@ -4218,7 +4260,7 @@ BEGIN
        OR (NEW."SoTinChi" < OLD."SoTinChi")
     THEN
         IF fn_rbtv28_co_phieu_thu_thanh_cong(OLD."SoPhieu") THEN
-            RAISE EXCEPTION '[RBTV28] Không thể hủy hoặc giảm học phí/tín chỉ cho id=% (SoPhieu=%) vì đã có phiếu thu thành công.', OLD.id, OLD."SoPhieu";
+            RAISE EXCEPTION 'Không thể hủy hoặc giảm học phí/tín chỉ cho chi tiết đăng ký % (số phiếu=%) vì đã có phiếu thu thành công.', OLD.id, OLD."SoPhieu";
         END IF;
     END IF;
     RETURN NEW;
@@ -4242,10 +4284,10 @@ DECLARE v_masv_pdk VARCHAR(15);
 BEGIN
     SELECT "MaSv" INTO v_masv_pdk FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieuDangKy";
     IF NOT FOUND THEN
-        RAISE EXCEPTION '[RBTV29] Phiếu đăng ký SoPhieu=% không tồn tại.', NEW."SoPhieuDangKy";
+        RAISE EXCEPTION 'Phiếu đăng ký số phiếu=% không tồn tại.', NEW."SoPhieuDangKy";
     END IF;
     IF NEW."MaSv" <> v_masv_pdk THEN
-        RAISE EXCEPTION '[RBTV29] MaSv trên phiếu thu (%) không khớp với MaSv trên phiếu đăng ký SoPhieu=% (%).', NEW."MaSv", NEW."SoPhieuDangKy", v_masv_pdk;
+        RAISE EXCEPTION 'Mã sinh viên trên phiếu thu (%) không khớp với Mã sinh viên trên phiếu đăng ký số phiếu=% (%).', NEW."MaSv", NEW."SoPhieuDangKy", v_masv_pdk;
     END IF;
     RETURN NEW;
 END;
@@ -4261,7 +4303,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."MaSv" <> OLD."MaSv" THEN
         IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "SoPhieuDangKy" = OLD."SoPhieu") THEN
-            RAISE EXCEPTION '[RBTV29] Không thể đổi MaSv phiếu đăng ký SoPhieu=% vì đã có phiếu thu liên kết.', OLD."SoPhieu";
+            RAISE EXCEPTION 'Không thể đổi mã sinh viên của phiếu đăng ký số phiếu=% vì đã có phiếu thu liên kết.', OLD."SoPhieu";
         END IF;
     END IF;
     RETURN NEW;
@@ -4283,18 +4325,24 @@ RETURNS VOID AS $$
 DECLARE
     v_tong_phai_dong NUMERIC(15,0);
     v_tong_da_thu NUMERIC(15,0);
+    v_so_giao_dich INTEGER;
 BEGIN
     SELECT "TongTienPhaiDong" INTO v_tong_phai_dong FROM "PHIEUDANGKY" WHERE "SoPhieu" = p_so_phieu;
     IF NOT FOUND THEN RETURN; END IF;
 
-    -- Tính tổng TẤT CẢ phiếu thu thành công
-    -- (đã bao gồm dòng vừa Insert/Update vì đây là AFTER trigger)
-    SELECT COALESCE(SUM("SoTienThu"), 0) INTO v_tong_da_thu
-    FROM "PHIEUTHUHOCPHI"
+    SELECT COALESCE(SUM("SoTienThanhToan"), 0), COUNT(*)
+    INTO v_tong_da_thu, v_so_giao_dich
+    FROM "GIAODICHTHANHTOANHOCPHI"
     WHERE "SoPhieuDangKy" = p_so_phieu AND "TrangThai" = 'Thành công';
 
+    IF v_so_giao_dich = 0 THEN
+        SELECT COALESCE(SUM("SoTienThu"), 0) INTO v_tong_da_thu
+        FROM "PHIEUTHUHOCPHI"
+        WHERE "SoPhieuDangKy" = p_so_phieu AND "TrangThai" = 'Thành công';
+    END IF;
+
     IF v_tong_da_thu > v_tong_phai_dong THEN
-        RAISE EXCEPTION '[RBTV30] Tổng tiền đã thu thành công (%) vượt quá TongTienPhaiDong (%) của phiếu đăng ký SoPhieu=%.', v_tong_da_thu, v_tong_phai_dong, p_so_phieu;
+        RAISE EXCEPTION 'Tổng tiền đã thu thành công (%) vượt quá tổng tiền phải đóng (%) của phiếu đăng ký số phiếu=%.', v_tong_da_thu, v_tong_phai_dong, p_so_phieu;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
@@ -4332,15 +4380,24 @@ FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv30_phieuthuhocphi_update();
 -- [RBTV30 - PHIEUDANGKY] BEFORE UPDATE TongTienPhaiDong
 CREATE OR REPLACE FUNCTION trg_fn_rbtv30_phieudangky_update()
 RETURNS TRIGGER AS $$
-DECLARE v_tong_da_thu NUMERIC(15,0);
+DECLARE
+    v_tong_da_thu NUMERIC(15,0);
+    v_so_giao_dich INTEGER;
 BEGIN
     IF NEW."TongTienPhaiDong" < OLD."TongTienPhaiDong" THEN
-        SELECT COALESCE(SUM("SoTienThu"), 0) INTO v_tong_da_thu
-        FROM "PHIEUTHUHOCPHI"
+        SELECT COALESCE(SUM("SoTienThanhToan"), 0), COUNT(*)
+        INTO v_tong_da_thu, v_so_giao_dich
+        FROM "GIAODICHTHANHTOANHOCPHI"
         WHERE "SoPhieuDangKy" = OLD."SoPhieu" AND "TrangThai" = 'Thành công';
 
+        IF v_so_giao_dich = 0 THEN
+            SELECT COALESCE(SUM("SoTienThu"), 0) INTO v_tong_da_thu
+            FROM "PHIEUTHUHOCPHI"
+            WHERE "SoPhieuDangKy" = OLD."SoPhieu" AND "TrangThai" = 'Thành công';
+        END IF;
+
         IF v_tong_da_thu > NEW."TongTienPhaiDong" THEN
-            RAISE EXCEPTION '[RBTV30] Không thể giảm TongTienPhaiDong xuống % vì tổng đã thu thành công là % (SoPhieu=%).', NEW."TongTienPhaiDong", v_tong_da_thu, OLD."SoPhieu";
+            RAISE EXCEPTION 'Không thể giảm tổng tiền phải đóng xuống % vì tổng đã thu thành công là % (số phiếu=%).', NEW."TongTienPhaiDong", v_tong_da_thu, OLD."SoPhieu";
         END IF;
     END IF;
     RETURN NEW;
@@ -4350,6 +4407,84 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_rbtv30_phieudangky_update ON "PHIEUDANGKY";
 CREATE TRIGGER trg_rbtv30_phieudangky_update BEFORE UPDATE OF "TongTienPhaiDong" ON "PHIEUDANGKY"
 FOR EACH ROW EXECUTE FUNCTION trg_fn_rbtv30_phieudangky_update();
+
+-- [GDTT] Giao dịch thanh toán phải khớp phiếu thu và không được thu quá số tiền phải đóng
+CREATE OR REPLACE FUNCTION trg_fn_gdtt_match_receipt()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_so_phieu_dang_ky INTEGER;
+    v_ma_sv VARCHAR(15);
+BEGIN
+    SELECT "SoPhieuDangKy", "MaSv"
+    INTO v_so_phieu_dang_ky, v_ma_sv
+    FROM "PHIEUTHUHOCPHI"
+    WHERE "SoPhieuThu" = NEW."SoPhieuThu";
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION '[GDTT] Phiếu thu % không tồn tại.', NEW."SoPhieuThu";
+    END IF;
+
+    IF NEW."SoPhieuDangKy" <> v_so_phieu_dang_ky OR NEW."MaSv" <> v_ma_sv THEN
+        RAISE EXCEPTION '[GDTT] Giao dịch thanh toán không khớp với phiếu thu %.', NEW."SoPhieuThu";
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_gdtt_match_receipt ON "GIAODICHTHANHTOANHOCPHI";
+CREATE TRIGGER trg_gdtt_match_receipt
+BEFORE INSERT OR UPDATE OF "SoPhieuThu", "SoPhieuDangKy", "MaSv"
+ON "GIAODICHTHANHTOANHOCPHI"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_gdtt_match_receipt();
+
+CREATE OR REPLACE FUNCTION trg_fn_gdtt_total_success()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_tong_phieu NUMERIC(15,0);
+    v_tong_pdk NUMERIC(15,0);
+    v_da_thu_phieu NUMERIC(15,0);
+    v_da_thu_pdk NUMERIC(15,0);
+BEGIN
+    IF NEW."TrangThai" <> 'Thành công' THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT "SoTienThu" INTO v_tong_phieu
+    FROM "PHIEUTHUHOCPHI"
+    WHERE "SoPhieuThu" = NEW."SoPhieuThu";
+
+    SELECT COALESCE("TongTienPhaiDong", 0) INTO v_tong_pdk
+    FROM "PHIEUDANGKY"
+    WHERE "SoPhieu" = NEW."SoPhieuDangKy";
+
+    SELECT COALESCE(SUM("SoTienThanhToan"), 0) INTO v_da_thu_phieu
+    FROM "GIAODICHTHANHTOANHOCPHI"
+    WHERE "SoPhieuThu" = NEW."SoPhieuThu" AND "TrangThai" = 'Thành công';
+
+    SELECT COALESCE(SUM("SoTienThanhToan"), 0) INTO v_da_thu_pdk
+    FROM "GIAODICHTHANHTOANHOCPHI"
+    WHERE "SoPhieuDangKy" = NEW."SoPhieuDangKy" AND "TrangThai" = 'Thành công';
+
+    IF v_da_thu_phieu > v_tong_phieu THEN
+        RAISE EXCEPTION '[GDTT] Tổng tiền thanh toán thành công (%) vượt số tiền phiếu thu (%).', v_da_thu_phieu, v_tong_phieu;
+    END IF;
+
+    IF v_da_thu_pdk > v_tong_pdk THEN
+        RAISE EXCEPTION '[GDTT] Tổng tiền thanh toán thành công (%) vượt học phí phải đóng của phiếu đăng ký (%).', v_da_thu_pdk, v_tong_pdk;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_gdtt_total_success ON "GIAODICHTHANHTOANHOCPHI";
+CREATE TRIGGER trg_gdtt_total_success
+AFTER INSERT OR UPDATE OF "SoTienThanhToan", "TrangThai", "SoPhieuThu", "SoPhieuDangKy"
+ON "GIAODICHTHANHTOANHOCPHI"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_gdtt_total_success();
 
 
 -- =====================================================
@@ -4361,7 +4496,7 @@ CREATE OR REPLACE FUNCTION trg_fn_rbtv31_phieuthuhocphi()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."HinhThucThu" <> 'Tiền mặt' AND NEW."TrangThai" = 'Thành công' AND NEW."MaGiaoDich" IS NULL THEN
-        RAISE EXCEPTION '[RBTV31] Giao dịch không phải tiền mặt với trạng thái Thành công phải có MaGiaoDich (SoPhieuThu=%).', NEW."SoPhieuThu";
+        RAISE EXCEPTION 'Giao dịch không phải tiền mặt với trạng thái Thành công phải có mã giao dịch (số phiếu thu=%).', NEW."SoPhieuThu";
     END IF;
 
     IF NEW."TrangThai" = 'Thành công' AND NEW."MaGiaoDich" IS NOT NULL THEN
@@ -4372,7 +4507,7 @@ BEGIN
               AND ((NEW."PaymentProvider" IS NOT NULL AND "PaymentProvider" = NEW."PaymentProvider") OR (NEW."PaymentProvider" IS NULL AND "PaymentProvider" IS NULL))
               AND "SoPhieuThu" <> COALESCE(NEW."SoPhieuThu", -1)
         ) THEN
-            RAISE EXCEPTION '[RBTV31] MaGiaoDich=% đã tồn tại trong một phiếu thu thành công khác (PaymentProvider=%).', NEW."MaGiaoDich", NEW."PaymentProvider";
+            RAISE EXCEPTION 'Mã giao dịch=% đã tồn tại trong một phiếu thu thành công khác (nhà cung cấp thanh toán=%).', NEW."MaGiaoDich", NEW."PaymentProvider";
         END IF;
     END IF;
     RETURN NEW;
@@ -4392,7 +4527,7 @@ CREATE OR REPLACE FUNCTION trg_fn_rbtv32_phieuthuhocphi()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = 'Thành công' AND NEW."NgayXacNhan" IS NULL THEN
-        RAISE EXCEPTION '[RBTV32] Phiếu thu SoPhieuThu=% có TrangThai Thành công nhưng NgayXacNhan đang NULL.', NEW."SoPhieuThu";
+        RAISE EXCEPTION 'Phiếu thu % có trạng thái Thành công nhưng ngày xác nhận đang trống.', NEW."SoPhieuThu";
     END IF;
     RETURN NEW;
 END;
@@ -4415,16 +4550,16 @@ BEGIN
 
     IF NEW."TrangThai" = 'Đã hủy' THEN
         IF NEW."GhiChu" IS NULL OR TRIM(NEW."GhiChu") = '' THEN
-            RAISE EXCEPTION '[RBTV33] Khi hủy phiếu thu đã thành công (SoPhieuThu=%), bắt buộc phải ghi lý do vào GhiChu.', OLD."SoPhieuThu";
+            RAISE EXCEPTION 'Khi hủy phiếu thu đã thành công (số phiếu thu=%), bắt buộc phải ghi lý do vào ghi chú.', OLD."SoPhieuThu";
         END IF;
         IF NEW."SoPhieuDangKy" <> OLD."SoPhieuDangKy" OR NEW."MaSv" <> OLD."MaSv" OR NEW."SoTienThu" <> OLD."SoTienThu" OR NEW."HinhThucThu" <> OLD."HinhThucThu" OR (NEW."MaGiaoDich" IS DISTINCT FROM OLD."MaGiaoDich") THEN
-            RAISE EXCEPTION '[RBTV33] Khi hủy phiếu thu (SoPhieuThu=%), không được thay đổi các trường định danh.', OLD."SoPhieuThu";
+            RAISE EXCEPTION 'Khi hủy phiếu thu (số phiếu thu=%), không được thay đổi các trường định danh.', OLD."SoPhieuThu";
         END IF;
         RETURN NEW;
     END IF;
 
     IF NEW."SoPhieuDangKy" <> OLD."SoPhieuDangKy" OR NEW."MaSv" <> OLD."MaSv" OR NEW."SoTienThu" <> OLD."SoTienThu" OR NEW."HinhThucThu" <> OLD."HinhThucThu" OR (NEW."MaGiaoDich" IS DISTINCT FROM OLD."MaGiaoDich") THEN
-        RAISE EXCEPTION '[RBTV33] Không thể sửa thông tin định danh của phiếu thu đã thành công (SoPhieuThu=%).', OLD."SoPhieuThu";
+        RAISE EXCEPTION 'Không thể sửa thông tin định danh của phiếu thu đã thành công (số phiếu thu=%).', OLD."SoPhieuThu";
     END IF;
     RETURN NEW;
 END;
@@ -4500,6 +4635,14 @@ BEGIN
       AND "NgayXacNhan" >= v_bat_dau
       AND "NgayXacNhan" < v_han_exclusive;
 
+    SELECT COALESCE(SUM("SoTienThanhToan"), v_tong_da_thu)
+    INTO v_tong_da_thu
+    FROM "GIAODICHTHANHTOANHOCPHI"
+    WHERE "SoPhieuDangKy" = p_so_phieu
+      AND "TrangThai" = 'Thành công'
+      AND "NgayXacNhan" >= v_bat_dau
+      AND "NgayXacNhan" < v_han_exclusive;
+
     RETURN v_tong_da_thu;
 END;
 $$ LANGUAGE plpgsql;
@@ -4546,19 +4689,19 @@ BEGIN
     WHERE pdk."SoPhieu" = NEW."SoPhieuDangKy";
 
     IF v_bat_dau IS NULL OR v_han_exclusive IS NULL THEN
-        RAISE EXCEPTION '[RBTV35] Hoc ky % cua phieu dang ky % chua cau hinh NgayBatDauDongHocPhi/HanDongHocPhi.', v_ma_hoc_ky, NEW."SoPhieuDangKy";
+        RAISE EXCEPTION 'Học kỳ % của phiếu đăng ký % chưa cấu hình ngày bắt đầu đóng học phí/hạn đóng học phí.', v_ma_hoc_ky, NEW."SoPhieuDangKy";
     END IF;
 
     IF NEW."NgayXacNhan" IS NULL THEN
-        RAISE EXCEPTION '[RBTV35] Phieu thu thanh cong phai co NgayXacNhan de kiem tra han dong hoc phi.';
+        RAISE EXCEPTION 'Phiếu thu thành công phải có ngày xác nhận để kiểm tra hạn đóng học phí.';
     END IF;
 
     IF NEW."NgayXacNhan" < v_bat_dau THEN
-        RAISE EXCEPTION '[RBTV35] Khong the ghi nhan phieu thu thanh cong truoc ngay bat dau dong hoc phi cua hoc ky %.', v_ma_hoc_ky;
+        RAISE EXCEPTION 'Không thể ghi nhận phiếu thu thành công trước ngày bắt đầu đóng học phí của học kỳ %.', v_ma_hoc_ky;
     END IF;
 
     IF NEW."NgayXacNhan" >= v_han_exclusive THEN
-        RAISE EXCEPTION '[RBTV35] Khong the ghi nhan phieu thu thanh cong sau han dong hoc phi cua hoc ky %.', v_ma_hoc_ky;
+        RAISE EXCEPTION 'Không thể ghi nhận phiếu thu thành công sau hạn đóng học phí của học kỳ %.', v_ma_hoc_ky;
     END IF;
 
     RETURN NEW;
@@ -4569,6 +4712,13 @@ DROP TRIGGER IF EXISTS trg_rbtv35_phieuthuhocphi_han_dong ON "PHIEUTHUHOCPHI";
 CREATE TRIGGER trg_rbtv35_phieuthuhocphi_han_dong
 BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "TrangThai", "NgayXacNhan"
 ON "PHIEUTHUHOCPHI"
+FOR EACH ROW
+EXECUTE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong();
+
+DROP TRIGGER IF EXISTS trg_rbtv35_gdtt_han_dong ON "GIAODICHTHANHTOANHOCPHI";
+CREATE TRIGGER trg_rbtv35_gdtt_han_dong
+BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "TrangThai", "NgayXacNhan"
+ON "GIAODICHTHANHTOANHOCPHI"
 FOR EACH ROW
 EXECUTE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong();
 
@@ -4593,7 +4743,7 @@ BEGIN
     LIMIT 1;
 
     IF v_so_phieu IS NOT NULL THEN
-        RAISE EXCEPTION '[RBTV35] Khong the doi khung dong hoc phi vi phieu dang ky % da co phieu thu thanh cong ngay % nam ngoai khung moi.', v_so_phieu, v_ngay_xac_nhan;
+        RAISE EXCEPTION 'Không thể đổi khung đóng học phí vì phiếu đăng ký % đã có phiếu thu thành công ngày % nằm ngoài khung mới.', v_so_phieu, v_ngay_xac_nhan;
     END IF;
 
     RETURN NEW;
@@ -4634,7 +4784,7 @@ BEGIN
     LIMIT 1;
 
     IF v_so_phieu_thu IS NOT NULL THEN
-        RAISE EXCEPTION '[RBTV35] Khong the chuyen phieu dang ky % sang hoc ky moi vi phieu thu % thanh cong ngay % khong nam trong han hoc phi moi.', NEW."SoPhieu", v_so_phieu_thu, v_ngay_xac_nhan;
+        RAISE EXCEPTION 'Không thể chuyển phiếu đăng ký % sang học kỳ mới vì phiếu thu % thành công ngày % không nằm trong hạn học phí mới.', NEW."SoPhieu", v_so_phieu_thu, v_ngay_xac_nhan;
     END IF;
 
     RETURN NEW;
@@ -4689,17 +4839,17 @@ BEGIN
     IF NEW."TrangThai" = 'Đã đăng ký' THEN
         SELECT "DaXoa", "TrangThai" INTO v_Lop_DaXoa, v_Lop_TrangThai FROM "LOP" WHERE "MaLop" = NEW."MaLop";
         IF COALESCE(v_Lop_DaXoa, FALSE) = TRUE OR COALESCE(v_Lop_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: LOP % khong hop le.', NEW."MaLop";
+            RAISE EXCEPTION 'Lớp % không hợp lệ.', NEW."MaLop";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+            RAISE EXCEPTION 'Môn học % không hợp lệ.', NEW."MaMonHoc";
         END IF;
 
         SELECT "TrangThai" INTO v_Phieu_TrangThai FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
         IF COALESCE(v_Phieu_TrangThai, '') != 'Đã đăng ký' THEN
-            RAISE EXCEPTION 'RBTV34: PHIEUDANGKY % khong hop le.', NEW."SoPhieu";
+            RAISE EXCEPTION 'Phiếu đăng ký % không hợp lệ.', NEW."SoPhieu";
         END IF;
     END IF;
     RETURN NEW;
@@ -4720,12 +4870,12 @@ BEGIN
     IF NEW."TrangThai" = 'Đã đăng ký' THEN
         SELECT "DaXoa", "TrangThai" INTO v_Sv_DaXoa, v_Sv_TrangThai FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
         IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE OR v_Sv_TrangThai != 'Đang học' THEN
-            RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+            RAISE EXCEPTION 'Sinh viên % không hợp lệ.', NEW."MaSv";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Hk_DaXoa, v_Hk_TrangThai FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
         IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE OR v_Hk_TrangThai = 'Đã kết thúc' THEN
-            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+            RAISE EXCEPTION 'Học kỳ % không hợp lệ.', NEW."MaHocKy";
         END IF;
     END IF;
     RETURN NEW;
@@ -4746,12 +4896,12 @@ BEGIN
     IF NEW."TrangThai" = 'Thành công' THEN
         SELECT "TrangThai" INTO v_Phieu_TrangThai FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieuDangKy";
         IF COALESCE(v_Phieu_TrangThai, '') != 'Đã đăng ký' THEN
-            RAISE EXCEPTION 'RBTV34: PHIEUDANGKY % khong hop le.', NEW."SoPhieuDangKy";
+            RAISE EXCEPTION 'Phiếu đăng ký % không hợp lệ.', NEW."SoPhieuDangKy";
         END IF;
 
         SELECT "DaXoa" INTO v_Sv_DaXoa FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
         IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE THEN
-            RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+            RAISE EXCEPTION 'Sinh viên % không hợp lệ.', NEW."MaSv";
         END IF;
     END IF;
     RETURN NEW;
@@ -4771,12 +4921,12 @@ BEGIN
     IF NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa" INTO v_Hk_DaXoa FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
         IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE THEN
-            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+            RAISE EXCEPTION 'Học kỳ % không hợp lệ.', NEW."MaHocKy";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Lop_DaXoa, v_Lop_TrangThai FROM "LOP" WHERE "MaLop" = NEW."MaLop";
         IF COALESCE(v_Lop_DaXoa, FALSE) = TRUE OR COALESCE(v_Lop_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: LOP % khong hop le.', NEW."MaLop";
+            RAISE EXCEPTION 'Lớp % không hợp lệ.', NEW."MaLop";
         END IF;
     END IF;
     RETURN NEW;
@@ -4797,23 +4947,23 @@ BEGIN
     IF NEW."DaXoa" = FALSE THEN
         SELECT "DaXoa" INTO v_Sv_DaXoa FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
         IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE THEN
-            RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+            RAISE EXCEPTION 'Sinh viên % không hợp lệ.', NEW."MaSv";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+            RAISE EXCEPTION 'Môn học % không hợp lệ.', NEW."MaMonHoc";
         END IF;
 
         SELECT "DaXoa" INTO v_Hk_DaXoa FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
         IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE THEN
-            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+            RAISE EXCEPTION 'Học kỳ % không hợp lệ.', NEW."MaHocKy";
         END IF;
 
         IF NEW."MaLop" IS NOT NULL THEN
             SELECT "DaXoa" INTO v_Lop_DaXoa FROM "LOP" WHERE "MaLop" = NEW."MaLop";
             IF COALESCE(v_Lop_DaXoa, FALSE) = TRUE THEN
-                RAISE EXCEPTION 'RBTV34: LOP % khong hop le.', NEW."MaLop";
+                RAISE EXCEPTION 'Lớp % không hợp lệ.', NEW."MaLop";
             END IF;
         END IF;
     END IF;
@@ -4833,7 +4983,7 @@ BEGIN
     IF NEW."TrangThai" = TRUE THEN
         SELECT "TrangThai" INTO v_Tinh_TrangThai FROM "TINH" WHERE "MaTinh" = NEW."MaTinh";
         IF COALESCE(v_Tinh_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: TINH % khong hop le.', NEW."MaTinh";
+            RAISE EXCEPTION 'Tỉnh/thành phố % không hợp lệ.', NEW."MaTinh";
         END IF;
     END IF;
     RETURN NEW;
@@ -4852,7 +5002,7 @@ BEGIN
     IF (NEW."DaXoa" IS NULL OR NEW."DaXoa" = FALSE) AND NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa", "TrangThai" INTO v_Khoa_DaXoa, v_Khoa_TrangThai FROM "KHOA" WHERE "MaKhoa" = NEW."MaKhoa";
         IF COALESCE(v_Khoa_DaXoa, FALSE) = TRUE OR COALESCE(v_Khoa_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: KHOA % khong hop le.', NEW."MaKhoa";
+            RAISE EXCEPTION 'Khoa % không hợp lệ.', NEW."MaKhoa";
         END IF;
     END IF;
     RETURN NEW;
@@ -4877,12 +5027,12 @@ BEGIN
     IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa", "TrangThai" INTO v_Mon1_DaXoa, v_Mon1_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon1_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon1_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+            RAISE EXCEPTION 'Môn học % không hợp lệ.', NEW."MaMonHoc";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Mon2_DaXoa, v_Mon2_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonDieuKien";
         IF COALESCE(v_Mon2_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon2_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: MONHOC dieu kien % khong hop le.', NEW."MaMonDieuKien";
+            RAISE EXCEPTION 'Môn học điều kiện % không hợp lệ.', NEW."MaMonDieuKien";
         END IF;
     END IF;
     RETURN NEW;
@@ -4901,7 +5051,7 @@ BEGIN
     IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+            RAISE EXCEPTION 'Môn học % không hợp lệ.', NEW."MaMonHoc";
         END IF;
     END IF;
     RETURN NEW;
@@ -4922,12 +5072,12 @@ BEGIN
     IF NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa", "TrangThai" INTO v_Nganh_DaXoa, v_Nganh_TrangThai FROM "NGANHHOC" WHERE "MaNganh" = NEW."MaNganh";
         IF COALESCE(v_Nganh_DaXoa, FALSE) = TRUE OR COALESCE(v_Nganh_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: NGANHHOC % khong hop le.', NEW."MaNganh";
+            RAISE EXCEPTION 'Ngành học % không hợp lệ.', NEW."MaNganh";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Mon_DaXoa, v_Mon_TrangThai FROM "MONHOC" WHERE "MaMonHoc" = NEW."MaMonHoc";
         IF COALESCE(v_Mon_DaXoa, FALSE) = TRUE OR COALESCE(v_Mon_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: MONHOC % khong hop le.', NEW."MaMonHoc";
+            RAISE EXCEPTION 'Môn học % không hợp lệ.', NEW."MaMonHoc";
         END IF;
     END IF;
     RETURN NEW;
@@ -4946,7 +5096,7 @@ BEGIN
     IF NEW."DaXoa" = FALSE AND NEW."TrangThai" != 'Đã kết thúc' THEN
         SELECT "TrangThai" INTO v_Nam_TrangThai FROM "NAMHOC" WHERE "MaNamHoc" = NEW."MaNamHoc";
         IF COALESCE(v_Nam_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: NAMHOC % khong hop le.', NEW."MaNamHoc";
+            RAISE EXCEPTION 'Năm học % không hợp lệ.', NEW."MaNamHoc";
         END IF;
     END IF;
     RETURN NEW;
@@ -4968,17 +5118,17 @@ BEGIN
     IF NEW."TrangThai" = TRUE THEN
         SELECT "TrangThai" INTO v_LopMo_TrangThai FROM "LOPMO" WHERE id = NEW."LopMoId";
         IF COALESCE(v_LopMo_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: LOPMO % khong hop le.', NEW."LopMoId";
+            RAISE EXCEPTION 'Lớp mở % không hợp lệ.', NEW."LopMoId";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Tiet1_DaXoa, v_Tiet1_TrangThai FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
         IF COALESCE(v_Tiet1_DaXoa, FALSE) = TRUE OR COALESCE(v_Tiet1_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: TIETHOC bat dau % khong hop le.', NEW."MaTietBatDau";
+            RAISE EXCEPTION 'Tiết học bắt đầu % không hợp lệ.', NEW."MaTietBatDau";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Tiet2_DaXoa, v_Tiet2_TrangThai FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
         IF COALESCE(v_Tiet2_DaXoa, FALSE) = TRUE OR COALESCE(v_Tiet2_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: TIETHOC ket thuc % khong hop le.', NEW."MaTietKetThuc";
+            RAISE EXCEPTION 'Tiết học kết thúc % không hợp lệ.', NEW."MaTietKetThuc";
         END IF;
     END IF;
     RETURN NEW;
@@ -4997,7 +5147,7 @@ BEGIN
     IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE AND NEW."MaHocKy" IS NOT NULL THEN
         SELECT "DaXoa", "TrangThai" INTO v_Hk_DaXoa, v_Hk_TrangThai FROM "HOCKY" WHERE "MaHocKy" = NEW."MaHocKy";
         IF COALESCE(v_Hk_DaXoa, FALSE) = TRUE OR v_Hk_TrangThai = 'Đã kết thúc' THEN
-            RAISE EXCEPTION 'RBTV34: HOCKY % khong hop le.', NEW."MaHocKy";
+            RAISE EXCEPTION 'Học kỳ % không hợp lệ.', NEW."MaHocKy";
         END IF;
     END IF;
     RETURN NEW;
@@ -5019,23 +5169,23 @@ BEGIN
     IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = 'Đang học' THEN
         SELECT "TrangThai" INTO v_Px_TrangThai FROM "PHUONGXA" WHERE "MaPhuongXa" = NEW."MaPhuongXa";
         IF COALESCE(v_Px_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: PHUONGXA % khong hop le.', NEW."MaPhuongXa";
+            RAISE EXCEPTION 'Phường/xã % không hợp lệ.', NEW."MaPhuongXa";
         END IF;
 
         SELECT "TrangThai" INTO v_Dt_TrangThai FROM "DANTOC" WHERE "MaDanToc" = NEW."MaDanToc";
         IF COALESCE(v_Dt_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: DANTOC % khong hop le.', NEW."MaDanToc";
+            RAISE EXCEPTION 'Dân tộc % không hợp lệ.', NEW."MaDanToc";
         END IF;
 
         SELECT "DaXoa", "TrangThai" INTO v_Ng_DaXoa, v_Ng_TrangThai FROM "NGANHHOC" WHERE "MaNganh" = NEW."MaNganh";
         IF COALESCE(v_Ng_DaXoa, FALSE) = TRUE OR COALESCE(v_Ng_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: NGANHHOC % khong hop le.', NEW."MaNganh";
+            RAISE EXCEPTION 'Ngành học % không hợp lệ.', NEW."MaNganh";
         END IF;
 
         IF NEW."MaTaiKhoan" IS NOT NULL THEN
             SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan";
             IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
-                RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoan";
+                RAISE EXCEPTION 'Người dùng % không hợp lệ.', NEW."MaTaiKhoan";
             END IF;
         END IF;
     END IF;
@@ -5056,13 +5206,13 @@ BEGIN
     IF NEW."TrangThai" = TRUE THEN
         SELECT "DaXoa" INTO v_Nhom_DaXoa FROM "NHOMNGUOIDUNG" WHERE "MaNhom" = NEW."MaNhom";
         IF COALESCE(v_Nhom_DaXoa, FALSE) = TRUE THEN
-            RAISE EXCEPTION 'RBTV34: NHOMNGUOIDUNG % khong hop le.', NEW."MaNhom";
+            RAISE EXCEPTION 'NHOMNgười dùng % không hợp lệ.', NEW."MaNhom";
         END IF;
 
         IF NEW."MaSv" IS NOT NULL THEN
             SELECT "DaXoa", "TrangThai" INTO v_Sv_DaXoa, v_Sv_TrangThai FROM "SINHVIEN" WHERE "MaSv" = NEW."MaSv";
             IF COALESCE(v_Sv_DaXoa, FALSE) = TRUE OR v_Sv_TrangThai != 'Đang học' THEN
-                RAISE EXCEPTION 'RBTV34: SINHVIEN % khong hop le.', NEW."MaSv";
+                RAISE EXCEPTION 'Sinh viên % không hợp lệ.', NEW."MaSv";
             END IF;
         END IF;
     END IF;
@@ -5082,7 +5232,7 @@ BEGIN
     IF NEW."TrangThai" = TRUE THEN
         SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan";
         IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoan";
+            RAISE EXCEPTION 'Người dùng % không hợp lệ.', NEW."MaTaiKhoan";
         END IF;
     END IF;
     RETURN NEW;
@@ -5101,7 +5251,7 @@ BEGIN
     IF NEW."MaTaiKhoanNhan" IS NOT NULL AND NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoanNhan";
         IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
-            RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoanNhan";
+            RAISE EXCEPTION 'Người dùng % không hợp lệ.', NEW."MaTaiKhoanNhan";
         END IF;
     END IF;
     RETURN NEW;
@@ -5122,10 +5272,10 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lop_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
-        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaLop" = NEW."MaLop" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHITIETDANGKY con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaLop" = NEW."MaLop" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOPMO con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaLop" = NEW."MaLop" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" ll JOIN "LOPMO" lm ON ll."LopMoId" = lm.id WHERE lm."MaLop" = NEW."MaLop" AND ll."TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LICHHOCLOP con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaLop" = NEW."MaLop" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'Lỗi: Chi tiết đăng ký còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaLop" = NEW."MaLop" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Lớp mở còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaLop" = NEW."MaLop" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'Lỗi: Môn đã học còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" ll JOIN "LOPMO" lm ON ll."LopMoId" = lm.id WHERE lm."MaLop" = NEW."MaLop" AND ll."TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Lịch học lớp còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5137,11 +5287,11 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_monhoc_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
-        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHITIETDANGKY con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "DIEUKIENMONHOC" WHERE ("MaMonHoc" = NEW."MaMonHoc" OR "MaMonDieuKien" = NEW."MaMonHoc") AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: DIEUKIENMONHOC con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "LOP" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOP con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "CHUONGTRINHHOC" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHUONGTRINHHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'Lỗi: Chi tiết đăng ký còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'Lỗi: Môn đã học còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "DIEUKIENMONHOC" WHERE ("MaMonHoc" = NEW."MaMonHoc" OR "MaMonDieuKien" = NEW."MaMonHoc") AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Điều kiện môn học còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LOP" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Lớp còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHUONGTRINHHOC" WHERE "MaMonHoc" = NEW."MaMonHoc" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Chương trình học còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5153,10 +5303,10 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_hocky_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = 'Đã kết thúc' AND OLD."TrangThai" != 'Đã kết thúc') THEN
-        IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUDANGKY con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LOPMO con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "DONGIATINCHI" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: DONGIATINCHI con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'Lỗi: Phiếu đăng ký còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LOPMO" WHERE "MaHocKy" = NEW."MaHocKy" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Lớp mở còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'Lỗi: Môn đã học còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "DONGIATINCHI" WHERE "MaHocKy" = NEW."MaHocKy" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Đơn giá tín chỉ còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5168,10 +5318,10 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_sinhvien_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" != 'Đang học' AND OLD."TrangThai" = 'Đang học') THEN
-        IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUDANGKY con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Thành công') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUTHUHOCPHI con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaSv" = NEW."MaSv" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONDAHOC con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "NGUOIDUNG" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: NGUOIDUNG con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHIEUDANGKY" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'Lỗi: Phiếu đăng ký còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = 'Thành công') THEN RAISE EXCEPTION 'Lỗi: Phiếu thu học phí còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONDAHOC" WHERE "MaSv" = NEW."MaSv" AND "DaXoa" = FALSE) THEN RAISE EXCEPTION 'Lỗi: Môn đã học còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "NGUOIDUNG" WHERE "MaSv" = NEW."MaSv" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Người dùng còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5183,8 +5333,8 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_phieudangky_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = 'Đã hủy' AND OLD."TrangThai" != 'Đã hủy' THEN
-        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "SoPhieu" = NEW."SoPhieu" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHITIETDANGKY con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "SoPhieuDangKy" = NEW."SoPhieu" AND "TrangThai" = 'Thành công') THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHIEUTHUHOCPHI con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHITIETDANGKY" WHERE "SoPhieu" = NEW."SoPhieu" AND "TrangThai" = 'Đã đăng ký') THEN RAISE EXCEPTION 'Lỗi: Chi tiết đăng ký còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHIEUTHUHOCPHI" WHERE "SoPhieuDangKy" = NEW."SoPhieu" AND "TrangThai" = 'Thành công') THEN RAISE EXCEPTION 'Lỗi: Phiếu thu học phí còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5196,7 +5346,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_tinh_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
-        IF EXISTS (SELECT 1 FROM "PHUONGXA" WHERE "MaTinh" = NEW."MaTinh" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: PHUONGXA con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "PHUONGXA" WHERE "MaTinh" = NEW."MaTinh" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Phường/xã còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5208,8 +5358,8 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_khoa_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
-        IF EXISTS (SELECT 1 FROM "NGANHHOC" WHERE "MaKhoa" = NEW."MaKhoa" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: NGANHHOC con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "MONHOC" WHERE "MaKhoa" = NEW."MaKhoa" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: MONHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "NGANHHOC" WHERE "MaKhoa" = NEW."MaKhoa" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Ngành học còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "MONHOC" WHERE "MaKhoa" = NEW."MaKhoa" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Môn học còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5221,7 +5371,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_namhoc_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
-        IF EXISTS (SELECT 1 FROM "HOCKY" WHERE "MaNamHoc" = NEW."MaNamHoc" AND "DaXoa" = FALSE AND "TrangThai" != 'Đã kết thúc') THEN RAISE EXCEPTION 'RBTV34 Lỗi: HOCKY con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "HOCKY" WHERE "MaNamHoc" = NEW."MaNamHoc" AND "DaXoa" = FALSE AND "TrangThai" != 'Đã kết thúc') THEN RAISE EXCEPTION 'Lỗi: Học kỳ còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5233,7 +5383,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_lopmo_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
-        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE "LopMoId" = NEW.id AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LICHHOCLOP con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE "LopMoId" = NEW.id AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Lịch học lớp còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5245,7 +5395,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_tiethoc_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
-        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE ("MaTietBatDau" = NEW."MaTiet" OR "MaTietKetThuc" = NEW."MaTiet") AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: LICHHOCLOP con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "LICHHOCLOP" WHERE ("MaTietBatDau" = NEW."MaTiet" OR "MaTietKetThuc" = NEW."MaTiet") AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Lịch học lớp còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5258,9 +5408,9 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
         IF TG_TABLE_NAME = 'PHUONGXA' THEN
-            IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaPhuongXa" = NEW."MaPhuongXa" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
+            IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaPhuongXa" = NEW."MaPhuongXa" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'Lỗi: Sinh viên còn hoạt động.'; END IF;
         ELSIF TG_TABLE_NAME = 'DANTOC' THEN
-            IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaDanToc" = NEW."MaDanToc" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
+            IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaDanToc" = NEW."MaDanToc" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'Lỗi: Sinh viên còn hoạt động.'; END IF;
         END IF;
     END IF;
     RETURN NEW;
@@ -5274,8 +5424,8 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nganhhoc_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE) OR (NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE) THEN
-        IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaNganh" = NEW."MaNganh" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "CHUONGTRINHHOC" WHERE "MaNganh" = NEW."MaNganh" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: CHUONGTRINHHOC con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaNganh" = NEW."MaNganh" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'Lỗi: Sinh viên còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "CHUONGTRINHHOC" WHERE "MaNganh" = NEW."MaNganh" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Chương trình học còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5287,7 +5437,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nhomnguoidung_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE THEN
-        IF EXISTS (SELECT 1 FROM "NGUOIDUNG" WHERE "MaNhom" = NEW."MaNhom" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: NGUOIDUNG con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "NGUOIDUNG" WHERE "MaNhom" = NEW."MaNhom" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Người dùng còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -5320,7 +5470,7 @@ BEGIN
     LIMIT 1;
 
     IF v_MaNhom IS NOT NULL THEN
-        RAISE EXCEPTION 'RBTV34 Lỗi: Quyền % đang được sử dụng cho nhóm người dùng % (%), không thể xóa.', v_MaChucNang, v_MaNhom, v_TenNhom;
+        RAISE EXCEPTION 'Lỗi: Quyền % đang được sử dụng cho nhóm người dùng % (%), không thể xóa.', v_MaChucNang, v_MaNhom, v_TenNhom;
     END IF;
 
     IF TG_OP = 'DELETE' THEN
@@ -5336,9 +5486,9 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nguoidung_parent()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NEW."TrangThai" = FALSE AND OLD."TrangThai" = TRUE THEN
-        IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'RBTV34 Lỗi: SINHVIEN con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "QUANTRIVIEN" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: QUANTRIVIEN con hoat dong.'; END IF;
-        IF EXISTS (SELECT 1 FROM "THONGBAO" WHERE "MaTaiKhoanNhan" = NEW."MaTaiKhoan" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'RBTV34 Lỗi: THONGBAO con hoat dong.'; END IF;
+        IF EXISTS (SELECT 1 FROM "SINHVIEN" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan" AND "DaXoa" = FALSE AND "TrangThai" = 'Đang học') THEN RAISE EXCEPTION 'Lỗi: Sinh viên còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "QUANTRIVIEN" WHERE "MaTaiKhoan" = NEW."MaTaiKhoan" AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Quản trị viên còn hoạt động.'; END IF;
+        IF EXISTS (SELECT 1 FROM "THONGBAO" WHERE "MaTaiKhoanNhan" = NEW."MaTaiKhoan" AND "DaXoa" = FALSE AND "TrangThai" = TRUE) THEN RAISE EXCEPTION 'Lỗi: Thông báo còn hoạt động.'; END IF;
     END IF;
     RETURN NEW;
 END;
@@ -14844,7 +14994,7 @@ BEGIN
     IF NULLIF(TRIM(COALESCE(NEW."LichHoc", '')), '') IS NOT NULL
        OR NULLIF(TRIM(COALESCE(NEW."MaPhong", '')), '') IS NOT NULL
        OR NULLIF(TRIM(COALESCE(NEW."PhongHoc", '')), '') IS NOT NULL THEN
-        RAISE EXCEPTION 'RBTV_LOP_DANHMUC: Lớp học chỉ lưu mã lớp, tên lớp và môn học. Giảng viên, phòng và lịch học phải khai báo khi mở lớp.';
+        RAISE EXCEPTION 'Lớp học chỉ lưu mã lớp, tên lớp và môn học. Giảng viên, phòng và lịch học phải khai báo khi mở lớp.';
     END IF;
 
     RETURN NEW;
@@ -14873,18 +15023,18 @@ BEGIN
        OR NEW."ThuTrongTuan" IS NULL
        OR NULLIF(TRIM(COALESCE(NEW."MaTietBatDau", '')), '') IS NULL
        OR NULLIF(TRIM(COALESCE(NEW."MaTietKetThuc", '')), '') IS NULL THEN
-        RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Lop hoc phai co giang vien, phong hoc va lich hoc.';
+        RAISE EXCEPTION 'Lớp học phải có giảng viên, phòng học và lịch học.';
     END IF;
 
     IF NEW."ThuTrongTuan" < 1 OR NEW."ThuTrongTuan" > 7 THEN
-        RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Thu trong tuan khong hop le.';
+        RAISE EXCEPTION 'Thứ trong tuần không hợp lệ.';
     END IF;
 
     SELECT "ThuTu" INTO v_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
     SELECT "ThuTu" INTO v_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
 
     IF v_bd_thutu IS NULL OR v_kt_thutu IS NULL OR v_bd_thutu > v_kt_thutu THEN
-        RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Khoang tiet hoc cua lop khong hop le.';
+        RAISE EXCEPTION 'Khoảng tiết học của lớp không hợp lệ.';
     END IF;
 
     IF EXISTS (
@@ -14900,7 +15050,7 @@ BEGIN
           AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
           AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
-        RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Phong % bi trung lich voi lop khac.', v_phong;
+        RAISE EXCEPTION 'Phòng % bị trùng lịch với lớp khác.', v_phong;
     END IF;
 
     IF EXISTS (
@@ -14916,7 +15066,7 @@ BEGIN
           AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
           AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
-        RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Giang vien % bi trung lich voi lop khac.', v_giangvien;
+        RAISE EXCEPTION 'Giảng viên % bị trùng lịch với lớp khác.', v_giangvien;
     END IF;
 
     RETURN NEW;
@@ -14943,7 +15093,7 @@ BEGIN
     END IF;
 
     IF NULLIF(TRIM(COALESCE(v_lopmo."MaGiangVien", v_lopmo."GiangVien", '')), '') IS NULL THEN
-        RAISE EXCEPTION 'RBTV_LOPMO_THONGTIN: Lớp mở phải có giảng viên phụ trách.';
+        RAISE EXCEPTION 'Lớp mở phải có giảng viên phụ trách.';
     END IF;
 
     IF NOT EXISTS (
@@ -14956,7 +15106,7 @@ BEGIN
           AND NULLIF(TRIM(COALESCE(lh."MaTietKetThuc", '')), '') IS NOT NULL
           AND NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') IS NOT NULL
     ) THEN
-        RAISE EXCEPTION 'RBTV_LOPMO_THONGTIN: Lớp mở phải có ít nhất một lịch học kèm phòng học.';
+        RAISE EXCEPTION 'Lớp mở phải có ít nhất một lịch học kèm phòng học.';
     END IF;
 END;
 $$ LANGUAGE plpgsql;
@@ -15046,7 +15196,7 @@ BEGIN
     SELECT "ThuTu" INTO v_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
 
     IF v_bd_thutu IS NULL OR v_kt_thutu IS NULL OR v_bd_thutu > v_kt_thutu THEN
-        RAISE EXCEPTION 'RBTV_LOPMO_LICH: Khoang tiet hoc khong hop le.';
+        RAISE EXCEPTION 'Khoảng tiết học không hợp lệ.';
     END IF;
 
     IF v_giangvien IS NULL OR v_phong IS NULL THEN
@@ -15071,7 +15221,7 @@ BEGIN
             OR NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') = v_phong
           )
     ) THEN
-        RAISE EXCEPTION 'RBTV_LOPMO_LICH: Giang vien hoac phong hoc bi trung lich trong hoc ky %.', v_mahocky;
+        RAISE EXCEPTION 'Giảng viên hoặc phòng học bị trùng lịch trong học kỳ %.', v_mahocky;
     END IF;
 
     RETURN NEW;
@@ -15121,7 +15271,7 @@ BEGIN
             OR NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '') = NULLIF(TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc", '')), '')
           )
     ) THEN
-        RAISE EXCEPTION 'RBTV_LOPMO_LICH: Lop mo bi trung lich giang vien hoac phong trong hoc ky %.', NEW."MaHocKy";
+        RAISE EXCEPTION 'Lớp mở bị trùng lịch giảng viên hoặc phòng trong học kỳ %.', NEW."MaHocKy";
     END IF;
 
     RETURN NEW;
@@ -15169,7 +15319,7 @@ BEGIN
                       (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
                   )
         ) THEN
-            RAISE EXCEPTION 'RBTV14: Sua ThuTu tiet hoc lam trung lich giang vien hoac phong hoc.';
+            RAISE EXCEPTION 'Sửa thứ tự tiết học làm trùng lịch giảng viên hoặc phòng học.';
         END IF;
     END IF;
 
@@ -15263,9 +15413,47 @@ SET
   "NgayXacNhan" = COALESCE(p."NgayXacNhan", CASE WHEN p."TrangThai" = 'Thành công' THEN p."NgayLap" ELSE NULL END),
   "NgayCapNhat" = COALESCE(p."NgayCapNhat", p."NgayLap");
 
+INSERT INTO "GIAODICHTHANHTOANHOCPHI" (
+  "SoPhieuThu", "SoPhieuDangKy", "MaSv", "SoTienThanhToan", "HinhThucThanhToan",
+  "PaymentProvider", "PaymentChannel", "MaGiaoDich", "CheckoutUrl", "QrPayload",
+  "GhiChu", "TrangThai", "NgayTao", "NgayXacNhan", "NguoiXacNhan", "NgayCapNhat"
+)
+SELECT
+  p."SoPhieuThu",
+  p."SoPhieuDangKy",
+  p."MaSv",
+  p."SoTienThu",
+  p."HinhThucThu",
+  p."PaymentProvider",
+  p."PaymentChannel",
+  p."MaGiaoDich",
+  p."CheckoutUrl",
+  p."QrPayload",
+  p."GhiChu",
+  p."TrangThai",
+  COALESCE(p."NgayLap", CURRENT_TIMESTAMP),
+  p."NgayXacNhan",
+  p."NguoiThu",
+  COALESCE(p."NgayCapNhat", p."NgayLap", CURRENT_TIMESTAMP)
+FROM "PHIEUTHUHOCPHI" p
+WHERE p."TrangThai" IN ('Thành công', 'Chờ xác nhận', 'Thất bại', 'Hoàn tiền')
+  AND NOT EXISTS (
+    SELECT 1
+    FROM "GIAODICHTHANHTOANHOCPHI" gd
+    WHERE gd."SoPhieuThu" = p."SoPhieuThu"
+      AND gd."TrangThai" = p."TrangThai"
+      AND gd."SoTienThanhToan" = p."SoTienThu"
+      AND COALESCE(gd."MaGiaoDich", '') = COALESCE(p."MaGiaoDich", '')
+  );
+
 -- Extra pending payment seed removed because payment references are generated above.
 
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), GREATEST((SELECT MAX("SoPhieuThu") FROM "PHIEUTHUHOCPHI"), 6), true);
+SELECT setval(
+  pg_get_serial_sequence('"GIAODICHTHANHTOANHOCPHI"', 'MaGiaoDichThanhToan'),
+  GREATEST(COALESCE((SELECT MAX("MaGiaoDichThanhToan") FROM "GIAODICHTHANHTOANHOCPHI"), 1), 1),
+  (SELECT COUNT(*) > 0 FROM "GIAODICHTHANHTOANHOCPHI")
+);
 
 CREATE OR REPLACE FUNCTION prevent_student_schedule_conflict()
 RETURNS trigger AS $$
@@ -15290,11 +15478,13 @@ BEGIN
   JOIN "TIETHOC" teo ON teo."MaTiet" = lh_old."MaTietKetThuc"
   WHERE p_new."SoPhieu" = NEW."SoPhieu"
     AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
-    AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
-    AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END;
+    AND tbn."ThuTu" <= ten."ThuTu"
+    AND tbo."ThuTu" <= teo."ThuTu"
+    AND tbn."ThuTu" <= teo."ThuTu"
+    AND tbo."ThuTu" <= ten."ThuTu";
 
   IF conflict_count > 0 THEN
-    RAISE EXCEPTION 'Sinh vien bi trung lich hoc trong hoc ky nay';
+    RAISE EXCEPTION 'Sinh viên bị trùng lịch học trong học kỳ này';
   END IF;
 
   RETURN NEW;
@@ -15367,7 +15557,7 @@ BEGIN
     AND COALESCE(mh."TrangThai", TRUE) = TRUE;
 
   IF v_mamonhoc IS NULL THEN
-    RAISE EXCEPTION 'MONHOCMO: Lop % khong ton tai hoac mon hoc cua lop khong hoat dong.', NEW."MaLop";
+    RAISE EXCEPTION 'Môn học mở: Lớp % không tồn tại hoặc môn học của lớp không hoạt động.', NEW."MaLop";
   END IF;
 
   IF NOT EXISTS (
@@ -15379,7 +15569,7 @@ BEGIN
       AND COALESCE(mhm."TrangThai", TRUE) = TRUE
       AND fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", v_mamonhoc) = TRUE
   ) THEN
-    RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo hop le theo CTDT cua khoa trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
+    RAISE EXCEPTION 'Môn học mở: Môn học % chưa được mở hợp lệ theo chương trình đào tạo của khoa trong học kỳ %, không thể mở lớp %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
   END IF;
 
   RETURN NEW;
@@ -15407,7 +15597,7 @@ BEGIN
       AND COALESCE(lm."TrangThai", TRUE) = TRUE;
 
     IF v_count > 0 THEN
-      RAISE EXCEPTION 'MONHOCMO: Khong the tat hoac xoa mon hoc mo vi con lop mo dang hoat dong.';
+      RAISE EXCEPTION 'Môn học mở: Không thể tắt hoặc xóa môn học mở vì còn lớp mở đang hoạt động.';
     END IF;
     RETURN OLD;
   END IF;
@@ -15424,7 +15614,7 @@ BEGIN
       AND COALESCE(lm."TrangThai", TRUE) = TRUE;
 
     IF v_count > 0 THEN
-      RAISE EXCEPTION 'MONHOCMO: Khong the tat hoac xoa mon hoc mo vi con lop mo dang hoat dong.';
+      RAISE EXCEPTION 'Môn học mở: Không thể tắt hoặc xóa môn học mở vì còn lớp mở đang hoạt động.';
     END IF;
   END IF;
   RETURN NEW;
@@ -15489,7 +15679,7 @@ BEGIN
   IF COALESCE(NEW."DaXoa", FALSE) = FALSE
      AND COALESCE(NEW."TrangThai", TRUE) = TRUE
      AND NOT fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", NEW."MaMonHoc") THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong con trong CTDT dang hoat dong cua khoa tuong ung voi hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
+    RAISE EXCEPTION 'Môn học % không còn trong chương trình đào tạo đang hoạt động của khoa tương ứng với học kỳ %.', NEW."MaMonHoc", NEW."MaHocKy";
   END IF;
 
   RETURN NEW;
@@ -15565,7 +15755,7 @@ BEGIN
   LIMIT 1;
 
   IF v_ma_hoc_ky IS NOT NULL THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the tam ngung, xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky % va khong con CTDT cung khoa ho tro.', OLD."MaMonHoc", v_ma_hoc_ky;
+    RAISE EXCEPTION 'Không thể tạm ngưng, xóa hoặc đổi học kỳ dự kiến của môn % vì môn này đang mở trong học kỳ % và không còn chương trình đào tạo cùng khoa hỗ trợ.', OLD."MaMonHoc", v_ma_hoc_ky;
   END IF;
 
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;

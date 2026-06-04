@@ -26,7 +26,7 @@ block content
     .card
       .card-header
         h3 Chi tiết học phí theo học kỳ
-        button.btn.btn-primary#pay-tuition-now(type="button" onclick="openFirstPayableTuition()" disabled) Đóng học phí
+        button.btn.btn-primary#pay-tuition-now(type="button" onclick="openFirstPayableTuition()" disabled) Thanh toán phiếu thu
       .card-body
         .loading-overlay#loading
           .spinner
@@ -52,9 +52,21 @@ block modals
         button.modal-close(type="button" onclick="closePaymentModal()") ×
       .modal-body
         input#payment-receipt-id(type="hidden")
+        input#payment-receipt-amount(type="hidden")
         .form-group
-          label Số tiền
+          label Số tiền trên phiếu thu
           .form-control-static#payment-amount-label --
+        .form-group
+          label(for="payment-amount") Số tiền muốn thanh toán
+          input.form-control#payment-amount(type="number" min="1" step="1000" required)
+          small.text-muted#payment-amount-hint Có thể thanh toán một phần, nhỏ hơn hoặc bằng số tiền còn nợ.
+          small.text-muted Sinh viên chỉ thanh toán phiếu thu đã được admin tạo.
+        .form-group
+          label(for="payment-mode") Loại thanh toán
+          select.form-control#payment-mode(onchange="updatePaymentModeHint()")
+            option(value="full") Thanh toán toàn bộ phiếu thu
+            option(value="partial") Thanh toán phiếu thu một phần do admin lập
+          small.text-muted#payment-mode-hint Số tiền thanh toán luôn bằng số tiền trên phiếu thu.
         .form-group
           label(for="payment-method") Phương thức
           select.form-control#payment-method
@@ -76,6 +88,16 @@ block modals
         .empty-state Đang tải dữ liệu...
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeTuitionDetailModal()") Đóng
+
+  #receipt-detail-modal.modal-overlay(onclick="if(event.target===this)closeReceiptDetailModal()")
+    .modal
+      .modal-header
+        h3#receipt-detail-title Phiếu thu học phí
+        button.modal-close(type="button" onclick="closeReceiptDetailModal()" aria-label="Đóng") ×
+      .modal-body#receipt-detail-body
+        .empty-state Đang tải dữ liệu...
+      .modal-footer#receipt-detail-footer
+        button.btn.btn-outline(type="button" onclick="closeReceiptDetailModal()") Đóng
 
 block scripts
   script(src="/js/student/my-tuition.js")

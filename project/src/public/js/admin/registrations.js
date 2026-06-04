@@ -127,7 +127,7 @@ async function finalizeSelectedRegistration() {
       showToast(
         'Đã chốt đăng ký: ' + (summary.SoLopDatNguong || 0) + ' lớp mở, ' +
           (summary.SoLopBiDong || 0) + ' lớp đóng, ' +
-          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy, đã mở thu học phí',
+          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy, đã sẵn sàng lập phiếu thu',
         'success'
       );
       setTimeout(function() { window.location.reload(); }, 500);

@@ -680,7 +680,7 @@ const finalizeRegistration = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Chốt đăng ký học phần thành công. Học kỳ đã chuyển sang giai đoạn thu học phí.',
+      message: 'Chốt đăng ký học phần thành công. Học kỳ đã sẵn sàng lập phiếu thu; sinh viên chỉ thanh toán sau khi admin tạo phiếu thu.',
       data: result
     });
   } catch (error) {
