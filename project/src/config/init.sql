@@ -2561,6 +2561,10 @@ DECLARE
     new_bd_thutu INT;
     new_kt_thutu INT;
 BEGIN
+    IF COALESCE(NEW."TrangThai", TRUE) = FALSE THEN
+        RETURN NEW;
+    END IF;
+
     /* 1. Lấy thứ tự (ThuTu) của tiết bắt đầu và tiết kết thúc của dòng đang thao tác */
     SELECT "ThuTu" INTO new_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
     SELECT "ThuTu" INTO new_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
@@ -2573,6 +2577,7 @@ BEGIN
         JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
         WHERE lh."LopMoId" = NEW."LopMoId"
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          AND COALESCE(lh."TrangThai", TRUE) = TRUE
           -- Loại trừ chính dòng hiện tại khi thực hiện thao tác UPDATE
           AND lh.id IS DISTINCT FROM NEW.id
           -- Công thức kiểm tra giao nhau theo khoang [start, effectiveEnd)
@@ -2612,6 +2617,9 @@ BEGIN
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE
+                COALESCE(lh1."TrangThai", TRUE) = TRUE
+                AND COALESCE(lh2."TrangThai", TRUE) = TRUE
+                AND
                 -- Áp dụng giá trị ThuTu mới nếu mã tiết trùng với tiết vừa sửa, ngược lại giữ nguyên ThuTu cũ
                 (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
                 fn_schedule_effective_end_order(

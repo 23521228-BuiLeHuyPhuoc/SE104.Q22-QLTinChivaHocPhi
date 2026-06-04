@@ -1636,10 +1636,7 @@ const ensureAuthSchema = async () => {
     ['TIETHOC', 'trg_rbtv12_tiethoc_upd'],
     ['LICHHOCLOP', 'trg_rbtv13_lichhoclop_ins_upd'],
     ['LOPMO', 'trg_rbtv13_lopmo_upd'],
-    ['TIETHOC', 'trg_rbtv13_tiethoc_upd'],
-    ['LICHHOCLOP', 'trg_rbtv14_lichhoclop_ins_upd'],
-    ['LOPMO', 'trg_rbtv14_lopmo_upd'],
-    ['TIETHOC', 'trg_rbtv14_tiethoc_upd']
+    ['TIETHOC', 'trg_rbtv13_tiethoc_upd']
   ]) {
     await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "${triggerName}" ON "${tableName}"`);
   }
