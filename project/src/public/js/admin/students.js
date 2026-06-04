@@ -86,7 +86,7 @@ function isValidStudentPhone(value) {
 })();
 
 (async function loadBeneficiaries() {
-  var select = document.getElementById('sv-doituong');
+  var box = document.getElementById('sv-doituong');
 
   try {
     var page = 1;
@@ -105,13 +105,8 @@ function isValidStudentPhone(value) {
     allBeneficiaries = rows;
     renderStudentBeneficiaries();
   } catch (e) {
-    if (select) {
-      select.innerHTML = '';
-      var opt = document.createElement('option');
-      opt.value = '';
-      opt.disabled = true;
-      opt.textContent = 'Không tải được đối tượng ưu tiên';
-      select.appendChild(opt);
+    if (box) {
+      box.innerHTML = '<div class="empty-state">Không tải được đối tượng ưu tiên</div>';
     }
   }
 })();
@@ -201,12 +196,12 @@ function getStudentBeneficiaryIds(sv) {
 }
 
 function getSelectedStudentBeneficiaryIds() {
-  var select = document.getElementById('sv-doituong');
-  if (!select) return [];
+  var box = document.getElementById('sv-doituong');
+  if (!box) return [];
 
-  return Array.prototype.slice.call(select.options)
-    .filter(function(option) { return option.selected && option.value; })
-    .map(function(option) { return option.value; });
+  return Array.prototype.slice.call(box.querySelectorAll('input[type="checkbox"]:checked'))
+    .map(function(input) { return input.value; })
+    .filter(Boolean);
 }
 
 function formatBeneficiaryOption(beneficiary) {
@@ -216,28 +211,37 @@ function formatBeneficiaryOption(beneficiary) {
 }
 
 function renderStudentBeneficiaries(sv) {
-  var select = document.getElementById('sv-doituong');
-  if (!select) return;
+  var box = document.getElementById('sv-doituong');
+  if (!box) return;
 
   if (sv !== undefined) currentStudentBeneficiaryIds = getStudentBeneficiaryIds(sv);
   var selectedSet = new Set(currentStudentBeneficiaryIds);
 
-  select.innerHTML = '';
+  box.innerHTML = '';
   if (!allBeneficiaries.length) {
-    var emptyOpt = document.createElement('option');
-    emptyOpt.value = '';
-    emptyOpt.disabled = true;
-    emptyOpt.textContent = 'Chưa có đối tượng ưu tiên';
-    select.appendChild(emptyOpt);
+    box.innerHTML = '<div class="empty-state">Chưa có đối tượng ưu tiên</div>';
     return;
   }
 
-  allBeneficiaries.forEach(function(beneficiary) {
-    var opt = document.createElement('option');
-    opt.value = beneficiary.MaDoiTuong;
-    opt.textContent = formatBeneficiaryOption(beneficiary);
-    opt.selected = selectedSet.has(beneficiary.MaDoiTuong);
-    select.appendChild(opt);
+  allBeneficiaries.forEach(function(beneficiary, index) {
+    var checkboxId = 'sv-doituong-' + index;
+    var item = document.createElement('label');
+    item.className = 'student-beneficiary-check';
+    item.setAttribute('for', checkboxId);
+
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.id = checkboxId;
+    input.value = beneficiary.MaDoiTuong;
+    input.checked = selectedSet.has(beneficiary.MaDoiTuong);
+
+    var text = document.createElement('span');
+    text.className = 'student-beneficiary-check-text';
+    text.textContent = formatBeneficiaryOption(beneficiary);
+
+    item.appendChild(input);
+    item.appendChild(text);
+    box.appendChild(item);
   });
 }
 

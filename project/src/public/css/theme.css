@@ -1304,19 +1304,43 @@ select.ui-readonly-field,
   color: var(--text-tertiary);
 }
 
-.student-beneficiary-select.form-control {
-  background-image: none;
-  height: auto;
-  min-height: 140px;
-  overflow: auto;
-  padding-right: 14px;
-  white-space: normal;
+.student-beneficiary-check {
+  align-items: flex-start; /* SỬA Ở ĐÂY: Căn tất cả lên mép trên cùng */
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px; /* Tăng padding trên/dưới một chút cho thoáng */
+  transition: all var(--transition-speed) var(--transition-smooth);
+  user-select: none;
 }
 
-.student-beneficiary-select option {
-  padding: 6px 8px;
+.student-beneficiary-check:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-light);
 }
 
+.student-beneficiary-check input {
+  flex: 0 0 auto;
+  cursor: pointer;
+  height: 18px;
+  width: 18px;
+  /* SỬA Ở ĐÂY: Đẩy checkbox xuống khoảng 2px-3px để nó nằm ngay ngắn bằng mặt với dòng chữ đầu tiên */
+  margin: 2px 0 0 0; 
+  display: block;
+}
+
+.student-beneficiary-check-text {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  min-width: 0;
+  line-height: 1.45; /* Giữ khoảng cách các dòng chữ cho dễ đọc */
+  display: block;
+  word-break: break-word;
+}
 @media (max-width: 640px) {
   .profile-avatar-panel {
     align-items: flex-start;
@@ -3021,6 +3045,23 @@ select.ui-readonly-field,
 .beneficiaries-table td:nth-child(1) {
   width: 180px;
   white-space: nowrap;
+}
+
+.tuition-toolbar {
+  align-items: end;
+}
+
+.tuition-toolbar > .tuition-search-group,
+.tuition-toolbar > .tuition-filter-group {
+  align-self: end;
+}
+
+.tuition-toolbar .tuition-filter-group {
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 1fr);
+}
+
+.tuition-toolbar .tuition-filter-group select {
+  height: 44px;
 }
 
 .debt-filter-toolbar {
