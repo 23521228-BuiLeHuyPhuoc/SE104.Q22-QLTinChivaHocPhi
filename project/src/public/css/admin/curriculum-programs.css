@@ -24,7 +24,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(300px, 1.35fr) minmax(200px, 0.9fr) minmax(160px, 0.7fr) minmax(132px, 0.55fr);
+  grid-template-columns: minmax(430px, 1.35fr) minmax(320px, 1fr) minmax(230px, 0.75fr) minmax(180px, 0.6fr);
 }
 
 .curriculum-filter-field {
@@ -48,7 +48,7 @@
 .curriculum-filter-search-field {
   display: grid;
   gap: 7px 8px;
-  grid-template-columns: minmax(132px, auto) minmax(220px, 1fr);
+  grid-template-columns: minmax(160px, 190px) minmax(220px, 1fr);
 }
 
 .curriculum-filter-search-field label {

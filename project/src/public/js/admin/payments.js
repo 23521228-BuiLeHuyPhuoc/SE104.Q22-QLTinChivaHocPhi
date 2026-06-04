@@ -247,11 +247,13 @@ function closePaymentDetail() {
 
 function applyFilters() {
   var search = document.getElementById('search-input').value.trim();
+  var searchField = document.getElementById('payment-search-field') ? document.getElementById('payment-search-field').value : 'all';
   var semester = document.getElementById('filter-semester').value;
   var method = document.getElementById('filter-method').value;
   var status = document.getElementById('filter-status').value;
   var url = '/admin/payments?page=1';
   if (search) url += '&search=' + encodeURIComponent(search);
+  if (searchField && searchField !== 'all') url += '&searchField=' + encodeURIComponent(searchField);
   if (semester) url += '&MaHocKy=' + encodeURIComponent(semester);
   if (method) url += '&HinhThucThu=' + encodeURIComponent(method);
   if (status) url += '&TrangThai=' + encodeURIComponent(status);

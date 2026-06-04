@@ -751,9 +751,9 @@ select.ui-readonly-field,
 .account-group-control {
   align-items: center;
   display: inline-flex;
-  flex: 1 1 220px;
-  max-width: 290px;
-  min-width: min(100%, 210px);
+  flex: 0 1 190px;
+  max-width: 220px;
+  min-width: min(100%, 160px);
   position: relative;
 }
 
@@ -840,9 +840,22 @@ select.ui-readonly-field,
   justify-content: flex-end;
 }
 
+.debt-filter-toolbar {
+  grid-template-columns: minmax(260px, 0.7fr) minmax(620px, 1.3fr);
+}
+
+.debt-filter-toolbar .admin-search-group {
+  max-width: 380px;
+}
+
+.debt-filter-toolbar .admin-filter-group {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
+}
+
 .user-action-cell {
-  min-width: 300px;
-  width: 320px;
+  min-width: 260px;
+  width: 280px;
 }
 
 .stacked-cell strong,
@@ -924,6 +937,15 @@ select.ui-readonly-field,
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
   color: var(--color-primary);
+}
+
+.permission-action-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.permission-action-toolbar .admin-action-group {
+  justify-content: flex-start;
 }
 
 /* ============================================================
@@ -1567,12 +1589,12 @@ select.ui-readonly-field,
   align-items: stretch;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(300px, 1.25fr) minmax(250px, 1fr) max-content;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr) max-content;
   margin-bottom: var(--spacing-lg);
 }
 
 .admin-toolbar:not(:has(> .admin-action-group)) {
-  grid-template-columns: minmax(300px, 1.15fr) minmax(250px, 1fr);
+  grid-template-columns: minmax(260px, 0.75fr) minmax(520px, 1.25fr);
 }
 
 .admin-toolbar > * {
@@ -1608,9 +1630,10 @@ select.ui-readonly-field,
 }
 
 .search-box.search-box-with-criterion {
-  align-items: stretch;
-  display: flex;
-  gap: 0;
+  align-items: end;
+  display: grid;
+  gap: 7px 0;
+  grid-template-columns: minmax(160px, max-content) minmax(0, 1fr);
   max-width: 720px;
 }
 
@@ -1619,11 +1642,23 @@ select.ui-readonly-field,
   display: none;
 }
 
-.search-box.search-box-with-criterion .ui-search-criterion-select {
+.admin-search-label {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  grid-column: 1 / -1;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.search-box.search-box-with-criterion .ui-search-criterion-select,
+.search-box.search-box-with-criterion > select.form-control,
+.search-box.search-box-with-criterion > select {
   border-bottom-right-radius: 0;
   border-right: 0;
   border-top-right-radius: 0;
-  flex: 0 0 clamp(160px, 24%, 230px);
+  grid-column: 1;
   height: 44px;
   max-width: 240px;
   min-width: 150px;
@@ -1633,7 +1668,7 @@ select.ui-readonly-field,
 .search-box.search-box-with-criterion input {
   border-bottom-left-radius: 0;
   border-top-left-radius: 0;
-  flex: 1 1 auto;
+  grid-column: 2;
   min-width: 0;
   padding-left: 14px;
 }
@@ -1685,11 +1720,16 @@ select.ui-readonly-field,
 .admin-toolbar .admin-filter-group {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(150px, 1fr);
+  grid-auto-columns: minmax(180px, 1fr);
   grid-column: 2;
   justify-content: stretch;
   min-width: 0;
   width: 100%;
+}
+
+.admin-toolbar .admin-filter-group:has(> :nth-child(4)) {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .admin-toolbar .admin-filter-group:empty {
@@ -1756,11 +1796,32 @@ select.ui-readonly-field,
   justify-self: end;
 }
 
-.admin-toolbar:has(> .admin-action-group > :nth-child(3)) {
+.admin-toolbar:has(> .admin-search-group):has(> .admin-filter-group):has(> .admin-action-group) {
+  grid-template-columns: minmax(260px, 1fr) max-content;
+}
+
+.admin-toolbar:has(> .admin-search-group):has(> .admin-filter-group):has(> .admin-action-group) > .admin-search-group {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.admin-toolbar:has(> .admin-search-group):has(> .admin-filter-group):has(> .admin-action-group) > .admin-action-group {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.admin-toolbar:has(> .admin-search-group):has(> .admin-filter-group):has(> .admin-action-group) > .admin-filter-group {
+  grid-auto-flow: row;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.admin-toolbar:has(> .admin-action-group > :nth-child(3)):not(:has(> .admin-search-group)) {
   grid-template-columns: minmax(300px, 1.15fr) minmax(250px, 1fr);
 }
 
-.admin-toolbar:has(> .admin-action-group > :nth-child(3)) > .admin-action-group {
+.admin-toolbar:has(> .admin-action-group > :nth-child(3)):not(:has(> .admin-search-group)) > .admin-action-group {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1769,9 +1830,9 @@ select.ui-readonly-field,
   width: 100%;
 }
 
-.admin-toolbar:has(> .admin-action-group > :nth-child(3)) > .admin-action-group .btn,
-.admin-toolbar:has(> .admin-action-group > :nth-child(3)) > .admin-action-group a.btn,
-.admin-toolbar:has(> .admin-action-group > :nth-child(3)) > .admin-action-group label.btn {
+.admin-toolbar:has(> .admin-action-group > :nth-child(3)):not(:has(> .admin-search-group)) > .admin-action-group .btn,
+.admin-toolbar:has(> .admin-action-group > :nth-child(3)):not(:has(> .admin-search-group)) > .admin-action-group a.btn,
+.admin-toolbar:has(> .admin-action-group > :nth-child(3)):not(:has(> .admin-search-group)) > .admin-action-group label.btn {
   width: 100%;
 }
 
@@ -1856,7 +1917,7 @@ select.ui-readonly-field,
     width: 100%;
   }
 
-  .admin-toolbar:has(> .admin-action-group > :nth-child(3)) > .admin-action-group {
+  .admin-toolbar:has(> .admin-action-group > :nth-child(3)):not(:has(> .admin-search-group)) > .admin-action-group {
     grid-template-columns: 1fr;
   }
 
@@ -2836,14 +2897,17 @@ select.ui-readonly-field,
   }
 
   .search-box.search-box-with-criterion {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: var(--spacing-sm);
   }
 
   .search-box.search-box-with-criterion .ui-search-criterion-select,
+  .search-box.search-box-with-criterion > select.form-control,
+  .search-box.search-box-with-criterion > select,
   .search-box.search-box-with-criterion input {
     border: 1.5px solid var(--border-color);
     border-radius: var(--radius-md);
+    grid-column: 1;
     max-width: none;
     width: 100%;
   }

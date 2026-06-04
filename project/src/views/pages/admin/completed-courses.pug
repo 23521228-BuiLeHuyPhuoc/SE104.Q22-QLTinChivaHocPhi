@@ -6,11 +6,12 @@ block styles
 block content
   .toolbar.admin-toolbar
     - const completedSearchField = searchField || 'MaSv'
-    select.form-control#search-field(onchange="applyFilters()")
-      option(value="MaSv" selected=(completedSearchField === 'MaSv')) MSSV
-      option(value="HoTen" selected=(completedSearchField === 'HoTen')) Họ tên
-      option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Học kỳ
-    .search-box.admin-search-group
+    .search-box.search-box-with-criterion.admin-search-group
+      label.admin-search-label(for="search-field") Tìm theo
+      select.form-control.ui-search-criterion-select#search-field(onchange="applyFilters()")
+        option(value="MaSv" selected=(completedSearchField === 'MaSv')) MSSV
+        option(value="HoTen" selected=(completedSearchField === 'HoTen')) Họ tên
+        option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Học kỳ
       input#search-input(type="text" placeholder="Tìm theo tiêu chí đã chọn..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group.admin-filter-group
       select#filter-hocky(onchange="applyFilters()")

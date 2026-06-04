@@ -2,7 +2,15 @@ extends ../../layouts/admin
 
 block content
   .toolbar.admin-toolbar
-    .search-box.admin-search-group
+    .search-box.search-box-with-criterion.admin-search-group
+      label.admin-search-label(for="lecturer-search-field") Tìm theo
+      select.form-control.ui-search-criterion-select#lecturer-search-field(onchange="applyLecturerFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="MaGiangVien" selected=(searchField === 'MaGiangVien')) Mã GV
+        option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
+        option(value="Khoa" selected=(searchField === 'Khoa')) Khoa
+        option(value="Email" selected=(searchField === 'Email')) Email
+        option(value="MaHocKy" selected=(searchField === 'MaHocKy')) Học kỳ
       input#search-input(type="text" placeholder="Tìm giảng viên..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceLecturerSearch()")
     .filter-group.admin-filter-group
       select.form-control#filter-semester(onchange="applyLecturerFilters()")

@@ -54,22 +54,32 @@
 }
 
 .semester-filter-search {
-  grid-column: 1 / span 5;
-  grid-row: 2;
+  grid-column: 1 / span 3;
+  grid-row: 1;
 }
 
 .semester-filter-kind {
-  grid-column: 1 / span 5;
+  grid-column: 4 / span 3;
   grid-row: 1;
 }
 
 .semester-filter-status {
-  grid-column: 6 / -1;
+  grid-column: 1 / span 4;
+  grid-row: 2;
+}
+
+.semester-filter-registration-finalized {
+  grid-column: 7 / span 3;
+  grid-row: 1;
+}
+
+.semester-filter-tuition-open {
+  grid-column: 10 / -1;
   grid-row: 1;
 }
 
 .semester-filter-date-field {
-  grid-column: 6 / span 3;
+  grid-column: 5 / span 4;
   grid-row: 2;
 }
 
@@ -335,6 +345,8 @@
   .semester-filter-search,
   .semester-filter-kind,
   .semester-filter-status,
+  .semester-filter-registration-finalized,
+  .semester-filter-tuition-open,
   .semester-filter-date-field,
   .semester-filter-date-exact,
   .semester-filter-actions {
@@ -354,16 +366,24 @@
     order: 3;
   }
 
-  .semester-filter-date-field {
+  .semester-filter-registration-finalized {
     order: 4;
   }
 
-  .semester-filter-date-exact {
+  .semester-filter-tuition-open {
     order: 5;
   }
 
-  .semester-filter-actions {
+  .semester-filter-date-field {
     order: 6;
+  }
+
+  .semester-filter-date-exact {
+    order: 7;
+  }
+
+  .semester-filter-actions {
+    order: 8;
   }
 
   .segmented-control {
@@ -379,6 +399,8 @@
   .semester-filter-search,
   .semester-filter-kind,
   .semester-filter-status,
+  .semester-filter-registration-finalized,
+  .semester-filter-tuition-open,
   .semester-filter-date-field,
   .semester-filter-date-exact,
   .semester-filter-actions {

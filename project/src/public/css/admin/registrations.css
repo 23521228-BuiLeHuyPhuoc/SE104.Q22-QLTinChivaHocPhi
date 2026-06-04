@@ -75,6 +75,10 @@
   justify-content: flex-end;
 }
 
+#appeal-filter .registration-filter-actions {
+  justify-content: flex-start;
+}
+
 .registration-filter-actions .btn {
   min-height: 44px;
   white-space: nowrap;

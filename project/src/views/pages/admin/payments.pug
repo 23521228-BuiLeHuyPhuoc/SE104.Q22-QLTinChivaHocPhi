@@ -3,7 +3,13 @@ extends ../../layouts/admin
 block content
   - const money = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
   .toolbar.admin-toolbar
-    .search-box.admin-search-group
+    .search-box.search-box-with-criterion.admin-search-group
+      label.admin-search-label(for="payment-search-field") Tìm theo
+      select.form-control.ui-search-criterion-select#payment-search-field(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="SoPhieuThu" selected=(searchField === 'SoPhieuThu')) Mã phiếu thu
+        option(value="MaSv" selected=(searchField === 'MaSv')) MSSV
+        option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
       input#search-input(type="text" placeholder="Tìm phiếu thu, MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group.admin-filter-group
       select#filter-semester(onchange="applyFilters()")

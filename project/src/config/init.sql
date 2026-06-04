@@ -13543,12 +13543,12 @@ FROM priced_ctdk;
 -- Số tiền thu phải khớp với học phí phải đóng của "PHIEUDANGKY" tương ứng
 -- =====================================================
 INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", "SoTienThu", "HinhThucThu", "MaGiaoDich", "NguoiThu", "PaymentProvider", "PaymentChannel", "GhiChu", "TrangThai", "NgayXacNhan", "NgayCapNhat") VALUES
-(1, 1, '22520001', '2026-05-25 09:00:00', 405000, 'Chuyển khoản', 'GD20260525001', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 09:00:00', '2026-05-25 09:00:00'),
+(1, 1, '22520001', '2026-05-25 09:00:00', 378000, 'Chuyển khoản', 'GD20260525001', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 09:00:00', '2026-05-25 09:00:00'),
 (2, 2, '22520002', '2026-05-25 09:30:00', 229500, 'Tiền mặt', 'CASH20260525001', 'Phòng tài chính', 'cash', 'admin', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 09:30:00', '2026-05-25 09:30:00'),
 (3, 3, '22520003', '2026-05-25 10:00:00', 150000, 'Chuyển khoản', 'GD20260525003', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán một phần học phí HK2-2526', 'Thành công', '2026-05-25 10:00:00', '2026-05-25 10:00:00'),
 (4, 4, '22520004', '2026-05-25 10:30:00', 200000, 'Ví điện tử', 'EW20260525004', 'Cổng thanh toán', 'momo', 'student_portal', 'Thanh toán một phần học phí HK2-2526', 'Thành công', '2026-05-25 10:30:00', '2026-05-25 10:30:00'),
 (5, 5, '22520005', '2026-05-25 11:00:00', 226800, 'Chuyển khoản', 'GD20260525005', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 11:00:00', '2026-05-25 11:00:00'),
-(6, 6, '22520006', '2026-05-25 11:30:00', 202500, 'Chuyển khoản', 'GD20260525006', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526 cho tài khoản student', 'Thành công', '2026-05-25 11:30:00', '2026-05-25 11:30:00');
+(6, 6, '22520006', '2026-05-25 11:30:00', 189000, 'Chuyển khoản', 'GD20260525006', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526 cho tài khoản student', 'Thành công', '2026-05-25 11:30:00', '2026-05-25 11:30:00');
 
 -- Cập nhật sequence cho "PHIEUTHUHOCPHI" để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), 6, true);
@@ -13745,6 +13745,7 @@ UPDATE "LICHHOCLOP"
 SET "MaPhong" = TRIM("PhongHoc")
 WHERE "PhongHoc" IS NOT NULL
   AND TRIM("PhongHoc") <> ''
+  AND "MaPhong" IS DISTINCT FROM TRIM("PhongHoc")
   AND EXISTS (SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM("LICHHOCLOP"."PhongHoc"));
 
 UPDATE "LOP" l

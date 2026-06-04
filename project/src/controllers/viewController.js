@@ -1561,18 +1561,21 @@ const adminPayments = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const searchField = ['all', 'SoPhieuThu', 'MaSv', 'HoTen'].includes(req.query.searchField) ? req.query.searchField : 'all';
   let MaHocKy = req.query.MaHocKy || '';
   const HinhThucThu = req.query.HinhThucThu || '';
   const TrangThai = req.query.TrangThai || '';
   const where = {};
 
   if (search) {
-    where.SINHVIEN = {
-      OR: [
-        { MaSv: { contains: search, mode: 'insensitive' } },
-        { HoTen: { contains: search, mode: 'insensitive' } }
-      ]
-    };
+    const keyword = String(search).trim();
+    const searchFilter = { contains: keyword, mode: 'insensitive' };
+    const receiptNumber = Number.parseInt(keyword, 10);
+    const receiptClause = Number.isInteger(receiptNumber) && String(receiptNumber) === keyword ? { SoPhieuThu: receiptNumber } : null;
+    if (searchField === 'SoPhieuThu') where.SoPhieuThu = receiptClause ? receiptClause.SoPhieuThu : -1;
+    else if (searchField === 'MaSv') where.MaSv = searchFilter;
+    else if (searchField === 'HoTen') where.SINHVIEN = { HoTen: searchFilter };
+    else where.OR = [receiptClause, { MaSv: searchFilter }, { SINHVIEN: { HoTen: searchFilter } }].filter(Boolean);
   }
   if (HinhThucThu) where.HinhThucThu = HinhThucThu;
   if (TrangThai) where.TrangThai = TrangThai;
@@ -1605,8 +1608,9 @@ const adminPayments = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/payments',
-      queryParams: { search, MaHocKy, HinhThucThu, TrangThai, limit },
+      queryParams: { search, searchField, MaHocKy, HinhThucThu, TrangThai, limit },
       search,
+      searchField,
       MaHocKy,
       HinhThucThu,
       TrangThai
@@ -1621,6 +1625,7 @@ const adminPayments = async (req, res) => {
       baseUrl: '/admin/payments',
       queryParams: {},
       search: '',
+      searchField: 'all',
       semesters: [],
       MaHocKy: '',
       HinhThucThu: '',
@@ -1653,7 +1658,7 @@ const adminReports = async (req, res) => {
   try {
     const [semesters, faculties, majors] = await getReportFilterOptions();
     renderAdmin(res, 'reports', 'reports', 'Báo cáo thống kê', req, {
-      headerSubtitle: 'Theo dõi doanh thu, công nợ và tình hình đăng ký',
+      headerSubtitle: 'Theo dõi doanh thu và công nợ học phí',
       semesters,
       faculties,
       majors
@@ -1661,7 +1666,7 @@ const adminReports = async (req, res) => {
   } catch (err) {
     console.error('adminReports error:', err);
     renderAdmin(res, 'reports', 'reports', 'Báo cáo thống kê', req, {
-      headerSubtitle: 'Theo dõi doanh thu, công nợ và tình hình đăng ký',
+      headerSubtitle: 'Theo dõi doanh thu và công nợ học phí',
       semesters: [],
       faculties: [],
       majors: []
