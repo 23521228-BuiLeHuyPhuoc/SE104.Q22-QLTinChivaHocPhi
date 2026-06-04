@@ -157,7 +157,18 @@
 .import-summary {
   color: var(--text-secondary);
   font-weight: 600;
-  margin-bottom: var(--spacing-sm);
+}
+
+/* Dropdown triangle override */
+select.form-control,
+.filter-group select,
+.admin-search-group select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%238f9bb3' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+  background-position: right 12px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 20px 20px !important;
 }
 
 .import-result-table {

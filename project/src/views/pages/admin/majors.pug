@@ -1,13 +1,8 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/course-tools.css")
 block content
-  .stats-grid.mb-4
-    .stat-card
-      .stat-icon.blue.material-symbols-rounded schema
-      .stat-info
-        h3= majors ? majors.length : 0
-        p Tổng số ngành
-
   .toolbar.admin-toolbar
     .search-box.search-box-with-criterion.admin-search-group
       label.admin-search-label(for="major-search-field") Tìm theo
@@ -16,7 +11,7 @@ block content
         option(value="MaNganh" selected=(searchField === 'MaNganh')) Mã ngành
         option(value="TenNganh" selected=(searchField === 'TenNganh')) Tên ngành
         option(value="TenKhoa" selected=(searchField === 'TenKhoa')) Tên khoa
-      input#search-input(type="text" placeholder="Tìm mã ngành, tên ngành hoặc tên khoa..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
+      input#search-input(type="text" placeholder="Tìm mã ngành, tên ngành hoặc tên khoa..." value=(search || '') oninput="debounceSearch()")
     .filter-group.admin-filter-group
       select#filter-khoa(onchange="applyFilters()")
         option(value="" selected=(!filterKhoa)) Tất cả khoa
@@ -96,7 +91,7 @@ block content
           option(value="") Tất cả trạng thái
           option(value="true") Hợp lệ
           option(value="false") Có lỗi
-        input#curriculum-search.form-control(type="text" placeholder="Tìm mã/tên môn" onkeydown="runSearchOnEnter(event, debounceCurriculumSearch)")
+        input#curriculum-search.form-control(type="text" placeholder="Tìm mã/tên môn" oninput="debounceCurriculumSearch()")
         button.btn.btn-primary(type="button" onclick="openCurriculumModal('add')") Thêm môn
     .table-container
       table.data-table

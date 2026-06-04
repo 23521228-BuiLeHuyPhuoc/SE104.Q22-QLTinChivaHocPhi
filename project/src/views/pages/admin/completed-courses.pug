@@ -2,35 +2,12 @@ extends ../../layouts/admin
 
 block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
-
+  script.
+    (function() {
+      var saved = localStorage.getItem('theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    })();
 block content
-  - const totalStudents = completedStudents ? completedStudents.length : 0
-  - const totalAttempts = completedStudents ? completedStudents.reduce((sum, s) => sum + (s.totalAttempts || 0), 0) : 0
-  - const totalPassed = completedStudents ? completedStudents.reduce((sum, s) => sum + (s.passedCount || 0), 0) : 0
-  - const totalFailed = completedStudents ? completedStudents.reduce((sum, s) => sum + (s.failedCount || 0), 0) : 0
-
-  .stats-grid.mb-4
-    .stat-card
-      .stat-icon.blue.material-symbols-rounded group
-      .stat-info
-        h3= totalStudents
-        p Sinh viên
-    .stat-card
-      .stat-icon.green.material-symbols-rounded history_edu
-      .stat-info
-        h3= totalAttempts
-        p Tổng lượt học
-    .stat-card
-      .stat-icon.purple.material-symbols-rounded check_circle
-      .stat-info
-        h3= totalPassed
-        p Lượt qua môn
-    .stat-card
-      .stat-icon.red.material-symbols-rounded cancel
-      .stat-info
-        h3= totalFailed
-        p Lượt rớt
-
   .toolbar.admin-toolbar
     - const completedSearchField = searchField || 'MaSv'
     .search-box.search-box-with-criterion.admin-search-group

@@ -4,27 +4,6 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  - const totalPrereqs = prerequisites ? prerequisites.length : 0
-  - const requiredCount = prerequisites ? prerequisites.filter(p => p.LoaiDieuKien === 'tien_quyet').length : 0
-  - const priorCount = prerequisites ? prerequisites.filter(p => p.LoaiDieuKien === 'hoc_truoc').length : 0
-
-  .stats-grid.mb-4
-    .stat-card
-      .stat-icon.blue.material-symbols-rounded link
-      .stat-info
-        h3= totalPrereqs
-        p Tổng số ràng buộc
-    .stat-card
-      .stat-icon.green.material-symbols-rounded warning
-      .stat-info
-        h3= requiredCount
-        p Tiên quyết
-    .stat-card
-      .stat-icon.purple.material-symbols-rounded info
-      .stat-info
-        h3= priorCount
-        p Học trước
-
   .toolbar.admin-toolbar.prereq-toolbar
     .search-box.search-with-scope.admin-search-group
       label.admin-search-label(for="prereq-search-field") Tìm theo
@@ -32,7 +11,7 @@ block content
         option(value="code" selected=((prereqSearchField || 'code') === 'code')) Mã môn
         option(value="courseName" selected=(prereqSearchField === 'courseName')) Tên môn học
         option(value="requiredName" selected=(prereqSearchField === 'requiredName')) Tên môn điều kiện
-      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeydown="runSearchOnEnter(event, debouncePrereqSearch)")
+      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') oninput="debouncePrereqSearch()")
     .filter-group.admin-filter-group
       select.form-control#type-filter(onchange="applyPrereqFilters()")
         option(value="" selected=!filterType) Tất cả loại
@@ -146,7 +125,7 @@ block modals
         button.modal-close(type="button" onclick="closePrereqCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
-          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeydown="runSearchOnEnter(event, debouncePrereqCoursePickerSearch)")
+          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" oninput="debouncePrereqCoursePickerSearch()")
           button.btn.btn-outline(type="button" onclick="loadPrereqCoursePickerResults()") Tìm
         .table-container.lookup-table-container
           table.data-table.lookup-table

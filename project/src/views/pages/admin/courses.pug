@@ -4,33 +4,6 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  - const totalCourses = courses ? courses.length : 0
-  - const ltCourses = courses ? courses.filter(c => c.LoaiMon === 'LT').length : 0
-  - const thCourses = courses ? courses.filter(c => c.LoaiMon === 'TH').length : 0
-  - const totalCredits = courses ? courses.reduce((sum, c) => sum + (c.SoTinChi || 0), 0) : 0
-
-  .stats-grid.mb-4
-    .stat-card
-      .stat-icon.blue.material-symbols-rounded book
-      .stat-info
-        h3= totalCourses
-        p Tổng số môn
-    .stat-card
-      .stat-icon.green.material-symbols-rounded history_edu
-      .stat-info
-        h3= ltCourses
-        p Lý thuyết
-    .stat-card
-      .stat-icon.purple.material-symbols-rounded computer
-      .stat-info
-        h3= thCourses
-        p Thực hành
-    .stat-card
-      .stat-icon.orange.material-symbols-rounded workspace_premium
-      .stat-info
-        h3= totalCredits
-        p Tổng tín chỉ
-
   .toolbar.admin-toolbar
     .search-box.search-with-scope.admin-search-group
       label.admin-search-label(for="course-search-field") Tìm theo
@@ -40,7 +13,7 @@ block content
         option(value="TenMonHoc" selected=(searchField === 'TenMonHoc')) Tên môn
         option(value="LoaiMon" selected=(searchField === 'LoaiMon')) Loại môn
         option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Khoa
-      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
+      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') oninput="debounceSearch()")
     .filter-group.admin-filter-group
       select.form-control#faculty-filter(onchange="applyCourseFilters()")
         option(value="" selected=!filterKhoa) Tất cả khoa

@@ -22,10 +22,7 @@ function completedSemesterText(item) {
 }
 
 function updateCompletedSummary(summary) {
-  document.getElementById('total-attempts').textContent = Number(summary.totalAttempts || 0);
-  document.getElementById('passed-count').textContent = Number(summary.passedCount || 0);
-  document.getElementById('failed-count').textContent = Number(summary.failedCount || 0);
-  document.getElementById('passed-credits').textContent = Number(summary.passedCredits || 0);
+  // Stats grid was removed
 }
 
 function populateSemesterOptions(rows) {
