@@ -51,7 +51,7 @@ block content
               - const group = groups.find(g => g.MaNhom === acc.MaNhom)
               - const groupName = group ? group.TenNhom : acc.MaNhom
               - const roleLabel = acc.Role === 'admin' ? (groupName || 'Quản trị viên') : 'Sinh viên'
-              tr
+              tr(data-record=JSON.stringify(acc))
                 td.mono= acc.MaTaiKhoan
                 td.stacked-cell.account-summary
                   strong= acc.TenDangNhap
@@ -71,24 +71,25 @@ block content
                   else
                     span.badge.badge-success= roleLabel
                 td= acc.NgayTao ? new Date(acc.NgayTao).toLocaleDateString('vi-VN') : '-'
-                td.table-actions.user-action-cell
-                  if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
-                    span.text-muted.current-account-note Tài khoản hiện tại
-                  else if canManageAccounts
-                    .account-actions
-                      .account-group-control
-                        span.material-symbols-rounded.account-group-icon(aria-hidden="true") groups
-                        select.account-group-select(id=`group-${acc.MaTaiKhoan}` aria-label=`Chọn nhóm cho ${acc.TenDangNhap}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
-                          each optionGroup in groups
-                            option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
-                      button.btn.btn-sm.btn-secondary.account-action-button(type="button" title="Đổi nhóm" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)")
-                        span.material-symbols-rounded(aria-hidden="true") sync_alt
-                        span Đổi
-                      button.btn.btn-sm.btn-danger.account-action-button(type="button" title="Xóa tài khoản" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)")
-                        span.material-symbols-rounded(aria-hidden="true") delete
-                        span Xóa
-                  else
-                    span.text-muted Chỉ admin hệ thống
+                td.table-actions.user-action-cell(data-no-row-detail="true")
+                  .table-action-list
+                    if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
+                      span.text-muted.current-account-note Tài khoản hiện tại
+                    else if canManageAccounts
+                      .account-actions
+                        .account-group-control
+                          span.material-symbols-rounded.account-group-icon(aria-hidden="true") groups
+                          select.account-group-select(id=`group-${acc.MaTaiKhoan}` aria-label=`Chọn nhóm cho ${acc.TenDangNhap}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
+                            each optionGroup in groups
+                              option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
+                        button.btn.btn-sm.btn-secondary.account-action-button(type="button" title="Đổi nhóm" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)")
+                          span.material-symbols-rounded(aria-hidden="true") sync_alt
+                          span Đổi
+                        button.btn.btn-sm.btn-danger.account-action-button(type="button" title="Xóa tài khoản" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)")
+                          span.material-symbols-rounded(aria-hidden="true") delete
+                          span Xóa
+                    else
+                      span.text-muted Chỉ admin hệ thống
           else
             tr
               td(colspan="6")

@@ -51,6 +51,8 @@ async function loadMyPayments(page) {
           '<td class="currency">' + formatCurrency(p.SoTienThu || 0) + '</td>' +
           '<td>' + paymentEscapeHtml(p.HinhThucThu || 'Chưa chọn') + '</td>' +
           '<td>' + (p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-') + '</td>' +
+          '<td>' + paymentEscapeHtml(p.MaGiaoDich || '-') + '</td>' +
+          '<td>' + (p.NgayXacNhan ? formatActivityDateTime(p.NgayXacNhan) : '-') + '</td>' +
           '<td><span class="badge ' + badgeClass + '">' + paymentEscapeHtml(status) + '</span></td>' +
           '<td>' + paymentEscapeHtml(p.GhiChu || '-') + '</td>' +
           '<td><button class="btn btn-sm btn-outline" type="button" onclick="printStudentPayment(' + p.SoPhieuThu + ')">In</button></td>' +
@@ -58,14 +60,14 @@ async function loadMyPayments(page) {
       }).join('');
     } else {
       studentPaymentCache = {};
-      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state">Chưa có lịch sử thanh toán</div></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state">Chưa có lịch sử thanh toán</div></td></tr>';
     }
 
     renderClientPagination('payments-pagination', res.pagination, 'loadMyPayments');
   } catch (e) {
     if (loading) loading.classList.add('hidden');
     if (table) table.classList.remove('hidden');
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state text-error">Lỗi tải dữ liệu</div></td></tr>';
     renderClientPagination('payments-pagination', null, 'loadMyPayments');
   }
 }

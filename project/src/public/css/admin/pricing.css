@@ -3,7 +3,7 @@
 }
 
 .pricing-toolbar-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
@@ -58,7 +58,9 @@
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  min-height: 42px;
+  line-height: 1.35;
+  min-height: 44px;
+  min-width: 0;
   padding: 10px 14px;
   transition: all var(--transition-speed) var(--transition-smooth);
   width: 100%;
@@ -76,8 +78,9 @@
 }
 
 .pricing-filter-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
   justify-content: flex-end;
 }

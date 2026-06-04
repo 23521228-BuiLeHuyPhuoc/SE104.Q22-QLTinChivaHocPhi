@@ -4,11 +4,11 @@ block styles
   link(rel="stylesheet" href="/css/admin/semesters.css")
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Quản lý học kỳ
       p Cấu hình kỳ học, thời gian đăng ký và hạn đóng học phí.
-    .toolbar-actions
+    .toolbar-actions.admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')")
         span.material-symbols-rounded add
         span Thêm học kỳ

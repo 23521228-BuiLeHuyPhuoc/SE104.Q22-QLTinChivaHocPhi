@@ -53,6 +53,9 @@ block content
       .activity-window-item
         span Kết thúc
         strong#registration-window-end -
+      .activity-window-item
+        span Thu học phí
+        strong#registration-tuition-status -
     .activity-window-actions
       button.btn.btn-primary#finalize-registration-btn(type="button" onclick="finalizeSelectedRegistration()" disabled)
         span.material-symbols-rounded(aria-hidden="true") task_alt
@@ -94,8 +97,9 @@ block content
                 td
                   span.badge(class=((r.TrangThaiTongHop || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThaiTongHop || 'Đã đăng ký'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem chi tiết" aria-label="Xem chi tiết" data-so-phieu=r.SoPhieu data-ma-sv=r.MaSv data-ma-hoc-ky=r.MaHocKy onclick="openRegistrationDetail(this.dataset.soPhieu)")
-                    span.material-symbols-rounded(aria-hidden="true") visibility
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline.btn-icon(type="button" title="Xem chi tiết" aria-label="Xem chi tiết" data-so-phieu=r.SoPhieu data-ma-sv=r.MaSv data-ma-hoc-ky=r.MaHocKy onclick="openRegistrationDetail(this.dataset.soPhieu)")
+                      span.material-symbols-rounded(aria-hidden="true") visibility
           else
             tr
               td(colspan="9")

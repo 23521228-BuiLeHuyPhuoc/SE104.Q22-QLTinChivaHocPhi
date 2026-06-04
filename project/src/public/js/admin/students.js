@@ -510,4 +510,49 @@ async function importStudents() {
   }
 }
 
+function formatStudentDetailDate(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('vi-VN');
+}
+
+function buildStudentDetail(record) {
+  var major = record.NGANHHOC || {};
+  var faculty = major.KHOA || {};
+  var ethnicity = record.DANTOC || {};
+  var ward = record.PHUONGXA || {};
+  var beneficiaries = (record.DOITUONGSINHVIEN || [])
+    .map(function(item) { return item.DOITUONG ? item.DOITUONG.TenDoiTuong : item.MaDoiTuong; })
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    title: 'Chi tiết sinh viên ' + (record.MaSv || ''),
+    rows: [
+      { label: 'MSSV', value: record.MaSv },
+      { label: 'Họ tên', value: record.HoTen },
+      { label: 'Giới tính', value: record.GioiTinh },
+      { label: 'Ngày sinh', value: formatStudentDetailDate(record.NgaySinh) },
+      { label: 'Email', value: record.Email },
+      { label: 'Số điện thoại', value: record.Sdt },
+      { label: 'Ngành', value: major.TenNganh || record.MaNganh },
+      { label: 'Khoa', value: faculty.TenKhoa || major.MaKhoa },
+      { label: 'Dân tộc', value: ethnicity.TenDanToc || record.MaDanToc },
+      { label: 'Phường/xã', value: ward.TenPhuongXa || record.MaPhuongXa },
+      { label: 'Địa chỉ liên hệ', value: record.DiaChiLienHe },
+      { label: 'Đối tượng ưu tiên', value: beneficiaries },
+      { label: 'Trạng thái', value: record.TrangThai },
+      { label: 'Sửa bởi', value: record.NguoiCapNhatTen || record.NguoiCapNhat },
+      { label: 'Sửa lúc', value: formatStudentDetailDate(record.NgayCapNhat) }
+    ]
+  };
+}
+
+function initStudentRowDetails() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({ table: '#students-table', rowSelector: 'tr[data-record]', buildDetail: buildStudentDetail });
+}
+
 bindStudentAvatarInput();
+initStudentRowDetails();

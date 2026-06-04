@@ -4,7 +4,7 @@
 }
 
 .curriculum-programs-toolbar-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
@@ -73,7 +73,7 @@
 }
 
 .curriculum-filter-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
@@ -127,9 +127,8 @@
 .curriculum-summary-item small {
   display: block;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .curriculum-summary-item strong {
@@ -222,7 +221,10 @@
 }
 
 .curriculum-major-actions {
+  align-items: stretch;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   justify-content: flex-end;
 }
 

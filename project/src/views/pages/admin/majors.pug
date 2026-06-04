@@ -1,20 +1,21 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
-    .search-box.search-box-with-criterion
+  .toolbar.admin-toolbar
+    .search-box.search-box-with-criterion.admin-search-group
       select.form-control.ui-search-criterion-select#major-search-field(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
         option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
         option(value="MaNganh" selected=(searchField === 'MaNganh')) Mã ngành
         option(value="TenNganh" selected=(searchField === 'TenNganh')) Tên ngành
         option(value="TenKhoa" selected=(searchField === 'TenKhoa')) Tên khoa
       input#search-input(type="text" placeholder="Tìm mã ngành, tên ngành hoặc tên khoa..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select#filter-khoa(onchange="applyFilters()")
         option(value="" selected=(!filterKhoa)) Tất cả khoa
         if faculties && faculties.length > 0
           each k in faculties
             option(value=k.MaKhoa selected=(filterKhoa === k.MaKhoa))= k.TenKhoa
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm ngành
       a.btn.btn-outline(href="/admin/trash?entity=majors") Thùng rác
 
@@ -49,9 +50,10 @@ block content
                 td= m.NguoiCapNhatTen || m.NguoiCapNhat || '-'
                 td= m.NgayCapNhat ? new Date(m.NgayCapNhat).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'
                 td.table-actions(data-no-row-detail="true")
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(m) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-primary(type="button" data-major-id=m.MaNganh data-major-name=m.TenNganh onclick="selectCurriculumMajor(this.dataset.majorId, this.dataset.majorName)") CTDT
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteMajor('${m.MaNganh}')`) Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(m) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-primary(type="button" data-major-id=m.MaNganh data-major-name=m.TenNganh onclick="selectCurriculumMajor(this.dataset.majorId, this.dataset.majorName)") CTDT
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteMajor('${m.MaNganh}')`) Xóa
           else
             tr
               td(colspan="9")
@@ -105,7 +107,7 @@ block modals
     .modal
       .modal-header
         h2#modal-title Thêm ngành học
-        button.modal-close(type="button" onclick="closeModal()") x
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#major-form
           .form-row
@@ -142,7 +144,7 @@ block modals
     .modal
       .modal-header
         h2#curriculum-modal-title Thêm môn vào chương trình
-        button.modal-close(type="button" onclick="closeCurriculumModal()") x
+        button.modal-close(type="button" onclick="closeCurriculumModal()" aria-label="Đóng") ×
       .modal-body
         form#curriculum-form
           .form-row

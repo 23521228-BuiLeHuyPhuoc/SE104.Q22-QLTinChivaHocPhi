@@ -5,11 +5,11 @@ block styles
   link(rel="stylesheet" href="/css/admin/classes.css")
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Quản lý lớp học
       p Quản lý lớp, lịch học mặc định và trạng thái mở lớp theo học kỳ.
-    .toolbar-actions
+    .toolbar-actions.admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')")
         span.material-symbols-rounded add
         span Thêm lớp
@@ -39,11 +39,11 @@ block content
           each semester in semesterOptions || []
             option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.TenNamHoc ? ' - ' + semester.TenNamHoc : ''}
       .class-filter-field.class-filter-capacity
-        label(for="filter-capacity-sort") SÄ© sá»‘
+        label(for="filter-capacity-sort") Sĩ số
         select.form-control#filter-capacity-sort(name="capacitySort" onchange="applyFilters()")
-          option(value="" selected=(!capacitySort)) Máº·c Ä‘á»‹nh
-          option(value="capacity_asc" selected=(capacitySort === 'capacity_asc')) TÄƒng dáº§n
-          option(value="capacity_desc" selected=(capacitySort === 'capacity_desc')) Giáº£m dáº§n
+          option(value="" selected=(!capacitySort)) Mặc định
+          option(value="capacity_asc" selected=(capacitySort === 'capacity_asc')) Tăng dần
+          option(value="capacity_desc" selected=(capacitySort === 'capacity_desc')) Giảm dần
       .class-filter-field.class-filter-status
         span.class-filter-label Trạng thái mở lớp
         input#filter-open-status(type="hidden" name="openStatus" value=(openStatus || ''))
@@ -132,11 +132,11 @@ block modals
   #class-detail-modal.modal-overlay(onclick="if(event.target===this)closeClassDetail()")
     .modal.modal-wide
       .modal-header
-        h2 Chi tiáº¿t lá»›p há»c
-        button.modal-close(type="button" onclick="closeClassDetail()" aria-label="ÄÃ³ng") Ã—
+        h2 Chi tiết lớp học
+        button.modal-close(type="button" onclick="closeClassDetail()" aria-label="Đóng") ×
       .modal-body
         #class-detail-content
-          .empty-state Äang táº£i thÃ´ng tin lá»›p há»c...
+          .empty-state Đang tải thông tin lớp học...
 
   #class-modal.modal-overlay(onclick="if(event.target===this)closeModal()")
     .modal.class-form-modal

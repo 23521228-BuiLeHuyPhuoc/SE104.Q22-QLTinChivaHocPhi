@@ -67,14 +67,15 @@ const tuitionStatus = (amountDue, amountPaid, dueDate) => {
   if (amountDue <= 0) return 'Chưa phát sinh';
   if (remaining <= 0) return 'Đã đóng đủ';
   if (dueDate && new Date(dueDate) < new Date()) return 'Quá hạn';
-  return 'Còn nợ';
+  if (amountPaid > 0) return 'Đóng một phần';
+  return 'Chưa đóng';
 };
 
 const matchesTuitionStatus = (row, status) => {
   if (!status) return true;
   if (status === 'paid') return row.TrangThai === 'Đã đóng đủ';
   if (status === 'partial') return row.TrangThai === 'Đóng một phần';
-  if (status === 'unpaid') return ['Còn nợ', 'Chưa đóng'].includes(row.TrangThai);
+  if (status === 'unpaid') return row.TrangThai === 'Chưa đóng';
   if (status === 'overdue') return row.TrangThai === 'Quá hạn' || row.QuaHan;
   if (status === 'none') return row.TrangThai === 'Chưa phát sinh';
   return row.TrangThai === status;

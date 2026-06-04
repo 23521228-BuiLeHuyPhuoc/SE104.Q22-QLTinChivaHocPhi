@@ -342,3 +342,42 @@ async function openCredentialListModal() {
     content.textContent = 'Loi ket noi';
   }
 }
+
+function formatAccountDetailDate(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('vi-VN');
+}
+
+function initAccountRowDetails() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({
+    table: '#accounts-table',
+    rowSelector: 'tr[data-record]',
+    buildDetail: function(record) {
+      var admin = record.QUANTRIVIEN || {};
+      return {
+        title: 'Chi tiết tài khoản ' + (record.TenDangNhap || record.MaTaiKhoan || ''),
+        rows: [
+          { label: 'Mã tài khoản', value: record.MaTaiKhoan },
+          { label: 'Tên đăng nhập', value: record.TenDangNhap },
+          { label: 'Họ tên', value: record.HoTen },
+          { label: 'Email', value: record.Email },
+          { label: 'Số điện thoại', value: record.Sdt },
+          { label: 'Vai trò', value: record.Role === 'admin' ? 'Quản trị viên' : 'Sinh viên' },
+          { label: 'Nhóm', value: record.MaNhom },
+          { label: 'MSSV liên kết', value: record.MaSv },
+          { label: 'Chức vụ', value: admin.ChucVu },
+          { label: 'Phòng ban', value: admin.PhongBan },
+          { label: 'Trạng thái', value: record.TrangThai === false ? 'Tạm khóa' : 'Đang hoạt động' },
+          { label: 'Duyệt đăng nhập', value: record.TrangThaiDuyet || '-' },
+          { label: 'Ngày tạo', value: formatAccountDetailDate(record.NgayTao) },
+          { label: 'Lần đăng nhập cuối', value: formatAccountDetailDate(record.LanDangNhapCuoi) }
+        ]
+      };
+    }
+  });
+}
+
+initAccountRowDetails();

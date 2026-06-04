@@ -5,11 +5,11 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  .toolbar.open-courses-toolbar
+  .toolbar.open-courses-toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Môn học mở
       p Chọn môn học được phép mở lớp trong từng học kỳ.
-    .open-courses-toolbar-actions
+    .open-courses-toolbar-actions.admin-action-group
       button.btn.btn-primary(type="button" onclick="openCourseModal('add')")
         span.material-symbols-rounded add
         span Thêm môn mở

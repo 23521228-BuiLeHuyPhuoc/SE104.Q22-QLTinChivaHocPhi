@@ -4,15 +4,15 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     - const completedSearchField = searchField || 'MaSv'
     select.form-control#search-field(onchange="applyFilters()")
       option(value="MaSv" selected=(completedSearchField === 'MaSv')) MSSV
-      option(value="HoTen" selected=(completedSearchField === 'HoTen')) Ho ten
-      option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Hoc ky
-    .search-box
-      input#search-input(type="text" placeholder="Tim theo tieu chi da chon..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+      option(value="HoTen" selected=(completedSearchField === 'HoTen')) Họ tên
+      option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Học kỳ
+    .search-box.admin-search-group
+      input#search-input(type="text" placeholder="Tìm theo tiêu chí đã chọn..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group.admin-filter-group
       select#filter-hocky(onchange="applyFilters()")
         option(value="" selected=(!filterHocKy)) Tất cả học kỳ
         if semesters && semesters.length > 0
@@ -22,6 +22,7 @@ block content
         option(value="" selected=(!filterResult)) Tất cả kết quả
         option(value="qua_mon" selected=(filterResult === 'qua_mon')) Qua môn
         option(value="rot" selected=(filterResult === 'rot')) Rớt
+    .admin-action-group
       button.btn.btn-outline(type="button" onclick="openImportModal()") Nhập Excel
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn đã học
       a.btn.btn-outline(href="/admin/trash?entity=completedCourses") Thùng rác
@@ -58,7 +59,8 @@ block content
                 td= s.NgayCapNhatGanNhat ? new Date(s.NgayCapNhatGanNhat).toLocaleDateString('vi-VN') : '-'
                 td= s.NguoiCapNhatTen || '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-ma-sv=s.MaSv onclick="openCompletedCourseDetail(this.dataset.maSv)") Xem
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-ma-sv=s.MaSv onclick="openCompletedCourseDetail(this.dataset.maSv)") Xem
           else
             tr
               td(colspan="9")
@@ -71,7 +73,7 @@ block modals
     .modal.modal-wide
       .modal-header
         h3 Chi tiết môn đã học
-        button.modal-close(type="button" onclick="closeCompletedCourseDetail()") x
+        button.modal-close(type="button" onclick="closeCompletedCourseDetail()" aria-label="Đóng") ×
       .modal-body
         #completed-course-detail-content Đang tải...
 
@@ -79,7 +81,7 @@ block modals
     .modal
       .modal-header
         h2#modal-title Thêm môn đã học
-        button.modal-close(type="button" onclick="closeModal()") x
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#completed-course-form
           .form-row
@@ -128,7 +130,7 @@ block modals
     .modal.modal-wide
       .modal-header
         h2 Nhập Excel
-        button.modal-close(type="button" onclick="closeImportModal()") x
+        button.modal-close(type="button" onclick="closeImportModal()" aria-label="Đóng") ×
       .modal-body
         .import-format-note
           strong Format file Excel/CSV

@@ -4,18 +4,19 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  .toolbar
-    .search-box.search-with-scope
+  .toolbar.admin-toolbar
+    .search-box.search-with-scope.admin-search-group
       select.form-control#prereq-search-field(onchange="applyPrereqFilters()" aria-label="Tiêu chí tìm kiếm")
         option(value="code" selected=((prereqSearchField || 'code') === 'code')) Mã môn
         option(value="courseName" selected=(prereqSearchField === 'courseName')) Tên môn học
         option(value="requiredName" selected=(prereqSearchField === 'requiredName')) Tên môn điều kiện
       input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeyup="debouncePrereqSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select.form-control#type-filter(onchange="applyPrereqFilters()")
         option(value="" selected=!filterType) Tất cả loại
         option(value="tien_quyet" selected=filterType === 'tien_quyet') Tiên quyết
         option(value="hoc_truoc" selected=filterType === 'hoc_truoc') Học trước
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openPrereqModal('add')") Thêm ràng buộc
       a.btn.btn-outline(href="/admin/trash?entity=prerequisites") Thùng rác
 
@@ -55,8 +56,9 @@ block content
                 td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
                 td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})`) Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})`) Xóa
           else
             tr
               td(colspan="8")
@@ -69,7 +71,7 @@ block modals
     .modal
       .modal-header
         h2#prereq-modal-title Thêm ràng buộc
-        button.modal-close(type="button" onclick="closePrereqModal()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closePrereqModal()" aria-label="Đóng") ×
       .modal-body
         form#prereq-form
           .form-row
@@ -111,7 +113,7 @@ block modals
     .modal.modal-wide.lookup-modal
       .modal-header
         h2#prereq-picker-title Chọn môn học
-        button.modal-close(type="button" onclick="closePrereqCoursePicker()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closePrereqCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
           input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeyup="debouncePrereqCoursePickerSearch()")
@@ -134,7 +136,7 @@ block modals
     .modal.modal-wide
       .modal-header
         h2 Chi tiết ràng buộc môn học
-        button.modal-close(type="button" onclick="closePrereqDetail()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closePrereqDetail()" aria-label="Đóng") ×
       .modal-body#prereq-detail-content Đang tải...
 
 block scripts

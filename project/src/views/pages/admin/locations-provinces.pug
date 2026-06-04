@@ -72,12 +72,13 @@ block content
                   td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
                   td= formatLocationDateTime(p.NgayCapNhat)
                   td.table-actions
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="event.stopPropagation(); openProvinceEdit(this)")
-                      span.material-symbols-rounded edit
-                      | Sửa
-                    button.btn.btn-sm.btn-danger(type="button" data-id=p.MaTinh data-name=p.TenTinh onclick="event.stopPropagation(); deleteProvince(this)")
-                      span.material-symbols-rounded delete
-                      | Xóa
+                    .table-action-list
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="event.stopPropagation(); openProvinceEdit(this)")
+                        span.material-symbols-rounded edit
+                        | Sửa
+                      button.btn.btn-sm.btn-danger(type="button" data-id=p.MaTinh data-name=p.TenTinh onclick="event.stopPropagation(); deleteProvince(this)")
+                        span.material-symbols-rounded delete
+                        | Xóa
             else
               tr
                 td(colspan="8")

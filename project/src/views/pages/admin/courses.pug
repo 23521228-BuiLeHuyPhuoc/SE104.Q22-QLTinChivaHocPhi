@@ -4,8 +4,8 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  .toolbar
-    .search-box.search-with-scope
+  .toolbar.admin-toolbar
+    .search-box.search-with-scope.admin-search-group
       select.form-control#course-search-field(onchange="applyCourseFilters()" aria-label="Tiêu chí tìm kiếm")
         option(value="all" selected=((searchField || 'all') === 'all')) Tất cả
         option(value="MaMonHoc" selected=(searchField === 'MaMonHoc')) Mã môn
@@ -13,7 +13,7 @@ block content
         option(value="LoaiMon" selected=(searchField === 'LoaiMon')) Loại môn
         option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Khoa
       input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select.form-control#faculty-filter(onchange="applyCourseFilters()")
         option(value="" selected=!filterKhoa) Tất cả khoa
         if faculties && faculties.length > 0
@@ -23,6 +23,7 @@ block content
         option(value="" selected=!filterLoaiMon) Tất cả loại
         option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết
         option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành
+    .admin-action-group
       button.btn.btn-outline(type="button" onclick="exportCourses()") Xuất Excel
       button.btn.btn-outline(type="button" onclick="openCourseImportModal()") Nhập Excel
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn học
@@ -62,8 +63,9 @@ block content
                 td= c.NguoiCapNhatTen || c.NguoiCapNhat || '-'
                 td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
           else
             tr
               td(colspan="9")
@@ -76,7 +78,7 @@ block modals
     .modal
       .modal-header
         h2#modal-title Thêm môn học
-        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#course-form
           .form-row
@@ -117,14 +119,14 @@ block modals
     .modal.modal-wide
       .modal-header
         h2 Chi tiết môn học
-        button.modal-close(type="button" onclick="closeCourseDetail()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closeCourseDetail()" aria-label="Đóng") ×
       .modal-body#course-detail-content Đang tải...
 
   #course-import-modal.modal-overlay(onclick="if(event.target===this)closeCourseImportModal()")
     .modal.modal-wide
       .modal-header
         h2 Nhập Excel môn học
-        button.modal-close(type="button" onclick="closeCourseImportModal()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closeCourseImportModal()" aria-label="Đóng") ×
       .modal-body
         .import-format-note
           strong Format file Excel:

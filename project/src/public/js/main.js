@@ -572,7 +572,7 @@ var AdminUI = (function() {
       close.className = 'modal-close';
       close.type = 'button';
       close.setAttribute('aria-label', 'Đóng');
-      close.textContent = 'x';
+      close.textContent = '×';
       close.addEventListener('click', closeDetailModal);
       header.appendChild(title);
       header.appendChild(close);
@@ -759,7 +759,7 @@ var AdminUI = (function() {
     overlay.id = pickerModalId;
     overlay.className = 'modal-overlay admin-ui-modal-overlay';
     overlay.innerHTML = '<div class="modal admin-ui-record-picker-modal">' +
-      '<div class="modal-header"><div><h2 class="admin-ui-picker-title">Ch\u1ecdn b\u1ea3n ghi</h2><p class="admin-ui-picker-subtitle"></p></div><button class="modal-close" type="button" aria-label="\u0110\u00f3ng">x</button></div>' +
+      '<div class="modal-header"><div><h2 class="admin-ui-picker-title">Ch\u1ecdn b\u1ea3n ghi</h2><p class="admin-ui-picker-subtitle"></p></div><button class="modal-close" type="button" aria-label="\u0110\u00f3ng">×</button></div>' +
       '<div class="modal-body"><div class="search-box admin-ui-picker-search"><input type="search" class="form-control" autocomplete="off"></div><div class="admin-ui-picker-results"></div></div>' +
       '<div class="modal-footer"><button class="btn btn-outline admin-ui-picker-close" type="button">\u0110\u00f3ng</button></div>' +
     '</div>';

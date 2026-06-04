@@ -1,10 +1,10 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
-    .search-box
+  .toolbar.admin-toolbar
+    .search-box.admin-search-group
       input#search-input(type="text" placeholder="Tìm giảng viên..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceLecturerSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select.form-control#filter-semester(onchange="applyLecturerFilters()")
         if semesterOptions && semesterOptions.length
           each semester in semesterOptions
@@ -19,6 +19,7 @@ block content
         option(value="" selected=(!status)) Tất cả trạng thái
         option(value="active" selected=(status === 'active')) Đang dạy
         option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openLecturerModal('add')") Thêm giảng viên
       a.btn.btn-outline(href="/admin/trash?entity=lecturers") Thùng rác
 
@@ -62,9 +63,10 @@ block content
                 td= lecturer.NguoiCapNhatTen || lecturer.NguoiCapNhat || '-'
                 td= lecturer.NgayCapNhat ? new Date(lecturer.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(lecturer) data-no-row-detail="true" onclick="openLecturerModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-outline(type="button" data-magv=lecturer.MaGiangVien data-no-row-detail="true" onclick="openLecturerClasses(this.dataset.magv)") Xem lớp
-                  button.btn.btn-sm.btn-danger(type="button" data-magv=lecturer.MaGiangVien data-no-row-detail="true" onclick="deleteLecturer(this.dataset.magv)") Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(lecturer) data-no-row-detail="true" onclick="openLecturerModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-outline(type="button" data-magv=lecturer.MaGiangVien data-no-row-detail="true" onclick="openLecturerClasses(this.dataset.magv)") Xem lớp
+                    button.btn.btn-sm.btn-danger(type="button" data-magv=lecturer.MaGiangVien data-no-row-detail="true" onclick="deleteLecturer(this.dataset.magv)") Xóa
           else
             tr
               td(colspan="11")

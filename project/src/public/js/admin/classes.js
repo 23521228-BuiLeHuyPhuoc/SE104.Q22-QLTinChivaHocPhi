@@ -300,9 +300,9 @@ function classDetailSemester(opened) {
 
 function classDetailScheduleText(schedule) {
   if (!schedule) return '-';
-  var day = Number(schedule.ThuTrongTuan) === 1 ? 'Chá»§ nháº­t' : 'Thá»© ' + (schedule.ThuTrongTuan || '-');
+  var day = Number(schedule.ThuTrongTuan) === 1 ? 'Chủ nhật' : 'Thứ ' + (schedule.ThuTrongTuan || '-');
   var room = schedule.PHONGHOC ? roomOptionLabel(schedule.PHONGHOC) : (schedule.PhongHoc || schedule.MaPhong || '-');
-  return day + ', tiáº¿t ' + (schedule.MaTietBatDau || '-') + '-' + (schedule.MaTietKetThuc || '-') + ', phÃ²ng ' + room;
+  return day + ', tiết ' + (schedule.MaTietBatDau || '-') + '-' + (schedule.MaTietKetThuc || '-') + ', phòng ' + room;
 }
 
 function renderClassDetail(cls) {
@@ -317,27 +317,27 @@ function renderClassDetail(cls) {
     : (cls.GIANGVIEN ? lecturerOptionLabel(cls.GIANGVIEN) : '');
   var room = cls.PHONGHOC ? roomOptionLabel(cls.PHONGHOC) : (cls.PhongHoc || cls.MaPhong || '-');
   var registeredCount = activeOpened ? Number(activeOpened.SoLuongDaDangKy || 0) : (cls.CHITIETDANGKY ? cls.CHITIETDANGKY.length : 0);
-  var status = activeOpened ? (activeOpened.TrangThai === false ? 'ÄÃ£ Ä‘Ã³ng' : 'Äang má»Ÿ') : 'ChÆ°a má»Ÿ';
+  var status = activeOpened ? (activeOpened.TrangThai === false ? 'Đã đóng' : 'Đang mở') : 'Chưa mở';
   var scheduleRows = schedules.length
     ? schedules.map(function(schedule) {
         return '<li>' + classEscapeHtml(classDetailScheduleText(schedule)) + '</li>';
       }).join('')
-    : '<li>ChÆ°a cÃ³ lá»‹ch má»Ÿ lá»›p</li>';
+    : '<li>Chưa có lịch mở lớp</li>';
 
   content.innerHTML =
     '<div class="detail-grid">' +
-      classDetailValue('MÃ£ lá»›p', cls.MaLop) +
-      classDetailValue('TÃªn lá»›p', cls.TenLop) +
-      classDetailValue('MÃ´n há»c', (course.TenMonHoc || cls.MaMonHoc) + (cls.MaMonHoc ? ' (' + cls.MaMonHoc + ')' : '')) +
+      classDetailValue('Mã lớp', cls.MaLop) +
+      classDetailValue('Tên lớp', cls.TenLop) +
+      classDetailValue('Môn học', (course.TenMonHoc || cls.MaMonHoc) + (cls.MaMonHoc ? ' (' + cls.MaMonHoc + ')' : '')) +
       classDetailValue('Khoa', course.KHOA && course.KHOA.TenKhoa) +
-      classDetailValue('Giáº£ng viÃªn', lecturer || cls.GiangVien) +
-      classDetailValue('PhÃ²ng máº·c Ä‘á»‹nh', room) +
-      classDetailValue('Há»c ká»³ Ä‘ang má»Ÿ', classDetailSemester(activeOpened)) +
-      classDetailValue('Tráº¡ng thÃ¡i', status) +
-      classDetailValue('SÄ© sá»‘', registeredCount + ' / ' + (cls.SoLuongToiDa || '-')) +
-      classDetailValue('Cáº­p nháº­t', classFormatDate(cls.NgayCapNhat || cls.NgayTao)) +
+      classDetailValue('Giảng viên', lecturer || cls.GiangVien) +
+      classDetailValue('Phòng mặc định', room) +
+      classDetailValue('Học kỳ đang mở', classDetailSemester(activeOpened)) +
+      classDetailValue('Trạng thái', status) +
+      classDetailValue('Sĩ số', registeredCount + ' / ' + (cls.SoLuongToiDa || '-')) +
+      classDetailValue('Cập nhật', classFormatDate(cls.NgayCapNhat || cls.NgayTao)) +
     '</div>' +
-    '<div class="detail-note"><strong>Lá»‹ch há»c</strong><ul class="class-detail-schedules">' + scheduleRows + '</ul></div>';
+    '<div class="detail-note"><strong>Lịch học</strong><ul class="class-detail-schedules">' + scheduleRows + '</ul></div>';
 }
 
 async function openClassDetail(id) {
@@ -346,13 +346,13 @@ async function openClassDetail(id) {
   var content = document.getElementById('class-detail-content');
   if (!id || !modal || !content) return;
   modal.classList.add('active');
-  content.innerHTML = '<div class="empty-state">Äang táº£i thÃ´ng tin lá»›p há»c...</div>';
+  content.innerHTML = '<div class="empty-state">Đang tải thông tin lớp học...</div>';
   try {
     var res = await apiFetch('/api/classes/' + encodeURIComponent(id));
-    if (!res || res.success === false) throw new Error((res && res.message) || 'KhÃ´ng thá»ƒ táº£i chi tiáº¿t lá»›p');
+    if (!res || res.success === false) throw new Error((res && res.message) || 'Không thể tải chi tiết lớp');
     renderClassDetail(res.data || {});
   } catch (error) {
-    content.innerHTML = '<div class="empty-state">' + classEscapeHtml(error.message || 'KhÃ´ng thá»ƒ táº£i chi tiáº¿t lá»›p') + '</div>';
+    content.innerHTML = '<div class="empty-state">' + classEscapeHtml(error.message || 'Không thể tải chi tiết lớp') + '</div>';
   }
 }
 

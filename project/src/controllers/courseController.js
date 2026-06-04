@@ -172,6 +172,9 @@ const updateCourse = async (req, res) => {
   try {
     const existing = await prisma.MONHOC.findFirst({ where: { MaMonHoc: req.params.id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
+    if (req.body.MaMonHoc !== undefined && normalizeText(req.body.MaMonHoc) !== req.params.id) {
+      return res.status(400).json({ success: false, message: 'Mã môn học không được sửa' });
+    }
     if (req.body.SoTinChi !== undefined) {
       return res.status(400).json({ success: false, message: 'Số tín chỉ không được sửa trực tiếp; hệ thống tính theo số tiết và loại môn' });
     }

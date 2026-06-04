@@ -1,14 +1,16 @@
 .toolbar-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+  justify-content: flex-end;
 }
 
 .toolbar-actions .material-symbols-rounded,
 .class-filter-actions .material-symbols-rounded,
 .class-actions .material-symbols-rounded {
-  display: none;
+  flex: 0 0 auto;
+  font-size: 18px;
 }
 
 .class-filter-panel {
@@ -53,8 +55,10 @@
 }
 
 .class-filter-actions {
-  align-items: end;
+  align-items: stretch;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   grid-column: 10 / -1;
   grid-row: 2;
   justify-content: flex-end;
@@ -137,7 +141,7 @@
 }
 
 .classes-table {
-  min-width: 1040px;
+  min-width: 1140px;
   table-layout: fixed;
 }
 
@@ -184,7 +188,7 @@
 }
 
 .classes-table th:nth-child(7) {
-  width: 172px;
+  width: 260px;
 }
 
 .class-identity-cell,
@@ -282,14 +286,15 @@
 .class-actions {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(2, minmax(78px, 1fr));
+  grid-template-columns: repeat(2, minmax(118px, 1fr));
   width: 100%;
 }
 
 .class-actions .btn {
   justify-content: center;
   min-height: 32px;
-  padding-inline: 8px;
+  min-width: 0;
+  padding-inline: 9px;
   white-space: nowrap;
 }
 
@@ -372,7 +377,9 @@
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  min-height: 42px;
+  line-height: 1.35;
+  min-height: 44px;
+  min-width: 0;
   padding: 10px 12px 10px 14px;
   text-align: left;
   transition: border-color var(--transition-speed) var(--transition-smooth),

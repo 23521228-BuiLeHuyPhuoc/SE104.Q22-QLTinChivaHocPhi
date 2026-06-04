@@ -46,11 +46,11 @@ function setCurriculumCourseSelection(courseOrCode, label) {
   var code = course ? course.MaMonHoc : (courseOrCode || '');
   var name = course ? course.TenMonHoc : (label || '');
   if (hidden) hidden.value = code || '';
-  if (title) title.textContent = code ? (name || code) : 'ChÆ°a chá»n mÃ´n há»c';
+  if (title) title.textContent = code ? (name || code) : 'Chưa chọn môn học';
   if (subtitle) {
     subtitle.textContent = code
-      ? [code, course && course.KHOA ? course.KHOA.TenKhoa : '', course && course.SoTinChi ? course.SoTinChi + ' TC' : ''].filter(Boolean).join(' Â· ')
-      : 'Báº¥m tÃ¬m kiáº¿m Ä‘á»ƒ chá»n mÃ´n há»c';
+      ? [code, course && course.KHOA ? course.KHOA.TenKhoa : '', course && course.SoTinChi ? course.SoTinChi + ' TC' : ''].filter(Boolean).join(' · ')
+      : 'Bấm tìm kiếm để chọn môn học';
   }
 }
 
@@ -68,7 +68,7 @@ function setCurriculumProgramLockedState(locked) {
 }
 
 function notifyCurriculumLockedField() {
-  showToast('Khong duoc phep sua nganh va mon hoc. Hay go dong nay va them lai neu chon sai.', 'error');
+  showToast('Không được phép sửa ngành và môn học. Hãy gỡ dòng này và thêm lại nếu chọn sai.', 'error');
 }
 
 function openCurriculumCoursePicker() {
@@ -96,12 +96,12 @@ async function loadCurriculumCoursePickerRows() {
   if (!body) return;
   var params = new URLSearchParams({ all: 'true', TrangThai: 'true' });
   if (input && input.value.trim()) params.set('search', input.value.trim());
-  body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Äang táº£i mÃ´n há»c...</div></td></tr>';
+  body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Đang tải môn học...</div></td></tr>';
   try {
     var res = await apiFetch('/api/courses?' + params.toString());
     var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="5"><div class="empty-state">KhÃ´ng tÃ¬m tháº¥y mÃ´n há»c phÃ¹ há»£p</div></td></tr>';
+      body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Không tìm thấy môn học phù hợp</div></td></tr>';
       return;
     }
     body.innerHTML = rows.map(function(course) {
@@ -111,11 +111,11 @@ async function loadCurriculumCoursePickerRows() {
         '<td>' + curriculumEscapeHtml(course.TenMonHoc || '-') + '</td>' +
         '<td>' + curriculumEscapeHtml((course.KHOA && course.KHOA.TenKhoa) || course.TenKhoa || '-') + '</td>' +
         '<td>' + curriculumEscapeHtml(course.SoTinChi || '-') + '</td>' +
-        '<td><button class="btn btn-sm btn-primary" type="button" data-course="' + record + '" onclick="selectCurriculumCourseFromPicker(this)">Chá»n</button></td>' +
+        '<td><button class="btn btn-sm btn-primary" type="button" data-course="' + record + '" onclick="selectCurriculumCourseFromPicker(this)">Chọn</button></td>' +
       '</tr>';
     }).join('');
   } catch (error) {
-    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">KhÃ´ng thá»ƒ táº£i danh sÃ¡ch mÃ´n há»c</div></td></tr>';
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Không thể tải danh sách môn học</div></td></tr>';
   }
 }
 
@@ -126,7 +126,7 @@ function selectCurriculumCourseFromPicker(button) {
     setCurriculumCourseSelection(course);
     closeCurriculumCoursePicker();
   } catch (error) {
-    showToast('KhÃ´ng thá»ƒ chá»n mÃ´n há»c nÃ y', 'error');
+    showToast('Không thể chọn môn học này', 'error');
   }
 }
 

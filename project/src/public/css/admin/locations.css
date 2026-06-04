@@ -69,9 +69,10 @@
 }
 
 .location-section-header {
-  align-items: center;
+  align-items: stretch;
   border-bottom: 1px solid var(--border-light);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-md);
   justify-content: space-between;
   padding: var(--spacing-lg);
@@ -113,13 +114,13 @@
 }
 
 .location-toolbar {
-  align-items: center;
+  align-items: stretch;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-light);
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-md);
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: var(--spacing-md) var(--spacing-lg);
 }
 
@@ -129,7 +130,7 @@
 }
 
 .location-search-control {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex: 1 1 360px;
   gap: var(--spacing-sm);
@@ -179,8 +180,12 @@
   white-space: nowrap;
 }
 
-.location-table .table-actions {
-  flex-wrap: nowrap;
+.location-table td.table-actions {
+  min-width: 206px;
+}
+
+.location-table td.table-actions .btn {
+  min-width: 62px;
 }
 
 .location-clickable {
@@ -201,37 +206,38 @@
 }
 
 .location-detail-modal {
-  max-width: 680px;
+  max-width: min(980px, 96vw);
 }
 
 .location-detail-grid {
   display: grid;
-  gap: var(--spacing-sm);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
 }
 
 .location-detail-item {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   display: grid;
-  gap: 6px;
-  min-height: 72px;
+  gap: 4px;
+  min-height: 78px;
+  min-width: 0;
   padding: var(--spacing-md);
 }
 
-.location-detail-item span {
+.location-detail-item strong {
   color: var(--text-tertiary);
   font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.location-detail-item strong {
+.location-detail-item span {
   color: var(--text-primary);
   font-size: var(--font-size-sm);
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 

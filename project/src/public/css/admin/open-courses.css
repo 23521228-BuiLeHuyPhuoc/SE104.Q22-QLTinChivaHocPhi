@@ -4,7 +4,7 @@
 }
 
 .open-courses-toolbar-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
@@ -59,8 +59,10 @@
 }
 
 .open-courses-filter-actions {
-  align-items: end;
+  align-items: stretch;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   justify-content: flex-end;
   min-width: 120px;
 }
@@ -79,7 +81,7 @@
 }
 
 .open-courses-table {
-  min-width: 1060px;
+  min-width: 1080px;
   table-layout: fixed;
 }
 
@@ -117,7 +119,7 @@
 }
 
 .open-courses-table th:nth-child(8) {
-  width: 138px;
+  width: 160px;
 }
 
 .open-course-semester,
@@ -202,13 +204,14 @@
 .open-course-actions {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(2, minmax(68px, 1fr));
+  grid-template-columns: repeat(2, minmax(74px, 1fr));
   width: 100%;
 }
 
 .open-course-actions .btn {
   justify-content: center;
   min-height: 32px;
+  min-width: 0;
   padding-inline: 8px;
   white-space: nowrap;
 }

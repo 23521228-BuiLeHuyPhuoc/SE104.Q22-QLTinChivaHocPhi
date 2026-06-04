@@ -82,3 +82,46 @@ async function deletePricing(id) {
   if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 500); }
   else { showToast(res.message || 'Lỗi', 'error'); }
 }
+
+function pricingLoaiMonLabel(value) {
+  return value === 'LT' ? 'Lý thuyết' : value === 'TH' ? 'Thực hành' : (value || '-');
+}
+
+function pricingLoaiHocLabel(value) {
+  if (value === 'hoc_moi') return 'Học mới';
+  if (value === 'hoc_lai') return 'Học lại';
+  if (value === 'hoc_cai_thien') return 'Cải thiện';
+  if (value === 'hoc_he') return 'Học hè';
+  return value || '-';
+}
+
+function pricingSemesterLabel(record) {
+  var semester = record.HOCKY || {};
+  if (!record.MaHocKy && !semester.TenHocKy) return 'Tất cả';
+  return [semester.TenHocKy || record.MaHocKy, semester.NAMHOC && semester.NAMHOC.TenNamHoc].filter(Boolean).join(' - ');
+}
+
+function initPricingRowDetails() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({
+    table: '.data-table',
+    buildDetail: function(record) {
+      return {
+        title: 'Chi tiết đơn giá #' + (record.id || ''),
+        rows: [
+          { label: 'Mã', value: record.id },
+          { label: 'Loại môn', value: pricingLoaiMonLabel(record.LoaiMon) },
+          { label: 'Loại học', value: pricingLoaiHocLabel(record.LoaiHoc) },
+          { label: 'Đơn giá', value: Number(record.DonGia || 0).toLocaleString('vi-VN') + ' đ' },
+          { label: 'Học kỳ', value: pricingSemesterLabel(record) },
+          { label: 'Trạng thái', value: record.TrangThai === false ? 'Ngưng' : 'Đang áp dụng' },
+          { label: 'Ghi chú', value: record.GhiChu },
+          { label: 'Sửa bởi', value: record.NguoiCapNhatTen || record.NguoiCapNhat },
+          { label: 'Sửa lúc', value: formatPricingDateTime(record.NgayCapNhat) }
+        ]
+      };
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initPricingRowDetails);

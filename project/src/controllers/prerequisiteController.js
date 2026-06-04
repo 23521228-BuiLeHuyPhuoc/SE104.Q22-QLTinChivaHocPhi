@@ -185,32 +185,10 @@ const deletePrerequisite = async (req, res) => {
   }
 };
 
-const getPrerequisiteGraph = async (req, res) => {
-  try {
-    const rows = await prisma.DIEUKIENMONHOC.findMany({
-      where: { DaXoa: false, TrangThai: true },
-      include: includeCourses,
-      orderBy: [{ MaMonHoc: 'asc' }, { MaMonDieuKien: 'asc' }]
-    });
-    const nodes = new Map();
-    const edges = rows.map((row) => {
-      const course = row.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC;
-      const required = row.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC;
-      nodes.set(row.MaMonHoc, { id: row.MaMonHoc, label: course?.TenMonHoc || row.MaMonHoc });
-      nodes.set(row.MaMonDieuKien, { id: row.MaMonDieuKien, label: required?.TenMonHoc || row.MaMonDieuKien });
-      return { from: row.MaMonDieuKien, to: row.MaMonHoc, type: row.LoaiDieuKien };
-    });
-    res.json({ success: true, data: { nodes: Array.from(nodes.values()), edges } });
-  } catch (error) {
-        return sendErrorResponse(res, error, 'La»—i server', 'getPrerequisiteGraph error:');
-  }
-};
-
 module.exports = {
   getPrerequisites,
   getPrerequisiteById,
   createPrerequisite,
   updatePrerequisite,
-  deletePrerequisite,
-  getPrerequisiteGraph
+  deletePrerequisite
 };

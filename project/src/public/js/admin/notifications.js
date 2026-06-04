@@ -193,3 +193,38 @@ async function deleteNotification(id) {
     showToast(res.message || 'Lỗi', 'error');
   }
 }
+
+function notificationTypeLabel(value) {
+  if (value === 'chung') return 'Chung';
+  if (value === 'hoc_vu') return 'Học vụ';
+  if (value === 'tai_chinh') return 'Tài chính';
+  if (value === 'he_thong') return 'Hệ thống';
+  return value || '-';
+}
+
+function initNotificationRowDetails() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({
+    table: '.data-table',
+    buildDetail: function(record) {
+      var isAuto = record.LoaiThongBao && record.LoaiThongBao.indexOf('auto_') === 0;
+      return {
+        title: 'Chi tiết thông báo #' + (record.MaThongBao || ''),
+        rows: [
+          { label: 'Mã thông báo', value: record.MaThongBao },
+          { label: 'Tiêu đề', value: record.TieuDe },
+          { label: 'Loại', value: notificationTypeLabel(record.Loai) },
+          { label: 'Nguồn', value: isAuto ? 'Tự động' : 'Thủ công' },
+          { label: 'Đối tượng', value: record.DOITUONG || 'Tất cả' },
+          { label: 'Ghim top', value: record.GhimTop ? 'Có' : 'Không' },
+          { label: 'Ngày hết hạn', value: record.NgayHetHan ? formatDate(record.NgayHetHan) : '-' },
+          { label: 'Ngày tạo', value: record.NgayTao ? formatDate(record.NgayTao) : '-' },
+          { label: 'Liên kết', value: record.DuongDan },
+          { label: 'Nội dung', value: record.NoiDung }
+        ]
+      };
+    }
+  });
+}
+
+initNotificationRowDetails();

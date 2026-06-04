@@ -76,6 +76,7 @@ function renderRegistrationActivityPanel() {
   var badge = document.getElementById('registration-window-badge');
   var start = document.getElementById('registration-window-start');
   var end = document.getElementById('registration-window-end');
+  var tuitionStatus = document.getElementById('registration-tuition-status');
   var button = document.getElementById('finalize-registration-btn');
 
   if (!activity) {
@@ -83,6 +84,7 @@ function renderRegistrationActivityPanel() {
     setActivityBadge(badge, getActivityBadgeMeta(null));
     if (start) start.textContent = '-';
     if (end) end.textContent = '-';
+    if (tuitionStatus) tuitionStatus.textContent = '-';
     if (button) {
       button.disabled = true;
       button.title = 'Chọn học kỳ để chốt đăng ký';
@@ -96,6 +98,13 @@ function renderRegistrationActivityPanel() {
   setActivityBadge(badge, getActivityBadgeMeta(windowState));
   if (start) start.textContent = formatActivityDateTime(activity.NgayBatDauDangKy || windowState.registrationStart || windowState.start);
   if (end) end.textContent = formatActivityDateTime(activity.NgayKetThucDangKy || windowState.registrationDeadline || windowState.deadline);
+  if (tuitionStatus) {
+    var paymentWindow = activity.tuitionPaymentWindow || {};
+    var paymentStart = activity.NgayMoThuHocPhi || paymentWindow.paymentStart || paymentWindow.start;
+    tuitionStatus.textContent = workflow.tuitionOpen || activity.MoThuHocPhi
+      ? 'Đã mở thu' + (paymentStart ? ' từ ' + formatActivityDateTime(paymentStart) : '')
+      : 'Chưa mở thu';
+  }
   if (button) {
     var alreadyFinalized = Boolean(workflow.finalized || activity.NgayChotDangKy);
     button.disabled = alreadyFinalized || !workflow.canFinalize;
@@ -118,7 +127,7 @@ async function finalizeSelectedRegistration() {
       showToast(
         'Đã chốt đăng ký: ' + (summary.SoLopDatNguong || 0) + ' lớp mở, ' +
           (summary.SoLopBiDong || 0) + ' lớp đóng, ' +
-          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy',
+          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy, đã mở thu học phí',
         'success'
       );
       setTimeout(function() { window.location.reload(); }, 500);

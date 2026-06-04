@@ -139,12 +139,105 @@ function closeModal() {
 
 function openBulkModal() {
   var modal = document.getElementById('payment-bulk-modal');
+  var currentSemester = document.getElementById('filter-semester');
+  var bulkSemester = document.getElementById('bulk-hocky');
+  if (bulkSemester && currentSemester && currentSemester.value) bulkSemester.value = currentSemester.value;
+  clearBulkPaymentResult();
   if (modal) modal.classList.add('active');
 }
 
 function closeBulkModal() {
   var modal = document.getElementById('payment-bulk-modal');
   if (modal) modal.classList.remove('active');
+}
+
+function clearBulkPaymentResult() {
+  var result = document.getElementById('payment-bulk-result');
+  if (!result) return;
+  result.classList.add('hidden');
+  result.innerHTML = '';
+}
+
+function bulkPaymentResultRows(created, skipped) {
+  var rows = [];
+  (created || []).forEach(function(item) {
+    rows.push({
+      badge: 'badge-success',
+      status: '\u0110\u00e3 t\u1ea1o',
+      receipt: item.SoPhieuThu || '-',
+      registration: item.SoPhieuDangKy || item.SoPhieu || '-',
+      student: item.MaSv || '-',
+      name: item.HoTen || '-',
+      amount: item.SoTienThu || 0,
+      reason: '-'
+    });
+  });
+  (skipped || []).forEach(function(item) {
+    rows.push({
+      badge: 'badge-secondary',
+      status: 'B\u1ecf qua',
+      receipt: '-',
+      registration: item.SoPhieuDangKy || item.SoPhieu || '-',
+      student: item.MaSv || '-',
+      name: item.HoTen || '-',
+      amount: item.SoTienThu || 0,
+      reason: item.reason || item.message || '-'
+    });
+  });
+  return rows;
+}
+
+function renderBulkPaymentSummary(payload, created, skipped, rows) {
+  return '<div class=stats-grid>' +
+    '<div class=stat-card><div class=stat-info><h3>' + paymentSafe(payload.total || rows.length || 0) + '</h3><p>T\u1ed5ng x\u1eed l\u00fd</p></div></div>' +
+    '<div class=stat-card><div class=stat-info><h3>' + paymentSafe(created.length) + '</h3><p>T\u1ea1o th\u00e0nh c\u00f4ng</p></div></div>' +
+    '<div class=stat-card><div class=stat-info><h3>' + paymentSafe(skipped.length) + '</h3><p>B\u1ecf qua</p></div></div>' +
+  '</div>';
+}
+
+function renderBulkPaymentTableRow(row) {
+  return [
+    '<tr>',
+    '<td>' + paymentSafe(row.status) + '</td>',
+    '<td>' + paymentSafe(row.receipt) + '</td>',
+    '<td>' + paymentSafe(row.registration) + '</td>',
+    '<td>' + paymentSafe(row.student) + '</td>',
+    '<td>' + paymentSafe(row.name) + '</td>',
+    '<td>' + (Number(row.amount || 0) > 0 ? formatCurrency(row.amount) : '-') + '</td>',
+    '<td>' + paymentSafe(row.reason) + '</td>',
+    '</tr>'
+  ].join('');
+}
+
+function renderBulkPaymentTable(rows) {
+  var body = rows.length
+    ? rows.map(renderBulkPaymentTableRow).join('')
+    : '<tr><td colspan=7><div class=empty-state>Kh\u00f4ng c\u00f3 d\u00f2ng n\u00e0o c\u1ea7n x\u1eed l\u00fd</div></td></tr>';
+  return [
+    '<div class=table-container><table class=data-table><thead><tr>',
+    '<th>K\u1ebft qu\u1ea3</th><th>S\u1ed1 phi\u1ebfu thu</th><th>S\u1ed1 phi\u1ebfu \u0110K</th><th>MSSV</th><th>H\u1ecd t\u00ean</th><th>S\u1ed1 ti\u1ec1n</th><th>L\u00fd do</th>',
+    '</tr></thead><tbody>',
+    body,
+    '</tbody></table></div>'
+  ].join('');
+}
+
+function renderBulkPaymentReload(created) {
+  if (!created.length) return '';
+  return '<div class=mt-3><button class=btn type=button id=reload-payment-list>T\u1ea3i l\u1ea1i danh s\u00e1ch</button></div>';
+}
+
+function renderBulkPaymentResult(data) {
+  var result = document.getElementById('payment-bulk-result');
+  if (!result) return;
+  var payload = data || {};
+  var created = payload.created || [];
+  var skipped = payload.skipped || [];
+  var rows = bulkPaymentResultRows(created, skipped);
+  result.innerHTML = renderBulkPaymentSummary(payload, created, skipped, rows) + renderBulkPaymentTable(rows) + renderBulkPaymentReload(created);
+  result.classList.remove('hidden');
+  var reloadButton = document.getElementById('reload-payment-list');
+  if (reloadButton) reloadButton.addEventListener('click', function() { location.reload(); });
 }
 
 function closePaymentDetail() {
@@ -252,21 +345,31 @@ async function savePayment() {
 
 async function saveBulkPayments() {
   var semester = document.getElementById('bulk-hocky').value;
+  var submitButton = document.querySelector('#payment-bulk-modal .modal-footer .btn-primary');
   if (!semester) {
     showToast('Vui lòng chọn học kỳ', 'error');
     return;
   }
   try {
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = '\u0110ang t\u1ea1o...';
+    }
+    clearBulkPaymentResult();
     var res = await apiFetch('/api/payments/bulk', { method: 'POST', body: { MaHocKy: semester } });
     if (res.success) {
       showToast(res.message || 'Đã tạo phiếu thu hàng loạt', 'success');
-      closeBulkModal();
-      setTimeout(function() { location.reload(); }, 500);
+      renderBulkPaymentResult(res.data || {});
     } else {
       showToast(res.message || 'Không thể tạo phiếu thu hàng loạt', 'error');
     }
   } catch (e) {
     showToast('Lỗi kết nối', 'error');
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'Tạo phiếu';
+    }
   }
 }
 

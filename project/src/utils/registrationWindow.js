@@ -148,25 +148,25 @@ const getAppealWindowState = (semester, now = new Date()) => {
     semesterEnded: semester?.TrangThai === SEMESTER_ENDED_STATUS
   });
 
-  if (state.isOpen && semester?.NgayChotDangKy) {
-    return {
-      ...state,
-      isOpen: false,
-      isClosed: true,
-      reason: 'finalized',
-      message: APPEAL_MESSAGES.finalized,
-      appealStart: state.start,
-      appealDeadline: state.deadline
-    };
-  }
-
-  if (state.isOpen && semester?.MoThuHocPhi) {
+  if (semester?.MoThuHocPhi) {
     return {
       ...state,
       isOpen: false,
       isClosed: true,
       reason: 'tuition_opened',
       message: APPEAL_MESSAGES.tuition_opened,
+      appealStart: state.start,
+      appealDeadline: state.deadline
+    };
+  }
+
+  if (semester?.NgayChotDangKy) {
+    return {
+      ...state,
+      isOpen: false,
+      isClosed: true,
+      reason: 'finalized',
+      message: APPEAL_MESSAGES.finalized,
       appealStart: state.start,
       appealDeadline: state.deadline
     };

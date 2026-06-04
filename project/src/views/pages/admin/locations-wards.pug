@@ -85,12 +85,13 @@ block content
                   td= w.NguoiCapNhatTen || w.NguoiCapNhat || '-'
                   td= formatLocationDateTime(w.NgayCapNhat)
                   td.table-actions
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(w) onclick="event.stopPropagation(); openWardEdit(this)")
-                      span.material-symbols-rounded edit
-                      | Sửa
-                    button.btn.btn-sm.btn-danger(type="button" data-id=w.MaPhuongXa data-name=w.TenPhuongXa onclick="event.stopPropagation(); deleteWard(this)")
-                      span.material-symbols-rounded delete
-                      | Xóa
+                    .table-action-list
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(w) onclick="event.stopPropagation(); openWardEdit(this)")
+                        span.material-symbols-rounded edit
+                        | Sửa
+                      button.btn.btn-sm.btn-danger(type="button" data-id=w.MaPhuongXa data-name=w.TenPhuongXa onclick="event.stopPropagation(); deleteWard(this)")
+                        span.material-symbols-rounded delete
+                        | Xóa
             else
               tr
                 td(colspan="9")

@@ -5,11 +5,11 @@ block styles
   link(rel="stylesheet" href="/css/admin/curriculum-programs.css")
 
 block content
-  .toolbar.curriculum-programs-toolbar
+  .toolbar.curriculum-programs-toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Chương trình học
       p Xem chương trình theo từng ngành, từng học kỳ và quản lý môn học trong chương trình.
-    .curriculum-programs-toolbar-actions
+    .curriculum-programs-toolbar-actions.admin-action-group
       button.btn.btn-primary(type="button" onclick="openCurriculumProgramModal('add')")
         span.material-symbols-rounded add
         span Thêm môn
@@ -19,10 +19,10 @@ block content
     .curriculum-filter-grid
       .curriculum-filter-field.curriculum-filter-search-field
         select.form-control#cp-search-field(name="searchField" onchange="applyCurriculumProgramFilters()")
-          option(value="majorCode" selected=(cpSearchField === 'majorCode')) MÃ£ ngÃ nh
-          option(value="majorName" selected=(cpSearchField === 'majorName')) TÃªn ngÃ nh
-          option(value="courseCode" selected=(cpSearchField === 'courseCode')) MÃ£ mÃ´n
-          option(value="courseName" selected=(cpSearchField === 'courseName')) TÃªn mÃ´n
+          option(value="majorCode" selected=(cpSearchField === 'majorCode')) Mã ngành
+          option(value="majorName" selected=(cpSearchField === 'majorName')) Tên ngành
+          option(value="courseCode" selected=(cpSearchField === 'courseCode')) Mã môn
+          option(value="courseName" selected=(cpSearchField === 'courseName')) Tên môn
         label(for="cp-search") Từ khóa
         .search-box.curriculum-search-box
           input#cp-search(type="text" name="search" value=(search || '') placeholder="Tìm mã ngành, tên ngành, mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceCurriculumProgramSearch()")
@@ -153,11 +153,11 @@ block modals
               input#cp-item-course(type="hidden" required)
               .course-picker-control#cp-item-course-control
                 .course-picker-summary#cp-item-course-summary
-                  strong#cp-item-course-title ChÆ°a chá»n mÃ´n há»c
-                  small#cp-item-course-subtitle Báº¥m tÃ¬m kiáº¿m Ä‘á»ƒ chá»n mÃ´n há»c
+                  strong#cp-item-course-title Chưa chọn môn học
+                  small#cp-item-course-subtitle Bấm tìm kiếm để chọn môn học
                 button.btn.btn-outline#cp-item-course-picker(type="button" onclick="openCurriculumCoursePicker()")
                   span.material-symbols-rounded search
-                  span TÃ¬m mÃ´n
+                  span Tìm môn
             .form-group
               label(for="cp-item-active") Hiệu lực
               select.form-control#cp-item-active
@@ -178,28 +178,28 @@ block modals
     .modal.lookup-modal
       .modal-header
         div
-          h2 Chá»n mÃ´n há»c
-          p.entity-picker-subtitle TÃ¬m theo mÃ£ mÃ´n hoáº·c tÃªn mÃ´n há»c
-        button.modal-close(type="button" onclick="closeCurriculumCoursePicker()" aria-label="ÄÃ³ng") Ã—
+          h2 Chọn môn học
+          p.entity-picker-subtitle Tìm theo mã môn hoặc tên môn học
+        button.modal-close(type="button" onclick="closeCurriculumCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
-          input.form-control#curriculum-course-picker-search(type="text" placeholder="Nháº­p mÃ£ hoáº·c tÃªn mÃ´n" autocomplete="off")
+          input.form-control#curriculum-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn" autocomplete="off")
           button.btn.btn-outline(type="button" onclick="loadCurriculumCoursePickerRows()")
             span.material-symbols-rounded search
-            span TÃ¬m
+            span Tìm
         .table-container.lookup-table-container
           table.data-table.lookup-table
             thead
               tr
-                th MÃ£ mÃ´n
-                th TÃªn mÃ´n
+                th Mã môn
+                th Tên môn
                 th Khoa
                 th TC
                 th
             tbody#curriculum-course-picker-body
               tr
                 td(colspan="5")
-                  .empty-state ChÆ°a cÃ³ dá»¯ liá»‡u
+                  .empty-state Chưa có dữ liệu
 
 block scripts
   script(src="/js/admin/curriculum-programs.js")

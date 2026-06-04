@@ -1,11 +1,11 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Quản lý thông báo
       p Soạn, gửi và quản lý thông báo cho sinh viên và quản trị viên.
-    .filter-group
+    .filter-group.admin-filter-group
       select#filter-nguon(onchange="applyFilters()")
         option(value="" selected=(!filterNguon)) Tất cả nguồn
         option(value="manual" selected=(filterNguon === 'manual')) Thủ công
@@ -16,6 +16,7 @@ block content
         option(value="hoc_vu" selected=(filterLoai === 'hoc_vu')) Học vụ
         option(value="tai_chinh" selected=(filterLoai === 'tai_chinh')) Tài chính
         option(value="he_thong" selected=(filterLoai === 'he_thong')) Hệ thống
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Tạo thông báo
       a.btn.btn-outline(href="/admin/trash?entity=notifications") Thùng rác
 
@@ -44,7 +45,7 @@ block content
               - const isAuto = n.LoaiThongBao && n.LoaiThongBao.indexOf('auto_') === 0
               - const sourceLabel = isAuto ? 'Tự động' : 'Thủ công'
               - const sourceBadge = isAuto ? 'badge-secondary' : 'badge-success'
-              tr
+              tr(data-record=JSON.stringify(n))
                 td.mono= n.MaThongBao
                 td
                   strong= n.TieuDe
@@ -61,12 +62,13 @@ block content
                     span.text-muted -
                 td= n.NgayHetHan ? new Date(n.NgayHetHan).toLocaleDateString('vi-VN') : '-'
                 td= n.NgayTao ? new Date(n.NgayTao).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  if isAuto
-                    button.btn.btn-sm.btn-outline(type="button" disabled title="Thông báo tự động không sửa thủ công") Sửa
-                  else
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(n) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteNotification(${n.MaThongBao})`) Xóa
+                td.table-actions(data-no-row-detail="true")
+                  .table-action-list
+                    if isAuto
+                      button.btn.btn-sm.btn-outline(type="button" disabled title="Thông báo tự động không sửa thủ công") Sửa
+                    else
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(n) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteNotification(${n.MaThongBao})`) Xóa
           else
             tr
               td(colspan="9")

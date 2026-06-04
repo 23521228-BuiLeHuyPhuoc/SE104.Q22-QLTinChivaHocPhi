@@ -1,10 +1,10 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
-    .search-box
+  .toolbar.admin-toolbar
+    .search-box.admin-search-group
       input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select#filter-faculty(onchange='onFacultyFilterChange()')
         option(value='') Tất cả khoa
       select#filter-major(onchange='applyFilters()')
@@ -15,6 +15,7 @@ block content
         option(value="Đã tốt nghiệp" selected=(status === 'Đã tốt nghiệp')) Đã tốt nghiệp
         option(value="Bảo lưu" selected=(status === 'Bảo lưu')) Bảo lưu
         option(value="Đã thôi học" selected=(status === 'Đã thôi học')) Đã thôi học
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm sinh viên
       a.btn.btn-outline(href="/admin/trash?entity=students") Thùng rác
 
@@ -51,7 +52,7 @@ block content
               - const major = sv.NGANHHOC || {}
               - const faculty = major.KHOA || {}
               - const beneficiaries = (sv.DOITUONGSINHVIEN || []).map(item => item.DOITUONG ? item.DOITUONG.TenDoiTuong : item.MaDoiTuong).filter(Boolean).join(', ')
-              tr
+              tr(data-record=JSON.stringify(sv))
                 td.mono= sv.MaSv
                 td
                   strong= sv.HoTen
@@ -68,9 +69,10 @@ block content
                   span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
                 td= sv.NguoiCapNhatTen || sv.NguoiCapNhat || '-'
                 td= sv.NgayCapNhat ? new Date(sv.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(sv) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteStudent('${sv.MaSv}')`) Xóa
+                td.table-actions(data-no-row-detail="true")
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(sv) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteStudent('${sv.MaSv}')`) Xóa
           else
             tr
               td(colspan="11")

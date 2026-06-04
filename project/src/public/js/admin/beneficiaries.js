@@ -81,6 +81,37 @@ async function saveBeneficiary() {
   }
 }
 
+function formatBeneficiaryDetailDate(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('vi-VN');
+}
+
+function initBeneficiaryRowDetails() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({
+    table: '.data-table',
+    buildDetail: function(record) {
+      return {
+        title: 'Chi tiết đối tượng ' + (record.MaDoiTuong || ''),
+        rows: [
+          { label: 'Mã đối tượng', value: record.MaDoiTuong },
+          { label: 'Tên đối tượng', value: record.TenDoiTuong },
+          { label: 'Tỉ lệ giảm học phí', value: Number(record.TiLeGiamHocPhi || 0) + '%' },
+          { label: 'Độ ưu tiên', value: record.DoUuTien },
+          { label: 'Sinh viên thuộc đối tượng', value: record._count && record._count.DOITUONGSINHVIEN },
+          { label: 'Mô tả', value: record.MoTa },
+          { label: 'Sửa bởi', value: record.NguoiCapNhatTen || record.NguoiCapNhat },
+          { label: 'Sửa lúc', value: formatBeneficiaryDetailDate(record.NgayCapNhat) }
+        ]
+      };
+    }
+  });
+}
+
+initBeneficiaryRowDetails();
+
 async function deleteBeneficiary(id) {
   if (!confirm('Xóa đối tượng "' + id + '"?')) return;
   var res = await apiFetch('/api/beneficiaries/' + id, { method: 'DELETE' });

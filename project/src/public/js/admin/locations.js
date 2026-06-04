@@ -59,7 +59,7 @@ function getUpdaterText(record) {
 }
 
 function detailField(label, value) {
-  return '<div class="location-detail-item"><span>' + escapeLocationHtml(label) + '</span><strong>' + escapeLocationHtml(value) + '</strong></div>';
+  return '<div class="location-detail-item"><strong>' + escapeLocationHtml(label) + '</strong><span>' + escapeLocationHtml(value) + '</span></div>';
 }
 
 function openLocationDetail(title, fields) {

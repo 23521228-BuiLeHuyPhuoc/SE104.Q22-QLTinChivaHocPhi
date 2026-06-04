@@ -322,18 +322,18 @@ const createBulkPayments = async (req, res) => {
         PHIEUTHUHOCPHI: registration.PHIEUTHUHOCPHI.filter((p) => [PAYMENT_SUCCESS, PAYMENT_REFUND].includes(p.TrangThai))
       });
       if (amount <= 0) {
-        skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, reason: 'Không còn nợ' });
+        skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, HoTen: registration.SINHVIEN?.HoTen || '', reason: 'Không còn nợ' });
         continue;
       }
       if (getActiveReceipt(registration)) {
-        skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, reason: 'Đã có phiếu thu' });
+        skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, HoTen: registration.SINHVIEN?.HoTen || '', reason: 'Đã có phiếu thu' });
         continue;
       }
       try {
         await assertMinimumCreditsForPayment(registration, minimumCreditsForPayment);
       } catch (error) {
         if (error.code === 'REGISTRATION_MIN_CREDITS_NOT_MET') {
-          skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, reason: error.message });
+          skipped.push({ SoPhieu: registration.SoPhieu, MaSv: registration.MaSv, HoTen: registration.SINHVIEN?.HoTen || '', reason: error.message });
           continue;
         }
         throw error;
@@ -352,7 +352,14 @@ const createBulkPayments = async (req, res) => {
           GhiChu: 'Tạo phiếu thu hàng loạt'
         }
       });
-      created.push(payment);
+      created.push({
+        SoPhieuThu: payment.SoPhieuThu,
+        SoPhieuDangKy: registration.SoPhieu,
+        MaSv: registration.MaSv,
+        HoTen: registration.SINHVIEN?.HoTen || '',
+        SoTienThu: Number(payment.SoTienThu || amount),
+        TrangThai: payment.TrangThai
+      });
     }
 
     res.status(201).json({

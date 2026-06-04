@@ -41,10 +41,11 @@ block content
                   td= g._count ? g._count.TAIKHOAN : 0
                   td= g._count ? g._count.PHANQUYEN : 0
                   td.table-actions
-                    button.btn.btn-sm.btn-primary(type="button" onclick=`openPermissionModal('${g.MaNhom}', '${g.TenNhom}')`) Phân quyền
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(g) onclick="openGroupModal('edit', JSON.parse(this.dataset.record))") Sửa
-                    if g.MaNhom !== 'ADMIN' && g.MaNhom !== 'SINHVIEN'
-                      button.btn.btn-sm.btn-danger(type="button" onclick=`deleteGroup('${g.MaNhom}')`) Xóa
+                    .table-action-list
+                      button.btn.btn-sm.btn-primary(type="button" onclick=`openPermissionModal('${g.MaNhom}', '${g.TenNhom}')`) Phân quyền
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(g) onclick="openGroupModal('edit', JSON.parse(this.dataset.record))") Sửa
+                      if g.MaNhom !== 'ADMIN' && g.MaNhom !== 'SINHVIEN'
+                        button.btn.btn-sm.btn-danger(type="button" onclick=`deleteGroup('${g.MaNhom}')`) Xóa
             else
               tr
                 td(colspan="6")
@@ -88,8 +89,9 @@ block content
                     span.badge(class=f.LoaiQuyenBadgeClass || 'badge-secondary')= f.LoaiQuyenLabel || 'Dùng chung'
                   td= f.TenManHinhDuocLoad
                   td.table-actions
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openFunctionModal('edit', JSON.parse(this.dataset.record))") Sửa
-                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFunction('${f.MaChucNang}')`) Xóa
+                    .table-action-list
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openFunctionModal('edit', JSON.parse(this.dataset.record))") Sửa
+                      button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFunction('${f.MaChucNang}')`) Xóa
             else
               tr
                 td(colspan="5")

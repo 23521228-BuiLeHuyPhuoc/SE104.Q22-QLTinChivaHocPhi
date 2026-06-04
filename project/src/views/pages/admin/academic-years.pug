@@ -44,8 +44,9 @@ block content
                 td= y.NguoiCapNhatTen || y.NguoiCapNhat || '-'
                 td= y.NgayCapNhat ? new Date(y.NgayCapNhat).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'
                 td.table-actions(data-no-row-detail="true")
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(y) onclick="openAcademicYearModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteAcademicYear('${y.MaNamHoc}')`) Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(y) onclick="openAcademicYearModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteAcademicYear('${y.MaNamHoc}')`) Xóa
           else
             tr
               td(colspan="8")

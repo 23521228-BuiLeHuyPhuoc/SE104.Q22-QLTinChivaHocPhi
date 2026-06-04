@@ -618,13 +618,14 @@ const finalizeRegistration = async (req, res) => {
         await recalculateRegistrationTotals(tx, registration.SoPhieu);
       }
 
+      const finalizedAt = new Date();
       await tx.HOCKY.update({
         where: { MaHocKy: maHocKy },
         data: {
           TrangThai: ONGOING_SEMESTER_STATUS,
-          NgayChotDangKy: new Date(),
-          MoThuHocPhi: false,
-          NgayMoThuHocPhi: null,
+          NgayChotDangKy: finalizedAt,
+          MoThuHocPhi: true,
+          NgayMoThuHocPhi: finalizedAt,
           ...updateAudit(req)
         }
       });
@@ -635,13 +636,15 @@ const finalizeRegistration = async (req, res) => {
         SoLopDatNguong: openedAfterFinalize.length,
         SoLopBiDong: closedAfterFinalize.length,
         SoDangKyBiHuy: cancelled.count,
+        MoThuHocPhi: true,
+        NgayMoThuHocPhi: finalizedAt,
         classes: classSummaries
       };
     });
 
     res.json({
       success: true,
-      message: 'Chốt đăng ký học phần thành công. Học kỳ đã chuyển sang trạng thái đang diễn ra.',
+      message: 'Chốt đăng ký học phần thành công. Học kỳ đã chuyển sang giai đoạn thu học phí.',
       data: result
     });
   } catch (error) {

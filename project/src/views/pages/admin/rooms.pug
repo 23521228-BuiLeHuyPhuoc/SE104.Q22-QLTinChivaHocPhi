@@ -1,10 +1,10 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
-    .search-box
+  .toolbar.admin-toolbar
+    .search-box.admin-search-group
       input#search-input(type="text" placeholder="Tìm phòng học..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceRoomSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select.form-control#filter-semester(onchange="applyRoomFilters()")
         if semesterOptions && semesterOptions.length
           each semester in semesterOptions
@@ -24,6 +24,7 @@ block content
         option(value="" selected=(!status)) Tất cả trạng thái
         option(value="active" selected=(status === 'active')) Đang dùng
         option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openRoomModal('add')") Thêm phòng học
       a.btn.btn-outline(href="/admin/trash?entity=rooms") Thùng rác
 
@@ -63,9 +64,10 @@ block content
                 td= room.NguoiCapNhatTen || room.NguoiCapNhat || '-'
                 td= room.NgayCapNhat ? new Date(room.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(room) data-no-row-detail="true" onclick="openRoomModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-outline(type="button" data-maphong=room.MaPhong data-no-row-detail="true" onclick="openRoomClasses(this.dataset.maphong)") Lớp đang dùng
-                  button.btn.btn-sm.btn-danger(type="button" data-maphong=room.MaPhong data-no-row-detail="true" onclick="deleteRoom(this.dataset.maphong)") Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(room) data-no-row-detail="true" onclick="openRoomModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-outline(type="button" data-maphong=room.MaPhong data-no-row-detail="true" onclick="openRoomClasses(this.dataset.maphong)") Lớp đang dùng
+                    button.btn.btn-sm.btn-danger(type="button" data-maphong=room.MaPhong data-no-row-detail="true" onclick="deleteRoom(this.dataset.maphong)") Xóa
           else
             tr
               td(colspan="10")
