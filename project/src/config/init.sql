@@ -593,7 +593,9 @@ CREATE TABLE "CHUONGTRINHHOC" (
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chuong_trinh_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_cth UNIQUE ("MaNganh", "MaMonHoc"),
-    CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 10),
+    CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 8),
+    CONSTRAINT chk_hoc_ky_du_kien CHECK ("HocKyDuKien" >= 1 AND "HocKyDuKien" <= 8),
+    CONSTRAINT chk_cth_hocky_sync CHECK ("HocKy" = "HocKyDuKien"),
     CONSTRAINT fk_cth_nganh FOREIGN KEY ("MaNganh")
         REFERENCES "NGANHHOC"("MaNganh") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_cth_mon FOREIGN KEY ("MaMonHoc")
@@ -15150,6 +15152,21 @@ JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
 WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
   AND COALESCE(l."DaXoa", FALSE) = FALSE
   AND COALESCE(mh."DaXoa", FALSE) = FALSE
+  AND (
+    hk."LoaiHocKy" = 'Hè'
+    OR hk."ThuTu" = 3
+    OR EXISTS (
+      SELECT 1
+      FROM "CHUONGTRINHHOC" cth
+      JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
+      WHERE cth."MaMonHoc" = l."MaMonHoc"
+        AND COALESCE(cth."TrangThai", TRUE) = TRUE
+        AND COALESCE(ng."DaXoa", FALSE) = FALSE
+        AND COALESCE(ng."TrangThai", TRUE) = TRUE
+        AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+        AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
+    )
+  )
 GROUP BY lm."MaHocKy", l."MaMonHoc"
 ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
   "TrangThai" = EXCLUDED."TrangThai",
@@ -15249,56 +15266,50 @@ EXECUTE FUNCTION fn_guard_monhocmo_active_lopmo();
 
 -- =====================================================
 -- RBTV_CTH_MONHOCMO - Mon hoc mo phai nam trong chuong trinh hoc
--- Phong dao tao lap danh sach mon hoc mo tu tap mon cua cac CTDT dang hoat dong.
--- Schema hien tai chua co khoa tuyen/cohort de anh xa nam hoc cu the vao HocKyDuKien,
--- nen rang buoc an toan o DB la: mon duoc mo phai thuoc it nhat mot CTDT dang hoat dong.
+-- Hoc ky I chi mo cac mon co HocKyDuKien le; hoc ky II chi mo cac mon co HocKyDuKien chan.
+-- Hoc ky he hien chua rang buoc theo chuong trinh hoc.
 -- =====================================================
 CREATE OR REPLACE FUNCTION fn_monhocmo_has_curriculum_plan(p_ma_hoc_ky VARCHAR, p_ma_mon_hoc VARCHAR)
 RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
+DECLARE
+  v_expected_mod INTEGER;
+BEGIN
+  SELECT CASE
+    WHEN hk."LoaiHocKy" = 'Hè' OR hk."ThuTu" = 3 THEN NULL
+    WHEN hk."ThuTu" = 1 THEN 1
+    WHEN hk."ThuTu" = 2 THEN 0
+    ELSE NULL
+  END
+  INTO v_expected_mod
+  FROM "HOCKY" hk
+  WHERE hk."MaHocKy" = p_ma_hoc_ky
+    AND COALESCE(hk."DaXoa", FALSE) = FALSE;
+
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Học kỳ hè hiện chưa ràng buộc theo chương trình học.
+  IF v_expected_mod IS NULL THEN
+    RETURN TRUE;
+  END IF;
+
+  RETURN EXISTS (
     SELECT 1
-    FROM "HOCKY" hk
-    JOIN "MONHOC" mh ON mh."MaMonHoc" = p_ma_mon_hoc
-    JOIN "CHUONGTRINHHOC" cth ON cth."MaMonHoc" = mh."MaMonHoc"
+    FROM "CHUONGTRINHHOC" cth
     JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
-    WHERE hk."MaHocKy" = p_ma_hoc_ky
-      AND COALESCE(hk."DaXoa", FALSE) = FALSE
-      AND COALESCE(mh."DaXoa", FALSE) = FALSE
-      AND COALESCE(mh."TrangThai", TRUE) = TRUE
+    JOIN "MONHOC" mh ON mh."MaMonHoc" = cth."MaMonHoc"
+    WHERE cth."MaMonHoc" = p_ma_mon_hoc
       AND COALESCE(cth."TrangThai", TRUE) = TRUE
       AND COALESCE(ng."DaXoa", FALSE) = FALSE
       AND COALESCE(ng."TrangThai", TRUE) = TRUE
+      AND COALESCE(mh."DaXoa", FALSE) = FALSE
+      AND COALESCE(mh."TrangThai", TRUE) = TRUE
+      AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+      AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod
   );
-$$ LANGUAGE sql VOLATILE;
-
-WITH invalid_lopmo AS (
-  SELECT lm.id
-  FROM "LOPMO" lm
-  JOIN "LOP" l ON l."MaLop" = lm."MaLop"
-  WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
-    AND NOT fn_monhocmo_has_curriculum_plan(lm."MaHocKy", l."MaMonHoc")
-)
-UPDATE "LICHHOCLOP" lh
-SET "TrangThai" = FALSE
-WHERE lh."LopMoId" IN (SELECT id FROM invalid_lopmo)
-  AND COALESCE(lh."TrangThai", TRUE) = TRUE;
-
-UPDATE "LOPMO" lm
-SET
-  "TrangThai" = FALSE,
-  "GhiChu" = LEFT(COALESCE(NULLIF(TRIM(lm."GhiChu"), ''), 'Tu dong dong') || ' | Khong thuoc CTDT dang hoat dong', 200)
-FROM "LOP" l
-WHERE l."MaLop" = lm."MaLop"
-  AND COALESCE(lm."TrangThai", TRUE) = TRUE
-  AND NOT fn_monhocmo_has_curriculum_plan(lm."MaHocKy", l."MaMonHoc");
-
-UPDATE "MONHOCMO" mhm
-SET
-  "TrangThai" = FALSE,
-  "GhiChu" = LEFT(COALESCE(NULLIF(TRIM(mhm."GhiChu"), ''), 'Tu dong dong') || ' | Khong thuoc CTDT dang hoat dong', 200)
-WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
-  AND COALESCE(mhm."TrangThai", TRUE) = TRUE
-  AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc");
+END;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE FUNCTION fn_check_monhocmo_curriculum_plan()
 RETURNS TRIGGER AS $$
@@ -15320,72 +15331,64 @@ ON "MONHOCMO"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_monhocmo_curriculum_plan();
 
-CREATE OR REPLACE FUNCTION fn_guard_active_monhocmo_curriculum_plan()
+CREATE OR REPLACE FUNCTION fn_guard_cth_open_course_dependency()
 RETURNS TRIGGER AS $$
 DECLARE
   v_ma_hoc_ky VARCHAR(15);
-  v_ma_mon_hoc VARCHAR(15);
+  v_hoc_ky_du_kien INTEGER;
+  v_expected_mod INTEGER;
+  v_new_still_supports BOOLEAN := FALSE;
 BEGIN
-  SELECT mhm."MaHocKy", mhm."MaMonHoc"
-  INTO v_ma_hoc_ky, v_ma_mon_hoc
+  v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
+  IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  v_expected_mod := MOD(v_hoc_ky_du_kien, 2);
+
+  IF TG_OP = 'UPDATE' THEN
+    v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+      AND NEW."MaMonHoc" = OLD."MaMonHoc"
+      AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8
+      AND MOD(COALESCE(NEW."HocKyDuKien", NEW."HocKy"), 2) = v_expected_mod;
+
+    IF v_new_still_supports THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  SELECT mhm."MaHocKy"
+  INTO v_ma_hoc_ky
   FROM "MONHOCMO" mhm
+  JOIN "HOCKY" hk ON hk."MaHocKy" = mhm."MaHocKy"
   WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
     AND COALESCE(mhm."TrangThai", TRUE) = TRUE
-    AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc")
+    AND mhm."MaMonHoc" = OLD."MaMonHoc"
+    AND hk."LoaiHocKy" <> 'Hè'
+    AND hk."ThuTu" IN (1, 2)
+    AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod
   LIMIT 1;
 
   IF v_ma_hoc_ky IS NOT NULL THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Thao tac lam mon hoc % dang mo trong hoc ky % khong con thuoc CTDT dang hoat dong.', v_ma_mon_hoc, v_ma_hoc_ky;
+    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky %.', OLD."MaMonHoc", v_ma_hoc_ky;
   END IF;
 
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_cth ON "CHUONGTRINHHOC";
 CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_cth
-AFTER INSERT OR UPDATE OR DELETE ON "CHUONGTRINHHOC"
+AFTER UPDATE OR DELETE ON "CHUONGTRINHHOC"
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
+EXECUTE FUNCTION fn_guard_cth_open_course_dependency();
 
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_nganh ON "NGANHHOC";
-CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_nganh
-AFTER UPDATE OR DELETE ON "NGANHHOC"
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
-
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_monhoc ON "MONHOC";
-CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_monhoc
-AFTER UPDATE OR DELETE ON "MONHOC"
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
-
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_hocky ON "HOCKY";
-CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_hocky
-AFTER UPDATE OR DELETE ON "HOCKY"
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM "MONHOCMO" mhm
-    WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
-      AND COALESCE(mhm."TrangThai", TRUE) = TRUE
-      AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc")
-  ) THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Du lieu mon hoc mo sau seed van con dong khong hop le.';
-  END IF;
-END;
-$$;
 
 -- =====================================================
 -- END OF INIT.SQL

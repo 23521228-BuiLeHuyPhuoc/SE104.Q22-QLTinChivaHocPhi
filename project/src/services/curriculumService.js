@@ -116,7 +116,7 @@ const validateCurriculumPlacement = async (payload, currentId = null) => {
   const MaMonHoc = normalizeCode(payload.MaMonHoc);
   const HocKyDuKien = toInt(payload.HocKyDuKien, 1);
   if (!MaNganh || !MaMonHoc) return { error: 'Vui lòng chọn ngành và môn học' };
-  if (HocKyDuKien < 1) return { error: 'Học kỳ dự kiến không hợp lệ' };
+  if (HocKyDuKien < 1 || HocKyDuKien > 8) return { error: 'Học kỳ dự kiến phải từ 1 đến 8' };
 
   const [major, course, duplicate, curriculumRows, conditions] = await Promise.all([
     prisma.NGANHHOC.findFirst({ where: { MaNganh, DaXoa: false }, select: { MaNganh: true } }),

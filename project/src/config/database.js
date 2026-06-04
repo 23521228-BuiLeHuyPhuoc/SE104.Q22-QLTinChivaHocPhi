@@ -719,12 +719,29 @@ const ensureAuthSchema = async () => {
     INSERT INTO "MONHOCMO" ("MaHocKy", "MaMonHoc", "TrangThai", "GhiChu")
     SELECT DISTINCT lm."MaHocKy", l."MaMonHoc", TRUE, 'Tu dong tao tu lop mo hien co'
     FROM "LOPMO" lm
+    JOIN "HOCKY" hk ON hk."MaHocKy" = lm."MaHocKy"
     JOIN "LOP" l ON l."MaLop" = lm."MaLop"
     JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
     WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
       AND lm."MaHocKy" NOT LIKE 'HK-DEMO-%'
+      AND COALESCE(hk."DaXoa", FALSE) = FALSE
       AND COALESCE(l."DaXoa", FALSE) = FALSE
       AND COALESCE(mh."DaXoa", FALSE) = FALSE
+      AND (
+        hk."LoaiHocKy" = 'Hè'
+        OR hk."ThuTu" = 3
+        OR EXISTS (
+          SELECT 1
+          FROM "CHUONGTRINHHOC" cth
+          JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
+          WHERE cth."MaMonHoc" = l."MaMonHoc"
+            AND COALESCE(cth."TrangThai", TRUE) = TRUE
+            AND COALESCE(ng."DaXoa", FALSE) = FALSE
+            AND COALESCE(ng."TrangThai", TRUE) = TRUE
+            AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+            AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
+        )
+      )
     ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
       "TrangThai" = TRUE,
       "DaXoa" = FALSE,
@@ -828,6 +845,136 @@ const ensureAuthSchema = async () => {
     FOR EACH ROW
     EXECUTE FUNCTION fn_guard_monhocmo_active_lopmo();
   `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_monhocmo_has_curriculum_plan(p_ma_hoc_ky VARCHAR, p_ma_mon_hoc VARCHAR)
+    RETURNS BOOLEAN AS $$
+    DECLARE
+      v_expected_mod INTEGER;
+    BEGIN
+      SELECT CASE
+        WHEN hk."LoaiHocKy" = 'Hè' OR hk."ThuTu" = 3 THEN NULL
+        WHEN hk."ThuTu" = 1 THEN 1
+        WHEN hk."ThuTu" = 2 THEN 0
+        ELSE NULL
+      END
+      INTO v_expected_mod
+      FROM "HOCKY" hk
+      WHERE hk."MaHocKy" = p_ma_hoc_ky
+        AND COALESCE(hk."DaXoa", FALSE) = FALSE;
+
+      IF NOT FOUND THEN
+        RETURN FALSE;
+      END IF;
+
+      IF v_expected_mod IS NULL THEN
+        RETURN TRUE;
+      END IF;
+
+      RETURN EXISTS (
+        SELECT 1
+        FROM "CHUONGTRINHHOC" cth
+        JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
+        JOIN "MONHOC" mh ON mh."MaMonHoc" = cth."MaMonHoc"
+        WHERE cth."MaMonHoc" = p_ma_mon_hoc
+          AND COALESCE(cth."TrangThai", TRUE) = TRUE
+          AND COALESCE(ng."DaXoa", FALSE) = FALSE
+          AND COALESCE(ng."TrangThai", TRUE) = TRUE
+          AND COALESCE(mh."DaXoa", FALSE) = FALSE
+          AND COALESCE(mh."TrangThai", TRUE) = TRUE
+          AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+          AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod
+      );
+    END;
+    $$ LANGUAGE plpgsql STABLE;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_check_monhocmo_curriculum_plan()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF COALESCE(NEW."DaXoa", FALSE) = FALSE
+         AND COALESCE(NEW."TrangThai", TRUE) = TRUE
+         AND NOT fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", NEW."MaMonHoc") THEN
+        RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong dung ke hoach dao tao cua hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_check_monhocmo_curriculum_plan ON "MONHOCMO"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_check_monhocmo_curriculum_plan
+    BEFORE INSERT OR UPDATE OF "MaHocKy", "MaMonHoc", "TrangThai", "DaXoa"
+    ON "MONHOCMO"
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_check_monhocmo_curriculum_plan();
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_guard_cth_open_course_dependency()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_ma_hoc_ky VARCHAR(15);
+      v_hoc_ky_du_kien INTEGER;
+      v_expected_mod INTEGER;
+      v_new_still_supports BOOLEAN := FALSE;
+    BEGIN
+      v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
+      IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+        IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+        RETURN NEW;
+      END IF;
+
+      v_expected_mod := MOD(v_hoc_ky_du_kien, 2);
+
+      IF TG_OP = 'UPDATE' THEN
+        v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+          AND NEW."MaMonHoc" = OLD."MaMonHoc"
+          AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8
+          AND MOD(COALESCE(NEW."HocKyDuKien", NEW."HocKy"), 2) = v_expected_mod;
+
+        IF v_new_still_supports THEN
+          RETURN NEW;
+        END IF;
+      END IF;
+
+      SELECT mhm."MaHocKy"
+      INTO v_ma_hoc_ky
+      FROM "MONHOCMO" mhm
+      JOIN "HOCKY" hk ON hk."MaHocKy" = mhm."MaHocKy"
+      WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
+        AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+        AND mhm."MaMonHoc" = OLD."MaMonHoc"
+        AND hk."LoaiHocKy" <> 'Hè'
+        AND hk."ThuTu" IN (1, 2)
+        AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod
+      LIMIT 1;
+
+      IF v_ma_hoc_ky IS NOT NULL THEN
+        RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky %.', OLD."MaMonHoc", v_ma_hoc_ky;
+      END IF;
+
+      IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_cth ON "CHUONGTRINHHOC"');
+  await prisma.$executeRawUnsafe(`
+    CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_cth
+    AFTER UPDATE OR DELETE ON "CHUONGTRINHHOC"
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_guard_cth_open_course_dependency();
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_nganh ON "NGANHHOC"');
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_monhoc ON "MONHOC"');
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_hocky ON "HOCKY"');
 
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "LICHHOCLOP"
@@ -1842,7 +1989,19 @@ const ensureAuthSchema = async () => {
 
   await prisma.$executeRawUnsafe(`
     UPDATE "CHUONGTRINHHOC"
-    SET "HocKyDuKien" = COALESCE("HocKyDuKien", "HocKy", 1)
+    SET
+      "HocKyDuKien" = COALESCE("HocKyDuKien", "HocKy", 1),
+      "HocKy" = COALESCE("HocKyDuKien", "HocKy", 1)
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "CHUONGTRINHHOC"
+      DROP CONSTRAINT IF EXISTS chk_hoc_ky,
+      DROP CONSTRAINT IF EXISTS chk_hoc_ky_du_kien,
+      DROP CONSTRAINT IF EXISTS chk_cth_hocky_sync,
+      ADD CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 8),
+      ADD CONSTRAINT chk_hoc_ky_du_kien CHECK ("HocKyDuKien" >= 1 AND "HocKyDuKien" <= 8),
+      ADD CONSTRAINT chk_cth_hocky_sync CHECK ("HocKy" = "HocKyDuKien")
   `);
 
   await prisma.$executeRawUnsafe(`
