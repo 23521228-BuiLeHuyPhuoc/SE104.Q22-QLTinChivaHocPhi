@@ -113,10 +113,10 @@ block modals
           .form-row
             .form-group
               label(for="sv-email") Email
-              input.form-control#sv-email(type="email")
+              input.form-control#sv-email(type="email" placeholder="VD: sinhvien@example.com")
             .form-group
               label(for="sv-sdt") Số điện thoại
-              input.form-control#sv-sdt(type="text")
+              input.form-control#sv-sdt(type="tel" inputmode="tel" placeholder="VD: 0912345678")
           .form-row
             .form-group
               label(for="sv-ngaysinh") Ngày sinh
@@ -159,9 +159,9 @@ block modals
             label(for="sv-diachi") Địa chỉ liên hệ
             input.form-control#sv-diachi(type="text" required)
           .form-group
-            label Đối tượng ưu tiên hiện tại
-            #student-beneficiaries-current.profile-readonly-panel
-              .empty-state Chưa thuộc đối tượng ưu tiên nào
+            label(for="sv-doituong") Đối tượng ưu tiên
+            select.form-control.student-beneficiary-select#sv-doituong(multiple size="5")
+              option(value="" disabled) Đang tải đối tượng ưu tiên...
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu

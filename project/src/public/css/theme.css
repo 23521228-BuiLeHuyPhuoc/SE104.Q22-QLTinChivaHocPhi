@@ -1304,6 +1304,19 @@ select.ui-readonly-field,
   color: var(--text-tertiary);
 }
 
+.student-beneficiary-select.form-control {
+  background-image: none;
+  height: auto;
+  min-height: 140px;
+  overflow: auto;
+  padding-right: 14px;
+  white-space: normal;
+}
+
+.student-beneficiary-select option {
+  padding: 6px 8px;
+}
+
 @media (max-width: 640px) {
   .profile-avatar-panel {
     align-items: flex-start;
