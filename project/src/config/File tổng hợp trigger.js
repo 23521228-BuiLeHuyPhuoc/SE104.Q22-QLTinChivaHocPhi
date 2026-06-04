@@ -144,6 +144,39 @@ CREATE TRIGGER trg_doituong_rbtv01
 BEFORE UPDATE OR DELETE ON "DOITUONG"
 FOR EACH ROW 
 EXECUTE FUNCTION trg_func_doituong_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_doituong_restrict_delete_if_referenced()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ref_count INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE'
+       OR (TG_OP = 'UPDATE'
+           AND COALESCE(OLD."DaXoa", FALSE) = FALSE
+           AND COALESCE(NEW."DaXoa", FALSE) = TRUE) THEN
+        SELECT COUNT(*)
+        INTO v_ref_count
+        FROM "DOITUONGSINHVIEN"
+        WHERE "MaDoiTuong" = OLD."MaDoiTuong";
+
+        IF v_ref_count > 0 THEN
+            RAISE EXCEPTION 'Lỗi RBTV_FK_DOITUONG: Không thể xóa đối tượng ưu tiên % vì đang có % sinh viên tham chiếu.', OLD."MaDoiTuong", v_ref_count;
+        END IF;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_doituong_restrict_delete_if_referenced ON "DOITUONG";
+CREATE TRIGGER trg_doituong_restrict_delete_if_referenced
+BEFORE UPDATE OF "DaXoa" OR DELETE ON "DOITUONG"
+FOR EACH ROW
+EXECUTE FUNCTION trg_func_doituong_restrict_delete_if_referenced();
 --RBTV2:
 CREATE OR REPLACE FUNCTION function_calculate_max_discount(p_ma_sv VARCHAR)
 RETURNS DECIMAL(5,2) AS $$
@@ -1327,7 +1360,18 @@ BEGIN
         RAISE EXCEPTION 'RBTV09: Học kỳ có thứ tự % đã tồn tại trong năm học %.', NEW."ThuTu", NEW."MaNamHoc";
     END IF;
 
-    /* 3. Kiểm tra logic các mốc thời gian (bỏ qua nếu dữ liệu NULL) */
+    /* 3. Kiểm tra logic các mốc thời gian */
+    IF NEW."NgayBatDau" IS NULL
+       OR NEW."NgayKetThuc" IS NULL
+       OR NEW."NgayBatDauDangKy" IS NULL
+       OR NEW."NgayKetThucDangKy" IS NULL
+       OR NEW."NgayBatDauCuuXet" IS NULL
+       OR NEW."NgayKetThucCuuXet" IS NULL
+       OR NEW."NgayBatDauDongHocPhi" IS NULL
+       OR NEW."HanDongHocPhi" IS NULL THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ phải cấu hình đầy đủ thời gian học kỳ, đăng ký, cứu xét và học phí.';
+    END IF;
+
     IF NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
         IF NEW."NgayBatDau" >= NEW."NgayKetThuc" THEN
             RAISE EXCEPTION 'RBTV09: NgayBatDau phải nhỏ hơn NgayKetThuc.';
@@ -1340,32 +1384,51 @@ BEGIN
         END IF;
     END IF;
 
-    IF (NEW."NgayBatDauDangKy" IS NOT NULL OR NEW."NgayKetThucDangKy" IS NOT NULL)
-       AND NEW."NgayBatDau" IS NULL THEN
-        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau trước khi nhập thời gian đăng ký.';
-    END IF;
-
     IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
-        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
-        IF NEW."NgayBatDauDangKy"::DATE >= NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải trước NgayBatDau.';
+        IF NEW."NgayBatDauDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayBatDau học kỳ.';
         END IF;
     END IF;
 
     IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
-        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
-        IF NEW."NgayKetThucDangKy"::DATE >= NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải trước NgayBatDau.';
+        IF NEW."NgayKetThucDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải nhỏ hơn NgayBatDau học kỳ.';
         END IF;
     END IF;
 
-    IF NEW."HanDongHocPhi" IS NOT NULL AND (NEW."NgayBatDau" IS NULL OR NEW."NgayKetThuc" IS NULL) THEN
-        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau và NgayKetThuc trước khi nhập HanDongHocPhi.';
+    IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
+        IF NEW."NgayBatDauCuuXet" > NEW."NgayKetThucCuuXet" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauCuuXet phải nhỏ hơn hoặc bằng NgayKetThucCuuXet.';
+        END IF;
     END IF;
 
-    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
-        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" OR NEW."HanDongHocPhi" > NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nằm trong khoảng NgayBatDau đến NgayKetThuc.';
+    IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
+        IF NEW."NgayBatDauCuuXet" <= NEW."NgayKetThucDangKy" THEN
+            RAISE EXCEPTION 'RBTV09: Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayKetThucCuuXet" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        IF NEW."NgayKetThucCuuXet"::DATE >= NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucCuuXet phải nhỏ hơn NgayBatDau học kỳ.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayBatDauDongHocPhi" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
+        IF NEW."NgayBatDauDongHocPhi"::TIMESTAMP <= NEW."NgayKetThucCuuXet" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải sau NgayKetThucCuuXet.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayBatDauDongHocPhi" IS NOT NULL AND NEW."HanDongHocPhi" IS NOT NULL THEN
+        IF NEW."NgayBatDauDongHocPhi" > NEW."HanDongHocPhi" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải nhỏ hơn hoặc bằng HanDongHocPhi.';
+        END IF;
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
+        IF NEW."HanDongHocPhi" >= NEW."NgayKetThuc" THEN
+            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nhỏ hơn NgayKetThuc học kỳ.';
         END IF;
     END IF;
 

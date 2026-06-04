@@ -1142,6 +1142,39 @@ CREATE TRIGGER trg_doituong_rbtv01
 BEFORE UPDATE OR DELETE ON "DOITUONG"
 FOR EACH ROW
 EXECUTE FUNCTION trg_func_doituong_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_doituong_restrict_delete_if_referenced()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ref_count INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE'
+       OR (TG_OP = 'UPDATE'
+           AND COALESCE(OLD."DaXoa", FALSE) = FALSE
+           AND COALESCE(NEW."DaXoa", FALSE) = TRUE) THEN
+        SELECT COUNT(*)
+        INTO v_ref_count
+        FROM "DOITUONGSINHVIEN"
+        WHERE "MaDoiTuong" = OLD."MaDoiTuong";
+
+        IF v_ref_count > 0 THEN
+            RAISE EXCEPTION 'Lỗi RBTV_FK_DOITUONG: Không thể xóa đối tượng ưu tiên % vì đang có % sinh viên tham chiếu.', OLD."MaDoiTuong", v_ref_count;
+        END IF;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_doituong_restrict_delete_if_referenced ON "DOITUONG";
+CREATE TRIGGER trg_doituong_restrict_delete_if_referenced
+BEFORE UPDATE OF "DaXoa" OR DELETE ON "DOITUONG"
+FOR EACH ROW
+EXECUTE FUNCTION trg_func_doituong_restrict_delete_if_referenced();
 --RBTV2:
 CREATE OR REPLACE FUNCTION function_calculate_max_discount(p_ma_sv VARCHAR)
 RETURNS DECIMAL(5,2) AS $$
@@ -4414,15 +4447,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION fn_rbtv35_bat_dau_dong_hoc_phi(p_so_phieu INTEGER)
+RETURNS TIMESTAMP AS $$
+DECLARE
+    v_bat_dau DATE;
+BEGIN
+    SELECT hk."NgayBatDauDongHocPhi"
+    INTO v_bat_dau
+    FROM "PHIEUDANGKY" pdk
+    JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+    WHERE pdk."SoPhieu" = p_so_phieu;
+
+    IF v_bat_dau IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN v_bat_dau::TIMESTAMP;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION fn_rbtv35_tong_tien_da_thu_truoc_han(p_so_phieu INTEGER)
 RETURNS NUMERIC(15,0) AS $$
 DECLARE
+    v_bat_dau TIMESTAMP;
     v_han_exclusive TIMESTAMP;
     v_tong_da_thu NUMERIC(15,0);
 BEGIN
+    v_bat_dau := fn_rbtv35_bat_dau_dong_hoc_phi(p_so_phieu);
     v_han_exclusive := fn_rbtv35_han_dong_hoc_phi(p_so_phieu);
 
-    IF v_han_exclusive IS NULL THEN
+    IF v_bat_dau IS NULL OR v_han_exclusive IS NULL THEN
         RETURN 0;
     END IF;
 
@@ -4431,6 +4485,7 @@ BEGIN
     FROM "PHIEUTHUHOCPHI"
     WHERE "SoPhieuDangKy" = p_so_phieu
       AND "TrangThai" = 'Thành công'
+      AND "NgayXacNhan" >= v_bat_dau
       AND "NgayXacNhan" < v_han_exclusive;
 
     RETURN v_tong_da_thu;
@@ -4462,6 +4517,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong()
 RETURNS TRIGGER AS $$
 DECLARE
+    v_bat_dau TIMESTAMP;
     v_han_exclusive TIMESTAMP;
     v_ma_hoc_ky VARCHAR(15);
 BEGIN
@@ -4469,17 +4525,24 @@ BEGIN
         RETURN NEW;
     END IF;
 
-    SELECT pdk."MaHocKy", fn_rbtv35_han_dong_hoc_phi(pdk."SoPhieu")
-    INTO v_ma_hoc_ky, v_han_exclusive
+    SELECT
+        pdk."MaHocKy",
+        fn_rbtv35_bat_dau_dong_hoc_phi(pdk."SoPhieu"),
+        fn_rbtv35_han_dong_hoc_phi(pdk."SoPhieu")
+    INTO v_ma_hoc_ky, v_bat_dau, v_han_exclusive
     FROM "PHIEUDANGKY" pdk
     WHERE pdk."SoPhieu" = NEW."SoPhieuDangKy";
 
-    IF v_han_exclusive IS NULL THEN
-        RAISE EXCEPTION '[RBTV35] Hoc ky % cua phieu dang ky % chua cau hinh HanDongHocPhi.', v_ma_hoc_ky, NEW."SoPhieuDangKy";
+    IF v_bat_dau IS NULL OR v_han_exclusive IS NULL THEN
+        RAISE EXCEPTION '[RBTV35] Hoc ky % cua phieu dang ky % chua cau hinh NgayBatDauDongHocPhi/HanDongHocPhi.', v_ma_hoc_ky, NEW."SoPhieuDangKy";
     END IF;
 
     IF NEW."NgayXacNhan" IS NULL THEN
         RAISE EXCEPTION '[RBTV35] Phieu thu thanh cong phai co NgayXacNhan de kiem tra han dong hoc phi.';
+    END IF;
+
+    IF NEW."NgayXacNhan" < v_bat_dau THEN
+        RAISE EXCEPTION '[RBTV35] Khong the ghi nhan phieu thu thanh cong truoc ngay bat dau dong hoc phi cua hoc ky %.', v_ma_hoc_ky;
     END IF;
 
     IF NEW."NgayXacNhan" >= v_han_exclusive THEN
@@ -4510,13 +4573,15 @@ BEGIN
     WHERE pdk."MaHocKy" = NEW."MaHocKy"
       AND pthp."TrangThai" = 'Thành công'
       AND (
-          NEW."HanDongHocPhi" IS NULL
+          NEW."NgayBatDauDongHocPhi" IS NULL
+          OR pthp."NgayXacNhan" < NEW."NgayBatDauDongHocPhi"::TIMESTAMP
+          OR NEW."HanDongHocPhi" IS NULL
           OR pthp."NgayXacNhan" >= NEW."HanDongHocPhi"::TIMESTAMP + INTERVAL '1 day'
       )
     LIMIT 1;
 
     IF v_so_phieu IS NOT NULL THEN
-        RAISE EXCEPTION '[RBTV35] Khong the doi HanDongHocPhi vi phieu dang ky % da co phieu thu thanh cong ngay % nam ngoai han moi.', v_so_phieu, v_ngay_xac_nhan;
+        RAISE EXCEPTION '[RBTV35] Khong the doi khung dong hoc phi vi phieu dang ky % da co phieu thu thanh cong ngay % nam ngoai khung moi.', v_so_phieu, v_ngay_xac_nhan;
     END IF;
 
     RETURN NEW;
@@ -4525,7 +4590,7 @@ $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_rbtv35_hocky_han_dong ON "HOCKY";
 CREATE TRIGGER trg_rbtv35_hocky_han_dong
-BEFORE UPDATE OF "HanDongHocPhi" ON "HOCKY"
+BEFORE UPDATE OF "NgayBatDauDongHocPhi", "HanDongHocPhi" ON "HOCKY"
 FOR EACH ROW
 EXECUTE FUNCTION trg_fn_rbtv35_hocky_han_dong();
 
@@ -4534,10 +4599,12 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_so_phieu_thu INTEGER;
     v_ngay_xac_nhan TIMESTAMP;
+    v_bat_dau TIMESTAMP;
     v_han_exclusive TIMESTAMP;
 BEGIN
-    SELECT hk."HanDongHocPhi"::TIMESTAMP + INTERVAL '1 day'
-    INTO v_han_exclusive
+    SELECT hk."NgayBatDauDongHocPhi"::TIMESTAMP,
+           hk."HanDongHocPhi"::TIMESTAMP + INTERVAL '1 day'
+    INTO v_bat_dau, v_han_exclusive
     FROM "HOCKY" hk
     WHERE hk."MaHocKy" = NEW."MaHocKy";
 
@@ -4547,7 +4614,9 @@ BEGIN
     WHERE pthp."SoPhieuDangKy" = NEW."SoPhieu"
       AND pthp."TrangThai" = 'Thành công'
       AND (
-          v_han_exclusive IS NULL
+          v_bat_dau IS NULL
+          OR pthp."NgayXacNhan" < v_bat_dau
+          OR v_han_exclusive IS NULL
           OR pthp."NgayXacNhan" >= v_han_exclusive
       )
     LIMIT 1;
@@ -4571,6 +4640,7 @@ SELECT
     pdk."SoPhieu",
     pdk."MaSv",
     pdk."MaHocKy",
+    hk."NgayBatDauDongHocPhi",
     hk."HanDongHocPhi",
     COALESCE(pdk."TongTienPhaiDong", 0) AS "TongTienPhaiDong",
     paid."TongTienDaThuTruocHan",

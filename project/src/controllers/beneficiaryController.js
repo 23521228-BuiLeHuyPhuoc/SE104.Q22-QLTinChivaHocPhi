@@ -158,6 +158,14 @@ const deleteBeneficiary = async (req, res) => {
     const { id } = req.params;
     const existing = await prisma.DOITUONG.findFirst({ where: { MaDoiTuong: id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng' });
+    const studentCount = await prisma.DOITUONGSINHVIEN.count({ where: { MaDoiTuong: id } });
+    if (studentCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa đối tượng ưu tiên ${id} vì đang có ${studentCount} sinh viên tham chiếu`
+      });
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.DOITUONG.update({ where: { MaDoiTuong: id }, data: softDeleteAudit(req) });
       await recomputeBeneficiaryPriorities(tx);
