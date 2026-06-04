@@ -3601,6 +3601,7 @@ DECLARE
     v_MaSv VARCHAR(15);
     v_MaHocKy VARCHAR(15);
     v_TongTinChi INTEGER := 0;
+    v_ChiTietDangKyId INTEGER := NULL;
 
     -- Bien luu tham so he thong
     v_SoTinChiDangKyToiDa INTEGER;
@@ -3624,6 +3625,7 @@ BEGIN
     IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
         SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
         FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        v_ChiTietDangKyId := NEW.id;
     ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
         v_MaSv := NEW."MaSv";
         v_MaHocKy := NEW."MaHocKy";
@@ -3644,7 +3646,7 @@ BEGIN
     JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
     WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
       AND ct."TrangThai" = 'Đã đăng ký'
-      AND (TG_TABLE_NAME <> 'CHITIETDANGKY' OR ct.id <> NEW.id);
+      AND (v_ChiTietDangKyId IS NULL OR ct.id <> v_ChiTietDangKyId);
 
     -- Cong them tin chi cua ban ghi dang them/sua neu no co trang thai 'Đã đăng ký'
     IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN
@@ -15155,20 +15157,21 @@ JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
 WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
   AND COALESCE(l."DaXoa", FALSE) = FALSE
   AND COALESCE(mh."DaXoa", FALSE) = FALSE
-  AND (
-    hk."LoaiHocKy" = 'Hè'
-    OR hk."ThuTu" = 3
-    OR EXISTS (
-      SELECT 1
-      FROM "CHUONGTRINHHOC" cth
-      JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
-      WHERE cth."MaMonHoc" = l."MaMonHoc"
-        AND COALESCE(cth."TrangThai", TRUE) = TRUE
-        AND COALESCE(ng."DaXoa", FALSE) = FALSE
-        AND COALESCE(ng."TrangThai", TRUE) = TRUE
-        AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
-        AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
-    )
+  AND EXISTS (
+    SELECT 1
+    FROM "CHUONGTRINHHOC" cth
+    JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
+    WHERE cth."MaMonHoc" = l."MaMonHoc"
+      AND ng."MaKhoa" = mh."MaKhoa"
+      AND COALESCE(cth."TrangThai", TRUE) = TRUE
+      AND COALESCE(ng."DaXoa", FALSE) = FALSE
+      AND COALESCE(ng."TrangThai", TRUE) = TRUE
+      AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+      AND (
+        hk."LoaiHocKy" = 'Hè'
+        OR hk."ThuTu" = 3
+        OR MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
+      )
   )
 GROUP BY lm."MaHocKy", l."MaMonHoc"
 ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
@@ -15207,8 +15210,9 @@ BEGIN
       AND mhm."MaMonHoc" = v_mamonhoc
       AND COALESCE(mhm."DaXoa", FALSE) = FALSE
       AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+      AND fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", v_mamonhoc) = TRUE
   ) THEN
-    RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
+    RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo hop le theo CTDT cua khoa trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
   END IF;
 
   RETURN NEW;
@@ -15270,46 +15274,44 @@ EXECUTE FUNCTION fn_guard_monhocmo_active_lopmo();
 -- =====================================================
 -- RBTV_CTH_MONHOCMO - Mon hoc mo phai nam trong chuong trinh hoc
 -- Hoc ky I chi mo cac mon co HocKyDuKien le; hoc ky II chi mo cac mon co HocKyDuKien chan.
--- Hoc ky he hien chua rang buoc theo chuong trinh hoc.
+-- Hoc ky he/ThuTu=3 chi can mon con active trong CTDT cung khoa, khong rang buoc le/chan.
 -- =====================================================
 CREATE OR REPLACE FUNCTION fn_monhocmo_has_curriculum_plan(p_ma_hoc_ky VARCHAR, p_ma_mon_hoc VARCHAR)
 RETURNS BOOLEAN AS $$
 DECLARE
   v_expected_mod INTEGER;
+  v_ma_khoa VARCHAR(10);
 BEGIN
   SELECT CASE
     WHEN hk."LoaiHocKy" = 'Hè' OR hk."ThuTu" = 3 THEN NULL
     WHEN hk."ThuTu" = 1 THEN 1
     WHEN hk."ThuTu" = 2 THEN 0
     ELSE NULL
-  END
-  INTO v_expected_mod
+  END,
+  mh."MaKhoa"
+  INTO v_expected_mod, v_ma_khoa
   FROM "HOCKY" hk
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = p_ma_mon_hoc
   WHERE hk."MaHocKy" = p_ma_hoc_ky
-    AND COALESCE(hk."DaXoa", FALSE) = FALSE;
+    AND COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND COALESCE(mh."DaXoa", FALSE) = FALSE
+    AND COALESCE(mh."TrangThai", TRUE) = TRUE;
 
   IF NOT FOUND THEN
     RETURN FALSE;
-  END IF;
-
-  -- Học kỳ hè hiện chưa ràng buộc theo chương trình học.
-  IF v_expected_mod IS NULL THEN
-    RETURN TRUE;
   END IF;
 
   RETURN EXISTS (
     SELECT 1
     FROM "CHUONGTRINHHOC" cth
     JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
-    JOIN "MONHOC" mh ON mh."MaMonHoc" = cth."MaMonHoc"
     WHERE cth."MaMonHoc" = p_ma_mon_hoc
+      AND ng."MaKhoa" = v_ma_khoa
       AND COALESCE(cth."TrangThai", TRUE) = TRUE
       AND COALESCE(ng."DaXoa", FALSE) = FALSE
       AND COALESCE(ng."TrangThai", TRUE) = TRUE
-      AND COALESCE(mh."DaXoa", FALSE) = FALSE
-      AND COALESCE(mh."TrangThai", TRUE) = TRUE
       AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
-      AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod
+      AND (v_expected_mod IS NULL OR MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod)
   );
 END;
 $$ LANGUAGE plpgsql STABLE;
@@ -15320,7 +15322,7 @@ BEGIN
   IF COALESCE(NEW."DaXoa", FALSE) = FALSE
      AND COALESCE(NEW."TrangThai", TRUE) = TRUE
      AND NOT fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", NEW."MaMonHoc") THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong nam trong CTDT dang hoat dong, khong the mo trong hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
+    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong con trong CTDT dang hoat dong cua khoa tuong ung voi hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
   END IF;
 
   RETURN NEW;
@@ -15341,9 +15343,27 @@ DECLARE
   v_hoc_ky_du_kien INTEGER;
   v_expected_mod INTEGER;
   v_new_still_supports BOOLEAN := FALSE;
+  v_old_supports_same_faculty BOOLEAN := FALSE;
 BEGIN
   v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
   IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM "NGANHHOC" ng
+    JOIN "MONHOC" mh ON mh."MaMonHoc" = OLD."MaMonHoc"
+    WHERE ng."MaNganh" = OLD."MaNganh"
+      AND ng."MaKhoa" = mh."MaKhoa"
+      AND COALESCE(ng."DaXoa", FALSE) = FALSE
+      AND COALESCE(ng."TrangThai", TRUE) = TRUE
+      AND COALESCE(mh."DaXoa", FALSE) = FALSE
+      AND COALESCE(mh."TrangThai", TRUE) = TRUE
+  ) INTO v_old_supports_same_faculty;
+
+  IF v_old_supports_same_faculty = FALSE THEN
     IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
     RETURN NEW;
   END IF;
@@ -15352,6 +15372,7 @@ BEGIN
 
   IF TG_OP = 'UPDATE' THEN
     v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+      AND NEW."MaNganh" = OLD."MaNganh"
       AND NEW."MaMonHoc" = OLD."MaMonHoc"
       AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8
       AND MOD(COALESCE(NEW."HocKyDuKien", NEW."HocKy"), 2) = v_expected_mod;
@@ -15368,13 +15389,16 @@ BEGIN
   WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
     AND COALESCE(mhm."TrangThai", TRUE) = TRUE
     AND mhm."MaMonHoc" = OLD."MaMonHoc"
-    AND hk."LoaiHocKy" <> 'Hè'
-    AND hk."ThuTu" IN (1, 2)
-    AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod
+    AND (
+      hk."LoaiHocKy" = 'Hè'
+      OR hk."ThuTu" = 3
+      OR (hk."ThuTu" IN (1, 2) AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod)
+    )
+    AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc")
   LIMIT 1;
 
   IF v_ma_hoc_ky IS NOT NULL THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky %.', OLD."MaMonHoc", v_ma_hoc_ky;
+    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the tam ngung, xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky % va khong con CTDT cung khoa ho tro.', OLD."MaMonHoc", v_ma_hoc_ky;
   END IF;
 
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;

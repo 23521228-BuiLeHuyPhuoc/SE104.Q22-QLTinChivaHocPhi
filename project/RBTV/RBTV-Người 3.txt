@@ -1190,6 +1190,7 @@ DECLARE
     v_MaSv VARCHAR(15);
     v_MaHocKy VARCHAR(15);
     v_TongTinChi INTEGER := 0;
+    v_ChiTietDangKyId INTEGER := NULL;
     
     -- Bien luu tham so he thong
     v_SoTinChiDangKyToiDa INTEGER;
@@ -1213,6 +1214,7 @@ BEGIN
     IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
         SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
         FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        v_ChiTietDangKyId := NEW.id;
     ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
         v_MaSv := NEW."MaSv";
         v_MaHocKy := NEW."MaHocKy";
@@ -1233,7 +1235,7 @@ BEGIN
     JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
     WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
       AND ct."TrangThai" = 'Đã đăng ký'
-      AND (TG_TABLE_NAME <> 'CHITIETDANGKY' OR ct.id <> NEW.id);
+      AND (v_ChiTietDangKyId IS NULL OR ct.id <> v_ChiTietDangKyId);
 
     -- Cong them tin chi cua ban ghi dang them/sua neu no co trang thai 'Đã đăng ký'
     IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN

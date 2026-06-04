@@ -727,20 +727,21 @@ const ensureAuthSchema = async () => {
       AND COALESCE(hk."DaXoa", FALSE) = FALSE
       AND COALESCE(l."DaXoa", FALSE) = FALSE
       AND COALESCE(mh."DaXoa", FALSE) = FALSE
-      AND (
-        hk."LoaiHocKy" = 'Hè'
-        OR hk."ThuTu" = 3
-        OR EXISTS (
-          SELECT 1
-          FROM "CHUONGTRINHHOC" cth
-          JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
-          WHERE cth."MaMonHoc" = l."MaMonHoc"
-            AND COALESCE(cth."TrangThai", TRUE) = TRUE
-            AND COALESCE(ng."DaXoa", FALSE) = FALSE
-            AND COALESCE(ng."TrangThai", TRUE) = TRUE
-            AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
-            AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
-        )
+      AND EXISTS (
+        SELECT 1
+        FROM "CHUONGTRINHHOC" cth
+        JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
+        WHERE cth."MaMonHoc" = l."MaMonHoc"
+          AND ng."MaKhoa" = mh."MaKhoa"
+          AND COALESCE(cth."TrangThai", TRUE) = TRUE
+          AND COALESCE(ng."DaXoa", FALSE) = FALSE
+          AND COALESCE(ng."TrangThai", TRUE) = TRUE
+          AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+          AND (
+            hk."LoaiHocKy" = 'Hè'
+            OR hk."ThuTu" = 3
+            OR MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
+          )
       )
     ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
       "TrangThai" = TRUE,
@@ -779,8 +780,9 @@ const ensureAuthSchema = async () => {
           AND mhm."MaMonHoc" = v_mamonhoc
           AND COALESCE(mhm."DaXoa", FALSE) = FALSE
           AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+          AND fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", v_mamonhoc) = TRUE
       ) THEN
-        RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
+        RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo hop le theo CTDT cua khoa trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
       END IF;
 
       RETURN NEW;
@@ -851,39 +853,38 @@ const ensureAuthSchema = async () => {
     RETURNS BOOLEAN AS $$
     DECLARE
       v_expected_mod INTEGER;
+      v_ma_khoa VARCHAR(10);
     BEGIN
       SELECT CASE
         WHEN hk."LoaiHocKy" = 'Hè' OR hk."ThuTu" = 3 THEN NULL
         WHEN hk."ThuTu" = 1 THEN 1
         WHEN hk."ThuTu" = 2 THEN 0
         ELSE NULL
-      END
-      INTO v_expected_mod
+      END,
+      mh."MaKhoa"
+      INTO v_expected_mod, v_ma_khoa
       FROM "HOCKY" hk
+      JOIN "MONHOC" mh ON mh."MaMonHoc" = p_ma_mon_hoc
       WHERE hk."MaHocKy" = p_ma_hoc_ky
-        AND COALESCE(hk."DaXoa", FALSE) = FALSE;
+        AND COALESCE(hk."DaXoa", FALSE) = FALSE
+        AND COALESCE(mh."DaXoa", FALSE) = FALSE
+        AND COALESCE(mh."TrangThai", TRUE) = TRUE;
 
       IF NOT FOUND THEN
         RETURN FALSE;
-      END IF;
-
-      IF v_expected_mod IS NULL THEN
-        RETURN TRUE;
       END IF;
 
       RETURN EXISTS (
         SELECT 1
         FROM "CHUONGTRINHHOC" cth
         JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
-        JOIN "MONHOC" mh ON mh."MaMonHoc" = cth."MaMonHoc"
         WHERE cth."MaMonHoc" = p_ma_mon_hoc
+          AND ng."MaKhoa" = v_ma_khoa
           AND COALESCE(cth."TrangThai", TRUE) = TRUE
           AND COALESCE(ng."DaXoa", FALSE) = FALSE
           AND COALESCE(ng."TrangThai", TRUE) = TRUE
-          AND COALESCE(mh."DaXoa", FALSE) = FALSE
-          AND COALESCE(mh."TrangThai", TRUE) = TRUE
           AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
-          AND MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod
+          AND (v_expected_mod IS NULL OR MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod)
       );
     END;
     $$ LANGUAGE plpgsql STABLE;
@@ -896,7 +897,7 @@ const ensureAuthSchema = async () => {
       IF COALESCE(NEW."DaXoa", FALSE) = FALSE
          AND COALESCE(NEW."TrangThai", TRUE) = TRUE
          AND NOT fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", NEW."MaMonHoc") THEN
-        RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong dung ke hoach dao tao cua hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
+        RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong con trong CTDT dang hoat dong cua khoa tuong ung voi hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
       END IF;
 
       RETURN NEW;
@@ -921,9 +922,27 @@ const ensureAuthSchema = async () => {
       v_hoc_ky_du_kien INTEGER;
       v_expected_mod INTEGER;
       v_new_still_supports BOOLEAN := FALSE;
+      v_old_supports_same_faculty BOOLEAN := FALSE;
     BEGIN
       v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
       IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+        IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+        RETURN NEW;
+      END IF;
+
+      SELECT EXISTS (
+        SELECT 1
+        FROM "NGANHHOC" ng
+        JOIN "MONHOC" mh ON mh."MaMonHoc" = OLD."MaMonHoc"
+        WHERE ng."MaNganh" = OLD."MaNganh"
+          AND ng."MaKhoa" = mh."MaKhoa"
+          AND COALESCE(ng."DaXoa", FALSE) = FALSE
+          AND COALESCE(ng."TrangThai", TRUE) = TRUE
+          AND COALESCE(mh."DaXoa", FALSE) = FALSE
+          AND COALESCE(mh."TrangThai", TRUE) = TRUE
+      ) INTO v_old_supports_same_faculty;
+
+      IF v_old_supports_same_faculty = FALSE THEN
         IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
         RETURN NEW;
       END IF;
@@ -932,6 +951,7 @@ const ensureAuthSchema = async () => {
 
       IF TG_OP = 'UPDATE' THEN
         v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+          AND NEW."MaNganh" = OLD."MaNganh"
           AND NEW."MaMonHoc" = OLD."MaMonHoc"
           AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8
           AND MOD(COALESCE(NEW."HocKyDuKien", NEW."HocKy"), 2) = v_expected_mod;
@@ -945,16 +965,19 @@ const ensureAuthSchema = async () => {
       INTO v_ma_hoc_ky
       FROM "MONHOCMO" mhm
       JOIN "HOCKY" hk ON hk."MaHocKy" = mhm."MaHocKy"
-      WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
-        AND COALESCE(mhm."TrangThai", TRUE) = TRUE
-        AND mhm."MaMonHoc" = OLD."MaMonHoc"
-        AND hk."LoaiHocKy" <> 'Hè'
-        AND hk."ThuTu" IN (1, 2)
-        AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod
+        WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
+          AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+          AND mhm."MaMonHoc" = OLD."MaMonHoc"
+        AND (
+          hk."LoaiHocKy" = 'Hè'
+          OR hk."ThuTu" = 3
+          OR (hk."ThuTu" IN (1, 2) AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod)
+        )
+        AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc")
       LIMIT 1;
 
       IF v_ma_hoc_ky IS NOT NULL THEN
-        RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky %.', OLD."MaMonHoc", v_ma_hoc_ky;
+        RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the tam ngung, xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky % va khong con CTDT cung khoa ho tro.', OLD."MaMonHoc", v_ma_hoc_ky;
       END IF;
 
       IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
@@ -2530,6 +2553,105 @@ const ensureAuthSchema = async () => {
       "NamKiemTraAnhVan" = COALESCE("NamKiemTraAnhVan", 2),
       "GioiHanTinChiChuaDatAnhVan" = COALESCE("GioiHanTinChiChuaDatAnhVan", 14),
       "GioiHanTinChiNoKhoaLuan" = COALESCE("GioiHanTinChiNoKhoaLuan", 8)
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_check_rbtv24_gioihan_tinchi()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_MaSv VARCHAR(15);
+      v_MaHocKy VARCHAR(15);
+      v_TongTinChi INTEGER := 0;
+      v_ChiTietDangKyId INTEGER := NULL;
+      v_SoTinChiDangKyToiDa INTEGER;
+      v_SoTinChiDangKyToiDaKhiVuot INTEGER;
+      v_NamKiemTraAnhVan INTEGER;
+      v_GioiHanTinChiChuaDatAnhVan INTEGER;
+      v_DanhSachMonAnhVanBatBuoc VARCHAR(200);
+      v_GioiHanHienTai INTEGER;
+      v_NgayNhapHoc DATE;
+      v_NamBatDauHocKy INTEGER;
+      v_ThuTuHocKy INTEGER;
+      v_MaxThuTuChinh INTEGER;
+      v_NamThuHoc INTEGER;
+      v_ToiHanKiemTra BOOLEAN := FALSE;
+      v_SoMonAnhVanYeuCau INTEGER;
+      v_SoMonAnhVanDaDat INTEGER;
+    BEGIN
+      IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
+        SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
+        FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        v_ChiTietDangKyId := NEW.id;
+      ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
+        v_MaSv := NEW."MaSv";
+        v_MaHocKy := NEW."MaHocKy";
+      END IF;
+
+      IF v_MaSv IS NULL OR v_MaHocKy IS NULL THEN
+        RETURN NEW;
+      END IF;
+
+      SELECT "SoTinChiDangKyToiDa", "SoTinChiDangKyToiDaKhiVuot", "NamKiemTraAnhVan", "GioiHanTinChiChuaDatAnhVan", "DanhSachMonAnhVanBatBuoc"
+      INTO v_SoTinChiDangKyToiDa, v_SoTinChiDangKyToiDaKhiVuot, v_NamKiemTraAnhVan, v_GioiHanTinChiChuaDatAnhVan, v_DanhSachMonAnhVanBatBuoc
+      FROM "THAMSO" WHERE id = 1;
+
+      SELECT COALESCE(SUM(ct."SoTinChi"), 0) INTO v_TongTinChi
+      FROM "CHITIETDANGKY" ct
+      JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
+      WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
+        AND ct."TrangThai" = 'Đã đăng ký'
+        AND (v_ChiTietDangKyId IS NULL OR ct.id <> v_ChiTietDangKyId);
+
+      IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN
+        v_TongTinChi := v_TongTinChi + NEW."SoTinChi";
+      END IF;
+
+      SELECT "NgayNhapHoc" INTO v_NgayNhapHoc FROM "SINHVIEN" WHERE "MaSv" = v_MaSv;
+
+      SELECT n."NamBatDau", hk."ThuTu"
+      INTO v_NamBatDauHocKy, v_ThuTuHocKy
+      FROM "HOCKY" hk
+      JOIN "NAMHOC" n ON hk."MaNamHoc" = n."MaNamHoc"
+      WHERE hk."MaHocKy" = v_MaHocKy;
+
+      v_NamThuHoc := v_NamBatDauHocKy - EXTRACT(YEAR FROM v_NgayNhapHoc) + 1;
+
+      SELECT COALESCE(MAX(hk2."ThuTu"), 2) INTO v_MaxThuTuChinh
+      FROM "HOCKY" hk2
+      JOIN "NAMHOC" n2 ON hk2."MaNamHoc" = n2."MaNamHoc"
+      WHERE n2."NamBatDau" = v_NamBatDauHocKy AND hk2."LoaiHocKy" = 'Chính';
+
+      IF v_NamThuHoc > v_NamKiemTraAnhVan OR (v_NamThuHoc = v_NamKiemTraAnhVan AND v_ThuTuHocKy >= v_MaxThuTuChinh) THEN
+        v_ToiHanKiemTra := TRUE;
+      END IF;
+
+      v_GioiHanHienTai := v_SoTinChiDangKyToiDa;
+
+      IF v_ToiHanKiemTra THEN
+        v_SoMonAnhVanYeuCau := array_length(string_to_array(REPLACE(v_DanhSachMonAnhVanBatBuoc, ' ', ''), ','), 1);
+
+        SELECT COUNT(DISTINCT "MaMonHoc") INTO v_SoMonAnhVanDaDat
+        FROM "MONDAHOC"
+        WHERE "MaSv" = v_MaSv
+          AND "KetQua" = 'qua_mon'
+          AND "MaMonHoc" = ANY(string_to_array(REPLACE(v_DanhSachMonAnhVanBatBuoc, ' ', ''), ','));
+
+        IF COALESCE(v_SoMonAnhVanDaDat, 0) < COALESCE(v_SoMonAnhVanYeuCau, 0) THEN
+          v_GioiHanHienTai := v_GioiHanTinChiChuaDatAnhVan;
+        END IF;
+      END IF;
+
+      IF v_TongTinChi > v_SoTinChiDangKyToiDaKhiVuot THEN
+        RAISE EXCEPTION 'Tong tin chi (%) vuot qua gioi han he thong cho phep (%).', v_TongTinChi, v_SoTinChiDangKyToiDaKhiVuot;
+      END IF;
+
+      IF v_TongTinChi > v_GioiHanHienTai THEN
+        RAISE EXCEPTION 'Tong tin chi (%) vuot qua gioi han (%). SV co the chua dat dieu kien Anh van bat buoc.', v_TongTinChi, v_GioiHanHienTai;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
   `);
 
   await prisma.$executeRawUnsafe(`

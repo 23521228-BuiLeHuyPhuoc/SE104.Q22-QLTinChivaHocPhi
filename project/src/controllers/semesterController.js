@@ -577,6 +577,8 @@ const finalizeRegistration = async (req, res) => {
 
       const openedAfterFinalize = classSummaries.filter((item) => item.TrangThaiSauChot);
       const closedAfterFinalize = classSummaries.filter((item) => !item.TrangThaiSauChot);
+      const openedClassIds = openedAfterFinalize.map((item) => item.id);
+      const closedClassIds = closedAfterFinalize.map((item) => item.id);
       const closedClassCodes = closedAfterFinalize.map((item) => item.MaLop);
 
       const affectedRegistrations = closedClassCodes.length
@@ -609,28 +611,43 @@ const finalizeRegistration = async (req, res) => {
         })
         : { count: 0 };
 
-      for (const item of openedAfterFinalize) {
-        await tx.LOPMO.update({
-          where: { id: item.id },
-          data: {
-            TrangThai: true,
-            SoLuongDaDangKy: item.SoLuongDaDangKy
-          }
+      if (openedClassIds.length) {
+        await tx.LOPMO.updateMany({
+          where: { id: { in: openedClassIds } },
+          data: { TrangThai: true }
         });
       }
 
-      for (const item of closedAfterFinalize) {
+      if (closedClassIds.length) {
         await tx.LICHHOCLOP.updateMany({
-          where: { LopMoId: item.id, TrangThai: true },
+          where: { LopMoId: { in: closedClassIds }, TrangThai: true },
           data: { TrangThai: false }
         });
-        await tx.LOPMO.update({
-          where: { id: item.id },
-          data: {
-            TrangThai: false,
-            SoLuongDaDangKy: 0
-          }
+        await tx.LOPMO.updateMany({
+          where: { id: { in: closedClassIds } },
+          data: { TrangThai: false, SoLuongDaDangKy: 0 }
         });
+      }
+
+      if (openedClasses.length) {
+        await tx.$executeRaw`
+          UPDATE "LOPMO" AS lm
+          SET "SoLuongDaDangKy" = COALESCE(counts."SoLuongDaDangKy", 0)
+          FROM (
+            SELECT lm_inner.id, COUNT(ctdk.id)::INTEGER AS "SoLuongDaDangKy"
+            FROM "LOPMO" AS lm_inner
+            LEFT JOIN "PHIEUDANGKY" AS pdk
+              ON pdk."MaHocKy" = lm_inner."MaHocKy"
+            LEFT JOIN "CHITIETDANGKY" AS ctdk
+              ON ctdk."SoPhieu" = pdk."SoPhieu"
+             AND ctdk."MaLop" = lm_inner."MaLop"
+             AND ctdk."TrangThai" = ${ACTIVE_REGISTRATION_STATUS}
+            WHERE lm_inner."MaHocKy" = ${maHocKy}
+            GROUP BY lm_inner.id
+          ) AS counts
+          WHERE lm.id = counts.id
+            AND lm."MaHocKy" = ${maHocKy}
+        `;
       }
 
       for (const registration of affectedRegistrations) {
@@ -659,7 +676,7 @@ const finalizeRegistration = async (req, res) => {
         NgayMoThuHocPhi: finalizedAt,
         classes: classSummaries
       };
-    });
+    }, { timeout: 30000, maxWait: 10000 });
 
     res.json({
       success: true,

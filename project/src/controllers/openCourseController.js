@@ -103,7 +103,7 @@ const assertCourseMatchesCurriculumPlan = async (MaHocKy, MaMonHoc) => {
   if (rows[0]?.valid !== true) {
     throw {
       status: 400,
-      message: 'Môn học không thuộc kế hoạch đào tạo phù hợp với học kỳ đã chọn'
+      message: 'Môn học không còn trong kế hoạch đào tạo đang hoạt động của khoa tương ứng với học kỳ đã chọn'
     };
   }
 };
