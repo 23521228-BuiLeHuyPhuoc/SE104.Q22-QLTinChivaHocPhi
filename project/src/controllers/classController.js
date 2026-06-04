@@ -19,6 +19,10 @@ const getPeriodOrderMap = async (startId, endId, client = prisma) => {
   return new Map(periods.map((period) => [period.MaTiet, period.ThuTu]));
 };
 
+const effectiveScheduleEndOrder = (startOrder, endOrder) => (
+  Number(endOrder) > Number(startOrder) ? Number(endOrder) : Number(startOrder) + 1
+);
+
 const cleanOptionalText = (value) => {
   if (value === undefined) return undefined;
   const text = String(value || '').trim();
@@ -262,6 +266,7 @@ const firstScheduleConflict = (conflicts, input) => {
 };
 
 const ensureCatalogScheduleAvailable = async (client, input) => {
+  const inputEffectiveEndOrder = effectiveScheduleEndOrder(input.startOrder, input.endOrder);
   const conflicts = await client.$queryRaw`
     SELECT
       l."MaLop",
@@ -284,8 +289,8 @@ const ensureCatalogScheduleAvailable = async (client, input) => {
         COALESCE(l."MaPhong", l."PhongHoc") = ${input.MaPhong}
         OR COALESCE(l."MaGiangVien", l."GiangVien") = ${input.MaGiangVien}
       )
-      AND ${input.startOrder} <= kt."ThuTu"
-      AND bd."ThuTu" <= ${input.endOrder}
+      AND ${input.startOrder} < CASE WHEN kt."ThuTu" > bd."ThuTu" THEN kt."ThuTu" ELSE bd."ThuTu" + 1 END
+      AND bd."ThuTu" < ${inputEffectiveEndOrder}
     LIMIT 20
   `;
 
@@ -305,6 +310,7 @@ const ensureOpenedScheduleAvailable = async (client, {
   excludeScheduleId,
   excludeLopMoId
 }) => {
+  const inputEffectiveEndOrder = effectiveScheduleEndOrder(startOrder, endOrder);
   const conflicts = await client.$queryRaw`
     SELECT
       lm.id AS "LopMoId",
@@ -334,8 +340,8 @@ const ensureOpenedScheduleAvailable = async (client, {
         OR COALESCE(lm."MaGiangVien", lm."GiangVien") = ${MaGiangVien}
         OR lm."MaLop" = ${MaLop}
       )
-      AND ${startOrder} <= kt."ThuTu"
-      AND bd."ThuTu" <= ${endOrder}
+      AND ${startOrder} < CASE WHEN kt."ThuTu" > bd."ThuTu" THEN kt."ThuTu" ELSE bd."ThuTu" + 1 END
+      AND bd."ThuTu" < ${inputEffectiveEndOrder}
     LIMIT 20
   `;
 

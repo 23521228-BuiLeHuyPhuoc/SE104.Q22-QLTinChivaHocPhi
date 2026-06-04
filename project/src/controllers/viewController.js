@@ -9,8 +9,8 @@ const {
 } = require('../utils/permissionCatalog');
 const { DEFAULT_PAGE_SIZE } = require('../utils/pagination');
 const { TRASH_ENTITIES } = require('../utils/trashConfig');
-const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pricingSearch');
-const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
+const { getPricingSearchValues, normalizePricingSearchScope } = require('../utils/pricingSearch');
+const { getRegistrationSearchValues, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
 const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
 const { createSearchRegex, filterRowsByRegex, getSearchRegexSource, matchesRegex, paginateRows } = require('../utils/searchRegex');
@@ -66,6 +66,74 @@ async function getUserFromToken(token) {
     return null;
   }
 }
+
+const getScopedRegexValues = (values, field) => {
+  if (!field || field === 'all') return Object.values(values).flat();
+  return values[field] || [];
+};
+
+const getCourseTypeSearchValues = (value) => {
+  if (value === 'LT') return ['LT', 'L\u00fd thuy\u1ebft', 'Ly thuyet'];
+  if (value === 'TH') return ['TH', 'Th\u1ef1c h\u00e0nh', 'Thuc hanh'];
+  return [value];
+};
+
+const getAdminCourseSearchValues = (row, field) => getScopedRegexValues({
+  MaMonHoc: [row.MaMonHoc],
+  TenMonHoc: [row.TenMonHoc],
+  LoaiMon: getCourseTypeSearchValues(row.LoaiMon),
+  MaKhoa: [row.MaKhoa, row.KHOA?.TenKhoa]
+}, field);
+
+const getAdminClassSearchValues = (row, scope) => {
+  const openedValues = (row.LOPMO || []).flatMap((item) => [item.MaGiangVien, item.GiangVien, item.GIANGVIEN?.HoTen, item.GIANGVIEN?.HocHamHocVi]);
+  const values = {
+    class: [row.MaLop, row.TenLop],
+    classCode: [row.MaLop],
+    className: [row.TenLop],
+    course: [row.MaMonHoc, row.MONHOC?.MaMonHoc, row.MONHOC?.TenMonHoc],
+    lecturer: [row.MaGiangVien, row.GiangVien, row.GIANGVIEN?.HoTen, row.GIANGVIEN?.HocHamHocVi, ...openedValues]
+  };
+  return values[scope] || values.classCode;
+};
+
+const getAdminSemesterSearchValues = (row, field) => {
+  const dateValues = (value) => {
+    if (!value) return [];
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return [];
+    const iso = date.toISOString().slice(0, 10);
+    const vi = [String(date.getUTCDate()).padStart(2, '0'), String(date.getUTCMonth() + 1).padStart(2, '0'), date.getUTCFullYear()].join('/');
+    return [iso, vi];
+  };
+  const values = {
+    MaHocKy: [row.MaHocKy],
+    TenHocKy: [row.TenHocKy],
+    MaNamHoc: [row.MaNamHoc, row.NAMHOC?.TenNamHoc],
+    HocKy: [row.ThuTu, row.LoaiHocKy, getSemesterKindLabel(row)],
+    LoaiHocKy: [row.LoaiHocKy, getSemesterKindLabel(row)],
+    TrangThai: [row.TrangThai],
+    NgayBatDau: dateValues(row.NgayBatDau),
+    NgayKetThuc: dateValues(row.NgayKetThuc),
+    NgayBatDauDangKy: dateValues(row.NgayBatDauDangKy),
+    NgayKetThucDangKy: dateValues(row.NgayKetThucDangKy),
+    HanDongHocPhi: dateValues(row.HanDongHocPhi)
+  };
+  return getScopedRegexValues(values, field);
+};
+
+const getPaymentSearchValues = (row, field) => getScopedRegexValues({
+  SoPhieuThu: [row.SoPhieuThu],
+  MaSv: [row.MaSv],
+  HoTen: [row.SINHVIEN?.HoTen]
+}, field);
+
+const getAccountSearchValues = (row, field) => getScopedRegexValues({
+  TenDangNhap: [row.TenDangNhap],
+  HoTen: [row.HoTen],
+  Email: [row.Email],
+  MaSv: [row.MaSv]
+}, field);
 
 const toNumber = (value) => Number(value || 0);
 
@@ -439,41 +507,31 @@ const adminStudents = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
+  const searchField = ['MaSv', 'HoTen', 'Email'].includes(req.query.searchField) ? req.query.searchField : 'all';
   const status = req.query.status || '';
   const MaKhoa = req.query.MaKhoa || '';
   const MaNganh = req.query.MaNganh || '';
   const where = { DaXoa: false };
 
-  if (search) {
-    where.OR = [
-      { MaSv: { contains: search, mode: 'insensitive' } },
-      { HoTen: { contains: search, mode: 'insensitive' } },
-      { Email: { contains: search, mode: 'insensitive' } }
-    ];
-  }
   if (status) where.TrangThai = status;
   if (MaKhoa) where.NGANHHOC = { MaKhoa };
   if (MaNganh) where.MaNganh = MaNganh;
 
   try {
-    const [students, total] = await Promise.all([
-      prisma.SINHVIEN.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { MaSv: 'asc' },
-        include: {
-          NGANHHOC: { include: { KHOA: true } },
-          PHUONGXA: true,
-          DANTOC: true,
-          DOITUONGSINHVIEN: { include: { DOITUONG: true } },
-          TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN: {
-            select: { MaTaiKhoan: true }
-          }
-        }
-      }),
-      prisma.SINHVIEN.count({ where })
-    ]);
+    const allStudents = await prisma.SINHVIEN.findMany({
+      where,
+      orderBy: { MaSv: 'asc' },
+      include: {
+        NGANHHOC: { include: { KHOA: true } },
+        PHUONGXA: true,
+        DANTOC: true,
+        DOITUONGSINHVIEN: { include: { DOITUONG: true } },
+        TAIKHOAN_SINHVIEN_MaTaiKhoanToTAIKHOAN: { select: { MaTaiKhoan: true } }
+      }
+    });
+    const filteredStudents = filterRowsByRegex(allStudents, search, (row) => getScopedRegexValues({ MaSv: [row.MaSv], HoTen: [row.HoTen], Email: [row.Email] }, searchField));
+    const students = paginateRows(filteredStudents, page, limit);
+    const total = filteredStudents.length;
     const displayStudents = await attachUpdaterNames(students);
 
     renderAdmin(res, 'students', 'students', 'Quản lý sinh viên', req, {
@@ -481,8 +539,9 @@ const adminStudents = async (req, res) => {
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/students',
-      queryParams: { search, status, MaKhoa, MaNganh, limit },
+      queryParams: { search, searchField, status, MaKhoa, MaNganh, limit },
       search,
+      searchField,
       status,
       selectedFaculty: MaKhoa,
       selectedMajor: MaNganh
@@ -496,6 +555,7 @@ const adminStudents = async (req, res) => {
       baseUrl: '/admin/students',
       queryParams: {},
       search: '',
+      searchField: 'all',
       status: ''
     });
   }
@@ -506,35 +566,6 @@ const VALID_OPEN_COURSE_SEARCH_FIELDS = new Set(['MaMonHoc', 'TenMonHoc']);
 const VALID_PREREQ_SEARCH_FIELDS = new Set(['code', 'courseName', 'requiredName']);
 
 const normalizeAdminLookupText = (value) => String(value || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-const getAdminCourseTypeSearchClauses = (search) => {
-  const term = String(search || '').trim();
-  const keyword = normalizeAdminLookupText(term);
-  const clauses = [{ LoaiMon: { contains: term, mode: 'insensitive' } }];
-  if (keyword === 'lt' || keyword.includes('ly thuyet')) clauses.push({ LoaiMon: 'LT' });
-  if (keyword === 'th' || keyword.includes('thuc hanh')) clauses.push({ LoaiMon: 'TH' });
-  return clauses;
-};
-
-const applyAdminCourseSearch = (where, search, searchField = 'all') => {
-  const term = String(search || '').trim();
-  if (!term) return;
-  const field = VALID_ADMIN_COURSE_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
-  const byCode = { MaMonHoc: { contains: term, mode: 'insensitive' } };
-  const byName = { TenMonHoc: { contains: term, mode: 'insensitive' } };
-  const byFaculty = {
-    OR: [
-      { MaKhoa: { contains: term, mode: 'insensitive' } },
-      { KHOA: { TenKhoa: { contains: term, mode: 'insensitive' } } }
-    ]
-  };
-
-  if (field === 'MaMonHoc') where.OR = [byCode];
-  else if (field === 'TenMonHoc') where.OR = [byName];
-  else if (field === 'LoaiMon') where.OR = getAdminCourseTypeSearchClauses(term);
-  else if (field === 'MaKhoa') where.OR = [byFaculty];
-  else where.OR = [byCode, byName, byFaculty, ...getAdminCourseTypeSearchClauses(term)];
-};
 
 const adminCourses = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
@@ -550,17 +581,13 @@ const adminCourses = async (req, res) => {
   if (filterLoaiMon) where.LoaiMon = filterLoaiMon;
 
   try {
-    const [courses, total, faculties] = await Promise.all([
-      prisma.MONHOC.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { MaMonHoc: 'asc' },
-        include: { KHOA: true }
-      }),
-      prisma.MONHOC.count({ where }),
+    const [allCourses, faculties] = await Promise.all([
+      prisma.MONHOC.findMany({ where, orderBy: { MaMonHoc: 'asc' }, include: { KHOA: true } }),
       prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' }, select: { MaKhoa: true, TenKhoa: true } })
     ]);
+    const filteredCourses = filterRowsByRegex(allCourses, search, (row) => getAdminCourseSearchValues(row, searchField));
+    const courses = paginateRows(filteredCourses, page, limit);
+    const total = filteredCourses.length;
     const displayCourses = await attachUpdaterNames(courses);
 
     renderAdmin(res, 'courses', 'courses', 'Quản lý môn học', req, {
@@ -1211,26 +1238,14 @@ const adminAcademicYears = async (req, res) => {
 
   if (status === 'active') where.TrangThai = true;
   if (status === 'inactive') where.TrangThai = false;
-  if (search) {
-    const searchMap = {
-      MaNamHoc: [{ MaNamHoc: { contains: search, mode: 'insensitive' } }],
-      TenNamHoc: [{ TenNamHoc: { contains: search, mode: 'insensitive' } }]
-    };
-    where.OR = searchField === 'all'
-      ? [...searchMap.MaNamHoc, ...searchMap.TenNamHoc]
-      : searchMap[searchField];
-  }
-
   try {
-    const [academicYears, total] = await Promise.all([
-      prisma.NAMHOC.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
-      }),
-      prisma.NAMHOC.count({ where })
-    ]);
+    const allAcademicYears = await prisma.NAMHOC.findMany({
+      where,
+      orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }]
+    });
+    const filteredAcademicYears = filterRowsByRegex(allAcademicYears, search, (row) => getScopedRegexValues({ MaNamHoc: [row.MaNamHoc], TenNamHoc: [row.TenNamHoc] }, searchField));
+    const academicYears = paginateRows(filteredAcademicYears, page, limit);
+    const total = filteredAcademicYears.length;
     const displayAcademicYears = await attachUpdaterNames(academicYears);
 
     renderAdmin(res, 'academic-years', 'academic-years', 'Quản lý năm học', req, {
@@ -1263,26 +1278,14 @@ const adminPeriods = async (req, res) => {
   const search = req.query.search || '';
   const searchField = ['MaTiet', 'TenTiet'].includes(req.query.searchField) ? req.query.searchField : 'all';
   const where = { DaXoa: false };
-  if (search) {
-    const searchMap = {
-      MaTiet: [{ MaTiet: { contains: search, mode: 'insensitive' } }],
-      TenTiet: [{ TenTiet: { contains: search, mode: 'insensitive' } }]
-    };
-    where.OR = searchField === 'all'
-      ? [...searchMap.MaTiet, ...searchMap.TenTiet]
-      : searchMap[searchField];
-  }
-
   try {
-    const [periods, total] = await Promise.all([
-      prisma.TIETHOC.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: [{ ThuTu: 'asc' }, { MaTiet: 'asc' }]
-      }),
-      prisma.TIETHOC.count({ where })
-    ]);
+    const allPeriods = await prisma.TIETHOC.findMany({
+      where,
+      orderBy: [{ ThuTu: 'asc' }, { MaTiet: 'asc' }]
+    });
+    const filteredPeriods = filterRowsByRegex(allPeriods, search, (row) => getScopedRegexValues({ MaTiet: [row.MaTiet], TenTiet: [row.TenTiet] }, searchField));
+    const periods = paginateRows(filteredPeriods, page, limit);
+    const total = filteredPeriods.length;
     const displayPeriods = (await attachUpdaterNames(periods)).map((period) => ({
       ...period,
       GioBatDauText: formatTimeValue(period.GioBatDau),
@@ -1785,21 +1788,11 @@ const adminFaculties = async (req, res) => {
   const search = req.query.search || '';
   const searchField = ['MaKhoa', 'TenKhoa', 'TenVietTat'].includes(req.query.searchField) ? req.query.searchField : 'all';
   const where = { DaXoa: false };
-  if (search) {
-    const searchMap = {
-      MaKhoa: [{ MaKhoa: { contains: search, mode: 'insensitive' } }],
-      TenKhoa: [{ TenKhoa: { contains: search, mode: 'insensitive' } }],
-      TenVietTat: [{ TenVietTat: { contains: search, mode: 'insensitive' } }]
-    };
-    where.OR = searchField === 'all'
-      ? [...searchMap.MaKhoa, ...searchMap.TenKhoa, ...searchMap.TenVietTat]
-      : searchMap[searchField];
-  }
   try {
-    const [faculties, total] = await Promise.all([
-      prisma.KHOA.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { MaKhoa: 'asc' }, include: { _count: { select: { MONHOC: true, NGANHHOC: true } } } }),
-      prisma.KHOA.count({ where })
-    ]);
+    const allFaculties = await prisma.KHOA.findMany({ where, orderBy: { MaKhoa: 'asc' }, include: { _count: { select: { MONHOC: true, NGANHHOC: true } } } });
+    const filteredFaculties = filterRowsByRegex(allFaculties, search, (row) => getScopedRegexValues({ MaKhoa: [row.MaKhoa], TenKhoa: [row.TenKhoa], TenVietTat: [row.TenVietTat] }, searchField));
+    const faculties = paginateRows(filteredFaculties, page, limit);
+    const total = filteredFaculties.length;
     const displayFaculties = await attachUpdaterNames(faculties);
     renderAdmin(res, 'faculties', 'faculties', 'Quản lý khoa', req, { faculties: displayFaculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/faculties', queryParams: { search, searchField, limit }, search, searchField });
   } catch (err) {
@@ -1814,23 +1807,15 @@ const adminMajors = async (req, res) => {
   const searchField = ['MaNganh', 'TenNganh', 'TenKhoa'].includes(req.query.searchField) ? req.query.searchField : 'all';
   const filterKhoa = req.query.MaKhoa || '';
   const where = { DaXoa: false };
-  if (search) {
-    const searchMap = {
-      MaNganh: [{ MaNganh: { contains: search, mode: 'insensitive' } }],
-      TenNganh: [{ TenNganh: { contains: search, mode: 'insensitive' } }],
-      TenKhoa: [{ KHOA: { is: { TenKhoa: { contains: search, mode: 'insensitive' } } } }]
-    };
-    where.OR = searchField === 'all'
-      ? [...searchMap.MaNganh, ...searchMap.TenNganh, ...searchMap.TenKhoa]
-      : searchMap[searchField];
-  }
   if (filterKhoa) where.MaKhoa = filterKhoa;
   try {
-    const [majors, total, faculties] = await Promise.all([
-      prisma.NGANHHOC.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { MaNganh: 'asc' }, include: { KHOA: true, _count: { select: { SINHVIEN: true } } } }),
-      prisma.NGANHHOC.count({ where }),
+    const [allMajors, faculties] = await Promise.all([
+      prisma.NGANHHOC.findMany({ where, orderBy: { MaNganh: 'asc' }, include: { KHOA: true, _count: { select: { SINHVIEN: true } } } }),
       prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' } })
     ]);
+    const filteredMajors = filterRowsByRegex(allMajors, search, (row) => getScopedRegexValues({ MaNganh: [row.MaNganh], TenNganh: [row.TenNganh], TenKhoa: [row.KHOA?.TenKhoa] }, searchField));
+    const majors = paginateRows(filteredMajors, page, limit);
+    const total = filteredMajors.length;
     const displayMajors = await attachUpdaterNames(majors);
     renderAdmin(res, 'majors', 'majors', 'Quản lý ngành học', req, { majors: displayMajors, faculties, currentPage: page, totalPages: Math.ceil(total / limit), baseUrl: '/admin/majors', queryParams: { search, searchField, MaKhoa: filterKhoa, limit }, search, searchField, filterKhoa });
   } catch (err) {
@@ -1978,13 +1963,14 @@ const adminPricing = async (req, res) => {
   else if (filterHocKy) where.MaHocKy = filterHocKy;
   if (filterTrangThai === 'active') where.TrangThai = true;
   if (filterTrangThai === 'inactive') where.TrangThai = false;
-  applyPricingSearch(where, pricingSearchScope, pricingSearch);
   try {
-    const [pricing, total, semesters] = await Promise.all([
-      prisma.DONGIATINCHI.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: { id: 'desc' }, include: { HOCKY: { include: { NAMHOC: true } } } }),
-      prisma.DONGIATINCHI.count({ where }),
+    const [allPricing, semesters] = await Promise.all([
+      prisma.DONGIATINCHI.findMany({ where, orderBy: { id: 'desc' }, include: { HOCKY: { include: { NAMHOC: true } } } }),
       prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: { NgayBatDau: 'desc' }, include: { NAMHOC: true } })
     ]);
+    const filteredPricing = filterRowsByRegex(allPricing, pricingSearch, (row) => getPricingSearchValues(row, pricingSearchScope));
+    const pricing = paginateRows(filteredPricing, page, limit);
+    const total = filteredPricing.length;
     const displayPricing = await attachUpdaterNames(pricing);
     renderAdmin(res, 'pricing', 'pricing', 'Đơn giá tín chỉ', req, {
       pricing: displayPricing,
@@ -2009,7 +1995,7 @@ const adminPricing = async (req, res) => {
       filterLoaiHoc: '',
       filterHocKy: '',
       filterTrangThai: '',
-      pricingSearchScope: 'loai_mon',
+      pricingSearchScope: 'all',
       pricingSearch: '',
       currentPage: 1,
       totalPages: 0,
@@ -2027,24 +2013,11 @@ const adminBeneficiaries = async (req, res) => {
   const searchField = allowedSearchFields.includes(req.query.searchField) ? req.query.searchField : 'all';
   const where = { DaXoa: false };
 
-  if (search) {
-    if (searchField === 'MaDoiTuong') {
-      where.MaDoiTuong = { contains: search, mode: 'insensitive' };
-    } else if (searchField === 'TenDoiTuong') {
-      where.TenDoiTuong = { contains: search, mode: 'insensitive' };
-    } else {
-      where.OR = [
-        { MaDoiTuong: { contains: search, mode: 'insensitive' } },
-        { TenDoiTuong: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-  }
-
   try {
-    const [beneficiaries, total] = await Promise.all([
-      prisma.DOITUONG.findMany({ where, skip: (page - 1) * limit, take: limit, orderBy: [{ DoUuTien: 'asc' }, { TiLeGiamHocPhi: 'desc' }, { MaDoiTuong: 'asc' }], include: { _count: { select: { DOITUONGSINHVIEN: true } } } }),
-      prisma.DOITUONG.count({ where })
-    ]);
+    const allBeneficiaries = await prisma.DOITUONG.findMany({ where, orderBy: [{ DoUuTien: 'asc' }, { TiLeGiamHocPhi: 'desc' }, { MaDoiTuong: 'asc' }], include: { _count: { select: { DOITUONGSINHVIEN: true } } } });
+    const filteredBeneficiaries = filterRowsByRegex(allBeneficiaries, search, (row) => getScopedRegexValues({ MaDoiTuong: [row.MaDoiTuong], TenDoiTuong: [row.TenDoiTuong] }, searchField));
+    const beneficiaries = paginateRows(filteredBeneficiaries, page, limit);
+    const total = filteredBeneficiaries.length;
     const displayBeneficiaries = await attachUpdaterNames(beneficiaries);
     renderAdmin(res, 'beneficiaries', 'beneficiaries', 'Đối tượng ưu tiên', req, {
       beneficiaries: displayBeneficiaries,

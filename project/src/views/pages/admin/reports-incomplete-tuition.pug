@@ -25,9 +25,9 @@ block content
         h3 Danh sách sinh viên chưa hoàn thành học phí
       .card-body
         .toolbar.admin-toolbar.debt-filter-toolbar
-          .search-box.admin-search-group
-            input#debt-search(type="text" placeholder="Tìm MSSV hoặc họ tên..." onkeydown="runSearchOnEnter(event, debounceDebtSearch)")
-          .filter-group.admin-filter-group
+          .search-box.admin-search-group.debt-search-group
+            input#debt-search(type="text" placeholder="Tìm MSSV hoặc họ tên..." onkeyup="debounceDebtSearch()")
+          .filter-group.admin-filter-group.debt-select-group
             select#debt-faculty(onchange="filterDebtMajors(); loadIncompleteTuition()")
               option(value="") Tất cả khoa
               if faculties && faculties.length

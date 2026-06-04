@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 const prisma = require('../config/database');
 const { isSystemAdminUser } = require('../middleware/auth');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { sendErrorResponse } = require('../utils/errorHandler');
 
 const normalize = (value) => String(value || '').trim();
@@ -21,23 +22,15 @@ const normalizeAccountSearchField = (value) => {
   return ACCOUNT_SEARCH_FIELDS.has(field) ? field : 'all';
 };
 
-const buildAccountSearchWhere = (search, searchField) => {
-  const term = normalize(search);
-  if (!term) return null;
+const getAccountSearchValues = (row, searchField) => {
   const field = normalizeAccountSearchField(searchField);
-  const clause = { contains: term, mode: 'insensitive' };
-  if (field === 'TenDangNhap') return { TenDangNhap: clause };
-  if (field === 'HoTen') return { HoTen: clause };
-  if (field === 'Email') return { Email: clause };
-  if (field === 'MaSv') return { MaSv: clause };
-  return {
-    OR: [
-      { TenDangNhap: clause },
-      { HoTen: clause },
-      { Email: clause },
-      { MaSv: clause }
-    ]
+  const values = {
+    TenDangNhap: [row.TenDangNhap, row.TAIKHOAN?.TenDangNhap],
+    HoTen: [row.HoTen, row.TAIKHOAN?.HoTen],
+    Email: [row.Email, row.TAIKHOAN?.Email],
+    MaSv: [row.MaSv, row.TAIKHOAN?.MaSv]
   };
+  return field === 'all' ? Object.values(values).flat() : (values[field] || []);
 };
 
 const generateRandomPassword = () => {
@@ -193,7 +186,7 @@ const getMyRole = async (req, res) => {
 
 const getAllAccounts = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search, searchField, Role: filterRole, role, MaNhom } = req.query;
     const where = {};
     const allowedGroups = await getCreatableGroups(req.user);
@@ -203,41 +196,36 @@ const getAllAccounts = async (req, res) => {
       return res.json({ success: true, data: [], pagination: getPaginationMeta(0, page, limit) });
     }
 
-    const searchWhere = buildAccountSearchWhere(search, searchField);
-    if (searchWhere) Object.assign(where, searchWhere);
     const roleFilter = filterRole || role;
     if (roleFilter && ['admin', 'student'].includes(roleFilter)) where.Role = roleFilter;
     where.MaNhom = MaNhom || { in: allowedGroupCodes };
 
-    const [rows, total] = await Promise.all([
-      prisma.TAIKHOAN.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { NgayTao: 'desc' },
-        select: {
-          MaTaiKhoan: true,
-          TenDangNhap: true,
-          Role: true,
-          MaNhom: true,
-          NgayTao: true,
-          HoTen: true,
-          Email: true,
-          MaSv: true,
-          TrangThai: true,
-          QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } }
-        }
-      }),
-      prisma.TAIKHOAN.count({ where })
-    ]);
+    const rows = await prisma.TAIKHOAN.findMany({
+      where,
+      orderBy: { NgayTao: 'desc' },
+      select: {
+        MaTaiKhoan: true,
+        TenDangNhap: true,
+        Role: true,
+        MaNhom: true,
+        NgayTao: true,
+        HoTen: true,
+        Email: true,
+        MaSv: true,
+        TrangThai: true,
+        QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } }
+      }
+    });
+    const filtered = filterRowsByRegex(rows, search, (row) => getAccountSearchValues(row, searchField));
+    const pageRows = paginateRows(filtered, page, limit);
 
     res.json({
       success: true,
-      data: rows,
-      pagination: getPaginationMeta(total, page, limit)
+      data: pageRows,
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all accounts error:');
+        return sendErrorResponse(res, error, 'L?i server', 'Get all accounts error:');
   }
 };
 
@@ -649,48 +637,32 @@ const batchCreateStudentAccounts = async (req, res) => {
 
 const getTemporaryStudentCredentials = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search, searchField } = req.query;
     const where = {};
-    const searchWhere = buildAccountSearchWhere(search, searchField);
-    if (searchWhere) {
-      if (searchWhere.OR) {
-        where.OR = searchWhere.OR.map((clause) => {
-          if (clause.HoTen) return { TAIKHOAN: { HoTen: clause.HoTen } };
-          return clause;
-        });
-      } else if (searchWhere.HoTen) {
-        where.TAIKHOAN = { HoTen: searchWhere.HoTen };
-      } else {
-        Object.assign(where, searchWhere);
-      }
-    }
 
-    const [rows, total] = await Promise.all([
-      prisma.MATKHAUTAMTAIKHOAN.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { NgayTao: 'desc' },
-        select: {
-          id: true,
-          MaTaiKhoan: true,
-          MaSv: true,
-          TenDangNhap: true,
-          MatKhauTam: true,
-          Email: true,
-          TrangThaiGuiEmail: true,
-          LoiGuiEmail: true,
-          NgayTao: true,
-          TAIKHOAN: { select: { HoTen: true, Email: true, MaSv: true, TenDangNhap: true } }
-        }
-      }),
-      prisma.MATKHAUTAMTAIKHOAN.count({ where })
-    ]);
+    const rows = await prisma.MATKHAUTAMTAIKHOAN.findMany({
+      where,
+      orderBy: { NgayTao: 'desc' },
+      select: {
+        id: true,
+        MaTaiKhoan: true,
+        MaSv: true,
+        TenDangNhap: true,
+        MatKhauTam: true,
+        Email: true,
+        TrangThaiGuiEmail: true,
+        LoiGuiEmail: true,
+        NgayTao: true,
+        TAIKHOAN: { select: { HoTen: true, Email: true, MaSv: true, TenDangNhap: true } }
+      }
+    });
+    const filtered = filterRowsByRegex(rows, search, (row) => getAccountSearchValues(row, searchField));
+    const pageRows = paginateRows(filtered, page, limit);
 
     res.json({
       success: true,
-      data: rows.map((row) => ({
+      data: pageRows.map((row) => ({
         id: row.id,
         MaTaiKhoan: row.MaTaiKhoan,
         MaSv: row.MaSv,
@@ -702,10 +674,10 @@ const getTemporaryStudentCredentials = async (req, res) => {
         LoiGuiEmail: row.LoiGuiEmail,
         NgayTao: row.NgayTao
       })),
-      pagination: getPaginationMeta(total, page, limit)
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'Get temporary student credentials error:');
+    return sendErrorResponse(res, error, 'L?i server', 'Get temporary student credentials error:');
   }
 };
 

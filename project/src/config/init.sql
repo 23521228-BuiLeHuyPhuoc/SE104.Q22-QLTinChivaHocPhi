@@ -2465,6 +2465,12 @@ CREATE TRIGGER trg_rbtv11_tiethoc_upd
 BEFORE UPDATE OF "ThuTu" ON "TIETHOC"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_rbtv11_tiethoc();
+
+CREATE OR REPLACE FUNCTION fn_schedule_effective_end_order(p_start_order INT, p_end_order INT)
+RETURNS INT AS $$
+    SELECT CASE WHEN p_end_order > p_start_order THEN p_end_order ELSE p_start_order + 1 END;
+$$ LANGUAGE SQL IMMUTABLE;
+
 --RBTV12
 CREATE OR REPLACE FUNCTION fn_check_rbtv12_lichhoclop()
 RETURNS TRIGGER AS $$
@@ -2486,9 +2492,9 @@ BEGIN
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
           -- Loại trừ chính dòng hiện tại khi thực hiện thao tác UPDATE
           AND lh.id IS DISTINCT FROM NEW.id
-          -- Công thức kiểm tra giao nhau: bd1.ThuTu <= kt2.ThuTu AND bd2.ThuTu <= kt1.ThuTu
-          AND new_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= new_kt_thutu
+          -- Công thức kiểm tra giao nhau theo khoang [start, effectiveEnd)
+          AND new_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
+          AND bd."ThuTu" < fn_schedule_effective_end_order(new_bd_thutu, new_kt_thutu)
     ) THEN
         RAISE EXCEPTION 'RBTV12: Lớp mở này đã có lịch học khác trùng/giao khoảng tiết vào Thứ %.', NEW."ThuTrongTuan";
     END IF;
@@ -2524,11 +2530,17 @@ BEGIN
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE
                 -- Áp dụng giá trị ThuTu mới nếu mã tiết trùng với tiết vừa sửa, ngược lại giữ nguyên ThuTu cũ
-                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <=
-                (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+                (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
+                fn_schedule_effective_end_order(
+                    (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END),
+                    (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+                )
                 AND
-                (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <=
-                (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+                (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <
+                fn_schedule_effective_end_order(
+                    (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END),
+                    (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+                )
         ) THEN
             RAISE EXCEPTION 'RBTV12: Không thể sửa ThuTu của tiết học này vì sẽ gián tiếp làm trùng lịch của một lớp mở đang vận hành.';
         END IF;
@@ -2585,8 +2597,8 @@ BEGIN
           AND lm."MaHocKy" = v_mahocky
           AND lm."TrangThai" = TRUE -- Chỉ xét các lớp đang hoạt động
           -- Công thức kiểm tra giao khoảng tiết
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
+          AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
         RAISE EXCEPTION 'RBTV13: Phòng % đã có lớp khác học vào Thứ % (Học kỳ %).', COALESCE(NEW."MaPhong", NEW."PhongHoc"), NEW."ThuTrongTuan", v_mahocky;
     END IF;
@@ -2624,8 +2636,8 @@ BEGIN
               AND lm2."MaHocKy" = NEW."MaHocKy"
               AND lm2."TrangThai" = TRUE
               -- Công thức kiểm tra giao khoảng tiết
-              AND bd1."ThuTu" <= kt2."ThuTu"
-              AND bd2."ThuTu" <= kt1."ThuTu"
+              AND bd1."ThuTu" < fn_schedule_effective_end_order(bd2."ThuTu", kt2."ThuTu")
+              AND bd2."ThuTu" < fn_schedule_effective_end_order(bd1."ThuTu", kt1."ThuTu")
         ) THEN
             RAISE EXCEPTION 'RBTV13: Cập nhật thông tin lớp mở (%) gây trùng lịch phòng học trong học kỳ %.', NEW.id, NEW."MaHocKy";
         END IF;
@@ -2665,10 +2677,16 @@ BEGIN
               AND lm1."TrangThai" = TRUE
               AND lm2."TrangThai" = TRUE -- Các lớp đều đang hoạt động
               -- Gắn ThuTu mới vào phép so sánh nếu mã tiết khớp với tiết đang sửa
-              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <=
-                  (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
-              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <=
-                  (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
+                  fn_schedule_effective_end_order(
+                      (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END),
+                      (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+                  )
+              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <
+                  fn_schedule_effective_end_order(
+                      (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END),
+                      (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+                  )
         ) THEN
             RAISE EXCEPTION 'RBTV13: Sửa ThuTu của tiết học này gián tiếp làm trùng phòng học giữa các lớp đang hoạt động.';
         END IF;
@@ -2721,8 +2739,8 @@ BEGIN
           AND lm."MaHocKy" = v_mahocky
           AND lm."TrangThai" = TRUE
           -- Công thức kiểm tra giao khoảng tiết
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
+          AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
         RAISE EXCEPTION 'RBTV14: Giảng viên % đã có lịch dạy trùng thời gian vào Thứ % (Học kỳ %).', v_giangvien, NEW."ThuTrongTuan", v_mahocky;
     END IF;
@@ -2767,8 +2785,8 @@ BEGIN
               AND lm2."MaHocKy" = NEW."MaHocKy"
               AND COALESCE(lm2."MaGiangVien", lm2."GiangVien") = v_giangvien
               -- Công thức kiểm tra giao khoảng tiết
-              AND bd1."ThuTu" <= kt2."ThuTu"
-              AND bd2."ThuTu" <= kt1."ThuTu"
+              AND bd1."ThuTu" < fn_schedule_effective_end_order(bd2."ThuTu", kt2."ThuTu")
+              AND bd2."ThuTu" < fn_schedule_effective_end_order(bd1."ThuTu", kt1."ThuTu")
         ) THEN
             RAISE EXCEPTION 'RBTV14: Cập nhật lớp mở % gây trùng lịch dạy của giảng viên % trong học kỳ %.', NEW.id, v_giangvien, NEW."MaHocKy";
         END IF;
@@ -2807,10 +2825,16 @@ BEGIN
               AND lm1."TrangThai" = TRUE
               AND lm2."TrangThai" = TRUE
               -- Gắn ThuTu mới vào phép đối chiếu
-              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <=
-                  (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
-              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <=
-                  (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
+                  fn_schedule_effective_end_order(
+                      (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END),
+                      (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+                  )
+              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <
+                  fn_schedule_effective_end_order(
+                      (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END),
+                      (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+                  )
         ) THEN
             RAISE EXCEPTION 'RBTV14: Sửa ThuTu của tiết học này gián tiếp làm trùng lịch dạy của giảng viên.';
         END IF;
@@ -13865,8 +13889,8 @@ WHERE ss."TrangThai" = FALSE
     AND COALESCE(lm2."TrangThai", TRUE) = TRUE
     AND COALESCE(lh2."TrangThai", TRUE) = TRUE
     AND lh2."ThuTrongTuan" = ss."ThuTrongTuan"
-    AND ss."TietBatDauThuTu" <= kt2."ThuTu"
-    AND bd2."ThuTu" <= ss."TietKetThucThuTu"
+    AND ss."TietBatDauThuTu" < fn_schedule_effective_end_order(bd2."ThuTu", kt2."ThuTu")
+    AND bd2."ThuTu" < fn_schedule_effective_end_order(ss."TietBatDauThuTu", ss."TietKetThucThuTu")
     AND (
       NULLIF(TRIM(COALESCE(lm2."MaGiangVien", lm2."GiangVien", '')), '') = ss."GiangVienKey"
       OR NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '') = ss."MaPhong"
@@ -14377,8 +14401,8 @@ BEGIN
           AND COALESCE(l."TrangThai", TRUE) = TRUE
           AND l."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND COALESCE(l."MaPhong", l."PhongHoc") = v_phong
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
+          AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
         RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Phong % bi trung lich voi lop khac.', v_phong;
     END IF;
@@ -14393,8 +14417,8 @@ BEGIN
           AND COALESCE(l."TrangThai", TRUE) = TRUE
           AND l."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND COALESCE(l."MaGiangVien", l."GiangVien") = v_giangvien
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
+          AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
     ) THEN
         RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Giang vien % bi trung lich voi lop khac.', v_giangvien;
     END IF;
@@ -14544,8 +14568,8 @@ BEGIN
           AND COALESCE(lm."TrangThai", TRUE) = TRUE
           AND COALESCE(lh."TrangThai", TRUE) = TRUE
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < fn_schedule_effective_end_order(bd."ThuTu", kt."ThuTu")
+          AND bd."ThuTu" < fn_schedule_effective_end_order(v_bd_thutu, v_kt_thutu)
           AND (
             NULLIF(TRIM(COALESCE(lm."MaGiangVien", lm."GiangVien", '')), '') = v_giangvien
             OR NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') = v_phong
@@ -14594,8 +14618,8 @@ BEGIN
           AND COALESCE(lh2."TrangThai", TRUE) = TRUE
           AND COALESCE(lm2."TrangThai", TRUE) = TRUE
           AND lm2."MaHocKy" = NEW."MaHocKy"
-          AND bd1."ThuTu" <= kt2."ThuTu"
-          AND bd2."ThuTu" <= kt1."ThuTu"
+          AND bd1."ThuTu" < fn_schedule_effective_end_order(bd2."ThuTu", kt2."ThuTu")
+          AND bd2."ThuTu" < fn_schedule_effective_end_order(bd1."ThuTu", kt1."ThuTu")
           AND (
             NULLIF(TRIM(COALESCE(lm2."MaGiangVien", lm2."GiangVien", '')), '') = v_giangvien
             OR NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '') = NULLIF(TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc", '')), '')
@@ -14638,10 +14662,16 @@ BEGIN
                 NULLIF(TRIM(COALESCE(lm1."MaGiangVien", lm1."GiangVien", '')), '') = NULLIF(TRIM(COALESCE(lm2."MaGiangVien", lm2."GiangVien", '')), '')
                 OR NULLIF(TRIM(COALESCE(lh1."MaPhong", lh1."PhongHoc", '')), '') = NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '')
               )
-              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <=
-                  (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
-              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <=
-                  (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+              AND (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
+                  fn_schedule_effective_end_order(
+                      (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END),
+                      (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
+                  )
+              AND (CASE WHEN lh2."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd2."ThuTu" END) <
+                  fn_schedule_effective_end_order(
+                      (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END),
+                      (CASE WHEN lh1."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt1."ThuTu" END)
+                  )
         ) THEN
             RAISE EXCEPTION 'RBTV14: Sua ThuTu tiet hoc lam trung lich giang vien hoac phong hoc.';
         END IF;
@@ -14764,8 +14794,8 @@ BEGIN
   JOIN "TIETHOC" teo ON teo."MaTiet" = lh_old."MaTietKetThuc"
   WHERE p_new."SoPhieu" = NEW."SoPhieu"
     AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
-    AND tbn."ThuTu" <= teo."ThuTu"
-    AND tbo."ThuTu" <= ten."ThuTu";
+    AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
+    AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END;
 
   IF conflict_count > 0 THEN
     RAISE EXCEPTION 'Sinh vien bi trung lich hoc trong hoc ky nay';

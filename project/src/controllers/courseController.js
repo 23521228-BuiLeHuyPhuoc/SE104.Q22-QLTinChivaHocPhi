@@ -34,40 +34,6 @@ const normalizeCourseType = (value) => {
   return raw;
 };
 
-const getCourseTypeSearchClauses = (search) => {
-  const term = normalizeText(search);
-  const keyword = normalizeLookupText(term);
-  const clauses = [{ LoaiMon: { contains: term, mode: 'insensitive' } }];
-  if (keyword === 'lt' || keyword.includes('ly thuyet')) clauses.push({ LoaiMon: 'LT' });
-  if (keyword === 'th' || keyword.includes('thuc hanh')) clauses.push({ LoaiMon: 'TH' });
-  return clauses;
-};
-
-const getCourseSearchClauses = (search, searchField = 'all') => {
-  const term = normalizeText(search);
-  if (!term) return [];
-  const field = VALID_COURSE_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
-  const byCourseCode = { MaMonHoc: { contains: term, mode: 'insensitive' } };
-  const byCourseName = { TenMonHoc: { contains: term, mode: 'insensitive' } };
-  const byFaculty = {
-    OR: [
-      { MaKhoa: { contains: term, mode: 'insensitive' } },
-      { KHOA: { TenKhoa: { contains: term, mode: 'insensitive' } } }
-    ]
-  };
-
-  if (field === 'MaMonHoc') return [byCourseCode];
-  if (field === 'TenMonHoc') return [byCourseName];
-  if (field === 'LoaiMon') return getCourseTypeSearchClauses(term);
-  if (field === 'MaKhoa') return [byFaculty];
-  return [byCourseCode, byCourseName, byFaculty, ...getCourseTypeSearchClauses(term)];
-};
-
-const applyCourseSearch = (where, search, searchField) => {
-  const clauses = getCourseSearchClauses(search, searchField);
-  if (clauses.length) where.OR = clauses;
-};
-
 const normalizeExcelValue = (value) => {
   if (value === undefined || value === null) return '';
   if (typeof value === 'object' && value.text) return normalizeText(value.text);
@@ -429,30 +395,21 @@ const importCourses = async (req, res) => {
 
 const getOpenedClasses = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '', MaHocKy, MaKhoa } = req.query;
     const where = { LOP: { DaXoa: false, MONHOC: { DaXoa: false } }, HOCKY: { DaXoa: false } };
     if (MaHocKy) where.MaHocKy = MaHocKy;
-    if (search) {
-      where.LOP.MONHOC.OR = [
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { TenMonHoc: { contains: search, mode: 'insensitive' } }
-      ];
-    }
     if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
 
-    const [rows, total] = await Promise.all([
-      prisma.LOPMO.findMany({
-        where,
-        skip,
-        take: limit,
-        include: { LOP: { include: { MONHOC: { include: { KHOA: true } } } }, HOCKY: { include: { NAMHOC: true } } }
-      }),
-      prisma.LOPMO.count({ where })
-    ]);
-    res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
+    const allRows = await prisma.LOPMO.findMany({
+      where,
+      include: { LOP: { include: { MONHOC: { include: { KHOA: true } } } }, HOCKY: { include: { NAMHOC: true } } }
+    });
+    const filtered = filterRowsByRegex(allRows, search, (row) => [row.LOP?.MONHOC?.MaMonHoc, row.LOP?.MONHOC?.TenMonHoc]);
+    const rows = paginateRows(filtered, page, limit);
+    res.json({ success: true, data: rows, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get opened classes error:');
+        return sendErrorResponse(res, error, 'L\u1ed7i m\u00e1y ch\u1ee7', 'Get opened classes error:');
   }
 };
 

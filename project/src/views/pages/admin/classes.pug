@@ -31,7 +31,7 @@ block content
       .class-filter-field.class-filter-search
         label(for="search-input") Từ khóa tìm kiếm
         .search-box.class-search-box
-          input#search-input(type="text" name="search" placeholder=classSearchPlaceholder value=(search || '') autocomplete="off" onkeydown="runSearchOnEnter(event, debounceSearch)")
+          input#search-input(type="text" name="search" placeholder=classSearchPlaceholder value=(search || '') autocomplete="off" onkeyup="debounceSearch()")
       .class-filter-field.class-filter-semester
         label(for="filter-semester") Học kỳ
         select.form-control#filter-semester(name="MaHocKy" onchange="applyFilters()")

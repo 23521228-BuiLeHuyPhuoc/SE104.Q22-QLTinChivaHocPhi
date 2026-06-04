@@ -30,15 +30,15 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: minmax(360px, 1.25fr) minmax(260px, 1fr) minmax(180px, 0.72fr) minmax(180px, 0.72fr) minmax(132px, max-content);
 }
 
 .open-courses-search-field {
-  grid-column: 1 / span 2;
+  grid-column: 1;
 }
 
 .open-courses-filter-field:has(#oc-filter-hocky) {
-  grid-column: 3 / span 2;
+  grid-column: 2;
 }
 
 .open-courses-filter-field {
@@ -69,11 +69,13 @@
 .open-courses-filter-actions {
   align-items: stretch;
   display: grid;
+  justify-self: start;
   min-width: 0;
 }
 
 .open-courses-filter-actions .btn {
-  width: 100%;
+  min-width: 122px;
+  width: auto;
 }
 
 .open-courses-list-card {

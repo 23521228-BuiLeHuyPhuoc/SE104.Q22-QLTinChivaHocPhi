@@ -10,7 +10,7 @@ block content
         option(value="SoPhieuThu" selected=(searchField === 'SoPhieuThu')) Mã phiếu thu
         option(value="MaSv" selected=(searchField === 'MaSv')) MSSV
         option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
-      input#search-input(type="text" placeholder="Tìm phiếu thu, MSSV hoặc họ tên..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
+      input#search-input(type="text" placeholder="Tìm phiếu thu, MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group.admin-filter-group
       select#filter-semester(onchange="applyFilters()")
         option(value="" selected=(!MaHocKy)) Tất cả học kỳ

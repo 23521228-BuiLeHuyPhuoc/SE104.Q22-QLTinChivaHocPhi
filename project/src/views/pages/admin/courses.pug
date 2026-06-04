@@ -13,7 +13,7 @@ block content
         option(value="TenMonHoc" selected=(searchField === 'TenMonHoc')) Tên môn
         option(value="LoaiMon" selected=(searchField === 'LoaiMon')) Loại môn
         option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Khoa
-      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
+      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group.admin-filter-group
       select.form-control#faculty-filter(onchange="applyCourseFilters()")
         option(value="" selected=!filterKhoa) Tất cả khoa

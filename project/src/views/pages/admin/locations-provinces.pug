@@ -26,7 +26,7 @@ block content
             option(value="TenTinh" selected=(searchField === 'TenTinh')) Tên
             option(value="LoaiTinh" selected=(searchField === 'LoaiTinh')) Loại
           .search-box
-            input#province-search-input(type="text" placeholder="Nhập từ khóa tìm kiếm..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceProvinceSearch)")
+            input#province-search-input(type="text" placeholder="Nhập từ khóa tìm kiếm..." value=(search || '') onkeyup="debounceProvinceSearch()")
         .filter-group
           select.form-control#province-filter-type(onchange="applyProvinceFilters()")
             option(value="" selected=(!LoaiTinh)) Tất cả loại

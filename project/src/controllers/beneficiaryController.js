@@ -25,26 +25,6 @@ const normalizeSearchField = (value) => {
   return allowed.includes(value) ? value : 'all';
 };
 
-const applyBeneficiarySearch = (where, search, searchField) => {
-  const keyword = normalizeText(search);
-  if (!keyword) return;
-
-  if (searchField === 'MaDoiTuong') {
-    where.MaDoiTuong = { contains: keyword, mode: 'insensitive' };
-    return;
-  }
-
-  if (searchField === 'TenDoiTuong') {
-    where.TenDoiTuong = { contains: keyword, mode: 'insensitive' };
-    return;
-  }
-
-  where.OR = [
-    { MaDoiTuong: { contains: keyword, mode: 'insensitive' } },
-    { TenDoiTuong: { contains: keyword, mode: 'insensitive' } }
-  ];
-};
-
 const recomputeBeneficiaryPriorities = async (tx) => {
   const rows = await tx.DOITUONG.findMany({
     where: { DaXoa: false },

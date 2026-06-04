@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { TRASH_ENTITIES, getTrashEntity, parseTrashId, getTrashTitle } = require('../utils/trashConfig');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { recalculateRegistrationPricingForScope } = require('./registrationController');
@@ -26,25 +27,12 @@ const decorateRows = async (config, rows) => {
   }));
 };
 
-const buildTrashWhere = (config, query) => {
-  const where = { DaXoa: true };
-  const search = String(query.search || '').trim();
-  if (!search) return where;
+const buildTrashWhere = () => ({ DaXoa: true });
 
-  const or = [];
-  if (config.type === 'string') {
-    or.push({ [config.pk]: { contains: search, mode: 'insensitive' } });
-  } else {
-    const numericId = parseInt(search, 10);
-    if (Number.isFinite(numericId)) or.push({ [config.pk]: numericId });
-  }
-
-  config.title.forEach((field) => {
-    if (field !== config.pk) or.push({ [field]: { contains: search, mode: 'insensitive' } });
-  });
-  if (or.length) where.OR = or;
-  return where;
-};
+const getTrashSearchValues = (config, row) => [
+  row[config.pk],
+  ...config.title.map((field) => row[field])
+];
 
 const parseBatchIds = (config, ids = []) => ids
   .map((id) => parseTrashId(config, id))
@@ -63,28 +51,25 @@ const listEntities = (req, res) => {
 const listTrash = async (req, res) => {
   try {
     const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    if (!config) return res.status(404).json({ success: false, message: 'Kh\u00f4ng h\u1ed7 tr\u1ee3 lo\u1ea1i d\u1eef li\u1ec7u n\u00e0y' });
 
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const model = prisma[config.model];
-    const where = buildTrashWhere(config, req.query);
-    const [rows, total] = await Promise.all([
-      model.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { NgayXoa: 'desc' }
-      }),
-      model.count({ where })
-    ]);
+    const where = buildTrashWhere();
+    const rows = await model.findMany({
+      where,
+      orderBy: { NgayXoa: 'desc' }
+    });
+    const filtered = filterRowsByRegex(rows, req.query.search, (row) => getTrashSearchValues(config, row));
+    const pageRows = paginateRows(filtered, page, limit);
 
     res.json({
       success: true,
-      data: await decorateRows(config, rows),
-      pagination: getPaginationMeta(total, page, limit)
+      data: await decorateRows(config, pageRows),
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'listTrash error:');
+        return sendErrorResponse(res, error, 'L\u1ed7i server', 'listTrash error:');
   }
 };
 

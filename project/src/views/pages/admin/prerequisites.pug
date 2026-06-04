@@ -4,14 +4,14 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
-  .toolbar.admin-toolbar
+  .toolbar.admin-toolbar.prereq-toolbar
     .search-box.search-with-scope.admin-search-group
       label.admin-search-label(for="prereq-search-field") Tìm theo
       select.form-control#prereq-search-field(onchange="applyPrereqFilters()" aria-label="Tiêu chí tìm kiếm")
         option(value="code" selected=((prereqSearchField || 'code') === 'code')) Mã môn
         option(value="courseName" selected=(prereqSearchField === 'courseName')) Tên môn học
         option(value="requiredName" selected=(prereqSearchField === 'requiredName')) Tên môn điều kiện
-      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeydown="runSearchOnEnter(event, debouncePrereqSearch)")
+      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeyup="debouncePrereqSearch()")
     .filter-group.admin-filter-group
       select.form-control#type-filter(onchange="applyPrereqFilters()")
         option(value="" selected=!filterType) Tất cả loại
@@ -117,7 +117,7 @@ block modals
         button.modal-close(type="button" onclick="closePrereqCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
-          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeydown="runSearchOnEnter(event, debouncePrereqCoursePickerSearch)")
+          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeyup="debouncePrereqCoursePickerSearch()")
           button.btn.btn-outline(type="button" onclick="loadPrereqCoursePickerResults()") Tìm
         .table-container.lookup-table-container
           table.data-table.lookup-table

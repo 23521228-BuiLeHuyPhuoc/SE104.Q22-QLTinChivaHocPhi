@@ -342,3 +342,19 @@ File da sua/kiem tra trong nhom: `src/public/css/theme.css`; `src/public/css/adm
 | REQ-UI-POLISH-020 | [x] | /admin/reports/incomplete-tuition | Search nho lai sang trai; select ben phai hien du text. | `reports-incomplete-tuition.pug`, `theme.css`, `reports.js`. | Khong can backend moi. | Khong can DB moi. | Route 200; `debt-filter-toolbar` co grid rieng. |
 | REQ-UI-POLISH-021 | [x] | /admin/users | Them `Tim theo`; select thao tac trong table thu gon. | `users.pug`, `theme.css`. | Khong can backend. | Khong can DB moi. | Route 200; `account-group-control` max-width 220px. |
 | REQ-UI-POLISH-022 | [x] | /admin/permissions | Tab nhom chi hien action nhom; tab quyen chi hien action quyen; bo tieu de lon `Quyen truy cap` du. | `permissions.pug`, `theme.css`. | Khong can backend. | Khong can DB moi. | Route 200; action toolbar nam trong tung tab; khong con sidebar/action du tren UI. |
+
+## 36. Dot sua UI layout admin bo sung ngay 2026-06-04
+
+File da sua/kiem tra trong nhom: `src/views/pages/admin/students.pug`; `src/public/js/admin/students.js`; `src/controllers/viewController.js`; `src/controllers/studentController.js`; `src/views/pages/admin/pricing.pug`; `src/utils/pricingSearch.js`; `src/public/css/theme.css`; `src/public/css/admin/open-courses.css`; `src/public/css/admin/course-tools.css`; `src/public/css/admin/semesters.css`; cac view lien quan. Cac route trong danh sach da render HTTP 200 bang tai khoan admin seed.
+
+| Ma | Trang thai | Trang/module lien quan | Noi dung yeu cau cap nhat | Frontend can kiem tra/sua | Backend/API can kiem tra/sua | Database/migration/seed lien quan | Cach kiem thu |
+|---|---|---|---|---|---|---|---|
+| REQ-UI-FOLLOWUP-001 | [x] | /admin/students | Them select tim theo MSSV/ho ten/email ben trai search; bang khong co MSSV. | `students.pug`, `students.js`, `theme.css`. | `viewController.js`, `studentController.js` nhan `searchField`. | Khong can DB moi. | Pug compile; route 200; HTML co `student-search-field`, `students-table`. |
+| REQ-UI-FOLLOWUP-002 | [x] | /admin/open-courses | Nut xoa loc khong bi xa select ben trai, can lai filter grid. | `open-courses.css`. | Khong can backend. | Khong can DB moi. | Route 200; CSS grid dat nut xoa loc cung hang desktop. |
+| REQ-UI-FOLLOWUP-003 | [x] | /admin/prerequisites | Select tim va search khong thut xuong so voi hai button ben phai. | `prerequisites.pug`, `course-tools.css`. | Khong can backend. | Khong can DB moi. | Route 200; toolbar `prereq-toolbar` align end. |
+| REQ-UI-FOLLOWUP-004 | [x] | /admin/semesters | O search rong hon de khong khuat chu; select co vua van. | `semesters.css`. | Khong can backend. | Khong can DB moi. | Route 200; Pug compile; responsive reset khong lam tran mobile. |
+| REQ-UI-FOLLOWUP-005 | [x] | /admin/pricing | Select tim theo co lua chon Tat ca va search tat ca scope. | `pricing.pug`, `pricingSearch.js`. | `pricingSearch.js` export lai `applyPricingSearch` va `getPricingSearchValues`. | Khong can DB moi. | Node require pricingSearch; route 200; HTML co option `value=all`. |
+| REQ-UI-FOLLOWUP-006 | [x] | /admin/beneficiaries | Bang khong co cot ma doi tuong xuong dong thong tin. | `beneficiaries.pug`, `theme.css`. | Khong can backend. | Khong can DB moi. | Route 200; table class `beneficiaries-table`. |
+| REQ-UI-FOLLOWUP-007 | [x] | /admin/reports/incomplete-tuition | Icon search can lai; 4 select va input search sap xep can xung hon. | `reports-incomplete-tuition.pug`, `theme.css`. | Khong can backend. | Khong can DB moi. | Route 200; HTML co `debt-search-group`, `debt-select-group`. |
+| REQ-UI-FOLLOWUP-008 | [x] | /admin/permissions | Keo tabs, hai button va bang sat len tren, giam khoang trong. | `theme.css`. | Khong can backend. | Khong can DB moi. | Route 200; CSS giam margin `permission-tabs`, `permission-action-toolbar`. |
+

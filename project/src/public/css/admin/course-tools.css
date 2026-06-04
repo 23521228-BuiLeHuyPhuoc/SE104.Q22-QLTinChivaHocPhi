@@ -242,3 +242,19 @@
     width: 100%;
   }
 }
+
+/* FOLLOW-UP COURSE TOOL ALIGNMENT */
+.prereq-toolbar {
+  align-items: end;
+}
+
+.prereq-toolbar > .admin-search-group,
+.prereq-toolbar > .admin-filter-group,
+.prereq-toolbar > .admin-action-group {
+  align-self: end;
+}
+
+.prereq-toolbar .admin-filter-group select,
+.prereq-toolbar .admin-action-group .btn {
+  min-height: 44px;
+}

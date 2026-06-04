@@ -15,61 +15,10 @@ const parseBoolean = (value) => {
   return value === true || value === 'true';
 };
 
-const getContainsFilter = (field, search) => ({
-  [field]: { contains: search, mode: 'insensitive' }
-});
-
-const applyScopedSearch = (where, search, searchField, scopes) => {
-  if (!search) return;
-  const exactScope = scopes[searchField];
-  if (exactScope) {
-    exactScope(where, search);
-    return;
-  }
-  where.OR = Object.values(scopes).map((applyScope) => applyScope({}, search, true));
-};
-
-const provinceSearchScopes = {
-  MaTinh: (where, search, returnOnly) => {
-    const filter = getContainsFilter('MaTinh', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  TenTinh: (where, search, returnOnly) => {
-    const filter = getContainsFilter('TenTinh', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  LoaiTinh: (where, search, returnOnly) => {
-    const filter = getContainsFilter('LoaiTinh', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  }
-};
-
-const wardSearchScopes = {
-  MaPhuongXa: (where, search, returnOnly) => {
-    const filter = getContainsFilter('MaPhuongXa', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  TenPhuongXa: (where, search, returnOnly) => {
-    const filter = getContainsFilter('TenPhuongXa', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  Loai: (where, search, returnOnly) => {
-    const filter = getContainsFilter('Loai', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  }
-};
-
 const buildProvinceWhere = (query) => {
-  const { search, searchField, LoaiTinh, TrangThai } = query;
+  const { LoaiTinh, TrangThai } = query;
   const where = notDeleted();
 
-  applyScopedSearch(where, cleanText(search), cleanText(searchField), provinceSearchScopes);
   if (LoaiTinh) where.LoaiTinh = LoaiTinh;
 
   const status = parseBoolean(TrangThai);
@@ -79,12 +28,11 @@ const buildProvinceWhere = (query) => {
 };
 
 const buildWardWhere = (query) => {
-  const { search, searchField, MaTinh, Loai, KhuVuc, TrangThai } = query;
+  const { MaTinh, Loai, KhuVuc, TrangThai } = query;
   const where = notDeleted();
 
   if (MaTinh) where.MaTinh = MaTinh;
   if (KhuVuc) where.KhuVuc = KhuVuc;
-  applyScopedSearch(where, cleanText(search), cleanText(searchField), wardSearchScopes);
   if (Loai) where.Loai = Loai;
 
   const status = parseBoolean(TrangThai);
@@ -157,7 +105,7 @@ const getAllProvinces = async (req, res) => {
       pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi server', 'getAllProvinces error:');
+    return sendErrorResponse(res, error, 'L\u1ed7i server', 'getAllProvinces error:');
   }
 };
 
@@ -272,7 +220,7 @@ const getAllWards = async (req, res) => {
       pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Loi server', 'getAllWards error:');
+    return sendErrorResponse(res, error, 'L\u1ed7i server', 'getAllWards error:');
   }
 };
 

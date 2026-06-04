@@ -1,86 +1,44 @@
-const PRICING_SEARCH_SCOPES = ['loai_mon', 'loai_hoc', 'hoc_ky'];
-
-const normalizeText = (value) => String(value || '')
-  .trim()
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/đ/g, 'd')
-  .replace(/Đ/g, 'D')
-  .toLowerCase();
+const PRICING_SEARCH_SCOPES = ['all', 'loai_mon', 'loai_hoc', 'hoc_ky'];
 
 const normalizePricingSearchScope = (value) => (
-  PRICING_SEARCH_SCOPES.includes(value) ? value : 'loai_mon'
+  PRICING_SEARCH_SCOPES.includes(value) ? value : 'all'
 );
 
-const courseTypeOptions = [
-  { value: 'LT', keywords: ['lt', 'ly thuyet'] },
-  { value: 'TH', keywords: ['th', 'thuc hanh'] }
-];
-
-const studyTypeOptions = [
-  { value: 'hoc_moi', keywords: ['hoc moi', 'moi', 'hoc_moi'] },
-  { value: 'hoc_he', keywords: ['hoc he', 'he', 'hoc_he'] },
-  { value: 'hoc_cai_thien', keywords: ['cai thien', 'hoc cai thien', 'hoc_cai_thien'] },
-  { value: 'hoc_lai', keywords: ['hoc lai', 'lai', 'hoc_lai'] }
-];
-
-const getOptionMatches = (options, search) => {
-  const term = normalizeText(search);
-  if (!term) return [];
-
-  return options
-    .filter((option) => {
-      const value = normalizeText(option.value);
-      if (term === value) return true;
-      return option.keywords.some((keyword) => {
-        if (term === keyword) return true;
-        return term.length >= 3 && (keyword.includes(term) || (keyword.length >= 3 && term.includes(keyword)));
-      });
-    })
-    .map((option) => option.value);
+const COURSE_TYPE_LABELS = {
+  LT: ['LT', 'L\u00fd thuy\u1ebft', 'Ly thuyet'],
+  TH: ['TH', 'Th\u1ef1c h\u00e0nh', 'Thuc hanh']
 };
 
-const addAndCondition = (where, condition) => {
-  if (!condition) return;
-  where.AND = [...(where.AND || []), condition];
+const STUDY_TYPE_LABELS = {
+  hoc_moi: ['hoc_moi', 'H\u1ecdc m\u1edbi', 'Hoc moi'],
+  hoc_lai: ['hoc_lai', 'H\u1ecdc l\u1ea1i', 'Hoc lai'],
+  hoc_cai_thien: ['hoc_cai_thien', 'C\u1ea3i thi\u1ec7n', 'Cai thien', 'H\u1ecdc c\u1ea3i thi\u1ec7n', 'Hoc cai thien'],
+  hoc_he: ['hoc_he', 'H\u1ecdc h\u00e8', 'Hoc he']
 };
 
-const isAllSemesterSearch = (search) => {
-  const term = normalizeText(search);
-  return term === 'all' || term === 'tat ca' || term.includes('tat ca');
-};
-
-const applyPricingSearch = (where, scope, search) => {
-  const keyword = String(search || '').trim();
-  if (!keyword) return;
-
-  const normalizedScope = normalizePricingSearchScope(scope);
-
-  if (normalizedScope === 'loai_mon') {
-    const matches = getOptionMatches(courseTypeOptions, keyword);
-    addAndCondition(where, matches.length
-      ? { LoaiMon: { in: matches } }
-      : { LoaiMon: { contains: keyword, mode: 'insensitive' } });
-    return;
-  }
-
-  if (normalizedScope === 'loai_hoc') {
-    const matches = getOptionMatches(studyTypeOptions, keyword);
-    addAndCondition(where, matches.length
-      ? { LoaiHoc: { in: matches } }
-      : { LoaiHoc: { contains: normalizeText(keyword).replace(/\s+/g, '_'), mode: 'insensitive' } });
-    return;
-  }
-
-  const semesterConditions = [
-    { MaHocKy: { contains: keyword, mode: 'insensitive' } },
-    { HOCKY: { is: { TenHocKy: { contains: keyword, mode: 'insensitive' } } } },
-    { HOCKY: { is: { MaHocKy: { contains: keyword, mode: 'insensitive' } } } },
-    { HOCKY: { is: { NAMHOC: { TenNamHoc: { contains: keyword, mode: 'insensitive' } } } } }
+const getSemesterValues = (row) => {
+  const semester = row.HOCKY || {};
+  const year = semester.NAMHOC || {};
+  return [
+    row.MaHocKy,
+    row.MaHocKy ? '' : 'T\u1ea5t c\u1ea3 h\u1ecdc k\u1ef3',
+    semester.MaHocKy,
+    semester.TenHocKy,
+    year.MaNamHoc,
+    year.TenNamHoc
   ];
-
-  if (isAllSemesterSearch(keyword)) semesterConditions.unshift({ MaHocKy: null });
-  addAndCondition(where, { OR: semesterConditions });
 };
 
-module.exports = { applyPricingSearch, normalizePricingSearchScope };
+const getPricingSearchValues = (row, scope) => {
+  const normalizedScope = normalizePricingSearchScope(scope);
+  const courseValues = COURSE_TYPE_LABELS[row.LoaiMon] || [row.LoaiMon];
+  const studyValues = STUDY_TYPE_LABELS[row.LoaiHoc] || [row.LoaiHoc];
+  const semesterValues = getSemesterValues(row);
+
+  if (normalizedScope === 'loai_mon') return courseValues;
+  if (normalizedScope === 'loai_hoc') return studyValues;
+  if (normalizedScope === 'hoc_ky') return semesterValues;
+  return [...courseValues, ...studyValues, ...semesterValues];
+};
+
+module.exports = { getPricingSearchValues, normalizePricingSearchScope };

@@ -259,24 +259,6 @@ const buildSemesterWhere = (query = {}) => {
   const dateFrom = exactDate || parseFilterDate(query.dateFrom, 'Từ ngày');
   const dateTo = exactDate || parseFilterDate(query.dateTo, 'Đến ngày');
 
-  if (q && query.searchField !== 'HocKy' && !SEMESTER_DATE_FIELDS.has(query.searchField)) {
-    const scopedSearch = {
-      semesterCode: [
-        { MaHocKy: { contains: q, mode: 'insensitive' } }
-      ],
-      semesterName: [
-        { TenHocKy: { contains: q, mode: 'insensitive' } }
-      ],
-      academicYear: [
-        { MaNamHoc: { contains: q, mode: 'insensitive' } },
-        { NAMHOC: { TenNamHoc: { contains: q, mode: 'insensitive' } } }
-      ]
-    };
-    and.push({
-      OR: scopedSearch[searchScope]
-    });
-  }
-
   if (semesterKind) and.push({ ThuTu: parseInt(semesterKind, 10) });
   if (status) and.push({ TrangThai: status });
   if (registrationFinalized === 'finalized') and.push({ NgayChotDangKy: { not: null } });

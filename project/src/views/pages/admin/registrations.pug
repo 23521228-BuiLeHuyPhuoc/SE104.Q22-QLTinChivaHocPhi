@@ -20,7 +20,7 @@ block content
       .registration-filter-field.registration-search-keyword
         label(for="search-input") Từ khóa tìm kiếm
         .search-box.registration-search-box
-          input#search-input(type="text" name="search" placeholder=registrationSearchPlaceholder value=(search || '') autocomplete="off" onkeydown="runSearchOnEnter(event, debounceSearch)")
+          input#search-input(type="text" name="search" placeholder=registrationSearchPlaceholder value=(search || '') autocomplete="off" onkeyup="debounceSearch()")
     .registration-filter-row
       .registration-filter-field
         label(for="registration-semester") Học kỳ thao tác

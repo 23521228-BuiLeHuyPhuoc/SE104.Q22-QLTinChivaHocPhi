@@ -8,7 +8,7 @@ block content
         option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
         option(value="MaTiet" selected=(searchField === 'MaTiet')) Mã tiết
         option(value="TenTiet" selected=(searchField === 'TenTiet')) Tên tiết
-      input#search-input(type="text" placeholder="Tìm mã tiết hoặc tên tiết..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
+      input#search-input(type="text" placeholder="Tìm mã tiết hoặc tên tiết..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group.admin-filter-group
     .admin-action-group
       button.btn.btn-primary(type="button" onclick="openPeriodModal('add')") Thêm tiết học

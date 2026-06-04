@@ -69,8 +69,6 @@ const normalizeAppealSearchScope = (value) => (
   APPEAL_SEARCH_SCOPES.includes(value) ? value : 'studentId'
 );
 
-const containsInsensitive = (value) => ({ contains: value, mode: 'insensitive' });
-
 const appendAndCondition = (where, condition) => {
   if (!condition) return;
   where.AND = [...(where.AND || []), condition];
@@ -135,31 +133,6 @@ const buildAppealWhere = (query = {}) => {
   if (query.LoaiDon) where.LoaiDon = query.LoaiDon;
   if (query.TrangThai) where.TrangThai = query.TrangThai;
 
-  const search = String(query.search || '').trim();
-  if (search) {
-    const scope = normalizeAppealSearchScope(query.searchScope);
-    const scopedSearch = {
-      studentName: { SINHVIEN: { HoTen: containsInsensitive(search) } },
-      classCode: { OR: [{ MaLopHuy: containsInsensitive(search) }, { MaLopThem: containsInsensitive(search) }] },
-      courseName: {
-        OR: [
-          { LOP_HUY: { is: { MONHOC: { TenMonHoc: containsInsensitive(search) } } } },
-          { LOP_THEM: { is: { MONHOC: { TenMonHoc: containsInsensitive(search) } } } }
-        ]
-      },
-      semester: {
-        OR: [
-          { MaHocKy: containsInsensitive(search) },
-          { HOCKY: { TenHocKy: containsInsensitive(search) } },
-          { HOCKY: { NAMHOC: { MaNamHoc: containsInsensitive(search) } } },
-          { HOCKY: { NAMHOC: { TenNamHoc: containsInsensitive(search) } } }
-        ]
-      },
-      reason: { OR: [{ LyDo: containsInsensitive(search) }, { LyDoTuChoi: containsInsensitive(search) }] },
-      studentId: { MaSv: containsInsensitive(search) }
-    };
-    appendAndCondition(where, scopedSearch[scope]);
-  }
   return where;
 };
 

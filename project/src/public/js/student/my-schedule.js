@@ -67,6 +67,10 @@ function getPeriodIndex(schedule, fieldName, relationName) {
   return -1;
 }
 
+function getExclusiveEndIndex(startIndex, endIndex) {
+  return endIndex > startIndex ? endIndex : startIndex + 1;
+}
+
 function getCourseTitle(course) {
   var monHoc = course.LOP && course.LOP.MONHOC;
   return (monHoc && monHoc.TenMonHoc) || course.MaMonHoc || (course.LOP && course.LOP.MaLop) || 'Môn học';
@@ -105,6 +109,7 @@ function roomDetailLabel(room) {
 function createScheduleItem(course, slot, colorIndex) {
   var startIndex = Math.max(slot.startIndex, 0);
   var endIndex = Math.max(slot.endIndex, startIndex);
+  var exclusiveEndIndex = Math.min(getExclusiveEndIndex(startIndex, endIndex), PERIODS.length);
   var room = normalizeRoomText(slot.room || (course.LOP && course.LOP.PhongHoc) || '-');
   var startPeriod = PERIODS[startIndex];
   var endPeriod = PERIODS[endIndex];
@@ -113,7 +118,7 @@ function createScheduleItem(course, slot, colorIndex) {
   return {
     day: slot.day,
     startIndex: startIndex,
-    span: endIndex - startIndex + 1,
+    span: Math.max(1, exclusiveEndIndex - startIndex),
     colorIndex: colorIndex,
     title: getCourseTitle(course),
     classCode: maLop || '',

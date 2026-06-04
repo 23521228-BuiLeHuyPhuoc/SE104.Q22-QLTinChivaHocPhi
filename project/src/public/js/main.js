@@ -41,26 +41,7 @@ function runSearchOnEnter(event, callback) {
 }
 
 function escapeClientRegex(value) {
-  return String(value || '').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\$&');
-}
-
-function createClientSearchRegex(value) {
-  var keyword = String(value || '').trim();
-  if (!keyword) return null;
-  try {
-    return new RegExp(keyword, 'i');
-  } catch (e) {
-    return new RegExp(escapeClientRegex(keyword), 'i');
-  }
-}
-
-function clientRegexMatches(value, regex) {
-  if (!regex) return true;
-  regex.lastIndex = 0;
-  return regex.test(String(value == null ? '' : value));
-}
-
-function showToast(message, type) {');
+  return String(value || '').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
 function createClientSearchRegex(value) {

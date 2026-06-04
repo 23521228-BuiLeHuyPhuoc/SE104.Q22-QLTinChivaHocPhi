@@ -15,21 +15,22 @@ block content
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đơn giá
       a.btn.btn-outline(href="/admin/trash?entity=pricing") Thùng rác
 
-  - const pricingScope = pricingSearchScope || 'loai_mon'
-  - const pricingSearchPlaceholders = { loai_mon: 'Nhập LT, TH, lý thuyết hoặc thực hành', loai_hoc: 'Nhập học mới, học hè, cải thiện hoặc học lại', hoc_ky: 'Nhập mã học kỳ, tên học kỳ hoặc năm học' }
+  - const pricingScope = pricingSearchScope || 'all'
+  - const pricingSearchPlaceholders = { all: 'Nhập loại môn, loại học hoặc học kỳ', loai_mon: 'Nhập LT, TH, lý thuyết hoặc thực hành', loai_hoc: 'Nhập học mới, học hè, cải thiện hoặc học lại', hoc_ky: 'Nhập mã học kỳ, tên học kỳ hoặc năm học' }
   - const pricingSearchPlaceholder = pricingSearchPlaceholders[pricingScope] || 'Nhập từ khóa tìm kiếm'
   form.pricing-filter-panel(method="get" action="/admin/pricing")
     .pricing-search-row
       .pricing-filter-field.pricing-search-scope
         label(for="pricing-search-scope") Tìm theo
         select.form-control#pricing-search-scope(name="searchScope" onchange="updatePricingSearchPlaceholder(); applyFilters()")
+          option(value="all" selected=(pricingScope === 'all') data-placeholder=pricingSearchPlaceholders.all) Tất cả
           option(value="loai_mon" selected=(pricingScope === 'loai_mon') data-placeholder=pricingSearchPlaceholders.loai_mon) Loại môn
           option(value="loai_hoc" selected=(pricingScope === 'loai_hoc') data-placeholder=pricingSearchPlaceholders.loai_hoc) Loại học
           option(value="hoc_ky" selected=(pricingScope === 'hoc_ky') data-placeholder=pricingSearchPlaceholders.hoc_ky) Học kỳ
       .pricing-filter-field.pricing-search-keyword
         label(for="pricing-search") Từ khóa tìm kiếm
         .search-box.pricing-search-box
-          input#pricing-search(type="text" name="search" value=(pricingSearch || '') placeholder=pricingSearchPlaceholder autocomplete="off" onkeydown="runSearchOnEnter(event, debounceSearch)")
+          input#pricing-search(type="text" name="search" value=(pricingSearch || '') placeholder=pricingSearchPlaceholder autocomplete="off" onkeyup="debounceSearch()")
     .pricing-filter-grid
       .pricing-filter-field
         label(for="filter-loaimon") Lọc theo loại môn

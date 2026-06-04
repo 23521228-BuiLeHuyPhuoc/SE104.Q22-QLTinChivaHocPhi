@@ -460,3 +460,51 @@
     grid-column: auto;
   }
 }
+
+/* FOLLOW-UP SEMESTER FILTER BALANCE */
+.semester-filter-search {
+  grid-column: 1 / span 4;
+}
+
+.semester-filter-kind {
+  grid-column: 5 / span 3;
+}
+
+.semester-filter-registration-finalized {
+  grid-column: 8 / span 3;
+}
+
+.semester-filter-tuition-open {
+  grid-column: 11 / -1;
+}
+
+.semester-search-row {
+  grid-template-columns: minmax(260px, 1fr) minmax(128px, 150px);
+}
+
+.semester-search-box input {
+  min-width: 260px;
+}
+
+/* FOLLOW-UP SEMESTER RESPONSIVE RESET */
+@media (max-width: 900px) {
+  .semester-filter-search,
+  .semester-filter-kind,
+  .semester-filter-status,
+  .semester-filter-registration-finalized,
+  .semester-filter-tuition-open,
+  .semester-filter-date-field,
+  .semester-filter-date-exact,
+  .semester-filter-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .semester-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .semester-search-box input {
+    min-width: 0;
+  }
+}

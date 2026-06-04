@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const { uploadAvatarBuffer } = require('../utils/cloudinary');
 const { formatStudent, formatStudentList } = require('../models/studentModel');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 
@@ -16,17 +17,19 @@ const studentInclude = {
   }
 };
 
-const buildStudentWhere = (query) => {
-  const { search = '', MaKhoa, MaNganh, TrangThai } = query;
-  const where = notDeleted();
+const getStudentSearchValues = (row, searchField = 'all') => {
+  const field = ['MaSv', 'HoTen', 'Email'].includes(searchField) ? searchField : 'all';
+  const values = {
+    MaSv: [row.MaSv],
+    HoTen: [row.HoTen],
+    Email: [row.Email]
+  };
+  return field === 'all' ? Object.values(values).flat() : (values[field] || []);
+};
 
-  if (search) {
-    where.OR = [
-      { MaSv: { contains: search, mode: 'insensitive' } },
-      { HoTen: { contains: search, mode: 'insensitive' } },
-      { Email: { contains: search, mode: 'insensitive' } }
-    ];
-  }
+const buildStudentWhere = (query) => {
+  const { MaKhoa, MaNganh, TrangThai } = query;
+  const where = notDeleted();
 
   if (MaKhoa) where.NGANHHOC = { MaKhoa };
   if (MaNganh) where.MaNganh = MaNganh;
@@ -63,27 +66,24 @@ const getImportCell = (row, index) => normalizeImportValue(row.getCell(index).va
 
 const getAllStudents = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const { sortBy = 'MaSv', sortOrder = 'asc' } = req.query;
+    const { page, limit } = getPagination(req.query);
+    const { sortBy = 'MaSv', sortOrder = 'asc', search = '', searchField = 'all' } = req.query;
     const where = buildStudentWhere(req.query);
 
     const validSort = ['MaSv', 'HoTen', 'NgayTao', 'NgayCapNhat'];
     const orderField = validSort.includes(sortBy) ? sortBy : 'MaSv';
 
-    const [rows, total] = await Promise.all([
-      prisma.SINHVIEN.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [orderField]: String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc' },
-        include: studentInclude
-      }),
-      prisma.SINHVIEN.count({ where })
-    ]);
+    const rows = await prisma.SINHVIEN.findMany({
+      where,
+      orderBy: { [orderField]: String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc' },
+      include: studentInclude
+    });
+    const filtered = filterRowsByRegex(rows, search, (row) => getStudentSearchValues(row, searchField));
+    const pageRows = paginateRows(filtered, page, limit);
 
-    res.json({ success: true, data: formatStudentList(rows), pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data: formatStudentList(pageRows), pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all students error:');
+        return sendErrorResponse(res, error, 'L\u1ed7i server', 'Get all students error:');
   }
 };
 
@@ -307,7 +307,7 @@ const uploadStudentAvatar = async (req, res) => {
 
 const exportStudents = async (req, res) => {
   try {
-    const students = await prisma.SINHVIEN.findMany({
+    const allStudents = await prisma.SINHVIEN.findMany({
       where: buildStudentWhere(req.query),
       orderBy: { MaSv: 'asc' },
       include: {
@@ -317,6 +317,7 @@ const exportStudents = async (req, res) => {
         DOITUONGSINHVIEN: { include: { DOITUONG: true } }
       }
     });
+    const students = filterRowsByRegex(allStudents, req.query.search, (row) => getStudentSearchValues(row, req.query.searchField));
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'EduPay';
