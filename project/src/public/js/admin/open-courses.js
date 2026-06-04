@@ -58,7 +58,7 @@ function applyOpenCourseFilters() {
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (faculty && faculty.value) params.set('MaKhoa', faculty.value);
   if (status && status.value) params.set('TrangThai', status.value);
-  window.location.href = '/admin/open-courses?' + params.toString();
+  navigatePageContent('/admin/open-courses?' + params.toString());
 }
 
 function debounceOpenCourseSearch() {

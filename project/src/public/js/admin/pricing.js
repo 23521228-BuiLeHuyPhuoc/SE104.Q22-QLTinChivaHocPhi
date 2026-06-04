@@ -14,7 +14,7 @@ function applyFilters() {
   if (lh) params.set('LoaiHoc', lh);
   if (hk) params.set('MaHocKy', hk);
   if (tt) params.set('TrangThai', tt);
-  window.location.href = '/admin/pricing?' + params.toString();
+  navigatePageContent('/admin/pricing?' + params.toString());
 }
 function debounceSearch() {
   clearTimeout(searchTimer);

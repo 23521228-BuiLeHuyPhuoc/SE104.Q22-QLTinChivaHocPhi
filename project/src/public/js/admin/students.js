@@ -384,7 +384,7 @@ function applyFilters() {
   if (status) url += '&status=' + encodeURIComponent(status);
   if (faculty) url += '&MaKhoa=' + encodeURIComponent(faculty);
   if (major) url += '&MaNganh=' + encodeURIComponent(major);
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 async function exportStudents() {

@@ -16,7 +16,7 @@ function applyCurriculumProgramFilters() {
   if (status && status.value) params.set('status', status.value);
 
   var query = params.toString();
-  window.location.href = '/admin/curriculum-programs' + (query ? '?' + query : '');
+  navigatePageContent('/admin/curriculum-programs' + (query ? '?' + query : ''));
 }
 
 function debounceCurriculumProgramSearch() {

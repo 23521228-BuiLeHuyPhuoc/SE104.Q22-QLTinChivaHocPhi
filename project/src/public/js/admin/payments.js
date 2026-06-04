@@ -257,7 +257,7 @@ function applyFilters() {
   if (semester) url += '&MaHocKy=' + encodeURIComponent(semester);
   if (method) url += '&HinhThucThu=' + encodeURIComponent(method);
   if (status) url += '&TrangThai=' + encodeURIComponent(status);
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 function debounceSearch() {

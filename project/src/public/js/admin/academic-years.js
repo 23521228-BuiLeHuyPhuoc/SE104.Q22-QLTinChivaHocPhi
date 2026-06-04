@@ -148,7 +148,7 @@ function applyAcademicYearFilters() {
   if (searchField && searchField !== 'all') params.set('searchField', searchField);
   if (status) params.set('status', status);
   params.set('page', '1');
-  window.location.href = '/admin/academic-years?' + params.toString();
+  navigatePageContent('/admin/academic-years?' + params.toString());
 }
 
 function debounceAcademicYearSearch() {

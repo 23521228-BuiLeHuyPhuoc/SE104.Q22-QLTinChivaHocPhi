@@ -67,7 +67,7 @@ function applyFilters() {
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (status && status.value) params.set('openStatus', status.value);
   if (capacitySort && capacitySort.value) params.set('capacitySort', capacitySort.value);
-  window.location.href = '/admin/classes?' + params.toString();
+  navigatePageContent('/admin/classes?' + params.toString());
 }
 
 function setOpenStatusFilter(value) {

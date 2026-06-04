@@ -53,7 +53,7 @@ function applyLecturerFilters() {
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (faculty && faculty.value) params.set('MaKhoa', faculty.value);
   if (status && status.value) params.set('status', status.value);
-  window.location.href = '/admin/lecturers?' + params.toString();
+  navigatePageContent('/admin/lecturers?' + params.toString());
 }
 
 function debounceLecturerSearch() {

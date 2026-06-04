@@ -203,7 +203,7 @@ function applyFilters() {
   if (searchField && searchField !== 'all') url += '&searchField=' + encodeURIComponent(searchField);
   if (role) url += '&Role=' + encodeURIComponent(role);
   if (group) url += '&MaNhom=' + encodeURIComponent(group);
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 function handleGroupChange(el) {

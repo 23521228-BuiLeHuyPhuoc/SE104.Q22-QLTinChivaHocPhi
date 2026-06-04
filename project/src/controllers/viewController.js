@@ -626,12 +626,13 @@ const adminOpenCourses = async (req, res) => {
   const filterTrangThai = req.query.TrangThai || '';
 
   try {
-    const defaultSemester = requestedHocKy === null ? await prisma.HOCKY.findFirst({
+    const semesters = await prisma.HOCKY.findMany({
       where: { DaXoa: false },
       orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }],
-      select: { MaHocKy: true }
-    }) : null;
-    const filterHocKy = requestedHocKy === null ? (defaultSemester?.MaHocKy || '') : (requestedHocKy === 'all' ? '' : requestedHocKy);
+      include: { NAMHOC: true }
+    });
+    const defaultSemesterCode = getDefaultSemesterCode(semesters);
+    const filterHocKy = requestedHocKy === null ? defaultSemesterCode : (requestedHocKy === 'all' ? '' : requestedHocKy);
     const conditions = [
       Prisma.sql`COALESCE(mhm."DaXoa", FALSE) = FALSE`,
       Prisma.sql`COALESCE(hk."DaXoa", FALSE) = FALSE`,
@@ -649,7 +650,7 @@ const adminOpenCourses = async (req, res) => {
     }
     const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 
-    const [openCourses, totalRows, semesters, faculties] = await Promise.all([
+    const [openCourses, totalRows, faculties] = await Promise.all([
       prisma.$queryRaw`
         SELECT
           mhm.id,
@@ -694,7 +695,6 @@ const adminOpenCourses = async (req, res) => {
         JOIN "MONHOC" mh ON mh."MaMonHoc" = mhm."MaMonHoc"
         ${whereSql}
       `,
-      prisma.HOCKY.findMany({ where: { DaXoa: false }, orderBy: [{ NgayBatDau: 'desc' }, { MaHocKy: 'desc' }], include: { NAMHOC: true } }),
       prisma.KHOA.findMany({ where: { DaXoa: false }, orderBy: { TenKhoa: 'asc' }, select: { MaKhoa: true, TenKhoa: true } })
     ]);
     const displayOpenCourses = await attachUpdaterNames(openCourses);

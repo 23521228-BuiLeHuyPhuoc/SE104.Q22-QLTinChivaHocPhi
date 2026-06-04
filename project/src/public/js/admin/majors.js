@@ -41,7 +41,7 @@ function applyFilters() {
   if (s) params.set('search', s);
   if (searchField && searchField !== 'all') params.set('searchField', searchField);
   if (k) params.set('MaKhoa', k);
-  window.location.href = '/admin/majors?' + params.toString();
+  navigatePageContent('/admin/majors?' + params.toString());
 }
 
 function setMajorCodeReadonly(isReadonly) {

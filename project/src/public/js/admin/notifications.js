@@ -18,7 +18,7 @@ function applyFilters() {
   if (nguon) params.set('Nguon', nguon);
   var query = params.toString();
   var url = '/admin/notifications' + (query ? '?' + query : '');
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 function getDefaultManualType(category) {

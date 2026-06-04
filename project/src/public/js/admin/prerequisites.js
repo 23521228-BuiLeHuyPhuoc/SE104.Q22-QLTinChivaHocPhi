@@ -124,7 +124,7 @@ function applyPrereqFilters() {
   if (searchField) params.set('searchField', searchField);
   if (search) params.set('search', search);
   if (type) params.set('LoaiDieuKien', type);
-  window.location.href = '/admin/prerequisites?' + params.toString();
+  navigatePageContent('/admin/prerequisites?' + params.toString());
 }
 
 function debouncePrereqSearch() {
