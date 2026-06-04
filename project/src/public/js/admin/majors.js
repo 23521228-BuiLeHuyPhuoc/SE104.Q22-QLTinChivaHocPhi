@@ -206,9 +206,11 @@ async function deleteCurriculumItem(id) {
 document.addEventListener('DOMContentLoaded', function() {
   var courseInput = document.getElementById('ctdt-course');
   if (courseInput) {
-    courseInput.addEventListener('input', function() {
-      clearTimeout(curriculumTimer);
-      curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
+    courseInput.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(curriculumTimer);
+        curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
+      });
     });
   }
 

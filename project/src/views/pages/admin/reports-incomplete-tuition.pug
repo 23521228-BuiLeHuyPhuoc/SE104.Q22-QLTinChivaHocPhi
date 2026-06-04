@@ -26,7 +26,7 @@ block content
       .card-body
         .toolbar.admin-toolbar.debt-filter-toolbar
           .search-box.admin-search-group
-            input#debt-search(type="text" placeholder="Tìm MSSV hoặc họ tên..." onkeyup="debounceDebtSearch()")
+            input#debt-search(type="text" placeholder="Tìm MSSV hoặc họ tên..." onkeydown="runSearchOnEnter(event, debounceDebtSearch)")
           .filter-group.admin-filter-group
             select#debt-faculty(onchange="filterDebtMajors(); loadIncompleteTuition()")
               option(value="") Tất cả khoa

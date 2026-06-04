@@ -553,11 +553,13 @@ async function loadClassStudents() {
 document.addEventListener('DOMContentLoaded', function() {
   var entitySearch = document.getElementById('entity-picker-search');
   if (entitySearch) {
-    entitySearch.addEventListener('input', function() {
-      clearTimeout(entityPickerState.timer);
-      entityPickerState.timer = setTimeout(function() {
-        loadEntityPickerRows(entitySearch.value.trim());
-      }, 250);
+    entitySearch.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(entityPickerState.timer);
+        entityPickerState.timer = setTimeout(function() {
+          loadEntityPickerRows(entitySearch.value.trim());
+        }, 250);
+      });
     });
   }
 

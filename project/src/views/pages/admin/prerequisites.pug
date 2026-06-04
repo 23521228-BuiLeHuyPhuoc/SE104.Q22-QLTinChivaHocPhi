@@ -11,7 +11,7 @@ block content
         option(value="code" selected=((prereqSearchField || 'code') === 'code')) Mã môn
         option(value="courseName" selected=(prereqSearchField === 'courseName')) Tên môn học
         option(value="requiredName" selected=(prereqSearchField === 'requiredName')) Tên môn điều kiện
-      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeyup="debouncePrereqSearch()")
+      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeydown="runSearchOnEnter(event, debouncePrereqSearch)")
     .filter-group.admin-filter-group
       select.form-control#type-filter(onchange="applyPrereqFilters()")
         option(value="" selected=!filterType) Tất cả loại
@@ -117,7 +117,7 @@ block modals
         button.modal-close(type="button" onclick="closePrereqCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
-          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeyup="debouncePrereqCoursePickerSearch()")
+          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeydown="runSearchOnEnter(event, debouncePrereqCoursePickerSearch)")
           button.btn.btn-outline(type="button" onclick="loadPrereqCoursePickerResults()") Tìm
         .table-container.lookup-table-container
           table.data-table.lookup-table

@@ -33,11 +33,17 @@
 }
 
 .search-with-scope::before {
+  bottom: 15px;
   left: calc(var(--search-scope-width) + 22px);
+  top: auto;
+  transform: none;
 }
 
 .search-with-scope::after {
+  bottom: 10px;
   left: calc(var(--search-scope-width) + 36px);
+  top: auto;
+  transform: rotate(45deg);
 }
 
 .clickable-row {
@@ -223,12 +229,12 @@
 
   .search-with-scope::before {
     left: 14px;
-    top: calc(44px + 8px + 22px);
+    top: auto;
   }
 
   .search-with-scope::after {
     left: 28px;
-    top: calc(44px + 8px + 22px);
+    top: auto;
   }
 
   .course-picker-control .btn,

@@ -9,7 +9,7 @@ block content
         option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Mã khoa
         option(value="TenKhoa" selected=(searchField === 'TenKhoa')) Tên khoa
         option(value="TenVietTat" selected=(searchField === 'TenVietTat')) Tên viết tắt
-      input#search-input(type="text" placeholder="Tìm mã khoa, tên khoa hoặc tên viết tắt..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm mã khoa, tên khoa hoặc tên viết tắt..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
     .filter-group.admin-filter-group
     .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm khoa

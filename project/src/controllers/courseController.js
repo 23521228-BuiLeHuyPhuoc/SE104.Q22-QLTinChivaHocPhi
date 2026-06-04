@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const XLSX = require('xlsx');
 const { formatCourse, formatCourseList } = require('../models/courseModel');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { getThesisEligibility } = require('../services/curriculumService');
@@ -93,27 +94,24 @@ const getStudentIdFromRequest = async (req) => {
 
 const getAllCourses = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '', searchField = 'all', LoaiMon, MaKhoa, TrangThai, sortBy = 'MaMonHoc', sortOrder = 'asc', all } = req.query;
     const returnAll = all === 'true';
     const where = notDeleted();
-    applyCourseSearch(where, search, searchField);
     if (LoaiMon) where.LoaiMon = LoaiMon;
     if (MaKhoa) where.MaKhoa = MaKhoa;
     if (TrangThai !== undefined) where.TrangThai = TrangThai === 'true';
 
     const validSort = ['MaMonHoc', 'TenMonHoc', 'SoTinChi', 'NgayTao', 'NgayCapNhat'];
     const orderField = validSort.includes(sortBy) ? sortBy : 'MaMonHoc';
-    const isAll = all === 'true';
-    const [rows, total] = await Promise.all([
-      prisma.MONHOC.findMany({
-        where,
-        ...(returnAll ? {} : { skip, take: limit }),
-        orderBy: { [orderField]: String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc' },
-        include: { KHOA: true }
-      }),
-      prisma.MONHOC.count({ where })
-    ]);
+    const allRows = await prisma.MONHOC.findMany({
+      where,
+      orderBy: { [orderField]: String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc' },
+      include: { KHOA: true }
+    });
+    const filtered = filterRowsByRegex(allRows, search, (row) => getCourseRegexValues(row, searchField));
+    const rows = returnAll ? filtered : paginateRows(filtered, page, limit);
+    const total = filtered.length;
     res.json({ success: true, data: formatCourseList(rows), pagination: getPaginationMeta(total, returnAll ? 1 : page, returnAll ? Math.max(total, 1) : limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get all courses error:');
@@ -240,14 +238,14 @@ const exportCourses = async (req, res) => {
   try {
     const { search = '', searchField = 'all', LoaiMon, MaKhoa } = req.query;
     const where = notDeleted();
-    applyCourseSearch(where, search, searchField);
     if (LoaiMon) where.LoaiMon = LoaiMon;
     if (MaKhoa) where.MaKhoa = MaKhoa;
-    const rows = await prisma.MONHOC.findMany({
+    const allRows = await prisma.MONHOC.findMany({
       where,
       orderBy: { MaMonHoc: 'asc' },
       include: { KHOA: true }
     });
+    const rows = filterRowsByRegex(allRows, search, (row) => getCourseRegexValues(row, searchField));
     const htmlRows = rows.map((row) => (
       '<tr>' +
       `<td>${escapeCell(row.MaMonHoc)}</td>` +

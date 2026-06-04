@@ -702,7 +702,11 @@ function bindSemesterFilters() {
   var pagination = document.getElementById('semester-pagination');
   var listBody = document.getElementById('semester-list-body');
 
-  if (keyword) keyword.addEventListener('input', debounceSemesterSearch);
+  if (keyword) {
+    keyword.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, debounceSemesterSearch);
+    });
+  }
   [searchScope, registrationFinalized, tuitionOpen, dateField, dateExact].forEach(function(input) {
     if (!input) return;
     input.addEventListener('change', function() { loadSemesters(1); });

@@ -13,6 +13,7 @@ const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pr
 const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
 const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
+const { createSearchRegex, filterRowsByRegex, getSearchRegexSource, matchesRegex, paginateRows } = require('../utils/searchRegex');
 const { APPEAL_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
 const { getRoomRows } = require('./roomController');
 const { getLecturerRows } = require('./lecturerController');
@@ -618,9 +619,9 @@ const adminOpenCourses = async (req, res) => {
     if (filterTrangThai === 'active') conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = TRUE`);
     if (filterTrangThai === 'inactive') conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = FALSE`);
     if (search) {
-      const term = `%${search}%`;
-      if (openCourseSearchField === 'TenMonHoc') conditions.push(Prisma.sql`mh."TenMonHoc" ILIKE ${term}`);
-      else conditions.push(Prisma.sql`mhm."MaMonHoc" ILIKE ${term}`);
+      const term = getSearchRegexSource(search);
+      if (openCourseSearchField === 'TenMonHoc') conditions.push(Prisma.sql`mh."TenMonHoc" ~* ${term}`);
+      else conditions.push(Prisma.sql`mhm."MaMonHoc" ~* ${term}`);
     }
     const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 

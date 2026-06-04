@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 
@@ -353,7 +354,7 @@ const ensureOpenedScheduleAvailable = async (client, {
 
 const getClasses = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { MaMonHoc, MaHocKy, TrangThai, openStatus, search } = req.query;
     const where = notDeleted();
     if (MaMonHoc) where.MaMonHoc = MaMonHoc;
@@ -376,66 +377,28 @@ const getClasses = async (req, res) => {
     } else if (openStatus === 'not_open') {
       where.LOPMO = { none: {} };
     }
-    if (search) {
-      where.OR = [
-        { MaLop: { contains: search, mode: 'insensitive' } },
-        { TenLop: { contains: search, mode: 'insensitive' } },
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
-        { MaGiangVien: { contains: search, mode: 'insensitive' } },
-        { GiangVien: { contains: search, mode: 'insensitive' } },
-        { LichHoc: { contains: search, mode: 'insensitive' } },
-        { MaPhong: { contains: search, mode: 'insensitive' } },
-        { PhongHoc: { contains: search, mode: 'insensitive' } },
-        { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } },
-        { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } },
-        { LOPMO: { some: { MaGiangVien: { contains: search, mode: 'insensitive' } } } },
-        { LOPMO: { some: { GiangVien: { contains: search, mode: 'insensitive' } } } },
-        { LOPMO: { some: { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } } } },
-        {
-          LOPMO: {
-            some: {
-              LICHHOCLOP: {
-                some: {
-                  OR: [
-                    { MaPhong: { contains: search, mode: 'insensitive' } },
-                    { PhongHoc: { contains: search, mode: 'insensitive' } },
-                    { PHONGHOC: { is: { TenPhong: { contains: search, mode: 'insensitive' } } } }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      ];
-    }
 
-    const [rows, total] = await Promise.all([
-      prisma.LOP.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { NgayTao: 'desc' },
-        include: {
-          MONHOC: { include: { KHOA: true } },
-          GIANGVIEN: true,
-          PHONGHOC: true,
-          TIETHOC_LOP_MaTietBatDauToTIETHOC: true,
-          TIETHOC_LOP_MaTietKetThucToTIETHOC: true,
-          CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, select: { id: true } },
-          LOPMO: {
-            include: {
-              HOCKY: true,
-              GIANGVIEN: true,
-              LICHHOCLOP: { where: { TrangThai: true }, include: { PHONGHOC: true } }
-            },
-            orderBy: { NgayTao: 'desc' }
-          }
+    const rows = await prisma.LOP.findMany({
+      where,
+      orderBy: { NgayTao: 'desc' },
+      include: {
+        MONHOC: { include: { KHOA: true } },
+        GIANGVIEN: true,
+        PHONGHOC: true,
+        TIETHOC_LOP_MaTietBatDauToTIETHOC: true,
+        TIETHOC_LOP_MaTietKetThucToTIETHOC: true,
+        CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, select: { id: true } },
+        LOPMO: {
+          include: {
+            HOCKY: true,
+            GIANGVIEN: true,
+            LICHHOCLOP: { where: { TrangThai: true }, include: { PHONGHOC: true } }
+          },
+          orderBy: { NgayTao: 'desc' }
         }
-      }),
-      prisma.LOP.count({ where })
-    ]);
-    const data = rows.map((row) => {
+      }
+    });
+    const mapped = rows.map((row) => {
       const openedForSemester = MaHocKy ? row.LOPMO.find((item) => item.MaHocKy === MaHocKy) : null;
       const activeOpened = row.LOPMO.find((item) => item.TrangThai !== false);
       const currentOpened = openedForSemester || activeOpened || row.LOPMO[0] || null;
@@ -447,9 +410,34 @@ const getClasses = async (req, res) => {
         LopMoHienTai: currentOpened
       };
     });
+    const filtered = filterRowsByRegex(mapped, search, (row) => [
+      row.MaLop,
+      row.TenLop,
+      row.MaMonHoc,
+      row.MONHOC && row.MONHOC.TenMonHoc,
+      row.MaGiangVien,
+      row.GiangVien,
+      row.LichHoc,
+      row.MaPhong,
+      row.PhongHoc,
+      row.GIANGVIEN && row.GIANGVIEN.HoTen,
+      row.PHONGHOC && row.PHONGHOC.TenPhong,
+      ...(row.LOPMO || []).flatMap((item) => [
+        item.MaGiangVien,
+        item.GiangVien,
+        item.GIANGVIEN && item.GIANGVIEN.HoTen,
+        ...(item.LICHHOCLOP || []).flatMap((schedule) => [
+          schedule.MaPhong,
+          schedule.PhongHoc,
+          schedule.PHONGHOC && schedule.PHONGHOC.TenPhong
+        ])
+      ])
+    ]);
+    const data = paginateRows(filtered, page, limit);
+    const total = filtered.length;
     res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Error getting classes:');
+        return sendErrorResponse(res, error, 'L???i m??y ch???', 'Error getting classes:');
   }
 };
 

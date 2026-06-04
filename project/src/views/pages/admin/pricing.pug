@@ -29,7 +29,7 @@ block content
       .pricing-filter-field.pricing-search-keyword
         label(for="pricing-search") Từ khóa tìm kiếm
         .search-box.pricing-search-box
-          input#pricing-search(type="text" name="search" value=(pricingSearch || '') placeholder=pricingSearchPlaceholder autocomplete="off" onkeyup="debounceSearch()")
+          input#pricing-search(type="text" name="search" value=(pricingSearch || '') placeholder=pricingSearchPlaceholder autocomplete="off" onkeydown="runSearchOnEnter(event, debounceSearch)")
     .pricing-filter-grid
       .pricing-filter-field
         label(for="filter-loaimon") Lọc theo loại môn

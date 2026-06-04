@@ -34,6 +34,51 @@ async function apiFetch(url, options) {
   return await res.json();
 }
 
+function runSearchOnEnter(event, callback) {
+  if (!event || event.key !== 'Enter') return;
+  event.preventDefault();
+  if (typeof callback === 'function') callback(event);
+}
+
+function escapeClientRegex(value) {
+  return String(value || '').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\$&');
+}
+
+function createClientSearchRegex(value) {
+  var keyword = String(value || '').trim();
+  if (!keyword) return null;
+  try {
+    return new RegExp(keyword, 'i');
+  } catch (e) {
+    return new RegExp(escapeClientRegex(keyword), 'i');
+  }
+}
+
+function clientRegexMatches(value, regex) {
+  if (!regex) return true;
+  regex.lastIndex = 0;
+  return regex.test(String(value == null ? '' : value));
+}
+
+function showToast(message, type) {');
+}
+
+function createClientSearchRegex(value) {
+  var keyword = String(value || '').trim();
+  if (!keyword) return null;
+  try {
+    return new RegExp(keyword, 'i');
+  } catch (e) {
+    return new RegExp(escapeClientRegex(keyword), 'i');
+  }
+}
+
+function clientRegexMatches(value, regex) {
+  if (!regex) return true;
+  regex.lastIndex = 0;
+  return regex.test(String(value == null ? '' : value));
+}
+
 function showToast(message, type) {
   type = type || 'info';
   var container = document.getElementById('toast-container');
@@ -772,21 +817,23 @@ var AdminUI = (function() {
     });
 
     var search = overlay.querySelector('.admin-ui-picker-search input');
-    search.addEventListener('input', function() {
-      clearTimeout(pickerSearchTimer);
-      pickerSearchTimer = setTimeout(renderPickerResults, 250);
+    search.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(pickerSearchTimer);
+        pickerSearchTimer = setTimeout(renderPickerResults, 250);
+      });
     });
     return overlay;
   }
 
   function getLocalPickerItems(config, search) {
     var items = asArray(config.items);
-    var keyword = String(search || '').trim().toLowerCase();
-    if (!keyword) return items;
+    var regex = createClientSearchRegex(search);
+    if (!regex) return items;
     return items.filter(function(item) {
       var mapped = mapPickerItem(config, item);
       return [mapped.value, mapped.label, mapped.meta].some(function(value) {
-        return String(value || '').toLowerCase().indexOf(keyword) >= 0;
+        return clientRegexMatches(value, regex);
       });
     });
   }

@@ -275,9 +275,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var pickerSearch = document.getElementById('curriculum-course-picker-search');
   if (pickerSearch) {
-    pickerSearch.addEventListener('input', function() {
-      clearTimeout(curriculumCourseSearchTimer);
-      curriculumCourseSearchTimer = setTimeout(loadCurriculumCoursePickerRows, 250);
+    pickerSearch.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(curriculumCourseSearchTimer);
+        curriculumCourseSearchTimer = setTimeout(loadCurriculumCoursePickerRows, 250);
+      });
     });
   }
 

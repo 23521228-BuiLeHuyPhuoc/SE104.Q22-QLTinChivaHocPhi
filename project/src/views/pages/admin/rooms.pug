@@ -11,7 +11,7 @@ block content
         option(value="ToaNha" selected=(searchField === 'ToaNha')) Tòa nhà
         option(value="LoaiPhong" selected=(searchField === 'LoaiPhong')) Loại phòng
         option(value="MaHocKy" selected=(searchField === 'MaHocKy')) Học kỳ
-      input#search-input(type="text" placeholder="Tìm phòng học..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceRoomSearch()")
+      input#search-input(type="text" placeholder="Tìm phòng học..." value=(search || '') data-search-field=(searchField || 'all') onkeydown="runSearchOnEnter(event, debounceRoomSearch)")
     .filter-group.admin-filter-group
       select.form-control#filter-semester(onchange="applyRoomFilters()")
         if semesterOptions && semesterOptions.length

@@ -513,12 +513,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   if (search) {
-    search.addEventListener('input', debounceAvailableCourses);
     search.addEventListener('keydown', function(event) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
+      runSearchOnEnter(event, function() {
         loadAvailableCourses(1);
-      }
+      });
     });
   }
   if (scope) {

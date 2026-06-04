@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 
 const PROVINCE_TYPES = ['Tỉnh', 'Thành phố'];
 const WARD_TYPES = ['Phường', 'Xã'];
@@ -136,27 +137,27 @@ const rejectCodeChange = (body, field, currentValue, label, res) => {
 
 const getAllProvinces = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const where = buildProvinceWhere(req.query);
+    const { page, limit } = getPagination(req.query);
+    const where = buildProvinceWhere({ ...req.query, search: '' });
 
-    const [rows, total] = await Promise.all([
-      prisma.TINH.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { MaTinh: 'asc' },
-        include: { _count: { select: { PHUONGXA: { where: notDeleted() } } } }
-      }),
-      prisma.TINH.count({ where })
-    ]);
+    const rows = await prisma.TINH.findMany({
+      where,
+      orderBy: { MaTinh: 'asc' },
+      include: { _count: { select: { PHUONGXA: { where: notDeleted() } } } }
+    });
+    const searchField = cleanText(req.query.searchField);
+    const filtered = filterRowsByRegex(rows, req.query.search, (row) => {
+      const values = { MaTinh: [row.MaTinh], TenTinh: [row.TenTinh], LoaiTinh: [row.LoaiTinh] };
+      return values[searchField] || Object.values(values).flat();
+    });
 
     res.json({
       success: true,
-      data: await attachUpdaterNames(rows),
-      pagination: getPaginationMeta(total, page, limit)
+      data: await attachUpdaterNames(paginateRows(filtered, page, limit)),
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'getAllProvinces error:');
+    return sendErrorResponse(res, error, 'Loi server', 'getAllProvinces error:');
   }
 };
 
@@ -251,27 +252,27 @@ const deleteProvince = async (req, res) => {
 
 const getAllWards = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const where = buildWardWhere(req.query);
+    const { page, limit } = getPagination(req.query);
+    const where = buildWardWhere({ ...req.query, search: '' });
 
-    const [rows, total] = await Promise.all([
-      prisma.PHUONGXA.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { MaPhuongXa: 'asc' },
-        include: { TINH: true }
-      }),
-      prisma.PHUONGXA.count({ where })
-    ]);
+    const rows = await prisma.PHUONGXA.findMany({
+      where,
+      orderBy: { MaPhuongXa: 'asc' },
+      include: { TINH: true }
+    });
+    const searchField = cleanText(req.query.searchField);
+    const filtered = filterRowsByRegex(rows, req.query.search, (row) => {
+      const values = { MaPhuongXa: [row.MaPhuongXa], TenPhuongXa: [row.TenPhuongXa], Loai: [row.Loai] };
+      return values[searchField] || Object.values(values).flat();
+    });
 
     res.json({
       success: true,
-      data: await attachUpdaterNames(rows),
-      pagination: getPaginationMeta(total, page, limit)
+      data: await attachUpdaterNames(paginateRows(filtered, page, limit)),
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'getAllWards error:');
+    return sendErrorResponse(res, error, 'Loi server', 'getAllWards error:');
   }
 };
 

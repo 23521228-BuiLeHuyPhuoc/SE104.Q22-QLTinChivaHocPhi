@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { getActorId } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { getSearchRegexSource } = require('../utils/searchRegex');
 
 const cleanText = (value) => {
   if (value === undefined) return undefined;
@@ -75,10 +76,10 @@ const buildOpenCourseWhere = (query = {}) => {
   const statusFilter = parseStatusFilter(query.TrangThai);
   if (statusFilter !== null) conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = ${statusFilter}`);
   if (query.search) {
-    const term = `%${String(query.search).trim()}%`;
-    if (query.searchField === 'TenMonHoc') conditions.push(Prisma.sql`mh."TenMonHoc" ILIKE ${term}`);
-    else if (query.searchField === 'MaMonHoc') conditions.push(Prisma.sql`mhm."MaMonHoc" ILIKE ${term}`);
-    else conditions.push(Prisma.sql`(mhm."MaMonHoc" ILIKE ${term} OR mh."TenMonHoc" ILIKE ${term})`);
+    const term = getSearchRegexSource(query.search);
+    if (query.searchField === 'TenMonHoc') conditions.push(Prisma.sql`mh."TenMonHoc" ~* ${term}`);
+    else if (query.searchField === 'MaMonHoc') conditions.push(Prisma.sql`mhm."MaMonHoc" ~* ${term}`);
+    else conditions.push(Prisma.sql`(mhm."MaMonHoc" ~* ${term} OR mh."TenMonHoc" ~* ${term})`);
   }
 
   return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
@@ -304,8 +305,8 @@ const getAvailableCourses = async (req, res) => {
     const conditions = [Prisma.sql`COALESCE(mh."DaXoa", FALSE) = FALSE`, Prisma.sql`COALESCE(mh."TrangThai", TRUE) = TRUE`];
     if (req.query.MaKhoa) conditions.push(Prisma.sql`mh."MaKhoa" = ${req.query.MaKhoa}`);
     if (req.query.search) {
-      const term = `%${String(req.query.search).trim()}%`;
-      conditions.push(Prisma.sql`(mh."MaMonHoc" ILIKE ${term} OR mh."TenMonHoc" ILIKE ${term})`);
+      const term = getSearchRegexSource(req.query.search);
+      conditions.push(Prisma.sql`(mh."MaMonHoc" ~* ${term} OR mh."TenMonHoc" ~* ${term})`);
     }
     if (req.query.MaHocKy) {
       conditions.push(Prisma.sql`NOT EXISTS (

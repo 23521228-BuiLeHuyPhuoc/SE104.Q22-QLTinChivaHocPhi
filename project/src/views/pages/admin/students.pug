@@ -3,7 +3,7 @@ extends ../../layouts/admin
 block content
   .toolbar.admin-toolbar
     .search-box.admin-search-group
-      input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
     .filter-group.admin-filter-group
       select#filter-faculty(onchange='onFacultyFilterChange()')
         option(value='') Tất cả khoa

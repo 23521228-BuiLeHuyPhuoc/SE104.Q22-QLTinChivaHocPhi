@@ -4,6 +4,7 @@ const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { resolveSemesterId } = require('./roomController');
+const { getSearchRegexSource } = require('../utils/searchRegex');
 
 const ACADEMIC_RANKS = new Set(['', 'GS', 'PGS']);
 const ACADEMIC_DEGREES = new Set(['', 'CN', 'KS', 'ThS', 'TS']);
@@ -43,27 +44,27 @@ const ensureFacultyExists = async (MaKhoa) => {
 const buildLecturerSearchCondition = (search, searchField) => {
   const keyword = cleanText(search);
   if (!keyword) return null;
-  const pattern = '%' + keyword + '%';
+  const pattern = getSearchRegexSource(keyword);
   const field = ['MaGiangVien', 'HoTen', 'Khoa', 'Email', 'MaHocKy'].includes(searchField) ? searchField : 'all';
 
-  if (field === 'MaGiangVien') return Prisma.sql`gv."MaGiangVien" ILIKE ${pattern}`;
-  if (field === 'HoTen') return Prisma.sql`gv."HoTen" ILIKE ${pattern}`;
-  if (field === 'Khoa') return Prisma.sql`(COALESCE(gv."MaKhoa", '') ILIKE ${pattern} OR COALESCE(k."TenKhoa", '') ILIKE ${pattern})`;
-  if (field === 'Email') return Prisma.sql`gv."Email" ILIKE ${pattern}`;
-  if (field === 'MaHocKy') return Prisma.sql`(gvh."MaHocKy" ILIKE ${pattern} OR hk."TenHocKy" ILIKE ${pattern} OR COALESCE(nh."TenNamHoc", '') ILIKE ${pattern})`;
+  if (field === 'MaGiangVien') return Prisma.sql`gv."MaGiangVien" ~* ${pattern}`;
+  if (field === 'HoTen') return Prisma.sql`gv."HoTen" ~* ${pattern}`;
+  if (field === 'Khoa') return Prisma.sql`(COALESCE(gv."MaKhoa", '') ~* ${pattern} OR COALESCE(k."TenKhoa", '') ~* ${pattern})`;
+  if (field === 'Email') return Prisma.sql`gv."Email" ~* ${pattern}`;
+  if (field === 'MaHocKy') return Prisma.sql`(gvh."MaHocKy" ~* ${pattern} OR hk."TenHocKy" ~* ${pattern} OR COALESCE(nh."TenNamHoc", '') ~* ${pattern})`;
 
   return Prisma.sql`(
-    gv."MaGiangVien" ILIKE ${pattern}
-    OR gv."HoTen" ILIKE ${pattern}
-    OR COALESCE(gv."Email", '') ILIKE ${pattern}
-    OR COALESCE(gv."HocHam", '') ILIKE ${pattern}
-    OR COALESCE(gv."HocVi", '') ILIKE ${pattern}
-    OR COALESCE(gv."HocHamHocVi", '') ILIKE ${pattern}
-    OR COALESCE(gv."MaKhoa", '') ILIKE ${pattern}
-    OR COALESCE(k."TenKhoa", '') ILIKE ${pattern}
-    OR gvh."MaHocKy" ILIKE ${pattern}
-    OR hk."TenHocKy" ILIKE ${pattern}
-    OR COALESCE(nh."TenNamHoc", '') ILIKE ${pattern}
+    gv."MaGiangVien" ~* ${pattern}
+    OR gv."HoTen" ~* ${pattern}
+    OR COALESCE(gv."Email", '') ~* ${pattern}
+    OR COALESCE(gv."HocHam", '') ~* ${pattern}
+    OR COALESCE(gv."HocVi", '') ~* ${pattern}
+    OR COALESCE(gv."HocHamHocVi", '') ~* ${pattern}
+    OR COALESCE(gv."MaKhoa", '') ~* ${pattern}
+    OR COALESCE(k."TenKhoa", '') ~* ${pattern}
+    OR gvh."MaHocKy" ~* ${pattern}
+    OR hk."TenHocKy" ~* ${pattern}
+    OR COALESCE(nh."TenNamHoc", '') ~* ${pattern}
   )`;
 };
 

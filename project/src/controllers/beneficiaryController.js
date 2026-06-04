@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 
 const normalizeText = (value) => String(value || '').trim();
 
@@ -70,23 +71,25 @@ const recomputeBeneficiaryPriorities = async (tx) => {
 
 const getAllBeneficiaries = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '' } = req.query;
     const searchField = normalizeSearchField(req.query.searchField);
     const where = notDeleted();
 
-    applyBeneficiarySearch(where, search, searchField);
-
-    const [beneficiaries, total] = await Promise.all([
-      prisma.DOITUONG.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: [{ DoUuTien: 'asc' }, { TiLeGiamHocPhi: 'desc' }, { MaDoiTuong: 'asc' }],
-        include: { _count: { select: { DOITUONGSINHVIEN: true } } }
-      }),
-      prisma.DOITUONG.count({ where })
-    ]);
+    const rows = await prisma.DOITUONG.findMany({
+      where,
+      orderBy: [{ DoUuTien: 'asc' }, { TiLeGiamHocPhi: 'desc' }, { MaDoiTuong: 'asc' }],
+      include: { _count: { select: { DOITUONGSINHVIEN: true } } }
+    });
+    const filtered = filterRowsByRegex(rows, search, (row) => {
+      const values = {
+        MaDoiTuong: [row.MaDoiTuong],
+        TenDoiTuong: [row.TenDoiTuong]
+      };
+      return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
+    });
+    const beneficiaries = paginateRows(filtered, page, limit);
+    const total = filtered.length;
     res.json({ success: true, data: beneficiaries, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getAllBeneficiaries error:');
