@@ -4,6 +4,33 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
+  - const totalStudents = completedStudents ? completedStudents.length : 0
+  - const totalAttempts = completedStudents ? completedStudents.reduce((sum, s) => sum + (s.totalAttempts || 0), 0) : 0
+  - const totalPassed = completedStudents ? completedStudents.reduce((sum, s) => sum + (s.passedCount || 0), 0) : 0
+  - const totalFailed = completedStudents ? completedStudents.reduce((sum, s) => sum + (s.failedCount || 0), 0) : 0
+
+  .stats-grid.mb-4
+    .stat-card
+      .stat-icon.blue.material-symbols-rounded group
+      .stat-info
+        h3= totalStudents
+        p Sinh viên
+    .stat-card
+      .stat-icon.green.material-symbols-rounded history_edu
+      .stat-info
+        h3= totalAttempts
+        p Tổng lượt học
+    .stat-card
+      .stat-icon.purple.material-symbols-rounded check_circle
+      .stat-info
+        h3= totalPassed
+        p Lượt qua môn
+    .stat-card
+      .stat-icon.red.material-symbols-rounded cancel
+      .stat-info
+        h3= totalFailed
+        p Lượt rớt
+
   .toolbar.admin-toolbar
     - const completedSearchField = searchField || 'MaSv'
     .search-box.search-box-with-criterion.admin-search-group
@@ -24,9 +51,15 @@ block content
         option(value="qua_mon" selected=(filterResult === 'qua_mon')) Qua môn
         option(value="rot" selected=(filterResult === 'rot')) Rớt
     .admin-action-group
-      button.btn.btn-outline(type="button" onclick="openImportModal()") Nhập Excel
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn đã học
-      a.btn.btn-outline(href="/admin/trash?entity=completedCourses") Thùng rác
+      button.btn.btn-outline(type="button" onclick="openImportModal()" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") file_upload
+        | Nhập Excel
+      button.btn.btn-primary(type="button" onclick="openModal('add')" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") add
+        | Thêm môn đã học
+      a.btn.btn-outline(href="/admin/trash?entity=completedCourses" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete_outline
+        | Thùng rác
 
   .card
     .card-header
@@ -61,7 +94,9 @@ block content
                 td= s.NguoiCapNhatTen || '-'
                 td.table-actions
                   .table-action-list
-                    button.btn.btn-sm.btn-outline(type="button" data-ma-sv=s.MaSv onclick="openCompletedCourseDetail(this.dataset.maSv)") Xem
+                    button.btn.btn-sm.btn-outline(type="button" data-ma-sv=s.MaSv onclick="openCompletedCourseDetail(this.dataset.maSv)" style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") visibility
+                      | Xem
           else
             tr
               td(colspan="9")
@@ -135,8 +170,8 @@ block modals
       .modal-body
         .import-format-note
           strong Format file Excel/CSV
-          small Dong dau tien la header. Cot bat buoc: MSSV (hoac MaSv), MaMonHoc, MaHocKy (hoac HocKy), KetQua. Cot tuy chon: MaLop, LanHoc, GhiChu.
-          small KetQua chap nhan: qua_mon/rot hoac cac cach ghi tuong duong nhu dat, dau, qua mon, truot, khong dat.
+          small Dòng đầu tiên là header. Cột bắt buộc: MSSV (hoặc MaSv), MaMonHoc, MaHocKy (hoặc HocKy), KetQua. Cột tùy chọn: MaLop, LanHoc, GhiChu.
+          small KetQua chấp nhận: qua_mon/rot hoặc các cách ghi tương đương như đạt, đậu, qua môn, trượt, không đạt.
         input#import-file.form-control(type="file" accept=".csv,.tsv,.txt,.xls,.xlsx")
         .table-container.mt-3
           table.data-table

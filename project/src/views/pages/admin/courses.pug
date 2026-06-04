@@ -4,6 +4,33 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
+  - const totalCourses = courses ? courses.length : 0
+  - const ltCourses = courses ? courses.filter(c => c.LoaiMon === 'LT').length : 0
+  - const thCourses = courses ? courses.filter(c => c.LoaiMon === 'TH').length : 0
+  - const totalCredits = courses ? courses.reduce((sum, c) => sum + (c.SoTinChi || 0), 0) : 0
+
+  .stats-grid.mb-4
+    .stat-card
+      .stat-icon.blue.material-symbols-rounded book
+      .stat-info
+        h3= totalCourses
+        p Tổng số môn
+    .stat-card
+      .stat-icon.green.material-symbols-rounded history_edu
+      .stat-info
+        h3= ltCourses
+        p Lý thuyết
+    .stat-card
+      .stat-icon.purple.material-symbols-rounded computer
+      .stat-info
+        h3= thCourses
+        p Thực hành
+    .stat-card
+      .stat-icon.orange.material-symbols-rounded workspace_premium
+      .stat-info
+        h3= totalCredits
+        p Tổng tín chỉ
+
   .toolbar.admin-toolbar
     .search-box.search-with-scope.admin-search-group
       label.admin-search-label(for="course-search-field") Tìm theo
@@ -25,10 +52,18 @@ block content
         option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết
         option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành
     .admin-action-group
-      button.btn.btn-outline(type="button" onclick="exportCourses()") Xuất Excel
-      button.btn.btn-outline(type="button" onclick="openCourseImportModal()") Nhập Excel
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn học
-      a.btn.btn-outline(href="/admin/trash?entity=courses") Thùng rác
+      button.btn.btn-outline(type="button" onclick="exportCourses()" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") file_download
+        | Xuất Excel
+      button.btn.btn-outline(type="button" onclick="openCourseImportModal()" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") file_upload
+        | Nhập Excel
+      button.btn.btn-primary(type="button" onclick="openModal('add')" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") add
+        | Thêm môn học
+      a.btn.btn-outline(href="/admin/trash?entity=courses" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete_outline
+        | Thùng rác
 
   .card
     .card-header
@@ -65,8 +100,12 @@ block content
                 td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
                   .table-action-list
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))" style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") edit
+                      | Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')` style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete
+                      | Xóa
           else
             tr
               td(colspan="9")

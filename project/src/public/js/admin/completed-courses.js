@@ -33,7 +33,7 @@ function applyFilters() {
 }
 
 function notifyCompletedLockedField() {
-  showToast('Khong duoc phep sua MSSV, mon hoc, hoc ky hoac lan hoc. Hay xoa va them lai neu nhap sai.', 'error');
+  showToast('Không được phép sửa MSSV, môn học, học kỳ hoặc lần học. Hãy xóa và thêm lại nếu nhập sai.', 'error');
 }
 
 function setCompletedLockedFields(locked) {
@@ -143,7 +143,7 @@ async function saveCompletedCourse() {
   }
   var attemptNumber = Number(body.LanHoc);
   if (!editMode && (!Number.isInteger(attemptNumber) || attemptNumber <= 0)) {
-    showToast('Lan hoc phai la so nguyen duong', 'error');
+    showToast('Lần học phải là số nguyên dương', 'error');
     return;
   }
   if ((!editMode && (!body.MaSv || !body.MaMonHoc || !body.MaHocKy)) || !body.KetQua) {
@@ -174,7 +174,7 @@ async function deleteCompletedCourse(id) {
 function renderImportResult(rows, errors) {
   var errorMap = {};
   (errors || []).forEach(function(error) {
-    errorMap[error.index] = error.message || 'Dong khong hop le';
+    errorMap[error.index] = error.message || 'Dòng không hợp lệ';
   });
   document.getElementById('import-preview').innerHTML = (rows || []).map(function(row, index) {
     var failed = Boolean(errorMap[index]);
@@ -183,16 +183,16 @@ function renderImportResult(rows, errors) {
       '<td>' + completedEscapeHtml(row.MaMonHoc || '') + '</td>' +
       '<td>' + completedEscapeHtml(row.MaHocKy || row.HocKy || row.Hocky || '') + '</td>' +
       '<td>' + completedEscapeHtml(row.KetQua || '') + '</td>' +
-      '<td>' + completedEscapeHtml(failed ? errorMap[index] : 'Hop le') + '</td>' +
+      '<td>' + completedEscapeHtml(failed ? errorMap[index] : 'Hợp lệ') + '</td>' +
     '</tr>';
-  }).join('') || '<tr><td colspan="5"><div class="empty-state">File khong co du lieu</div></td></tr>';
+  }).join('') || '<tr><td colspan="5"><div class="empty-state">File không có dữ liệu</div></td></tr>';
 }
 
 async function uploadCompletedImportFile(previewOnly) {
   var input = document.getElementById('import-file');
   var selected = input && input.files ? input.files[0] : null;
   if (!selected) {
-    showToast('Chua chon file import', 'error');
+    showToast('Chưa chọn file import', 'error');
     return null;
   }
   var form = new FormData();
@@ -206,23 +206,23 @@ function openImportModal() {
   importPreviewValid = false;
   var file = document.getElementById('import-file');
   if (file) file.value = '';
-  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chon file Excel/CSV de kiem tra truoc khi import</div></td></tr>';
+  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chọn file Excel/CSV để kiểm tra trước khi import</div></td></tr>';
   document.getElementById('import-modal').classList.add('active');
 }
 
 async function confirmImport() {
   if (!importRows.length || !importPreviewValid) {
-    showToast('Chua co du lieu hop le de import', 'error');
+    showToast('Chưa có dữ liệu hợp lệ để import', 'error');
     return;
   }
   var res = await uploadCompletedImportFile(false);
   if (res && res.success) {
     renderImportResult(res.data || importRows, []);
-    showToast(res.message || 'Import thanh cong', 'success');
+    showToast(res.message || 'Import thành công', 'success');
     setTimeout(function() { location.reload(); }, 500);
   } else {
-    renderImportResult(importRows, (res && res.errors) || [{ index: 0, message: (res && res.message) || 'Import that bai' }]);
-    showToast((res && res.message) || 'Import that bai', 'error');
+    renderImportResult(importRows, (res && res.errors) || [{ index: 0, message: (res && res.message) || 'Import thất bại' }]);
+    showToast((res && res.message) || 'Import thất bại', 'error');
   }
 }
 
@@ -231,11 +231,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (file) {
     file.addEventListener('change', async function() {
       if (!file.files[0]) return;
-      document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Dang kiem tra file...</div></td></tr>';
+      document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Đang kiểm tra file...</div></td></tr>';
       var preview = await uploadCompletedImportFile(true);
       importRows = preview && Array.isArray(preview.data) ? preview.data : [];
       importPreviewValid = Boolean(preview && preview.success);
-      renderImportResult(importRows, preview ? preview.errors : [{ index: 0, message: 'Khong doc duoc file' }]);
+      renderImportResult(importRows, preview ? preview.errors : [{ index: 0, message: 'Không đọc được file' }]);
     });
   }
 

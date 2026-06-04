@@ -4,6 +4,27 @@ block styles
   link(rel="stylesheet" href="/css/admin/course-tools.css")
 
 block content
+  - const totalPrereqs = prerequisites ? prerequisites.length : 0
+  - const requiredCount = prerequisites ? prerequisites.filter(p => p.LoaiDieuKien === 'tien_quyet').length : 0
+  - const priorCount = prerequisites ? prerequisites.filter(p => p.LoaiDieuKien === 'hoc_truoc').length : 0
+
+  .stats-grid.mb-4
+    .stat-card
+      .stat-icon.blue.material-symbols-rounded link
+      .stat-info
+        h3= totalPrereqs
+        p Tổng số ràng buộc
+    .stat-card
+      .stat-icon.green.material-symbols-rounded warning
+      .stat-info
+        h3= requiredCount
+        p Tiên quyết
+    .stat-card
+      .stat-icon.purple.material-symbols-rounded info
+      .stat-info
+        h3= priorCount
+        p Học trước
+
   .toolbar.admin-toolbar.prereq-toolbar
     .search-box.search-with-scope.admin-search-group
       label.admin-search-label(for="prereq-search-field") Tìm theo
@@ -18,8 +39,12 @@ block content
         option(value="tien_quyet" selected=filterType === 'tien_quyet') Tiên quyết
         option(value="hoc_truoc" selected=filterType === 'hoc_truoc') Học trước
     .admin-action-group
-      button.btn.btn-primary(type="button" onclick="openPrereqModal('add')") Thêm ràng buộc
-      a.btn.btn-outline(href="/admin/trash?entity=prerequisites") Thùng rác
+      button.btn.btn-primary(type="button" onclick="openPrereqModal('add')" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") add
+        | Thêm ràng buộc
+      a.btn.btn-outline(href="/admin/trash?entity=prerequisites" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete_outline
+        | Thùng rác
 
   .card
     .card-header
@@ -58,8 +83,12 @@ block content
                 td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
                   .table-action-list
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))") Sửa
-                    button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})`) Xóa
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))" style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") edit
+                      | Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})` style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete
+                      | Xóa
           else
             tr
               td(colspan="8")

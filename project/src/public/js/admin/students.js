@@ -266,6 +266,30 @@ async function uploadStudentAvatar() {
   }
 }
 
+function switchSvTab(clickedBtn) {
+  var tabs = document.querySelectorAll('.modal-tabs .tab-btn');
+  var panes = document.querySelectorAll('.tab-content .tab-pane');
+  
+  tabs.forEach(function(btn) {
+    btn.classList.remove('active');
+    btn.style.borderBottomColor = 'transparent';
+    btn.style.color = 'var(--text-color, #374151)';
+    btn.style.fontWeight = 'normal';
+  });
+  panes.forEach(function(pane) {
+    pane.style.display = 'none';
+  });
+
+  clickedBtn.classList.add('active');
+  clickedBtn.style.borderBottomColor = 'var(--primary-color, #0ea5e9)';
+  clickedBtn.style.color = 'var(--primary-color, #0ea5e9)';
+  clickedBtn.style.fontWeight = '600';
+
+  var tabId = clickedBtn.getAttribute('data-tab');
+  var targetPane = document.getElementById(tabId);
+  if (targetPane) targetPane.style.display = 'block';
+}
+
 function openModal(mode, sv) {
   editingId = null;
   document.getElementById('modal-title').textContent = mode === 'edit' ? 'Sửa sinh viên' : 'Thêm sinh viên';
@@ -305,6 +329,10 @@ function openModal(mode, sv) {
     document.getElementById('sv-phuongxa').innerHTML = '<option value="">Chọn Phường/Xã</option>';
     document.getElementById('sv-trangthai').value = 'Đang học';
   }
+
+  // Reset to first tab
+  var firstTabBtn = document.querySelector('.modal-tabs .tab-btn[data-tab="sv-tab-personal"]');
+  if (firstTabBtn) switchSvTab(firstTabBtn);
 
   document.getElementById('student-modal').classList.add('active');
 }

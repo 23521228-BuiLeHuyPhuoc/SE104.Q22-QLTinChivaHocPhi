@@ -1,6 +1,33 @@
 extends ../../layouts/admin
 
 block content
+  - const total = students ? students.length : 0
+  - const studying = students ? students.filter(s => s.TrangThai === 'Đang học').length : 0
+  - const graduated = students ? students.filter(s => s.TrangThai === 'Đã tốt nghiệp').length : 0
+  - const suspended = students ? students.filter(s => s.TrangThai === 'Bảo lưu').length : 0
+
+  .stats-grid.mb-4
+    .stat-card
+      .stat-icon.blue.material-symbols-rounded groups
+      .stat-info
+        h3= total
+        p Tổng sinh viên
+    .stat-card
+      .stat-icon.green.material-symbols-rounded check_circle
+      .stat-info
+        h3= studying
+        p Đang học
+    .stat-card
+      .stat-icon.purple.material-symbols-rounded school
+      .stat-info
+        h3= graduated
+        p Đã tốt nghiệp
+    .stat-card
+      .stat-icon.orange.material-symbols-rounded pause_circle
+      .stat-info
+        h3= suspended
+        p Bảo lưu
+
   .toolbar.admin-toolbar
     .search-box.search-box-with-criterion.admin-search-group.students-search-group
       label.admin-search-label(for="student-search-field") Tìm theo
@@ -61,8 +88,15 @@ block content
               tr(data-record=JSON.stringify(sv))
                 td.mono= sv.MaSv
                 td
-                  strong= sv.HoTen
-                  small= sv.GioiTinh || ''
+                  div(style="display: flex; align-items: center; gap: 12px;")
+                    .avatar(style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--primary-100, #e0f2fe); color: var(--primary-700, #0369a1); display: flex; align-items: center; justify-content: center; font-weight: bold; overflow: hidden;")
+                      if sv.AnhDaiDien
+                        img(src=sv.AnhDaiDien alt=sv.HoTen style="width: 100%; height: 100%; object-fit: cover;")
+                      else
+                        = (sv.HoTen || 'SV').charAt(0).toUpperCase()
+                    div
+                      strong= sv.HoTen
+                      small(style="display: block; opacity: 0.7;")= sv.GioiTinh || ''
                 td
                   div= sv.Email || '-'
                   small= sv.Sdt || ''
@@ -94,74 +128,85 @@ block modals
         button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#student-form
-          .profile-avatar-panel
-            .profile-avatar-preview
-              img#sv-avatar-img.hidden(src='' alt='Ảnh đại diện')
-              span#sv-avatar-initials SV
-            .profile-avatar-actions
-              label.btn.btn-outline(for='sv-avatar-input') Chọn ảnh
-              input#sv-avatar-input(type='file' accept='image/jpeg,image/png,image/webp,image/gif' hidden)
-              button.btn.btn-primary#btn-upload-student-avatar(type='button' disabled onclick='uploadStudentAvatar()') Cập nhật ảnh
-              small JPG, PNG, WebP hoặc GIF, tối đa 3MB. Cần lưu sinh viên trước khi tải lên.
-          .form-row
-            .form-group
-              label(for="sv-mssv") MSSV
-              input.form-control#sv-mssv(type="text" required)
-            .form-group
-              label(for="sv-hoten") Họ tên
-              input.form-control#sv-hoten(type="text" required)
-          .form-row
-            .form-group
-              label(for="sv-email") Email
-              input.form-control#sv-email(type="email")
-            .form-group
-              label(for="sv-sdt") Số điện thoại
-              input.form-control#sv-sdt(type="text")
-          .form-row
-            .form-group
-              label(for="sv-ngaysinh") Ngày sinh
-              input.form-control#sv-ngaysinh(type="date" required)
-            .form-group
-              label(for="sv-gioitinh") Giới tính
-              select.form-control#sv-gioitinh
-                option(value="Nam") Nam
-                option(value="Nữ") Nữ
-          .form-row
-            .form-group
-              label(for="sv-cmnd") CMND/CCCD
-              input.form-control#sv-cmnd(type="text" required)
-            .form-group
-              label(for="sv-dantoc") Dân tộc
-              select.form-control#sv-dantoc(required)
-                option(value="") Chọn dân tộc
-          .form-row
-            .form-group
-              label(for="sv-tinh") Tỉnh/Thành phố
-              select.form-control#sv-tinh(required onchange="onProvinceChange()")
-                option(value="") Chọn Tỉnh/Thành phố
-            .form-group
-              label(for="sv-phuongxa") Phường/Xã
-              select.form-control#sv-phuongxa(required)
-                option(value="") Chọn Phường/Xã
-          .form-row
-            .form-group
-              label(for="sv-nganh") Ngành
-              select.form-control#sv-nganh(required)
-                option(value="") Chọn ngành
-            .form-group
-              label(for="sv-trangthai") Trạng thái
-              select.form-control#sv-trangthai
-                option(value="Đang học") Đang học
-                option(value="Bảo lưu") Bảo lưu
-                option(value="Đã tốt nghiệp") Đã tốt nghiệp
-                option(value="Đã thôi học") Đã thôi học
-          .form-group
-            label(for="sv-diachi") Địa chỉ liên hệ
-            input.form-control#sv-diachi(type="text" required)
-          .form-group
-            label Đối tượng ưu tiên hiện tại
-            #student-beneficiaries-current.profile-readonly-panel
-              .empty-state Chưa thuộc đối tượng ưu tiên nào
+          .modal-tabs(style="display: flex; gap: 1rem; border-bottom: 1px solid var(--border-color, #e5e7eb); margin-bottom: 1.5rem;")
+            button.tab-btn.active(type="button" data-tab="sv-tab-personal" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid var(--primary-color, #0ea5e9); color: var(--primary-color, #0ea5e9); font-weight: 600; cursor: pointer;") Cá nhân
+            button.tab-btn(type="button" data-tab="sv-tab-academic" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-color, #374151); cursor: pointer;" onclick="switchSvTab(this)") Học vấn
+            button.tab-btn(type="button" data-tab="sv-tab-beneficiary" style="padding: 0.5rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-color, #374151); cursor: pointer;" onclick="switchSvTab(this)") Đối tượng ưu tiên
+
+          .tab-content
+            #sv-tab-personal.tab-pane(style="display: block;")
+              .profile-avatar-panel
+                .profile-avatar-preview
+                  img#sv-avatar-img.hidden(src='' alt='Ảnh đại diện')
+                  span#sv-avatar-initials SV
+                .profile-avatar-actions
+                  label.btn.btn-outline(for='sv-avatar-input') Chọn ảnh
+                  input#sv-avatar-input(type='file' accept='image/jpeg,image/png,image/webp,image/gif' hidden)
+                  button.btn.btn-primary#btn-upload-student-avatar(type='button' disabled onclick='uploadStudentAvatar()') Cập nhật ảnh
+                  small JPG, PNG, WebP hoặc GIF, tối đa 3MB. Cần lưu sinh viên trước khi tải lên.
+              .form-row
+                .form-group
+                  label(for="sv-mssv") MSSV
+                  input.form-control#sv-mssv(type="text" required)
+                .form-group
+                  label(for="sv-hoten") Họ tên
+                  input.form-control#sv-hoten(type="text" required)
+              .form-row
+                .form-group
+                  label(for="sv-email") Email
+                  input.form-control#sv-email(type="email")
+                .form-group
+                  label(for="sv-sdt") Số điện thoại
+                  input.form-control#sv-sdt(type="text")
+              .form-row
+                .form-group
+                  label(for="sv-ngaysinh") Ngày sinh
+                  input.form-control#sv-ngaysinh(type="date" required)
+                .form-group
+                  label(for="sv-gioitinh") Giới tính
+                  select.form-control#sv-gioitinh
+                    option(value="Nam") Nam
+                    option(value="Nữ") Nữ
+              .form-row
+                .form-group
+                  label(for="sv-cmnd") CMND/CCCD
+                  input.form-control#sv-cmnd(type="text" required)
+                .form-group
+                  label(for="sv-dantoc") Dân tộc
+                  select.form-control#sv-dantoc(required)
+                    option(value="") Chọn dân tộc
+              .form-row
+                .form-group
+                  label(for="sv-tinh") Tỉnh/Thành phố
+                  select.form-control#sv-tinh(required onchange="onProvinceChange()")
+                    option(value="") Chọn Tỉnh/Thành phố
+                .form-group
+                  label(for="sv-phuongxa") Phường/Xã
+                  select.form-control#sv-phuongxa(required)
+                    option(value="") Chọn Phường/Xã
+              .form-group
+                label(for="sv-diachi") Địa chỉ liên hệ
+                input.form-control#sv-diachi(type="text" required)
+
+            #sv-tab-academic.tab-pane(style="display: none;")
+              .form-row
+                .form-group
+                  label(for="sv-nganh") Ngành
+                  select.form-control#sv-nganh(required)
+                    option(value="") Chọn ngành
+                .form-group
+                  label(for="sv-trangthai") Trạng thái
+                  select.form-control#sv-trangthai
+                    option(value="Đang học") Đang học
+                    option(value="Bảo lưu") Bảo lưu
+                    option(value="Đã tốt nghiệp") Đã tốt nghiệp
+                    option(value="Đã thôi học") Đã thôi học
+
+            #sv-tab-beneficiary.tab-pane(style="display: none;")
+              .form-group
+                label Đối tượng ưu tiên hiện tại
+                #student-beneficiaries-current.profile-readonly-panel
+                  .empty-state Chưa thuộc đối tượng ưu tiên nào
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveStudent()") Lưu
