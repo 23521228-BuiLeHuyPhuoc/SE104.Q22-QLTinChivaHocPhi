@@ -1,17 +1,18 @@
 extends ../../layouts/admin
 
 block content
+  - const selectedTab = activePermissionTab === 'functions' ? 'functions' : 'groups'
   .toolbar.admin-toolbar.permissions-heading-toolbar
     .toolbar-title
       h2.page-title Phân quyền hệ thống
       p Quản lý nhóm người dùng và quyền truy cập theo từng cổng.
 
   .permission-tabs(role="tablist")
-    button.permission-tab-btn.active(type="button" data-tab="groups" onclick="switchTab('groups')") Nhóm người dùng
-    button.permission-tab-btn(type="button" data-tab="functions" onclick="switchTab('functions')") Quyền truy cập
+    button.permission-tab-btn(type="button" class=selectedTab === 'groups' ? 'active' : '' data-tab="groups" aria-selected=selectedTab === 'groups' ? 'true' : 'false' onclick="switchTab('groups')") Nhóm người dùng
+    button.permission-tab-btn(type="button" class=selectedTab === 'functions' ? 'active' : '' data-tab="functions" aria-selected=selectedTab === 'functions' ? 'true' : 'false' onclick="switchTab('functions')") Quyền truy cập
 
   //- Tab: Groups
-  #tab-groups.tab-panel
+  #tab-groups.tab-panel(style=selectedTab === 'groups' ? null : 'display:none')
     .toolbar.admin-toolbar.permission-action-toolbar
       .admin-action-group
         button.btn.btn-primary(type="button" onclick="openGroupModal('add')") Thêm nhóm
@@ -59,7 +60,7 @@ block content
     include ../../partials/pagination
 
   //- Tab: Functions
-  #tab-functions.tab-panel(style="display:none")
+  #tab-functions.tab-panel(style=selectedTab === 'functions' ? null : 'display:none')
     .toolbar.admin-toolbar.permission-action-toolbar
       .admin-action-group
         button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm quyền
@@ -155,7 +156,7 @@ block modals
           .empty-state Đang tải...
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closePermissionModal()") Hủy
-        button.btn.btn-primary(type="button" onclick="savePermissions()") Lưu phân quyền
+        button#permission-save-btn.btn.btn-primary(type="button" onclick="savePermissions()") Lưu phân quyền
 
 block scripts
   script(src="/js/admin/permissions.js")
