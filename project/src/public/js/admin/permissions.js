@@ -18,7 +18,28 @@ function normalizeCode(value) {
   return String(value || '').trim().toUpperCase();
 }
 
-function switchTab(tab) {
+function getStoredTab() {
+  try {
+    return sessionStorage.getItem('adminPermissionsTab');
+  } catch (e) {
+    return null;
+  }
+}
+
+function storeTab(tab) {
+  try {
+    sessionStorage.setItem('adminPermissionsTab', tab);
+  } catch (e) {}
+}
+
+function updateTabUrl(tab) {
+  var url = new URL(window.location.href);
+  url.searchParams.set('tab', tab);
+  window.history.replaceState(null, '', url.pathname + '?' + url.searchParams.toString() + url.hash);
+}
+
+function switchTab(tab, options) {
+  tab = tab === 'functions' ? 'functions' : 'groups';
   currentTab = tab;
   document.getElementById('tab-groups').style.display = tab === 'groups' ? '' : 'none';
   document.getElementById('tab-functions').style.display = tab === 'functions' ? '' : 'none';
@@ -27,10 +48,16 @@ function switchTab(tab) {
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
+  storeTab(tab);
+  if (!options || options.updateUrl !== false) updateTabUrl(tab);
 }
 
 function getGroupPortal(groupId) {
   return normalizeCode(groupId) === 'SINHVIEN' ? 'student' : 'admin';
+}
+
+function isSystemAdminGroup(groupId) {
+  return normalizeCode(groupId) === 'ADMIN';
 }
 
 function getFunctionPortal(func) {
@@ -55,6 +82,7 @@ function getPortalBadgeClass(portal) {
 }
 
 function isFunctionAllowedForGroup(groupId, func) {
+  if (isSystemAdminGroup(groupId)) return true;
   var portal = getFunctionPortal(func);
   if (portal === 'shared') return true;
   return portal === getGroupPortal(groupId);
@@ -62,7 +90,7 @@ function isFunctionAllowedForGroup(groupId, func) {
 
 document.addEventListener('DOMContentLoaded', function() {
   var tab = new URLSearchParams(window.location.search).get('tab');
-  switchTab(tab === 'functions' ? 'functions' : 'groups');
+  switchTab(tab || getStoredTab() || 'groups');
 });
 
 function openGroupModal(mode, data) {
@@ -157,6 +185,7 @@ async function deleteFunction(id) {
 }
 
 function renderPermissionList(groupId, allFuncs, currentPerms) {
+  var isAdminSystem = isSystemAdminGroup(groupId);
   var allowedFuncs = allFuncs.filter(function(func) {
     return isFunctionAllowedForGroup(groupId, func);
   });
@@ -186,9 +215,12 @@ function renderPermissionList(groupId, allFuncs, currentPerms) {
 
     funcs.forEach(function(func) {
       var code = normalizeCode(func.MaChucNang);
-      var checked = currentSet.has(code) ? ' checked' : '';
-      html += '<label style="display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border-light);gap:12px;cursor:pointer">';
-      html += '<input type="checkbox" class="perm-checkbox" value="' + escapeHtml(code) + '"' + checked + ' style="width:18px;height:18px;margin-top:2px">';
+      var checked = isAdminSystem || currentSet.has(code) ? ' checked' : '';
+      var disabled = isAdminSystem ? ' disabled aria-disabled="true"' : '';
+      var cursor = isAdminSystem ? 'not-allowed' : 'pointer';
+      var opacity = isAdminSystem ? '.62' : '1';
+      html += '<label style="display:flex;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border-light);gap:12px;cursor:' + cursor + ';opacity:' + opacity + '">';
+      html += '<input type="checkbox" class="perm-checkbox" value="' + escapeHtml(code) + '"' + checked + disabled + ' style="width:18px;height:18px;margin-top:2px;cursor:' + cursor + '">';
       html += '<span style="display:block;min-width:0">';
       html += '<strong>' + escapeHtml(func.TenChucNang) + '</strong><br>';
       html += '<small style="color:var(--text-muted)">' + escapeHtml(code) + ' - ' + escapeHtml(func.TenManHinhDuocLoad) + '</small>';
@@ -203,9 +235,12 @@ function renderPermissionList(groupId, allFuncs, currentPerms) {
 
 async function openPermissionModal(groupId, groupName) {
   permGroupId = groupId;
+  var isAdminSystem = isSystemAdminGroup(groupId);
   document.getElementById('permission-modal-title').textContent = 'Phân quyền: ' + groupName;
   document.getElementById('perm-group-label').textContent = 'Nhóm: ' + groupName + ' (' + groupId + ')';
   document.getElementById('permission-modal').classList.add('active');
+  var saveButton = document.getElementById('permission-save-btn');
+  if (saveButton) saveButton.style.display = isAdminSystem ? 'none' : '';
 
   var listEl = document.getElementById('permission-list');
   listEl.innerHTML = '<div class="empty-state">Đang tải...</div>';

@@ -1858,6 +1858,7 @@ const adminBeneficiaries = async (req, res) => {
 const adminPermissions = async (req, res) => {
   const groupPage = parseInt(req.query.groupPage, 10) || 1;
   const functionPage = parseInt(req.query.functionPage, 10) || 1;
+  const activePermissionTab = req.query.tab === 'functions' ? 'functions' : 'groups';
   const limit = DEFAULT_PAGE_SIZE;
   try {
     const [groups, groupTotal, functions, functionTotal] = await Promise.all([
@@ -1899,7 +1900,8 @@ const adminPermissions = async (req, res) => {
       groupPage,
       functionPage,
       groupTotalPages: Math.ceil(groupTotal / limit),
-      functionTotalPages: Math.ceil(functionTotal / limit)
+      functionTotalPages: Math.ceil(functionTotal / limit),
+      activePermissionTab
     });
   } catch (err) {
     console.error('Error:', err);
@@ -1909,7 +1911,8 @@ const adminPermissions = async (req, res) => {
       groupPage: 1,
       functionPage: 1,
       groupTotalPages: 0,
-      functionTotalPages: 0
+      functionTotalPages: 0,
+      activePermissionTab
     });
   }
 };
