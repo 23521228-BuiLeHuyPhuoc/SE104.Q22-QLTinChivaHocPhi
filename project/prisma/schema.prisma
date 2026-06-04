@@ -34,7 +34,7 @@ model NHOMNGUOIDUNG {
 model PHANQUYEN {
   MaNhom        String        @db.VarChar(20)
   MaChucNang    String        @db.VarChar(30)
-  CHUCNANG      CHUCNANG      @relation(fields: [MaChucNang], references: [MaChucNang], onDelete: Cascade, map: "fk_pq_chuc_nang")
+  CHUCNANG      CHUCNANG      @relation(fields: [MaChucNang], references: [MaChucNang], onDelete: Restrict, map: "fk_pq_chuc_nang")
   NHOMNGUOIDUNG NHOMNGUOIDUNG @relation(fields: [MaNhom], references: [MaNhom], onDelete: Cascade, map: "fk_pq_nhom")
 
   @@id([MaNhom, MaChucNang], map: "phan_quyen_pkey")

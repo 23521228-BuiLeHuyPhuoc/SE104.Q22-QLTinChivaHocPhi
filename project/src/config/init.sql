@@ -243,7 +243,7 @@ CREATE TABLE "PHANQUYEN" (
     CONSTRAINT fk_pq_nhom FOREIGN KEY ("MaNhom")
         REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_pq_chuc_nang FOREIGN KEY ("MaChucNang")
-        REFERENCES "CHUCNANG"("MaChucNang") ON DELETE CASCADE ON UPDATE CASCADE
+        REFERENCES "CHUCNANG"("MaChucNang") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- =====================================================
@@ -5293,6 +5293,43 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_rbtv34_nhomnguoidung_parent BEFORE UPDATE OF "DaXoa" ON "NHOMNGUOIDUNG" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_nhomnguoidung_parent();
+
+-- 13.5. CHUCNANG (Cha)
+CREATE OR REPLACE FUNCTION fn_chk_rbtv34_chucnang_parent()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_MaChucNang VARCHAR(30);
+    v_MaNhom VARCHAR(20);
+    v_TenNhom VARCHAR(100);
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        v_MaChucNang := OLD."MaChucNang";
+    ELSIF NEW."DaXoa" = TRUE AND OLD."DaXoa" = FALSE THEN
+        v_MaChucNang := NEW."MaChucNang";
+    ELSE
+        RETURN NEW;
+    END IF;
+
+    SELECT pq."MaNhom", nnd."TenNhom"
+    INTO v_MaNhom, v_TenNhom
+    FROM "PHANQUYEN" pq
+    JOIN "NHOMNGUOIDUNG" nnd ON nnd."MaNhom" = pq."MaNhom"
+    WHERE pq."MaChucNang" = v_MaChucNang
+      AND nnd."DaXoa" = FALSE
+    ORDER BY pq."MaNhom"
+    LIMIT 1;
+
+    IF v_MaNhom IS NOT NULL THEN
+        RAISE EXCEPTION 'RBTV34 Lỗi: Quyền % đang được sử dụng cho nhóm người dùng % (%), không thể xóa.', v_MaChucNang, v_MaNhom, v_TenNhom;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_rbtv34_chucnang_parent BEFORE UPDATE OF "DaXoa" OR DELETE ON "CHUCNANG" FOR EACH ROW EXECUTE FUNCTION fn_chk_rbtv34_chucnang_parent();
 
 -- 14. NGUOIDUNG (Cha)
 CREATE OR REPLACE FUNCTION fn_chk_rbtv34_nguoidung_parent()

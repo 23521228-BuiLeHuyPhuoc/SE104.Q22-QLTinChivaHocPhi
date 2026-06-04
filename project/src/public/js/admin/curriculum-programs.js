@@ -94,7 +94,7 @@ async function loadCurriculumCoursePickerRows() {
   var body = document.getElementById('curriculum-course-picker-body');
   var input = document.getElementById('curriculum-course-picker-search');
   if (!body) return;
-  var params = new URLSearchParams({ all: 'true', TrangThai: 'true' });
+  var params = new URLSearchParams({ all: 'true', searchField: 'all', TrangThai: 'true' });
   if (input && input.value.trim()) params.set('search', input.value.trim());
   body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Đang tải môn học...</div></td></tr>';
   try {
@@ -147,7 +147,7 @@ async function loadCurriculumCourseOptions(search, selectedValue, selectedLabel)
   if (!list) return;
 
   var token = ++curriculumCourseLoadToken;
-  var params = new URLSearchParams({ all: 'true' });
+  var params = new URLSearchParams({ all: 'true', searchField: 'all', TrangThai: 'true' });
   if (search && search.trim()) params.set('search', search.trim());
 
   try {
@@ -275,11 +275,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var pickerSearch = document.getElementById('curriculum-course-picker-search');
   if (pickerSearch) {
+    var scheduleCurriculumCoursePickerSearch = function() {
+      clearTimeout(curriculumCourseSearchTimer);
+      curriculumCourseSearchTimer = setTimeout(loadCurriculumCoursePickerRows, 250);
+    };
+    pickerSearch.addEventListener('input', scheduleCurriculumCoursePickerSearch);
     pickerSearch.addEventListener('keydown', function(event) {
-      runSearchOnEnter(event, function() {
-        clearTimeout(curriculumCourseSearchTimer);
-        curriculumCourseSearchTimer = setTimeout(loadCurriculumCoursePickerRows, 250);
-      });
+      runSearchOnEnter(event, scheduleCurriculumCoursePickerSearch);
     });
   }
 
