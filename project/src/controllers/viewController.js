@@ -117,6 +117,7 @@ const getAdminSemesterSearchValues = (row, field) => {
     NgayKetThuc: dateValues(row.NgayKetThuc),
     NgayBatDauDangKy: dateValues(row.NgayBatDauDangKy),
     NgayKetThucDangKy: dateValues(row.NgayKetThucDangKy),
+    NgayBatDauDongHocPhi: dateValues(row.NgayBatDauDongHocPhi),
     HanDongHocPhi: dateValues(row.HanDongHocPhi)
   };
   return getScopedRegexValues(values, field);
@@ -231,6 +232,7 @@ const toSemesterActivityOption = (semester) => {
     NgayKetThucCuuXet: toIsoOrNull(semester.NgayKetThucCuuXet),
     MoThuHocPhi: Boolean(semester.MoThuHocPhi),
     NgayMoThuHocPhi: toIsoOrNull(semester.NgayMoThuHocPhi),
+    NgayBatDauDongHocPhi: toIsoOrNull(semester.NgayBatDauDongHocPhi),
     HanDongHocPhi: toIsoOrNull(semester.HanDongHocPhi),
     pendingAppeals,
     isCurrent: isCurrentSemester(semester),

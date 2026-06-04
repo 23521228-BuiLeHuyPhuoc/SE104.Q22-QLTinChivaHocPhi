@@ -237,6 +237,7 @@ model HOCKY {
   NgayChotDangKy    DateTime?      @db.Timestamp(6)
   MoThuHocPhi       Boolean        @default(false)
   NgayMoThuHocPhi   DateTime?      @db.Timestamp(6)
+  NgayBatDauDongHocPhi DateTime?   @db.Date
   HanDongHocPhi     DateTime?      @db.Date
   TrangThai         String?        @default("Sắp diễn ra") @db.VarChar(20)
   GhiChu            String?        @db.VarChar(300)

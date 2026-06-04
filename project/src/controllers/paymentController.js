@@ -14,7 +14,7 @@ const PAYMENT_PENDING = PAYMENT_STATUS.PENDING;
 const PAYMENT_FAILED = PAYMENT_STATUS.FAILED;
 const PAYMENT_CANCELLED = PAYMENT_STATUS.CANCELLED;
 const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
-const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_SUCCESS];
+const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING];
 const PAYMENT_SEARCH_FIELDS = new Set(['all', 'SoPhieuThu', 'MaSv', 'HoTen']);
 
 const getPaymentSearchValues = (row, searchField = 'all') => {
@@ -159,9 +159,9 @@ const toPaymentDto = (p) => ({
 const assertPayableAmount = (registration, amount) => {
   if (!registration) throw { status: 404, message: 'Không tìm thấy học phí cần đóng' };
   const remaining = getRemainingAmount(registration);
-  const payAmount = Number(amount || remaining);
+  const payAmount = amount === undefined || amount === null || amount === '' ? remaining : Number(amount);
   if (!Number.isFinite(payAmount) || payAmount <= 0) throw { status: 400, message: 'Số tiền thanh toán không hợp lệ' };
-  if (payAmount !== remaining) throw { status: 400, message: 'Số tiền thanh toán phải đúng toàn bộ số tiền còn phải đóng của phiếu' };
+  if (payAmount > remaining) throw { status: 400, message: 'Số tiền thanh toán không được vượt số tiền còn phải đóng của phiếu' };
   return payAmount;
 };
 
@@ -427,8 +427,8 @@ const checkoutPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Số tiền thanh toán phải đúng bằng số tiền trên phiếu thu' });
     }
     const remaining = getRemainingAmount(registration);
-    if (amount !== remaining) {
-      return res.status(400).json({ success: false, message: 'Số tiền trên phiếu thu không khớp số tiền còn phải đóng hiện tại' });
+    if (amount > remaining) {
+      return res.status(400).json({ success: false, message: 'Số tiền trên phiếu thu không được vượt số tiền còn phải đóng hiện tại' });
     }
 
     const provider = String(method).toLowerCase();
@@ -529,8 +529,8 @@ const markOnlineResult = async (receiptId, success, transactionCode, providerAmo
       throw { status: 400, code: 'PAYMENT_PROVIDER_AMOUNT_MISMATCH', message: 'Số tiền callback từ cổng thanh toán không khớp phiếu thu' };
     }
     const remaining = getRemainingAmount(existing.PHIEUDANGKY);
-    if (receiptAmount !== remaining) {
-      throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'Số tiền callback không khớp học phí còn phải đóng hoặc phiếu đã được thanh toán bằng giao dịch khác' };
+    if (receiptAmount > remaining) {
+      throw { status: 400, code: 'PAYMENT_AMOUNT_MISMATCH', message: 'Số tiền callback không được vượt học phí còn phải đóng hoặc phiếu đã được thanh toán bằng giao dịch khác' };
     }
   }
 
@@ -663,8 +663,8 @@ const confirmPayment = async (req, res) => {
     await assertPaymentWindowOpen(existing.PHIEUDANGKY);
 
     const remaining = getRemainingAmount(existing.PHIEUDANGKY);
-    if (Number(existing.SoTienThu || 0) !== remaining) {
-      return res.status(400).json({ success: false, message: 'Số tiền phiếu thu không khớp số học phí còn phải đóng' });
+    if (Number(existing.SoTienThu || 0) > remaining) {
+      return res.status(400).json({ success: false, message: 'Số tiền phiếu thu không được vượt số học phí còn phải đóng' });
     }
 
     const payment = await prisma.PHIEUTHUHOCPHI.update({

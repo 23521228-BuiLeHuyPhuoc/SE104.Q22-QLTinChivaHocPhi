@@ -115,9 +115,21 @@ EXECUTE FUNCTION trg_func_doituongsinhvien_rbtv01();
 CREATE OR REPLACE FUNCTION trg_func_doituong_rbtv01()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF OLD."MaDoiTuong" = 'DT06' THEN
-        RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+    IF TG_OP = 'DELETE' THEN
+        IF OLD."MaDoiTuong" = 'DT06' THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+        END IF;
+        RETURN OLD;
     END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+        IF OLD."MaDoiTuong" = 'DT06'
+           AND NEW."MaDoiTuong" IS DISTINCT FROM OLD."MaDoiTuong" THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+        END IF;
+        RETURN NEW;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

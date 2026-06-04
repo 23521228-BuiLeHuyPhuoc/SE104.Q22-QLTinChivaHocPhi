@@ -284,7 +284,95 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS "NgayChotDangKy" TIMESTAMP,
       ADD COLUMN IF NOT EXISTS "MoThuHocPhi" BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS "NgayMoThuHocPhi" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "NgayBatDauDongHocPhi" DATE,
       ADD COLUMN IF NOT EXISTS "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_check_rbtv09_hocky()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      IF NEW."LoaiHocKy" = 'Chính' AND NEW."ThuTu" NOT IN (1, 2) THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ Chính phải có ThuTu là 1 hoặc 2.';
+      END IF;
+
+      IF NEW."LoaiHocKy" = 'Hè' AND NEW."ThuTu" != 3 THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ Hè phải có ThuTu là 3.';
+      END IF;
+
+      IF EXISTS (
+        SELECT 1
+        FROM "HOCKY"
+        WHERE "MaNamHoc" = NEW."MaNamHoc"
+          AND "ThuTu" = NEW."ThuTu"
+          AND "MaHocKy" IS DISTINCT FROM NEW."MaHocKy"
+      ) THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ có thứ tự % đã tồn tại trong năm học %.', NEW."ThuTu", NEW."MaNamHoc";
+      END IF;
+
+      IF NEW."NgayBatDau" IS NULL
+         OR NEW."NgayKetThuc" IS NULL
+         OR NEW."NgayBatDauDangKy" IS NULL
+         OR NEW."NgayKetThucDangKy" IS NULL
+         OR NEW."NgayBatDauCuuXet" IS NULL
+         OR NEW."NgayKetThucCuuXet" IS NULL
+         OR NEW."NgayBatDauDongHocPhi" IS NULL
+         OR NEW."HanDongHocPhi" IS NULL THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ phải cấu hình đầy đủ thời gian học kỳ, đăng ký, cứu xét và học phí.';
+      END IF;
+
+      IF NEW."NgayBatDau" >= NEW."NgayKetThuc" THEN
+        RAISE EXCEPTION 'RBTV09: NgayBatDau phải nhỏ hơn NgayKetThuc.';
+      END IF;
+
+      IF NEW."NgayBatDauDangKy" >= NEW."NgayKetThucDangKy" THEN
+        RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayKetThucDangKy.';
+      END IF;
+
+      IF NEW."NgayBatDauDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
+        RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayBatDau học kỳ.';
+      END IF;
+
+      IF NEW."NgayKetThucDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
+        RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải nhỏ hơn NgayBatDau học kỳ.';
+      END IF;
+
+      IF NEW."NgayBatDauCuuXet" > NEW."NgayKetThucCuuXet" THEN
+        RAISE EXCEPTION 'RBTV09: NgayBatDauCuuXet phải nhỏ hơn hoặc bằng NgayKetThucCuuXet.';
+      END IF;
+
+      IF NEW."NgayBatDauCuuXet" <= NEW."NgayKetThucDangKy" THEN
+        RAISE EXCEPTION 'RBTV09: Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký.';
+      END IF;
+
+      IF NEW."NgayKetThucCuuXet"::DATE >= NEW."NgayBatDau" THEN
+        RAISE EXCEPTION 'RBTV09: NgayKetThucCuuXet phải nhỏ hơn NgayBatDau học kỳ.';
+      END IF;
+
+      IF NEW."NgayBatDauDongHocPhi"::TIMESTAMP <= NEW."NgayKetThucCuuXet" THEN
+        RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải sau NgayKetThucCuuXet.';
+      END IF;
+
+      IF NEW."NgayBatDauDongHocPhi" > NEW."HanDongHocPhi" THEN
+        RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải nhỏ hơn hoặc bằng HanDongHocPhi.';
+      END IF;
+
+      IF NEW."HanDongHocPhi" >= NEW."NgayKetThuc" THEN
+        RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nhỏ hơn NgayKetThuc học kỳ.';
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_rbtv09_hocky_ins_upd ON "HOCKY"');
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_rbtv09_hocky_ins_upd
+    BEFORE INSERT OR UPDATE ON "HOCKY"
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_check_rbtv09_hocky();
   `);
 
   await prisma.$executeRawUnsafe(`
@@ -2271,6 +2359,217 @@ const ensureAuthSchema = async () => {
         ADD CONSTRAINT chk_hinh_thuc_thu CHECK ("HinhThucThu" IN ('Tiền mặt', 'Chuyển khoản', 'Thẻ', 'Ví điện tử')),
         ADD CONSTRAINT chk_trang_thai_pthp CHECK ("TrangThai" IN ('Chưa thanh toán', 'Chờ xác nhận', 'Thành công', 'Thất bại', 'Đã hủy', 'Hoàn tiền'));
     END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_rbtv35_han_dong_hoc_phi(p_so_phieu INTEGER)
+    RETURNS TIMESTAMP AS $$
+    DECLARE
+      v_han_dong DATE;
+    BEGIN
+      SELECT hk."HanDongHocPhi"
+      INTO v_han_dong
+      FROM "PHIEUDANGKY" pdk
+      JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+      WHERE pdk."SoPhieu" = p_so_phieu;
+
+      IF v_han_dong IS NULL THEN
+        RETURN NULL;
+      END IF;
+
+      RETURN v_han_dong::TIMESTAMP + INTERVAL '1 day';
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_rbtv35_tong_tien_da_thu_truoc_han(p_so_phieu INTEGER)
+    RETURNS NUMERIC(15,0) AS $$
+    DECLARE
+      v_han_exclusive TIMESTAMP;
+      v_tong_da_thu NUMERIC(15,0);
+    BEGIN
+      v_han_exclusive := fn_rbtv35_han_dong_hoc_phi(p_so_phieu);
+
+      IF v_han_exclusive IS NULL THEN
+        RETURN 0;
+      END IF;
+
+      SELECT COALESCE(SUM("SoTienThu"), 0)
+      INTO v_tong_da_thu
+      FROM "PHIEUTHUHOCPHI"
+      WHERE "SoPhieuDangKy" = p_so_phieu
+        AND "TrangThai" = 'Thành công'
+        AND "NgayXacNhan" < v_han_exclusive;
+
+      RETURN v_tong_da_thu;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fn_rbtv35_du_dieu_kien_thi_hoc_phi(p_so_phieu INTEGER)
+    RETURNS BOOLEAN AS $$
+    DECLARE
+      v_tong_phai_dong NUMERIC(15,0);
+    BEGIN
+      SELECT COALESCE("TongTienPhaiDong", 0)
+      INTO v_tong_phai_dong
+      FROM "PHIEUDANGKY"
+      WHERE "SoPhieu" = p_so_phieu;
+
+      IF NOT FOUND THEN
+        RETURN FALSE;
+      END IF;
+
+      IF v_tong_phai_dong <= 0 THEN
+        RETURN TRUE;
+      END IF;
+
+      RETURN fn_rbtv35_tong_tien_da_thu_truoc_han(p_so_phieu) >= v_tong_phai_dong;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_han_exclusive TIMESTAMP;
+      v_ma_hoc_ky VARCHAR(15);
+    BEGIN
+      IF NEW."TrangThai" <> 'Thành công' THEN
+        RETURN NEW;
+      END IF;
+
+      SELECT pdk."MaHocKy", fn_rbtv35_han_dong_hoc_phi(pdk."SoPhieu")
+      INTO v_ma_hoc_ky, v_han_exclusive
+      FROM "PHIEUDANGKY" pdk
+      WHERE pdk."SoPhieu" = NEW."SoPhieuDangKy";
+
+      IF v_han_exclusive IS NULL THEN
+        RAISE EXCEPTION '[RBTV35] Hoc ky % cua phieu dang ky % chua cau hinh HanDongHocPhi.', v_ma_hoc_ky, NEW."SoPhieuDangKy";
+      END IF;
+
+      IF NEW."NgayXacNhan" IS NULL THEN
+        RAISE EXCEPTION '[RBTV35] Phieu thu thanh cong phai co NgayXacNhan de kiem tra han dong hoc phi.';
+      END IF;
+
+      IF NEW."NgayXacNhan" >= v_han_exclusive THEN
+        RAISE EXCEPTION '[RBTV35] Khong the ghi nhan phieu thu thanh cong sau han dong hoc phi cua hoc ky %.', v_ma_hoc_ky;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_rbtv35_phieuthuhocphi_han_dong ON "PHIEUTHUHOCPHI"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_rbtv35_phieuthuhocphi_han_dong
+    BEFORE INSERT OR UPDATE OF "SoPhieuDangKy", "TrangThai", "NgayXacNhan"
+    ON "PHIEUTHUHOCPHI"
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_fn_rbtv35_phieuthuhocphi_han_dong();
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION trg_fn_rbtv35_hocky_han_dong()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_so_phieu INTEGER;
+      v_ngay_xac_nhan TIMESTAMP;
+    BEGIN
+      SELECT pdk."SoPhieu", pthp."NgayXacNhan"
+      INTO v_so_phieu, v_ngay_xac_nhan
+      FROM "PHIEUDANGKY" pdk
+      JOIN "PHIEUTHUHOCPHI" pthp ON pthp."SoPhieuDangKy" = pdk."SoPhieu"
+      WHERE pdk."MaHocKy" = NEW."MaHocKy"
+        AND pthp."TrangThai" = 'Thành công'
+        AND (
+          NEW."HanDongHocPhi" IS NULL
+          OR pthp."NgayXacNhan" >= NEW."HanDongHocPhi"::TIMESTAMP + INTERVAL '1 day'
+        )
+      LIMIT 1;
+
+      IF v_so_phieu IS NOT NULL THEN
+        RAISE EXCEPTION '[RBTV35] Khong the doi HanDongHocPhi vi phieu dang ky % da co phieu thu thanh cong ngay % nam ngoai han moi.', v_so_phieu, v_ngay_xac_nhan;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_rbtv35_hocky_han_dong ON "HOCKY"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_rbtv35_hocky_han_dong
+    BEFORE UPDATE OF "HanDongHocPhi" ON "HOCKY"
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_fn_rbtv35_hocky_han_dong();
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION trg_fn_rbtv35_phieudangky_hocky()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_so_phieu_thu INTEGER;
+      v_ngay_xac_nhan TIMESTAMP;
+      v_han_exclusive TIMESTAMP;
+    BEGIN
+      SELECT hk."HanDongHocPhi"::TIMESTAMP + INTERVAL '1 day'
+      INTO v_han_exclusive
+      FROM "HOCKY" hk
+      WHERE hk."MaHocKy" = NEW."MaHocKy";
+
+      SELECT pthp."SoPhieuThu", pthp."NgayXacNhan"
+      INTO v_so_phieu_thu, v_ngay_xac_nhan
+      FROM "PHIEUTHUHOCPHI" pthp
+      WHERE pthp."SoPhieuDangKy" = NEW."SoPhieu"
+        AND pthp."TrangThai" = 'Thành công'
+        AND (
+          v_han_exclusive IS NULL
+          OR pthp."NgayXacNhan" >= v_han_exclusive
+        )
+      LIMIT 1;
+
+      IF v_so_phieu_thu IS NOT NULL THEN
+        RAISE EXCEPTION '[RBTV35] Khong the chuyen phieu dang ky % sang hoc ky moi vi phieu thu % thanh cong ngay % khong nam trong han hoc phi moi.', NEW."SoPhieu", v_so_phieu_thu, v_ngay_xac_nhan;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trg_rbtv35_phieudangky_hocky ON "PHIEUDANGKY"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trg_rbtv35_phieudangky_hocky
+    BEFORE UPDATE OF "MaHocKy" ON "PHIEUDANGKY"
+    FOR EACH ROW
+    EXECUTE FUNCTION trg_fn_rbtv35_phieudangky_hocky();
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE VIEW "V_DIEUKIENDUTHI_HOCPHI" AS
+    SELECT
+      pdk."SoPhieu",
+      pdk."MaSv",
+      pdk."MaHocKy",
+      hk."HanDongHocPhi",
+      COALESCE(pdk."TongTienPhaiDong", 0) AS "TongTienPhaiDong",
+      paid."TongTienDaThuTruocHan",
+      GREATEST(COALESCE(pdk."TongTienPhaiDong", 0) - paid."TongTienDaThuTruocHan", 0) AS "ConNoTruocHan",
+      fn_rbtv35_du_dieu_kien_thi_hoc_phi(pdk."SoPhieu") AS "DuDieuKienThi",
+      CASE
+        WHEN fn_rbtv35_du_dieu_kien_thi_hoc_phi(pdk."SoPhieu") THEN 'Du dieu kien thi'
+        ELSE 'Khong du dieu kien thi do chua hoan thanh hoc phi dung han'
+      END AS "GhiChuDieuKienThi"
+    FROM "PHIEUDANGKY" pdk
+    JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+    CROSS JOIN LATERAL (
+      SELECT fn_rbtv35_tong_tien_da_thu_truoc_han(pdk."SoPhieu") AS "TongTienDaThuTruocHan"
+    ) paid;
   `);
 
   await prisma.$executeRawUnsafe(`

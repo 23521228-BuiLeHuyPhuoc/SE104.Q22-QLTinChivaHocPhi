@@ -43,9 +43,9 @@ const makePaymentWindowState = ({ isOpen, isClosed, reason, message, start, dead
 
 const getTuitionPaymentWindowState = (semester, now = new Date()) => {
   const current = toValidDate(now) || new Date();
-  const start = toValidDate(semester?.NgayMoThuHocPhi);
+  const start = toValidDate(semester?.NgayBatDauDongHocPhi);
   const deadline = getDeadlineEnd(semester?.HanDongHocPhi);
-  const wasOpened = Boolean(start);
+  const wasOpened = Boolean(semester?.NgayMoThuHocPhi);
 
   if (!semester?.MoThuHocPhi) {
     return makePaymentWindowState({

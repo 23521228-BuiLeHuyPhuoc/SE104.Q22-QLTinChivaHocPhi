@@ -80,6 +80,7 @@ const semesterSelect = (hk) => {
     NgayChotDangKy: hk.NgayChotDangKy,
     MoThuHocPhi: hk.MoThuHocPhi,
     NgayMoThuHocPhi: hk.NgayMoThuHocPhi,
+    NgayBatDauDongHocPhi: hk.NgayBatDauDongHocPhi,
     HanDongHocPhi: hk.HanDongHocPhi,
     TrangThai: hk.TrangThai,
     NgayCapNhat: hk.NgayCapNhat,
@@ -141,6 +142,7 @@ const SEMESTER_DATE_FIELDS = new Set([
   'NgayKetThucCuuXet',
   'NgayChotDangKy',
   'NgayMoThuHocPhi',
+  'NgayBatDauDongHocPhi',
   'HanDongHocPhi'
 ]);
 
@@ -340,6 +342,7 @@ const validateSemesterDateRange = ({
   NgayKetThucDangKy,
   NgayBatDauCuuXet,
   NgayKetThucCuuXet,
+  NgayBatDauDongHocPhi,
   HanDongHocPhi
 }) => {
   const start = NgayBatDau ? toDateOnly(NgayBatDau) : null;
@@ -348,7 +351,21 @@ const validateSemesterDateRange = ({
   const registrationEnd = NgayKetThucDangKy ? toDateOnly(NgayKetThucDangKy) : null;
   const appealStart = NgayBatDauCuuXet ? toDateOnly(NgayBatDauCuuXet) : null;
   const appealEnd = NgayKetThucCuuXet ? toDateOnly(NgayKetThucCuuXet) : null;
+  const tuitionStart = NgayBatDauDongHocPhi ? toDateOnly(NgayBatDauDongHocPhi) : null;
   const tuitionDue = HanDongHocPhi ? toDateOnly(HanDongHocPhi) : null;
+
+  if (
+    start === null ||
+    end === null ||
+    registrationStart === null ||
+    registrationEnd === null ||
+    appealStart === null ||
+    appealEnd === null ||
+    tuitionStart === null ||
+    tuitionDue === null
+  ) {
+    throw makeSemesterDateError('Cần nhập đầy đủ thời gian học kỳ, đăng ký, cứu xét đăng ký và đóng học phí');
+  }
 
   if ((start === null) !== (end === null)) {
     throw makeSemesterDateError('Cần nhập đủ ngày bắt đầu và ngày kết thúc học kỳ');
@@ -394,16 +411,28 @@ const validateSemesterDateRange = ({
     throw makeSemesterDateError('Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký');
   }
 
+  if (start !== null && appealStart !== null && appealStart >= start) {
+    throw makeSemesterDateError('Ngày bắt đầu cứu xét phải trước ngày bắt đầu học kỳ');
+  }
+
   if (start !== null && appealEnd !== null && appealEnd >= start) {
     throw makeSemesterDateError('Ngày kết thúc cứu xét phải trước ngày bắt đầu học kỳ');
   }
 
-  if (tuitionDue !== null && (start === null || end === null)) {
-    throw makeSemesterDateError('Cần nhập ngày bắt đầu và ngày kết thúc học kỳ trước khi nhập hạn đóng học phí');
+  if (tuitionStart !== null && appealEnd === null) {
+    throw makeSemesterDateError('Cần nhập ngày kết thúc cứu xét trước khi nhập ngày bắt đầu đóng học phí');
   }
 
-  if (tuitionDue !== null && start !== null && end !== null && (tuitionDue < start || tuitionDue > end)) {
-    throw makeSemesterDateError('Hạn đóng học phí phải nằm trong khoảng thời gian học kỳ');
+  if (tuitionStart !== null && appealEnd !== null && tuitionStart <= appealEnd) {
+    throw makeSemesterDateError('Ngày bắt đầu đóng học phí phải sau ngày kết thúc cứu xét');
+  }
+
+  if (tuitionStart !== null && tuitionDue !== null && tuitionStart > tuitionDue) {
+    throw makeSemesterDateError('Ngày bắt đầu đóng học phí phải trước hoặc bằng hạn đóng học phí');
+  }
+
+  if (tuitionDue !== null && end !== null && tuitionDue >= end) {
+    throw makeSemesterDateError('Hạn đóng học phí phải trước ngày kết thúc học kỳ');
   }
 };
 
@@ -703,6 +732,7 @@ const createSemester = async (req, res) => {
       NgayKetThucDangKy,
       NgayBatDauCuuXet,
       NgayKetThucCuuXet,
+      NgayBatDauDongHocPhi,
       HanDongHocPhi,
       TrangThai
     } = req.body;
@@ -717,6 +747,7 @@ const createSemester = async (req, res) => {
       NgayKetThucDangKy: parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký', { endOfDayForDateOnly: true }),
       NgayBatDauCuuXet: parseNullableDate(NgayBatDauCuuXet, 'Ngày bắt đầu cứu xét'),
       NgayKetThucCuuXet: parseNullableDate(NgayKetThucCuuXet, 'Ngày kết thúc cứu xét', { endOfDayForDateOnly: true }),
+      NgayBatDauDongHocPhi: parseNullableDate(NgayBatDauDongHocPhi, 'Ngày bắt đầu đóng học phí'),
       HanDongHocPhi: parseNullableDate(HanDongHocPhi, 'Hạn đóng học phí')
     };
     validateSemesterDateRange(dates);
@@ -733,6 +764,7 @@ const createSemester = async (req, res) => {
         NgayKetThucDangKy: dates.NgayKetThucDangKy,
         NgayBatDauCuuXet: dates.NgayBatDauCuuXet,
         NgayKetThucCuuXet: dates.NgayKetThucCuuXet,
+        NgayBatDauDongHocPhi: dates.NgayBatDauDongHocPhi,
         HanDongHocPhi: dates.HanDongHocPhi,
         TrangThai: TrangThai || 'Sắp diễn ra',
         ...updateAudit(req)
@@ -759,6 +791,7 @@ const updateSemester = async (req, res) => {
       NgayKetThucDangKy,
       NgayBatDauCuuXet,
       NgayKetThucCuuXet,
+      NgayBatDauDongHocPhi,
       HanDongHocPhi,
       TrangThai
     } = req.body;
@@ -778,6 +811,7 @@ const updateSemester = async (req, res) => {
       NgayKetThucDangKy: NgayKetThucDangKy !== undefined ? parseNullableDate(NgayKetThucDangKy, 'Ngày kết thúc đăng ký', { endOfDayForDateOnly: true }) : existing.NgayKetThucDangKy,
       NgayBatDauCuuXet: NgayBatDauCuuXet !== undefined ? parseNullableDate(NgayBatDauCuuXet, 'Ngày bắt đầu cứu xét') : existing.NgayBatDauCuuXet,
       NgayKetThucCuuXet: NgayKetThucCuuXet !== undefined ? parseNullableDate(NgayKetThucCuuXet, 'Ngày kết thúc cứu xét', { endOfDayForDateOnly: true }) : existing.NgayKetThucCuuXet,
+      NgayBatDauDongHocPhi: NgayBatDauDongHocPhi !== undefined ? parseNullableDate(NgayBatDauDongHocPhi, 'Ngày bắt đầu đóng học phí') : existing.NgayBatDauDongHocPhi,
       HanDongHocPhi: HanDongHocPhi !== undefined ? parseNullableDate(HanDongHocPhi, 'Hạn đóng học phí') : existing.HanDongHocPhi
     };
     validateSemesterDateRange(nextDates);
@@ -787,6 +821,7 @@ const updateSemester = async (req, res) => {
     if (NgayKetThucDangKy !== undefined) data.NgayKetThucDangKy = nextDates.NgayKetThucDangKy;
     if (NgayBatDauCuuXet !== undefined) data.NgayBatDauCuuXet = nextDates.NgayBatDauCuuXet;
     if (NgayKetThucCuuXet !== undefined) data.NgayKetThucCuuXet = nextDates.NgayKetThucCuuXet;
+    if (NgayBatDauDongHocPhi !== undefined) data.NgayBatDauDongHocPhi = nextDates.NgayBatDauDongHocPhi;
     if (HanDongHocPhi !== undefined) data.HanDongHocPhi = nextDates.HanDongHocPhi;
     Object.assign(data, updateAudit(req));
     const updated = await prisma.HOCKY.update({ where: { MaHocKy: req.params.id }, data });
