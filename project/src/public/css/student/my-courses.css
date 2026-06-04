@@ -114,6 +114,45 @@
   min-width: 1140px;
 }
 
+.appeal-modal-summary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.appeal-modal-summary strong,
+.appeal-modal-summary span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.appeal-modal-summary strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.appeal-modal-summary span {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  margin-top: 4px;
+}
+
+.my-course-confirm-modal {
+  max-width: min(460px, 100%);
+}
+
+.my-course-confirm-message {
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 760px) {
   .my-courses-filter-grid {
     grid-template-columns: 1fr;

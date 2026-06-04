@@ -8,7 +8,7 @@ const {
   decoratePermissionFunction
 } = require('../utils/permissionCatalog');
 const { DEFAULT_PAGE_SIZE } = require('../utils/pagination');
-const { TRASH_ENTITIES } = require('../utils/trashConfig');
+const { getAllowedTrashEntities } = require('../utils/trashConfig');
 const { getPricingSearchValues, normalizePricingSearchScope } = require('../utils/pricingSearch');
 const { getRegistrationSearchValues, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
@@ -1979,10 +1979,7 @@ const adminSettings = async (req, res) => {
 
 const adminTrash = (req, res) => {
   renderAdmin(res, 'trash', 'trash', 'Thùng rác', req, {
-    entities: Object.entries(TRASH_ENTITIES).map(([key, config]) => ({
-      key,
-      label: config.label
-    }))
+    entities: getAllowedTrashEntities(req.user, req.permissionCodes || [])
   });
 };
 

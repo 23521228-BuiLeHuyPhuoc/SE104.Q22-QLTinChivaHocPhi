@@ -2,6 +2,7 @@ var currentStudent = null;
 var availablePage = 1;
 var semesterOptionsById = {};
 var searchTimer = null;
+var addAppealContext = null;
 
 var COURSE_SEARCH_PLACEHOLDERS = {
   course: 'Nhập mã hoặc tên học phần',
@@ -475,20 +476,52 @@ async function registerCourse(maLop, maHocKy) {
 }
 
 async function createAddAppeal(maLop, maHocKy) {
+  addAppealContext = { MaLop: maLop, MaHocKy: maHocKy };
+  var modal = document.getElementById('add-appeal-modal');
+  var summary = document.getElementById('add-appeal-summary');
+  var classInput = document.getElementById('add-appeal-ma-lop');
+  var semesterInput = document.getElementById('add-appeal-ma-hoc-ky');
+  var reason = document.getElementById('add-appeal-reason');
+  if (classInput) classInput.value = maLop || '';
+  if (semesterInput) semesterInput.value = maHocKy || '';
+  if (reason) reason.value = '';
+  if (summary) {
+    summary.innerHTML = '<strong>' + courseEscapeHtml(maLop || '-') + '</strong>' +
+      '<span>Học kỳ ' + courseEscapeHtml(maHocKy || '-') + '</span>';
+  }
+  if (modal) modal.classList.add('active');
+  if (reason) setTimeout(function() { reason.focus(); }, 50);
+}
+
+function closeAddAppealModal() {
+  var modal = document.getElementById('add-appeal-modal');
+  if (modal) modal.classList.remove('active');
+  addAppealContext = null;
+}
+
+async function submitAddAppeal(event) {
+  if (event) event.preventDefault();
   var student = await ensureStudent();
   if (!student) {
     showToast('Không xác định được sinh viên', 'error');
     return;
   }
-  var reason = prompt('Nhập lý do xin cứu xét thêm học phần');
-  if (!reason) return;
+  var maLop = (document.getElementById('add-appeal-ma-lop') || {}).value || (addAppealContext && addAppealContext.MaLop) || '';
+  var maHocKy = (document.getElementById('add-appeal-ma-hoc-ky') || {}).value || (addAppealContext && addAppealContext.MaHocKy) || '';
+  var reason = ((document.getElementById('add-appeal-reason') || {}).value || '').trim();
+  if (!reason) {
+    showToast('Vui lòng nhập lý do cứu xét', 'error');
+    return;
+  }
   try {
     var res = await apiFetch('/api/appeals', {
       method: 'POST',
       body: { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: 'them', MaLopThem: maLop, LyDo: reason }
     });
     if (res && res.success) {
+      closeAddAppealModal();
       showToast('Đã gửi đơn cứu xét', 'success');
+      loadAvailableCourses(availablePage);
     } else {
       showToast((res && res.message) || 'Không thể gửi đơn cứu xét', 'error');
     }
@@ -541,6 +574,8 @@ document.addEventListener('DOMContentLoaded', function() {
       loadAvailableCourses(1);
     });
   }
+  var addAppealForm = document.getElementById('add-appeal-form');
+  if (addAppealForm) addAppealForm.addEventListener('submit', submitAddAppeal);
   if (semester) {
     semester.addEventListener('change', function() {
       renderRegistrationWindowMessage();

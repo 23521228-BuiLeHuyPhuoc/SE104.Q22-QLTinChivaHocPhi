@@ -105,7 +105,28 @@ function tuitionStatusBadge(status, overdue) {
   return 'badge-error';
 }
 
+function formatTuitionPercent(value) {
+  var number = Number(value || 0);
+  if (!Number.isFinite(number)) number = 0;
+  return number.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') + '%';
+}
+
+function formatTuitionDiscountAmount(value) {
+  var amount = Math.max(Number(value || 0), 0);
+  return (amount > 0 ? '-' : '') + formatCurrency(amount);
+}
+
 function renderTuitionDetail(data) {
+  var tuitionFormula = data.CongThucHocPhi || {};
+  var courseTotal = Number(tuitionFormula.TongTienMonHoc || data.TongTienDangKy || 0);
+  var discountRate = Number(tuitionFormula.TiLeGiam || data.TiLeGiam || 0);
+  var discountAmount = Number(tuitionFormula.TienMienGiam || data.TienMienGiam || 0);
+  var amountDue = Number(tuitionFormula.TongTienSauMienGiam || data.TongTienPhaiDong || Math.max(courseTotal - discountAmount, 0));
+  var appliedDiscount = data.DoiTuongMienGiam || (data.discounts || [])[0] || null;
+  var discountLabel = appliedDiscount
+    ? [appliedDiscount.MaDoiTuong, appliedDiscount.TenDoiTuong].filter(Boolean).join(' - ')
+    : '-';
+
   var courses = (data.courses || []).map(function(course) {
     return '<tr>' +
       '<td class="mono">' + tuitionEscapeHtml(course.MaMonHoc || '-') + '</td>' +
@@ -127,12 +148,10 @@ function renderTuitionDetail(data) {
     '</tr>';
   }).join('');
 
-  var discountText = (data.discounts || []).map(function(item) {
-    return [item.MaDoiTuong, item.TenDoiTuong, item.TiLeGiamHocPhi ? item.TiLeGiamHocPhi + '%' : ''].filter(Boolean).join(' - ');
-  }).join('; ');
-
   return '<div class="stats-grid">' +
-      '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(data.TongTienPhaiDong || 0) + '</h3><p>Phải đóng</p></div></div>' +
+      '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(courseTotal) + '</h3><p>Tổng tiền môn</p></div></div>' +
+      '<div class="stat-card"><div class="stat-info"><h3>' + formatTuitionDiscountAmount(discountAmount) + '</h3><p>Miễn giảm ' + formatTuitionPercent(discountRate) + '</p></div></div>' +
+      '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(amountDue) + '</h3><p>Phải đóng</p></div></div>' +
       '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(data.TongTienDaDong || 0) + '</h3><p>Đã đóng</p></div></div>' +
       '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(data.conNo || data.ConNo || 0) + '</h3><p>Còn nợ</p></div></div>' +
     '</div>' +
@@ -141,11 +160,15 @@ function renderTuitionDetail(data) {
       '<div><span class="label">Bắt đầu đóng</span><span>' + (data.NgayBatDauDongHocPhi ? formatDate(data.NgayBatDauDongHocPhi) : '-') + '</span></div>' +
       '<div><span class="label">Hạn đóng</span><span>' + (data.HanDongHocPhi ? formatDate(data.HanDongHocPhi) : '-') + '</span></div>' +
       '<div><span class="label">Trạng thái</span><span><span class="badge ' + tuitionStatusBadge(data.TrangThai, data.QuaHan) + '">' + tuitionEscapeHtml(data.TrangThai || '-') + '</span></span></div>' +
-      '<div><span class="label">Miễn giảm</span><span>' + tuitionEscapeHtml(discountText || (data.TiLeGiam ? data.TiLeGiam + '%' : '-')) + ' (' + formatCurrency(data.TienMienGiam || 0) + ')</span></div>' +
+      '<div><span class="label">Tổng tiền các môn</span><span>' + formatCurrency(courseTotal) + '</span></div>' +
+      '<div><span class="label">Đối tượng miễn giảm áp dụng</span><span>' + tuitionEscapeHtml(discountLabel) + '</span></div>' +
+      '<div><span class="label">Tỷ lệ miễn giảm</span><span>' + formatTuitionPercent(discountRate) + '</span></div>' +
+      '<div><span class="label">Số tiền miễn giảm</span><span>' + formatTuitionDiscountAmount(discountAmount) + '</span></div>' +
+      '<div><span class="label">Còn phải đóng sau miễn giảm</span><span>' + formatCurrency(amountDue) + '</span></div>' +
     '</div>' +
     '<div class="card"><div class="card-header"><h3>Chi tiết môn học</h3></div><div class="table-container"><table class="data-table"><thead><tr><th>Mã môn</th><th>Tên môn</th><th>TC</th><th>Loại ĐK</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead><tbody>' +
       (courses || '<tr><td colspan="6"><div class="empty-state">Không có chi tiết môn học</div></td></tr>') +
-    '</tbody></table></div></div>' +
+    '</tbody><tfoot><tr><th colspan="5">Tổng tiền các môn</th><th class="currency">' + formatCurrency(courseTotal) + '</th></tr></tfoot></table></div></div>' +
     '<div class="card"><div class="card-header"><h3>Lịch sử thanh toán</h3></div><div class="table-container"><table class="data-table"><thead><tr><th>Số phiếu</th><th>Ngày</th><th>Số tiền</th><th>Phương thức</th><th>Trạng thái</th></tr></thead><tbody>' +
       (payments || '<tr><td colspan="5"><div class="empty-state">Chưa có phiếu thu</div></td></tr>') +
     '</tbody></table></div></div>';

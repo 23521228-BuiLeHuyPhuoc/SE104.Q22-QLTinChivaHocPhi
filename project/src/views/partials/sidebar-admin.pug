@@ -11,7 +11,7 @@
 - const showFinance = canOpen('/admin/payments') || canOpen('/admin/tuition') || canOpen('/admin/pricing') || canOpen('/admin/beneficiaries')
 - const showReports = canOpen('/admin/reports') || canOpen('/admin/reports/incomplete-tuition')
 - const showSystem = canOpen('/admin/users') || canOpen('/admin/profile')
-- const showAdmin = canOpen('/admin/permissions') || canOpen('/admin/notifications') || canOpen('/admin/settings')
+- const showAdmin = canOpen('/admin/permissions') || canOpen('/admin/notifications') || canOpen('/admin/settings') || canOpen('/admin/trash')
 
 mixin navItem(href, page, icon, label, title)
   if canOpen(href)
@@ -86,6 +86,7 @@ nav.sidebar.sidebar-admin(id="sidebar")
         +navItem('/admin/permissions', 'permissions', 'admin_panel_settings', 'Phân quyền')
         +navItem('/admin/notifications', 'notifications', 'notifications', 'Thông báo')
         +navItem('/admin/settings', 'settings', 'tune', 'Tham số hệ thống')
+        +navItem('/admin/trash', 'trash', 'restore_from_trash', 'Thùng rác')
 
   .sidebar-footer
     .sidebar-user

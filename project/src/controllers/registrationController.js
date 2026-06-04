@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { Prisma } = require('@prisma/client');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { assertRegistrationOpen, getRegistrationWindowState, getAppealWindowState } = require('../utils/registrationWindow');
@@ -157,6 +158,39 @@ const openedClassScheduleLabel = (openedClass) => {
 const openedClassRoomLabel = (openedClass) => {
   const schedule = (openedClass?.LICHHOCLOP || []).find((item) => item.TrangThai !== false && (item.PHONGHOC || item.PhongHoc || item.MaPhong));
   return roomDisplayName(schedule?.PHONGHOC) || normalizeRoomText(schedule?.PhongHoc, schedule?.MaPhong);
+};
+
+const getAvailableCourseSearchValues = (openedClass, scope) => {
+  const lop = openedClass?.LOP || {};
+  const course = lop.MONHOC || {};
+  if (scope === 'lecturer') {
+    const lecturer = openedClass?.GIANGVIEN || {};
+    return [
+      openedClass?.MaGiangVien,
+      openedClass?.GiangVien,
+      lecturer.MaGiangVien,
+      lecturer.HoTen,
+      lecturer.HocHamHocVi,
+      lecturerDisplayName(lecturer)
+    ];
+  }
+  if (scope === 'class') {
+    return [
+      openedClass?.MaLop,
+      lop.MaLop,
+      lop.TenLop,
+      lop.LichHoc,
+      openedClassScheduleLabel(openedClass),
+      openedClassRoomLabel(openedClass)
+    ];
+  }
+  return [
+    course.MaMonHoc,
+    course.TenMonHoc,
+    course.LoaiMon,
+    course.KHOA?.MaKhoa,
+    course.KHOA?.TenKhoa
+  ];
 };
 
 const getStudentIdFromRequest = async (req) => {
@@ -442,7 +476,19 @@ const ensureCreditLimit = async (tx, maSv, maHocKy, soPhieu, creditsToAdd) => {
   }
 };
 
-const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop) => {
+const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop, options = {}) => {
+  const excludedDetailIds = [];
+  if (options.excludeDetailId) excludedDetailIds.push(Number(options.excludeDetailId));
+  if (Array.isArray(options.excludeDetailIds)) {
+    options.excludeDetailIds.forEach((item) => {
+      if (item) excludedDetailIds.push(Number(item));
+    });
+  }
+  const excludedIds = [...new Set(excludedDetailIds)].filter(Number.isFinite);
+  const excludeCurrentClassCondition = excludedIds.length
+    ? Prisma.sql`AND c_old.id NOT IN (${Prisma.join(excludedIds)})`
+    : Prisma.empty;
+
   const conflicts = await tx.$queryRaw`
     SELECT c_old.id, c_old."MaLop", mh."TenMonHoc", lh_old."ThuTrongTuan"
     FROM "LOPMO" lm_new
@@ -462,6 +508,7 @@ const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop) => {
       AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
       AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
       AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END
+      ${excludeCurrentClassCondition}
     LIMIT 1
   `;
   if (conflicts.length) {

@@ -1,0 +1,39 @@
+.admin-toolbar .admin-filter-group:has(> #trash-entity) {
+  align-items: center;
+  grid-auto-columns: max-content;
+  justify-content: flex-start;
+  justify-self: flex-start;
+  width: auto;
+}
+
+.trash-entity-label {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.admin-toolbar .admin-filter-group #trash-entity {
+  min-width: 220px;
+  max-width: 260px;
+  width: clamp(220px, 18vw, 260px);
+}
+
+@media (max-width: 860px) {
+  .admin-toolbar .admin-filter-group:has(> #trash-entity) {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+    justify-self: stretch;
+    width: 100%;
+  }
+
+  .trash-entity-label {
+    width: 100%;
+  }
+
+  .admin-toolbar .admin-filter-group #trash-entity {
+    max-width: none;
+    width: 100%;
+  }
+}

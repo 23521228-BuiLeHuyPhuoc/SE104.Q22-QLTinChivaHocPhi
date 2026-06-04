@@ -77,5 +77,42 @@ block content
                   .empty-state Đang tải đơn cứu xét...
         nav.pagination#my-appeals-pagination(style="display:none")
 
+block modals
+  #my-course-appeal-modal.modal-overlay(onclick="if(event.target===this)closeMyCourseAppealModal()")
+    .modal
+      .modal-header
+        h2#my-course-appeal-title Gửi đơn cứu xét
+        button.modal-close(type="button" onclick="closeMyCourseAppealModal()" aria-label="Đóng") ×
+      .modal-body
+        form#my-course-appeal-form
+          input#my-course-appeal-type(type="hidden")
+          input#my-course-appeal-semester(type="hidden")
+          input#my-course-appeal-current-class(type="hidden")
+          input#my-course-appeal-course(type="hidden")
+          .appeal-modal-summary#my-course-appeal-summary
+          .form-group#my-course-change-class-group.hidden
+            label(for="my-course-appeal-target-class") Lớp muốn đổi sang
+            select.form-control#my-course-appeal-target-class
+              option(value="") Đang tải danh sách lớp phù hợp
+            small.text-muted Chỉ hiển thị các lớp khác của cùng học phần trong học kỳ này.
+          .form-group
+            label(for="my-course-appeal-reason") Lý do cứu xét
+            textarea.form-control#my-course-appeal-reason(rows="4" required maxlength="500" placeholder="Nhập lý do gửi đơn cứu xét")
+            small.text-muted Tối đa 500 ký tự.
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeMyCourseAppealModal()") Hủy
+        button.btn.btn-primary(type="submit" form="my-course-appeal-form") Gửi đơn
+
+  #my-course-confirm-modal.modal-overlay(onclick='if(event.target===this)closeMyCourseConfirmModal(false)')
+    .modal.my-course-confirm-modal
+      .modal-header
+        h2#my-course-confirm-title Xác nhận thao tác
+        button.modal-close(type='button' onclick='closeMyCourseConfirmModal(false)' aria-label='Đóng') ×
+      .modal-body
+        p.my-course-confirm-message#my-course-confirm-message Bạn có chắc muốn tiếp tục?
+      .modal-footer
+        button.btn.btn-outline(type='button' onclick='closeMyCourseConfirmModal(false)') Không
+        button.btn.btn-danger#my-course-confirm-submit(type='button' onclick='closeMyCourseConfirmModal(true)') Xác nhận
+
 block scripts
   script(src="/js/student/my-courses.js")

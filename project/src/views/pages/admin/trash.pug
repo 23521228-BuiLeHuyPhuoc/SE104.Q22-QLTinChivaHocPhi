@@ -1,10 +1,14 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel='stylesheet' href='/css/admin/trash.css')
+
 block content
   .toolbar.admin-toolbar
     .search-box.admin-search-group
       input#trash-search(type="text" placeholder="Tìm mã hoặc tên đã xóa..." onkeydown="runSearchOnEnter(event, debounceTrashSearch)")
     .filter-group.admin-filter-group
+      label.trash-entity-label(for="trash-entity") Loại thùng rác
       select#trash-entity(onchange="loadTrash(1)")
         if entities && entities.length
           each entity in entities

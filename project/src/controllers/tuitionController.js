@@ -52,6 +52,28 @@ const getEffectiveTuitionDueDate = (registration) => {
 const getPayableReceipt = (registration) => (registration?.PHIEUTHUHOCPHI || [])
   .find((receipt) => PAYABLE_RECEIPT_STATUSES.includes(receipt.TrangThai));
 
+const getAppliedDiscount = (student) => {
+  const rows = (student?.DOITUONGSINHVIEN || [])
+    .map((row) => row.DOITUONG)
+    .filter((row) => row && row.TrangThai !== false)
+    .sort((a, b) => {
+      const priorityDiff = Number(a.DoUuTien || 9999) - Number(b.DoUuTien || 9999);
+      if (priorityDiff !== 0) return priorityDiff;
+      const discountDiff = Number(b.TiLeGiamHocPhi || 0) - Number(a.TiLeGiamHocPhi || 0);
+      if (discountDiff !== 0) return discountDiff;
+      return String(a.MaDoiTuong || '').localeCompare(String(b.MaDoiTuong || ''));
+    });
+
+  const discount = rows[0];
+  if (!discount) return null;
+  return {
+    MaDoiTuong: discount.MaDoiTuong,
+    TenDoiTuong: discount.TenDoiTuong,
+    TiLeGiamHocPhi: Number(discount.TiLeGiamHocPhi || 0),
+    DoUuTien: Number(discount.DoUuTien || 0)
+  };
+};
+
 const getPendingAppealCountMap = async (semesterIds = []) => {
   const ids = Array.from(new Set(semesterIds.filter(Boolean)));
   if (!ids.length) return new Map();
@@ -91,14 +113,10 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
   const paymentBlock = getPaymentRegistrationBlock(registration.HOCKY, new Date(), { pendingAppeals });
   const payableReceipt = getPayableReceipt(registration);
   const effectiveDueDate = getEffectiveTuitionDueDate(registration);
-  const discounts = (registration.SINHVIEN?.DOITUONGSINHVIEN || [])
-    .map((row) => row.DOITUONG)
-    .filter(Boolean)
-    .map((row) => ({
-      MaDoiTuong: row.MaDoiTuong,
-      TenDoiTuong: row.TenDoiTuong,
-      TiLeGiamHocPhi: Number(row.TiLeGiamHocPhi || 0)
-    }));
+  const appliedDiscount = getAppliedDiscount(registration.SINHVIEN);
+  const tongTienDangKy = Number(registration.TongTienDangKy || 0);
+  const tiLeGiam = Number(registration.TiLeGiam || appliedDiscount?.TiLeGiamHocPhi || 0);
+  const tienMienGiam = Number(registration.TienMienGiam || 0);
 
   return {
     SoPhieu: registration.SoPhieu,
@@ -113,9 +131,9 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
     HanDongHocPhi: effectiveDueDate,
     GiaHanNoHocPhi: hasExtendedTuitionDueDate(registration),
     NgayKetThucDangKy: registration.HOCKY.NgayKetThucDangKy,
-    TongTienDangKy: Number(registration.TongTienDangKy || 0),
-    TiLeGiam: Number(registration.TiLeGiam || 0),
-    TienMienGiam: Number(registration.TienMienGiam || 0),
+    TongTienDangKy: tongTienDangKy,
+    TiLeGiam: tiLeGiam,
+    TienMienGiam: tienMienGiam,
     TongTienPhaiDong: phaiDong,
     TongTienDaDong: daDong,
     conNo,
@@ -131,7 +149,14 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
       SoTienThu: Number(payableReceipt.SoTienThu || 0),
       TrangThai: payableReceipt.TrangThai
     } : null,
-    discounts,
+    DoiTuongMienGiam: appliedDiscount,
+    CongThucHocPhi: {
+      TongTienMonHoc: tongTienDangKy,
+      TiLeGiam: tiLeGiam,
+      TienMienGiam: tienMienGiam,
+      TongTienSauMienGiam: phaiDong
+    },
+    discounts: appliedDiscount ? [appliedDiscount] : [],
     courses: registration.CHITIETDANGKY.map((c) => ({
       MaMonHoc: c.MaMonHoc || c.LOP.MaMonHoc,
       TenMonHoc: c.MONHOC?.TenMonHoc || c.LOP.MONHOC.TenMonHoc,
@@ -222,7 +247,7 @@ const getTuitionById = async (req, res) => {
     const t = await prisma.PHIEUDANGKY.findUnique({
       where: { SoPhieu: parseInt(req.params.id, 10) },
       include: {
-        SINHVIEN: true,
+        SINHVIEN: { include: { DOITUONGSINHVIEN: { include: { DOITUONG: true } } } },
         HOCKY: { include: { NAMHOC: true } },
         CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS }, include: { LOP: { include: { MONHOC: true } }, MONHOC: true } },
         PHIEUTHUHOCPHI: true

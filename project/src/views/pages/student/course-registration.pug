@@ -86,5 +86,24 @@ block content
       #available-empty.empty-state Chọn học kỳ để xem danh sách lớp mở
       nav.pagination#available-pagination(style="display:none")
 
+block modals
+  #add-appeal-modal.modal-overlay(onclick="if(event.target===this)closeAddAppealModal()")
+    .modal
+      .modal-header
+        h2 Gửi đơn cứu xét thêm học phần
+        button.modal-close(type="button" onclick="closeAddAppealModal()" aria-label="Đóng") ×
+      .modal-body
+        form#add-appeal-form
+          input#add-appeal-ma-lop(type="hidden")
+          input#add-appeal-ma-hoc-ky(type="hidden")
+          .appeal-modal-summary#add-appeal-summary
+          .form-group
+            label(for="add-appeal-reason") Lý do cứu xét
+            textarea.form-control#add-appeal-reason(rows="4" required maxlength="500" placeholder="Nhập lý do cần thêm học phần này")
+            small.text-muted Tối đa 500 ký tự.
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeAddAppealModal()") Hủy
+        button.btn.btn-primary(type="submit" form="add-appeal-form") Gửi đơn
+
 block scripts
   script(src="/js/student/course-registration.js")

@@ -263,6 +263,34 @@
   width: 100%;
 }
 
+.appeal-modal-summary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.appeal-modal-summary strong,
+.appeal-modal-summary span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.appeal-modal-summary strong {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.appeal-modal-summary span {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  margin-top: 4px;
+}
+
 @container (max-width: 980px) {
   .available-course-card {
     grid-template-columns: 1fr;

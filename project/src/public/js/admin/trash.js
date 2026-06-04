@@ -12,7 +12,9 @@ function trashSafe(value) {
 
 function getTrashEntity() {
   var select = document.getElementById('trash-entity');
-  return select ? select.value : 'students';
+  if (!select) return 'students';
+  if (select.value) return select.value;
+  return select.options && select.options.length ? select.options[0].value : '';
 }
 
 function getTrashSearch() {
@@ -122,6 +124,13 @@ function renderTrashPagination(meta) {
 async function loadTrash(page) {
   trashPage = page || trashPage || 1;
   var entity = getTrashEntity();
+  if (!entity) {
+    renderTrashRows([]);
+    var tbodyEmpty = document.getElementById('trash-body');
+    if (tbodyEmpty) tbodyEmpty.innerHTML = '<tr><td colspan=7><div class=empty-state>Bạn chưa có quyền xem loại dữ liệu nào trong thùng rác</div></td></tr>';
+    renderTrashPagination({});
+    return;
+  }
   syncTrashUrl(entity);
   var tbody = document.getElementById('trash-body');
   if (tbody) tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Đang tải dữ liệu...</div></td></tr>';

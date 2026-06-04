@@ -81,8 +81,13 @@
 .location-section-title {
   align-items: center;
   display: flex;
+  flex: 1 1 auto;
   gap: var(--spacing-sm);
   min-width: 0;
+}
+
+.location-section-header > .btn {
+  flex: 0 0 auto;
 }
 
 .location-section-title > .material-symbols-rounded {

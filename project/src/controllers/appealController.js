@@ -161,11 +161,26 @@ const ensureAppealBusinessRules = async (tx, { MaSv, MaHocKy, LoaiDon, MaLopHuy,
   const student = await tx.SINHVIEN.findFirst({ where: { MaSv, DaXoa: false }, select: { MaSv: true } });
   if (!student) throw { status: 404, message: 'Không tìm thấy sinh viên' };
 
+  const existingAppeal = await tx.DONCUUXETDANGKY.findFirst({
+    where: { MaSv, MaHocKy },
+    orderBy: { NgayTao: 'desc' }
+  });
+  if (existingAppeal) {
+    const typeLabel = APPEAL_TYPE_LABELS[existingAppeal.LoaiDon] || 'cứu xét';
+    const statusLabel = APPEAL_STATUS_LABELS[existingAppeal.TrangThai] || existingAppeal.TrangThai;
+    throw {
+      status: 400,
+      message: `Mỗi đợt cứu xét chỉ được gửi một đơn. Bạn đã gửi đơn ${typeLabel} trong học kỳ này, trạng thái hiện tại: ${statusLabel}.`
+    };
+  }
+
   const phieu = await tx.PHIEUDANGKY.findFirst({ where: { MaSv, MaHocKy } });
   if ((LoaiDon === APPEAL_TYPE.CANCEL || LoaiDon === APPEAL_TYPE.CHANGE) && !phieu) {
     throw { status: 400, message: 'Sinh viên chưa có phiếu đăng ký để hủy hoặc đổi học phần' };
   }
 
+  let cancelledCourseId = null;
+  let cancelledDetailId = null;
   if (MaLopHuy) {
     const activeDetail = await tx.CHITIETDANGKY.findFirst({
       where: {
@@ -175,27 +190,32 @@ const ensureAppealBusinessRules = async (tx, { MaSv, MaHocKy, LoaiDon, MaLopHuy,
       }
     });
     if (!activeDetail) throw { status: 400, message: 'Lớp cần hủy không thuộc đăng ký đang học của sinh viên' };
+    cancelledCourseId = activeDetail.MaMonHoc;
+    cancelledDetailId = activeDetail.id;
   }
 
+  let addedCourseId = null;
   if (MaLopThem) {
     const openedClass = await tx.LOPMO.findFirst({
       where: { MaHocKy, MaLop: MaLopThem, TrangThai: true, LOP: { DaXoa: false, TrangThai: true } },
       include: { LOP: { include: { MONHOC: true } } }
     });
     if (!openedClass || !openedClass.LOP) throw { status: 404, message: 'Lớp thêm không tồn tại hoặc chưa mở trong học kỳ này' };
+    addedCourseId = openedClass.LOP.MaMonHoc;
   }
 
-  const duplicate = await tx.DONCUUXETDANGKY.findFirst({
-    where: {
-      MaSv,
-      MaHocKy,
-      LoaiDon,
-      MaLopHuy,
-      MaLopThem,
-      TrangThai: APPEAL_STATUS.PENDING
+  if (LoaiDon === APPEAL_TYPE.CHANGE) {
+    if (MaLopHuy === MaLopThem) throw { status: 400, message: 'Lớp muốn đổi sang phải khác lớp hiện tại' };
+    if (cancelledCourseId && addedCourseId && cancelledCourseId !== addedCourseId) {
+      throw { status: 400, message: 'Đổi lớp chỉ được chọn lớp khác của cùng học phần' };
     }
-  });
-  if (duplicate) throw { status: 400, message: 'Đã có đơn cứu xét trùng nội dung đang chờ duyệt' };
+  }
+
+  if (LoaiDon === APPEAL_TYPE.ADD || LoaiDon === APPEAL_TYPE.CHANGE) {
+    await ensureNoScheduleConflict(tx, MaSv, MaHocKy, MaLopThem, {
+      excludeDetailId: LoaiDon === APPEAL_TYPE.CHANGE ? cancelledDetailId : null
+    });
+  }
 
   return { semester, phieu };
 };
@@ -348,7 +368,7 @@ const createAppeal = async (req, res) => {
         },
         include: appealInclude
       });
-    });
+    }, { isolationLevel: 'Serializable' });
 
     res.status(201).json({ success: true, message: 'Đã gửi đơn cứu xét đăng ký', data: toAppealDto(result) });
   } catch (error) {

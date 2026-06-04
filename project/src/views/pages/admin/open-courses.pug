@@ -13,6 +13,9 @@ block content
       button.btn.btn-primary(type="button" onclick="openCourseModal('add')")
         span.material-symbols-rounded add
         span Thêm môn mở
+      a.btn.btn-outline(href='/admin/trash?entity=openCourses')
+        span.material-symbols-rounded restore_from_trash
+        span Thùng rác
 
   form.open-courses-filter-panel(method="get" action="/admin/open-courses")
     .open-courses-filter-grid

@@ -1,10 +1,17 @@
 const prisma = require('../config/database');
-const { TRASH_ENTITIES, getTrashEntity, parseTrashId, getTrashTitle } = require('../utils/trashConfig');
+const {
+  canAccessTrashEntity,
+  getAllowedTrashEntities,
+  getTrashEntity,
+  parseTrashId,
+  getTrashTitle
+} = require('../utils/trashConfig');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { recalculateRegistrationPricingForScope } = require('./registrationController');
+const { getUserPermissionCodes } = require('../middleware/auth');
 
 const decorateRows = async (config, rows) => {
   const userIds = Array.from(new Set(rows.map((row) => row.NguoiXoa).filter(Boolean)));
@@ -29,6 +36,24 @@ const decorateRows = async (config, rows) => {
 
 const buildTrashWhere = () => ({ DaXoa: true });
 
+const getRequestPermissionCodes = async (req) => req.permissionCodes || getUserPermissionCodes(req.user);
+
+const getAuthorizedTrashConfig = async (req, res) => {
+  const config = getTrashEntity(req.params.entity);
+  if (!config) {
+    res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    return null;
+  }
+
+  const permissionCodes = await getRequestPermissionCodes(req);
+  if (!canAccessTrashEntity(req.user, permissionCodes, config)) {
+    res.status(403).json({ success: false, message: 'Bạn không có quyền xem thùng rác của loại dữ liệu này' });
+    return null;
+  }
+
+  return config;
+};
+
 const getTrashSearchValues = (config, row) => [
   row[config.pk],
   ...config.title.map((field) => row[field])
@@ -38,20 +63,22 @@ const parseBatchIds = (config, ids = []) => ids
   .map((id) => parseTrashId(config, id))
   .filter((id) => (config.type === 'int' ? Number.isFinite(id) : Boolean(id)));
 
-const listEntities = (req, res) => {
-  res.json({
-    success: true,
-    data: Object.entries(TRASH_ENTITIES).map(([key, config]) => ({
-      key,
-      label: config.label
-    }))
-  });
+const listEntities = async (req, res) => {
+  try {
+    const permissionCodes = await getRequestPermissionCodes(req);
+    res.json({
+      success: true,
+      data: getAllowedTrashEntities(req.user, permissionCodes)
+    });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'listTrashEntities error:');
+  }
 };
 
 const listTrash = async (req, res) => {
   try {
-    const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Kh\u00f4ng h\u1ed7 tr\u1ee3 lo\u1ea1i d\u1eef li\u1ec7u n\u00e0y' });
+    const config = await getAuthorizedTrashConfig(req, res);
+    if (!config) return;
 
     const { page, limit } = getPagination(req.query);
     const model = prisma[config.model];
@@ -75,8 +102,8 @@ const listTrash = async (req, res) => {
 
 const restoreTrashItem = async (req, res) => {
   try {
-    const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    const config = await getAuthorizedTrashConfig(req, res);
+    if (!config) return;
     const id = parseTrashId(config, req.params.id);
     if (config.type === 'int' && !Number.isFinite(id)) {
       return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
@@ -89,6 +116,7 @@ const restoreTrashItem = async (req, res) => {
           DaXoa: false,
           NguoiXoa: null,
           NgayXoa: null,
+          ...(config.restoreData || {}),
           ...updateAudit(req)
         }
       });
@@ -110,8 +138,8 @@ const restoreTrashItem = async (req, res) => {
 
 const purgeTrashItem = async (req, res) => {
   try {
-    const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    const config = await getAuthorizedTrashConfig(req, res);
+    if (!config) return;
     const id = parseTrashId(config, req.params.id);
     if (config.type === 'int' && !Number.isFinite(id)) {
       return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
@@ -126,8 +154,8 @@ const purgeTrashItem = async (req, res) => {
 
 const restoreTrashItems = async (req, res) => {
   try {
-    const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    const config = await getAuthorizedTrashConfig(req, res);
+    if (!config) return;
     const ids = parseBatchIds(config, req.body.ids || []);
     if (!ids.length) return res.status(400).json({ success: false, message: 'Vui lòng chọn dữ liệu cần khôi phục' });
 
@@ -137,6 +165,7 @@ const restoreTrashItems = async (req, res) => {
         DaXoa: false,
         NguoiXoa: null,
         NgayXoa: null,
+        ...(config.restoreData || {}),
         ...updateAudit(req)
       }
     });
@@ -149,8 +178,8 @@ const restoreTrashItems = async (req, res) => {
 
 const purgeTrashItems = async (req, res) => {
   try {
-    const config = getTrashEntity(req.params.entity);
-    if (!config) return res.status(404).json({ success: false, message: 'Không hỗ trợ loại dữ liệu này' });
+    const config = await getAuthorizedTrashConfig(req, res);
+    if (!config) return;
     const ids = parseBatchIds(config, req.body.ids || []);
     if (!ids.length) return res.status(400).json({ success: false, message: 'Vui lòng chọn dữ liệu cần xóa' });
 

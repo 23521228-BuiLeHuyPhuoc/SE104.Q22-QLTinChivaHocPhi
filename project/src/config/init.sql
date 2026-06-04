@@ -8898,6 +8898,7 @@ INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
 ('ADMIN_DAOTAO', 'ADMIN_MAJORS'),
 ('ADMIN_DAOTAO', 'ADMIN_CURRICULUM'),
 ('ADMIN_DAOTAO', 'ADMIN_COMPLETED'),
+('ADMIN_DAOTAO', 'ADMIN_TRASH'),
 ('ADMIN_DAOTAO', 'ADMIN_PROFILE'),
 ('ADMIN_TAICHINH', 'ADMIN_DASHBOARD'),
 ('ADMIN_TAICHINH', 'ADMIN_TUITION'),
@@ -8905,6 +8906,7 @@ INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
 ('ADMIN_TAICHINH', 'ADMIN_REPORTS'),
 ('ADMIN_TAICHINH', 'ADMIN_PRICING'),
 ('ADMIN_TAICHINH', 'ADMIN_BENEFICIARIES'),
+('ADMIN_TAICHINH', 'ADMIN_TRASH'),
 ('ADMIN_TAICHINH', 'ADMIN_PROFILE'),
 ('SINHVIEN', 'STUDENT_DASHBOARD'),
 ('SINHVIEN', 'STUDENT_REGISTRATION'),
@@ -10876,6 +10878,30 @@ UPDATE "NGUOIDUNG" SET "MaSv" = '22520006' WHERE "TenDangNhap" = 'student';
 UPDATE "SINHVIEN"
 SET "NgayNhapHoc" = '2025-09-01'
 WHERE "MaSv" IN ('22520001', '22520002', '22520003', '22520004', '22520005', '22520006');
+
+-- Demo bulk students for tuition/finalization flows. These students do not need
+-- login accounts; they only provide successful registrations with tuition debt.
+INSERT INTO "SINHVIEN" (
+  "MaSv", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc",
+  "MaNganh", "DiaChiLienHe", "Sdt", "Email", "NgayNhapHoc", "TrangThai", "GhiChu"
+)
+SELECT
+  '22521' || LPAD(gs::text, 3, '0') AS "MaSv",
+  'Sinh Vien Demo ' || LPAD(gs::text, 3, '0') AS "HoTen",
+  (DATE '2004-01-01' + (gs % 365))::date AS "NgaySinh",
+  CASE WHEN gs % 2 = 0 THEN 'Nữ' ELSE 'Nam' END AS "GioiTinh",
+  '07920421' || LPAD(gs::text, 4, '0') AS "Cccd",
+  '2659' AS "MaPhuongXa",
+  'KINH' AS "MaDanToc",
+  'KTPM' AS "MaNganh",
+  'Demo seed for tuition after successful registration' AS "DiaChiLienHe",
+  '09821' || LPAD(gs::text, 5, '0') AS "Sdt",
+  'demo' || LPAD(gs::text, 3, '0') || '@student.edu.vn' AS "Email",
+  DATE '2025-09-01' AS "NgayNhapHoc",
+  'Đang học' AS "TrangThai",
+  'Sinh vien sinh tu dong de demo dong hoc phi' AS "GhiChu"
+FROM generate_series(1, 90) AS gs
+ON CONFLICT ("MaSv") DO NOTHING;
 
 
 
@@ -13846,6 +13872,20 @@ INSERT INTO "MONDAHOC" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "LanHoc", "KetQu
 ('22520006', 'IT012', 'HK1-2526', 'IT012.N01', 1, 'qua_mon'),
 ('22520006', 'ME001', 'HK1-2526', 'ME001.N01', 1, 'qua_mon');
 
+-- Completed base courses for generated demo students. IT001 unlocks IT002/IT003;
+-- MA006 unlocks MA005.
+INSERT INTO "MONDAHOC" ("MaSv", "MaMonHoc", "MaHocKy", "MaLop", "LanHoc", "KetQua")
+SELECT ds."MaSv", prereq."MaMonHoc", 'HK1-2526', prereq."MaLop", 1, 'qua_mon'
+FROM (
+  SELECT '22521' || LPAD(gs::text, 3, '0') AS "MaSv"
+  FROM generate_series(1, 90) AS gs
+) ds
+CROSS JOIN (VALUES
+  ('IT001', 'IT001.N01'),
+  ('MA006', 'MA006.N01')
+) AS prereq("MaMonHoc", "MaLop")
+ON CONFLICT ("MaSv", "MaMonHoc", "MaHocKy", "LanHoc") DO NOTHING;
+
 -- =====================================================
 SET app.finalize_registration = '1';
 
@@ -13857,8 +13897,19 @@ INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TongTinChi"
 (5, '22520005', 'HK2-2526', '2026-01-23 08:00:00', 0, 0, 0, 'Đã đăng ký'),
 (6, '22520006', 'HK2-2526', '2026-01-24 08:00:00', 0, 0, 0, 'Đã đăng ký');
 
+INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TrangThai", "GhiChu")
+SELECT
+  1000 + gs AS "SoPhieu",
+  '22521' || LPAD(gs::text, 3, '0') AS "MaSv",
+  'HK2-2526' AS "MaHocKy",
+  TIMESTAMP '2026-01-24 09:00:00' + ((gs - 1) * INTERVAL '1 minute') AS "NgayLap",
+  'Đã đăng ký' AS "TrangThai",
+  'Demo bulk registration for tuition payment after finalization' AS "GhiChu"
+FROM generate_series(1, 90) AS gs
+ON CONFLICT ("SoPhieu") DO NOTHING;
+
 -- Cập nhật sequence cho "PHIEUDANGKY" để các INSERT tiếp theo bắt đầu từ giá trị đúng
-SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), 6, true);
+SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), GREATEST((SELECT MAX("SoPhieu") FROM "PHIEUDANGKY"), 6), true);
 
 -- =====================================================
 -- INSERT DATA - Chi tiết đăng ký (Registration Details)
@@ -13931,6 +13982,77 @@ SELECT
   "TrangThai",
   "NgayDangKy"
 FROM priced_ctdk;
+
+BEGIN;
+SET CONSTRAINTS ALL DEFERRED;
+
+WITH demo_ctdk_plan("MinSeq", "MaxSeq", "MaLop") AS (
+  VALUES
+  (1, 45, 'IT002.N01'),
+  (1, 45, 'IT003.N01'),
+  (1, 45, 'MA004.N01'),
+  (1, 45, 'MA005.N01'),
+  (1, 45, 'ENG02.N02'),
+  (46, 90, 'IT005.N01'),
+  (46, 90, 'IT006.N01'),
+  (46, 90, 'ENG02.N01')
+), demo_ctdk_seed AS (
+  SELECT
+    1000 + gs AS "SoPhieu",
+    plan."MaLop",
+    'hoc_moi'::varchar AS "LoaiDangKy",
+    'Đã đăng ký'::varchar AS "TrangThai"
+  FROM generate_series(1, 90) AS gs
+  JOIN demo_ctdk_plan plan ON gs BETWEEN plan."MinSeq" AND plan."MaxSeq"
+), priced_demo_bulk_ctdk AS (
+  SELECT
+    s."SoPhieu",
+    s."MaLop",
+    l."MaMonHoc",
+    s."LoaiDangKy",
+    mh."SoTinChi",
+    mh."LoaiMon",
+    fn_lay_don_gia(
+      mh."LoaiMon",
+      CASE WHEN hk."LoaiHocKy" = 'Hè' AND s."LoaiDangKy" = 'hoc_moi' THEN 'hoc_he' ELSE s."LoaiDangKy" END,
+      pdk."MaHocKy"
+    ) AS "DonGia",
+    s."TrangThai",
+    pdk."NgayLap" AS "NgayDangKy"
+  FROM demo_ctdk_seed s
+  JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = s."SoPhieu"
+  JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+  JOIN "LOPMO" lm ON lm."MaHocKy" = pdk."MaHocKy" AND lm."MaLop" = s."MaLop" AND COALESCE(lm."TrangThai", TRUE) = TRUE
+  JOIN "LOP" l ON l."MaLop" = s."MaLop" AND COALESCE(l."DaXoa", FALSE) = FALSE AND COALESCE(l."TrangThai", TRUE) = TRUE
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc" AND COALESCE(mh."DaXoa", FALSE) = FALSE AND COALESCE(mh."TrangThai", TRUE) = TRUE
+)
+INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai", "NgayDangKy")
+SELECT
+  "SoPhieu",
+  "MaLop",
+  "MaMonHoc",
+  "LoaiDangKy",
+  "SoTinChi",
+  "LoaiMon",
+  "DonGia",
+  "SoTinChi" * "DonGia",
+  "TrangThai",
+  "NgayDangKy"
+FROM priced_demo_bulk_ctdk
+ON CONFLICT ("SoPhieu", "MaMonHoc") DO NOTHING;
+
+UPDATE "LOPMO" lm
+SET "SoLuongDaDangKy" = (
+  SELECT COUNT(*)::integer
+  FROM "CHITIETDANGKY" ct
+  JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = ct."SoPhieu"
+  WHERE pdk."MaHocKy" = lm."MaHocKy"
+    AND ct."MaLop" = lm."MaLop"
+    AND ct."TrangThai" = 'Đã đăng ký'
+)
+WHERE lm."MaHocKy" IN ('HK2-2526');
+
+COMMIT;
 
 RESET app.finalize_registration;
 

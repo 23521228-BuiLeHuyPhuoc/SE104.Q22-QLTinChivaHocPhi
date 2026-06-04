@@ -3,6 +3,8 @@ var currentMyCoursesPage = 1;
 var currentAppealsPage = 1;
 var myCoursesSemesters = [];
 var myCoursesAcademicYears = [];
+var myCourseAppealContext = null;
+var myCourseConfirmResolver = null;
 
 function myCoursesEscapeHtml(value) {
   return String(value || '')
@@ -183,10 +185,14 @@ function renderMyCoursesSummary(summary) {
 
 function renderCancelAction(course) {
   var registration = course.PHIEUDANGKY || {};
+  var lop = course.LOP || {};
+  var mon = lop.MONHOC || {};
   var detailId = Number(course.id || 0);
   var detailIdArg = Number.isFinite(detailId) ? String(detailId) : '0';
   var semesterArg = myCoursesJsStringArg(registration.MaHocKy || course.MaHocKy || '');
-  var classArg = myCoursesJsStringArg(course.MaLop || (course.LOP && course.LOP.MaLop) || '');
+  var classArg = myCoursesJsStringArg(course.MaLop || lop.MaLop || '');
+  var courseArg = myCoursesJsStringArg(course.MaMonHoc || mon.MaMonHoc || '');
+  var courseNameArg = myCoursesJsStringArg(mon.TenMonHoc || '');
   var isCancelled = isCancelledRegistration(course.TrangThai);
   var canCancel = !isCancelled && course.CanHuy !== false && course.CanCancelRegistration !== false;
   var label = course.CancelActionLabel || (canCancel ? 'Hủy ĐK' : 'Đã chốt đăng ký');
@@ -197,8 +203,8 @@ function renderCancelAction(course) {
   }
 
   if (!isCancelled && course.CanAppealCancel) {
-    return '<button class="btn btn-sm btn-outline" type="button" onclick="createCancelAppeal(' + detailIdArg + ', ' + semesterArg + ', ' + classArg + ')">Gửi đơn hủy</button> ' +
-      '<button class="btn btn-sm btn-outline" type="button" onclick="createChangeAppeal(' + detailIdArg + ', ' + semesterArg + ', ' + classArg + ')">Đổi lớp</button>';
+    return '<button class="btn btn-sm btn-outline" type="button" onclick="createCancelAppeal(' + detailIdArg + ', ' + semesterArg + ', ' + classArg + ', ' + courseArg + ', ' + courseNameArg + ')">Gửi đơn hủy</button> ' +
+      '<button class="btn btn-sm btn-outline" type="button" onclick="createChangeAppeal(' + detailIdArg + ', ' + semesterArg + ', ' + classArg + ', ' + courseArg + ', ' + courseNameArg + ')">Đổi lớp</button>';
   }
 
   return '<button class="btn btn-sm btn-outline my-courses-locked-action" type="button" title="' + myCoursesEscapeHtml(message) + '" disabled>' + myCoursesEscapeHtml(label) + '</button>';
@@ -288,9 +294,41 @@ async function loadMyCourses(page) {
   }
 }
 
+function openMyCourseConfirmModal(options) {
+  options = options || {};
+  return new Promise(function(resolve) {
+    if (myCourseConfirmResolver) myCourseConfirmResolver(false);
+    myCourseConfirmResolver = resolve;
+
+    var modal = document.getElementById('my-course-confirm-modal');
+    var title = document.getElementById('my-course-confirm-title');
+    var message = document.getElementById('my-course-confirm-message');
+    var submit = document.getElementById('my-course-confirm-submit');
+
+    if (title) title.textContent = options.title || 'Xác nhận thao tác';
+    if (message) message.textContent = options.message || 'Bạn có chắc muốn tiếp tục?';
+    if (submit) submit.textContent = options.confirmText || 'Đồng ý';
+    if (modal) modal.classList.add('active');
+    if (submit) setTimeout(function() { submit.focus(); }, 50);
+  });
+}
+
+function closeMyCourseConfirmModal(confirmed) {
+  var modal = document.getElementById('my-course-confirm-modal');
+  var resolver = myCourseConfirmResolver;
+  if (modal) modal.classList.remove('active');
+  myCourseConfirmResolver = null;
+  if (resolver) resolver(Boolean(confirmed));
+}
+
 async function cancelRegistration(id) {
   if (!id) return;
-  if (!confirm('Bạn có chắc muốn hủy đăng ký học phần này?')) return;
+  var confirmed = await openMyCourseConfirmModal({
+    title: 'Hủy đăng ký học phần',
+    message: 'Bạn có chắc muốn hủy đăng ký học phần này?',
+    confirmText: 'Hủy đăng ký'
+  });
+  if (!confirmed) return;
   try {
     var res = await apiFetch('/api/registrations/' + id + '/cancel', { method: 'PUT' });
     if (res.success) {
@@ -304,42 +342,139 @@ async function cancelRegistration(id) {
   }
 }
 
-async function createCancelAppeal(id, maHocKy, maLop) {
-  var student = await ensureCurrentStudent();
-  if (!student) return;
-  var reason = prompt('Nhập lý do xin cứu xét hủy học phần');
-  if (!reason) return;
+function renderMyCourseAppealSummary(context) {
+  var summary = document.getElementById('my-course-appeal-summary');
+  if (!summary || !context) return;
+  var action = context.type === 'doi' ? 'Đổi lớp' : 'Hủy học phần';
+  summary.innerHTML = '<strong>' + myCoursesEscapeHtml(action + ': ' + (context.courseName || context.maMonHoc || '-')) + '</strong>' +
+    '<span>Lớp hiện tại: ' + myCoursesEscapeHtml(context.maLopHuy || '-') + ' · Học kỳ ' + myCoursesEscapeHtml(context.maHocKy || '-') + '</span>';
+}
+
+function setChangeClassOptionsLoading(message) {
+  var select = document.getElementById('my-course-appeal-target-class');
+  if (!select) return;
+  select.disabled = true;
+  select.innerHTML = '<option value="">' + myCoursesEscapeHtml(message || 'Đang tải danh sách lớp phù hợp') + '</option>';
+}
+
+async function fetchChangeClassOptions(context) {
+  var rows = [];
+  var page = 1;
+  var totalPages = 1;
+  do {
+    var params = new URLSearchParams();
+    params.set('MaHocKy', context.maHocKy);
+    params.set('searchScope', 'course');
+    params.set('search', context.maMonHoc || context.courseName || '');
+    params.set('page', String(page));
+    var res = await apiFetch('/api/registrations/available?' + params.toString());
+    if (!res || !res.success) throw new Error((res && res.message) || 'Không thể tải danh sách lớp');
+    rows = rows.concat(res.data || []);
+    totalPages = Number(res.pagination && res.pagination.totalPages || 1);
+    page += 1;
+  } while (page <= totalPages);
+
+  return rows.filter(function(row) {
+    var max = Number(row.SoLuongToiDa || 0);
+    var registered = Number(row.SoLuongDaDangKy || 0);
+    return row.MaMonHoc === context.maMonHoc &&
+      row.MaLop !== context.maLopHuy &&
+      max > 0 &&
+      registered < max;
+  });
+}
+
+async function loadChangeClassOptions(context) {
+  var select = document.getElementById('my-course-appeal-target-class');
+  if (!select) return;
+  setChangeClassOptionsLoading('Đang tải danh sách lớp phù hợp');
   try {
-    var res = await apiFetch('/api/appeals', {
-      method: 'POST',
-      body: { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: 'huy', MaLopHuy: maLop, LyDo: reason }
-    });
-    if (res && res.success) {
-      showToast('Đã gửi đơn cứu xét hủy học phần', 'success');
-      loadMyAppeals(1);
-    } else {
-      showToast((res && res.message) || 'Không thể gửi đơn cứu xét', 'error');
+    var rows = await fetchChangeClassOptions(context);
+    if (!rows.length) {
+      setChangeClassOptionsLoading('Không có lớp khác phù hợp để đổi');
+      return;
     }
+    select.disabled = false;
+    select.innerHTML = '<option value="">Chọn lớp muốn đổi sang</option>' + rows.map(function(row) {
+      var label = row.MaLop + ' - ' + (row.GiangVien || 'Chưa có giảng viên') + (row.LichHoc ? ' - ' + row.LichHoc : '');
+      return '<option value="' + myCoursesEscapeHtml(row.MaLop) + '">' + myCoursesEscapeHtml(label) + '</option>';
+    }).join('');
   } catch (e) {
-    showToast('Lỗi kết nối', 'error');
+    setChangeClassOptionsLoading(e.message || 'Không thể tải danh sách lớp');
   }
 }
 
-async function createChangeAppeal(id, maHocKy, maLopHuy) {
+async function openMyCourseAppealModal(context) {
   var student = await ensureCurrentStudent();
   if (!student) return;
-  var maLopThem = prompt('Nhập mã lớp muốn đổi sang');
-  if (!maLopThem) return;
-  var reason = prompt('Nhập lý do xin cứu xét đổi lớp');
-  if (!reason) return;
+  myCourseAppealContext = context;
+  var modal = document.getElementById('my-course-appeal-modal');
+  var title = document.getElementById('my-course-appeal-title');
+  var typeInput = document.getElementById('my-course-appeal-type');
+  var semesterInput = document.getElementById('my-course-appeal-semester');
+  var classInput = document.getElementById('my-course-appeal-current-class');
+  var courseInput = document.getElementById('my-course-appeal-course');
+  var reason = document.getElementById('my-course-appeal-reason');
+  var changeGroup = document.getElementById('my-course-change-class-group');
+  var select = document.getElementById('my-course-appeal-target-class');
+
+  if (title) title.textContent = context.type === 'doi' ? 'Gửi đơn cứu xét đổi lớp' : 'Gửi đơn cứu xét hủy học phần';
+  if (typeInput) typeInput.value = context.type || '';
+  if (semesterInput) semesterInput.value = context.maHocKy || '';
+  if (classInput) classInput.value = context.maLopHuy || '';
+  if (courseInput) courseInput.value = context.maMonHoc || '';
+  if (reason) reason.value = '';
+  if (select) select.innerHTML = '<option value="">Chọn lớp muốn đổi sang</option>';
+  renderMyCourseAppealSummary(context);
+
+  if (changeGroup) changeGroup.classList.toggle('hidden', context.type !== 'doi');
+  if (modal) modal.classList.add('active');
+  if (context.type === 'doi') await loadChangeClassOptions(context);
+  if (reason) setTimeout(function() { reason.focus(); }, 50);
+}
+
+function closeMyCourseAppealModal() {
+  var modal = document.getElementById('my-course-appeal-modal');
+  if (modal) modal.classList.remove('active');
+  myCourseAppealContext = null;
+}
+
+function createCancelAppeal(id, maHocKy, maLop, maMonHoc, courseName) {
+  openMyCourseAppealModal({ type: 'huy', id: id, maHocKy: maHocKy, maLopHuy: maLop, maMonHoc: maMonHoc, courseName: courseName });
+}
+
+function createChangeAppeal(id, maHocKy, maLopHuy, maMonHoc, courseName) {
+  openMyCourseAppealModal({ type: 'doi', id: id, maHocKy: maHocKy, maLopHuy: maLopHuy, maMonHoc: maMonHoc, courseName: courseName });
+}
+
+async function submitMyCourseAppeal(event) {
+  if (event) event.preventDefault();
+  var student = await ensureCurrentStudent();
+  if (!student) return;
+  var type = (document.getElementById('my-course-appeal-type') || {}).value || '';
+  var maHocKy = (document.getElementById('my-course-appeal-semester') || {}).value || '';
+  var maLopHuy = (document.getElementById('my-course-appeal-current-class') || {}).value || '';
+  var maLopThem = (document.getElementById('my-course-appeal-target-class') || {}).value || '';
+  var reason = ((document.getElementById('my-course-appeal-reason') || {}).value || '').trim();
+
+  if (type === 'doi' && !maLopThem) {
+    showToast('Vui lòng chọn lớp muốn đổi sang', 'error');
+    return;
+  }
+  if (!reason) {
+    showToast('Vui lòng nhập lý do cứu xét', 'error');
+    return;
+  }
+
   try {
-    var res = await apiFetch('/api/appeals', {
-      method: 'POST',
-      body: { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: 'doi', MaLopHuy: maLopHuy, MaLopThem: maLopThem.trim(), LyDo: reason }
-    });
+    var body = { MaSv: student.MaSv, MaHocKy: maHocKy, LoaiDon: type, MaLopHuy: maLopHuy, LyDo: reason };
+    if (type === 'doi') body.MaLopThem = maLopThem;
+    var res = await apiFetch('/api/appeals', { method: 'POST', body: body });
     if (res && res.success) {
-      showToast('Đã gửi đơn cứu xét đổi lớp', 'success');
+      closeMyCourseAppealModal();
+      showToast(type === 'doi' ? 'Đã gửi đơn cứu xét đổi lớp' : 'Đã gửi đơn cứu xét hủy học phần', 'success');
       loadMyAppeals(1);
+      loadMyCourses(currentMyCoursesPage);
     } else {
       showToast((res && res.message) || 'Không thể gửi đơn cứu xét', 'error');
     }
@@ -362,7 +497,12 @@ function appealContent(row) {
 }
 
 async function cancelAppeal(id) {
-  if (!confirm('Hủy đơn cứu xét đang chờ duyệt?')) return;
+  var confirmed = await openMyCourseConfirmModal({
+    title: 'Hủy đơn cứu xét',
+    message: 'Hủy đơn cứu xét đang chờ duyệt?',
+    confirmText: 'Hủy đơn'
+  });
+  if (!confirmed) return;
   var res = await apiFetch('/api/appeals/' + encodeURIComponent(id) + '/cancel', { method: 'PUT' });
   if (res && res.success) {
     showToast('Đã hủy đơn cứu xét', 'success');
@@ -444,6 +584,9 @@ document.addEventListener('DOMContentLoaded', function() {
       loadMyCourses(1);
     });
   }
+
+  var appealForm = document.getElementById('my-course-appeal-form');
+  if (appealForm) appealForm.addEventListener('submit', submitMyCourseAppeal);
 
   loadFilterOptions().then(function() {
     applyFiltersFromUrl();
