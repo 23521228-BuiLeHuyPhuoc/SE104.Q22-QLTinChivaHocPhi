@@ -147,7 +147,9 @@ async function loadCurriculum() {
 
 async function loadCourseOptions(search) {
   var list = document.getElementById('ctdt-course-options');
-  var res = await apiFetch('/api/courses?search=' + encodeURIComponent(search || ''));
+  var params = new URLSearchParams({ all: 'true', searchField: 'all', TrangThai: 'true' });
+  if (search && search.trim()) params.set('search', search.trim());
+  var res = await apiFetch('/api/courses?' + params.toString());
   list.innerHTML = (res.data || []).map(function(c) {
     return '<option value="' + escapeMajorHtml(c.MaMonHoc) + '">' + escapeMajorHtml(c.TenMonHoc || '') + '</option>';
   }).join('');
@@ -206,11 +208,13 @@ async function deleteCurriculumItem(id) {
 document.addEventListener('DOMContentLoaded', function() {
   var courseInput = document.getElementById('ctdt-course');
   if (courseInput) {
+    var scheduleCourseOptionsLoad = function() {
+      clearTimeout(curriculumTimer);
+      curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
+    };
+    courseInput.addEventListener('input', scheduleCourseOptionsLoad);
     courseInput.addEventListener('keydown', function(event) {
-      runSearchOnEnter(event, function() {
-        clearTimeout(curriculumTimer);
-        curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
-      });
+      runSearchOnEnter(event, scheduleCourseOptionsLoad);
     });
   }
 

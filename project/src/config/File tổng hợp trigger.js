@@ -120,9 +120,21 @@ EXECUTE FUNCTION trg_func_doituongsinhvien_rbtv01();
 CREATE OR REPLACE FUNCTION trg_func_doituong_rbtv01()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF OLD."MaDoiTuong" = 'DT06' THEN
-        RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+    IF TG_OP = 'DELETE' THEN
+        IF OLD."MaDoiTuong" = 'DT06' THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+        END IF;
+        RETURN OLD;
     END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+        IF OLD."MaDoiTuong" = 'DT06'
+           AND NEW."MaDoiTuong" IS DISTINCT FROM OLD."MaDoiTuong" THEN
+            RAISE EXCEPTION 'Lỗi RBTV01: Không được phép xóa hoặc sửa mã đối tượng hệ thống DT06.';
+        END IF;
+        RETURN NEW;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -132,6 +144,39 @@ CREATE TRIGGER trg_doituong_rbtv01
 BEFORE UPDATE OR DELETE ON "DOITUONG"
 FOR EACH ROW 
 EXECUTE FUNCTION trg_func_doituong_rbtv01();
+
+CREATE OR REPLACE FUNCTION trg_func_doituong_restrict_delete_if_referenced()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ref_count INTEGER;
+BEGIN
+    IF TG_OP = 'DELETE'
+       OR (TG_OP = 'UPDATE'
+           AND COALESCE(OLD."DaXoa", FALSE) = FALSE
+           AND COALESCE(NEW."DaXoa", FALSE) = TRUE) THEN
+        SELECT COUNT(*)
+        INTO v_ref_count
+        FROM "DOITUONGSINHVIEN"
+        WHERE "MaDoiTuong" = OLD."MaDoiTuong";
+
+        IF v_ref_count > 0 THEN
+            RAISE EXCEPTION 'Lỗi RBTV_FK_DOITUONG: Không thể xóa đối tượng ưu tiên % vì đang có % sinh viên tham chiếu.', OLD."MaDoiTuong", v_ref_count;
+        END IF;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_doituong_restrict_delete_if_referenced ON "DOITUONG";
+CREATE TRIGGER trg_doituong_restrict_delete_if_referenced
+BEFORE UPDATE OF "DaXoa" OR DELETE ON "DOITUONG"
+FOR EACH ROW
+EXECUTE FUNCTION trg_func_doituong_restrict_delete_if_referenced();
 --RBTV2:
 CREATE OR REPLACE FUNCTION function_calculate_max_discount(p_ma_sv VARCHAR)
 RETURNS DECIMAL(5,2) AS $$
@@ -1315,7 +1360,18 @@ BEGIN
         RAISE EXCEPTION 'RBTV09: Học kỳ có thứ tự % đã tồn tại trong năm học %.', NEW."ThuTu", NEW."MaNamHoc";
     END IF;
 
-    /* 3. Kiểm tra logic các mốc thời gian (bỏ qua nếu dữ liệu NULL) */
+    /* 3. Kiểm tra logic các mốc thời gian */
+    IF NEW."NgayBatDau" IS NULL
+       OR NEW."NgayKetThuc" IS NULL
+       OR NEW."NgayBatDauDangKy" IS NULL
+       OR NEW."NgayKetThucDangKy" IS NULL
+       OR NEW."NgayBatDauCuuXet" IS NULL
+       OR NEW."NgayKetThucCuuXet" IS NULL
+       OR NEW."NgayBatDauDongHocPhi" IS NULL
+       OR NEW."HanDongHocPhi" IS NULL THEN
+        RAISE EXCEPTION 'RBTV09: Học kỳ phải cấu hình đầy đủ thời gian học kỳ, đăng ký, cứu xét và học phí.';
+    END IF;
+
     IF NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
         IF NEW."NgayBatDau" >= NEW."NgayKetThuc" THEN
             RAISE EXCEPTION 'RBTV09: NgayBatDau phải nhỏ hơn NgayKetThuc.';
@@ -1328,32 +1384,51 @@ BEGIN
         END IF;
     END IF;
 
-    IF (NEW."NgayBatDauDangKy" IS NOT NULL OR NEW."NgayKetThucDangKy" IS NOT NULL)
-       AND NEW."NgayBatDau" IS NULL THEN
-        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau trước khi nhập thời gian đăng ký.';
-    END IF;
-
     IF NEW."NgayBatDauDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
-        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
-        IF NEW."NgayBatDauDangKy"::DATE >= NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải trước NgayBatDau.';
+        IF NEW."NgayBatDauDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDangKy phải nhỏ hơn NgayBatDau học kỳ.';
         END IF;
     END IF;
 
     IF NEW."NgayKetThucDangKy" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
-        /* Ép kiểu TIMESTAMP về DATE để so sánh chính xác với NgayBatDau (kiểu DATE) */
-        IF NEW."NgayKetThucDangKy"::DATE >= NEW."NgayBatDau" THEN
-            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải trước NgayBatDau.';
+        IF NEW."NgayKetThucDangKy" >= NEW."NgayBatDau"::TIMESTAMP THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucDangKy phải nhỏ hơn NgayBatDau học kỳ.';
         END IF;
     END IF;
 
-    IF NEW."HanDongHocPhi" IS NOT NULL AND (NEW."NgayBatDau" IS NULL OR NEW."NgayKetThuc" IS NULL) THEN
-        RAISE EXCEPTION 'RBTV09: Cần nhập NgayBatDau và NgayKetThuc trước khi nhập HanDongHocPhi.';
+    IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
+        IF NEW."NgayBatDauCuuXet" > NEW."NgayKetThucCuuXet" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauCuuXet phải nhỏ hơn hoặc bằng NgayKetThucCuuXet.';
+        END IF;
     END IF;
 
-    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
-        IF NEW."HanDongHocPhi" < NEW."NgayBatDau" OR NEW."HanDongHocPhi" > NEW."NgayKetThuc" THEN
-            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nằm trong khoảng NgayBatDau đến NgayKetThuc.';
+    IF NEW."NgayBatDauCuuXet" IS NOT NULL AND NEW."NgayKetThucDangKy" IS NOT NULL THEN
+        IF NEW."NgayBatDauCuuXet" <= NEW."NgayKetThucDangKy" THEN
+            RAISE EXCEPTION 'RBTV09: Thời gian cứu xét phải bắt đầu sau khi kết thúc đăng ký.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayKetThucCuuXet" IS NOT NULL AND NEW."NgayBatDau" IS NOT NULL THEN
+        IF NEW."NgayKetThucCuuXet"::DATE >= NEW."NgayBatDau" THEN
+            RAISE EXCEPTION 'RBTV09: NgayKetThucCuuXet phải nhỏ hơn NgayBatDau học kỳ.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayBatDauDongHocPhi" IS NOT NULL AND NEW."NgayKetThucCuuXet" IS NOT NULL THEN
+        IF NEW."NgayBatDauDongHocPhi"::TIMESTAMP <= NEW."NgayKetThucCuuXet" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải sau NgayKetThucCuuXet.';
+        END IF;
+    END IF;
+
+    IF NEW."NgayBatDauDongHocPhi" IS NOT NULL AND NEW."HanDongHocPhi" IS NOT NULL THEN
+        IF NEW."NgayBatDauDongHocPhi" > NEW."HanDongHocPhi" THEN
+            RAISE EXCEPTION 'RBTV09: NgayBatDauDongHocPhi phải nhỏ hơn hoặc bằng HanDongHocPhi.';
+        END IF;
+    END IF;
+
+    IF NEW."HanDongHocPhi" IS NOT NULL AND NEW."NgayKetThuc" IS NOT NULL THEN
+        IF NEW."HanDongHocPhi" >= NEW."NgayKetThuc" THEN
+            RAISE EXCEPTION 'RBTV09: HanDongHocPhi phải nhỏ hơn NgayKetThuc học kỳ.';
         END IF;
     END IF;
 
@@ -1497,6 +1572,10 @@ DECLARE
     new_bd_thutu INT;
     new_kt_thutu INT;
 BEGIN
+    IF COALESCE(NEW."TrangThai", TRUE) = FALSE THEN
+        RETURN NEW;
+    END IF;
+
     /* 1. Lấy thứ tự (ThuTu) của tiết bắt đầu và tiết kết thúc của dòng đang thao tác */
     SELECT "ThuTu" INTO new_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
     SELECT "ThuTu" INTO new_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
@@ -1509,6 +1588,7 @@ BEGIN
         JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
         WHERE lh."LopMoId" = NEW."LopMoId"
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          AND COALESCE(lh."TrangThai", TRUE) = TRUE
           -- Loại trừ chính dòng hiện tại khi thực hiện thao tác UPDATE
           AND lh.id IS DISTINCT FROM NEW.id
           -- Công thức kiểm tra giao nhau: bd1.ThuTu <= kt2.ThuTu AND bd2.ThuTu <= kt1.ThuTu
@@ -1549,6 +1629,9 @@ BEGIN
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE 
+                COALESCE(lh1."TrangThai", TRUE) = TRUE
+                AND COALESCE(lh2."TrangThai", TRUE) = TRUE
+                AND
                 -- Áp dụng giá trị ThuTu mới nếu mã tiết trùng với tiết vừa sửa, ngược lại giữ nguyên ThuTu cũ
                 (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <= 
                 (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
@@ -2544,6 +2627,7 @@ DECLARE
     v_MaSv VARCHAR(15);
     v_MaHocKy VARCHAR(15);
     v_TongTinChi INTEGER := 0;
+    v_ChiTietDangKyId INTEGER := NULL;
     
     -- Bien luu tham so he thong
     v_SoTinChiDangKyToiDa INTEGER;
@@ -2567,6 +2651,7 @@ BEGIN
     IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
         SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
         FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        v_ChiTietDangKyId := NEW.id;
     ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
         v_MaSv := NEW."MaSv";
         v_MaHocKy := NEW."MaHocKy";
@@ -2587,7 +2672,7 @@ BEGIN
     JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
     WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
       AND ct."TrangThai" = 'Đã đăng ký'
-      AND (TG_TABLE_NAME <> 'CHITIETDANGKY' OR ct.id <> NEW.id);
+      AND (v_ChiTietDangKyId IS NULL OR ct.id <> v_ChiTietDangKyId);
 
     -- Cong them tin chi cua ban ghi dang them/sua neu no co trang thai 'Đã đăng ký'
     IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN

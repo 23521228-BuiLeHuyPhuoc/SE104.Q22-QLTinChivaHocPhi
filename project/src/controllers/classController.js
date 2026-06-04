@@ -690,10 +690,11 @@ const openClass = async (req, res) => {
         AND "MaMonHoc" = ${cls.MaMonHoc}
         AND COALESCE("DaXoa", FALSE) = FALSE
         AND COALESCE("TrangThai", TRUE) = TRUE
+        AND fn_monhocmo_has_curriculum_plan(${MaHocKy}, ${cls.MaMonHoc}) = TRUE
       LIMIT 1
     `;
     if (!openedCourse.length) {
-      return res.status(400).json({ success: false, message: 'Môn học của lớp chưa được mở trong học kỳ này. Vui lòng mở môn học trước khi mở lớp.' });
+      return res.status(400).json({ success: false, message: 'Môn học của lớp chưa được mở hợp lệ theo kế hoạch đào tạo của khoa trong học kỳ này.' });
     }
 
     const existing = await prisma.LOPMO.findFirst({ where: { MaHocKy, MaLop } });

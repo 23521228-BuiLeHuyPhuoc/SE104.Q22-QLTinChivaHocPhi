@@ -117,6 +117,7 @@ const getAdminSemesterSearchValues = (row, field) => {
     NgayKetThuc: dateValues(row.NgayKetThuc),
     NgayBatDauDangKy: dateValues(row.NgayBatDauDangKy),
     NgayKetThucDangKy: dateValues(row.NgayKetThucDangKy),
+    NgayBatDauDongHocPhi: dateValues(row.NgayBatDauDongHocPhi),
     HanDongHocPhi: dateValues(row.HanDongHocPhi)
   };
   return getScopedRegexValues(values, field);
@@ -231,6 +232,7 @@ const toSemesterActivityOption = (semester) => {
     NgayKetThucCuuXet: toIsoOrNull(semester.NgayKetThucCuuXet),
     MoThuHocPhi: Boolean(semester.MoThuHocPhi),
     NgayMoThuHocPhi: toIsoOrNull(semester.NgayMoThuHocPhi),
+    NgayBatDauDongHocPhi: toIsoOrNull(semester.NgayBatDauDongHocPhi),
     HanDongHocPhi: toIsoOrNull(semester.HanDongHocPhi),
     pendingAppeals,
     isCurrent: isCurrentSemester(semester),
@@ -1079,7 +1081,7 @@ const adminSemesters = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = DEFAULT_PAGE_SIZE;
   const search = String(req.query.search || '').trim();
-  const dateSearchFields = new Set(['NgayBatDau', 'NgayKetThuc', 'NgayBatDauDangKy', 'NgayKetThucDangKy', 'HanDongHocPhi']);
+  const dateSearchFields = new Set(['NgayBatDau', 'NgayKetThuc', 'NgayBatDauDangKy', 'NgayKetThucDangKy', 'NgayBatDauDongHocPhi', 'HanDongHocPhi']);
   const validSearchFields = new Set(['all', 'MaHocKy', 'TenHocKy', 'MaNamHoc', 'HocKy', 'LoaiHocKy', 'TrangThai', ...dateSearchFields]);
   const searchField = validSearchFields.has(req.query.searchField) ? req.query.searchField : 'all';
   const where = { DaXoa: false };
@@ -1858,6 +1860,7 @@ const adminBeneficiaries = async (req, res) => {
 const adminPermissions = async (req, res) => {
   const groupPage = parseInt(req.query.groupPage, 10) || 1;
   const functionPage = parseInt(req.query.functionPage, 10) || 1;
+  const activePermissionTab = req.query.tab === 'functions' ? 'functions' : 'groups';
   const limit = DEFAULT_PAGE_SIZE;
   try {
     const [groups, groupTotal, functions, functionTotal] = await Promise.all([
@@ -1899,7 +1902,8 @@ const adminPermissions = async (req, res) => {
       groupPage,
       functionPage,
       groupTotalPages: Math.ceil(groupTotal / limit),
-      functionTotalPages: Math.ceil(functionTotal / limit)
+      functionTotalPages: Math.ceil(functionTotal / limit),
+      activePermissionTab
     });
   } catch (err) {
     console.error('Error:', err);
@@ -1909,7 +1913,8 @@ const adminPermissions = async (req, res) => {
       groupPage: 1,
       functionPage: 1,
       groupTotalPages: 0,
-      functionTotalPages: 0
+      functionTotalPages: 0,
+      activePermissionTab
     });
   }
 };

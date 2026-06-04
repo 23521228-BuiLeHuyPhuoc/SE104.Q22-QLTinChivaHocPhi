@@ -3,6 +3,7 @@ const formatSemester = (hk) => ({
   MaHocKy: hk.MaHocKy, TenHocKy: hk.TenHocKy, MaNamHoc: hk.MaNamHoc,
   LoaiHocKy: hk.LoaiHocKy, ThuTu: hk.ThuTu,
   NgayBatDau: hk.NgayBatDau, NgayKetThuc: hk.NgayKetThuc,
+  NgayBatDauDongHocPhi: hk.NgayBatDauDongHocPhi,
   HanDongHocPhi: hk.HanDongHocPhi, TrangThai: hk.TrangThai,
   NguoiCapNhat: hk.NguoiCapNhat,
   NgayCapNhat: hk.NgayCapNhat,

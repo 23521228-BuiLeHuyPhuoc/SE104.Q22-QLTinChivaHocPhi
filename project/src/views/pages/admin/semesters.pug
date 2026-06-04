@@ -65,6 +65,7 @@ block content
           option(value="NgayKetThucCuuXet") Hạn cứu xét
           option(value="NgayChotDangKy") Ngày chốt đăng ký
           option(value="NgayMoThuHocPhi") Ngày mở thu học phí
+          option(value="NgayBatDauDongHocPhi") Bắt đầu đóng học phí
           option(value="HanDongHocPhi") Hạn đóng học phí
       .semester-filter-field.semester-filter-date-exact
         label(for="semester-date-exact") Ngày cần tìm
@@ -129,31 +130,35 @@ block modals
           .form-row
             .form-group
               label(for="hk-batdau") Ngày bắt đầu kỳ
-              input.form-control#hk-batdau(type="date" aria-describedby="hk-term-date-error")
+              input.form-control#hk-batdau(type="date" required aria-describedby="hk-term-date-error")
             .form-group
               label(for="hk-ketthuc") Ngày kết thúc kỳ
-              input.form-control#hk-ketthuc(type="date" aria-describedby="hk-term-date-error")
+              input.form-control#hk-ketthuc(type="date" required aria-describedby="hk-term-date-error")
               small.field-error#hk-term-date-error(aria-live="polite")
           .form-row
             .form-group
               label(for="hk-batdaudk") Bắt đầu đăng ký
-              input.form-control#hk-batdaudk(type="date" aria-describedby="hk-registration-date-error")
+              input.form-control#hk-batdaudk(type="date" required aria-describedby="hk-registration-date-error")
             .form-group
               label(for="hk-ketthucdk") Hạn kết thúc đăng ký
-              input.form-control#hk-ketthucdk(type="date" aria-describedby="hk-registration-date-error")
+              input.form-control#hk-ketthucdk(type="date" required aria-describedby="hk-registration-date-error")
               small.field-error#hk-registration-date-error(aria-live="polite")
           .form-row
             .form-group
               label(for="hk-batdaucx") Bắt đầu cứu xét
-              input.form-control#hk-batdaucx(type="date" aria-describedby="hk-appeal-date-error")
+              input.form-control#hk-batdaucx(type="date" required aria-describedby="hk-appeal-date-error")
             .form-group
               label(for="hk-ketthuccx") Hạn kết thúc cứu xét
-              input.form-control#hk-ketthuccx(type="date" aria-describedby="hk-appeal-date-error")
+              input.form-control#hk-ketthuccx(type="date" required aria-describedby="hk-appeal-date-error")
               small.field-error#hk-appeal-date-error(aria-live="polite")
-          .form-group
-            label(for="hk-hanhocphi") Hạn đóng học phí
-            input.form-control#hk-hanhocphi(type="date" aria-describedby="hk-tuition-date-error")
-            small.field-error#hk-tuition-date-error(aria-live="polite")
+          .form-row
+            .form-group
+              label(for="hk-batdaudonghp") Bắt đầu đóng học phí
+              input.form-control#hk-batdaudonghp(type="date" required aria-describedby="hk-tuition-date-error")
+            .form-group
+              label(for="hk-hanhocphi") Hạn đóng học phí
+              input.form-control#hk-hanhocphi(type="date" required aria-describedby="hk-tuition-date-error")
+              small.field-error#hk-tuition-date-error(aria-live="polite")
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveSemester()") Lưu

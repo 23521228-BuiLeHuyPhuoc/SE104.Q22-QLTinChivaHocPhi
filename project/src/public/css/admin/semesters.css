@@ -508,3 +508,148 @@
     min-width: 0;
   }
 }
+
+/* Semester filter controls: fixed three-row layout on desktop. */
+.semester-filter-grid {
+  align-items: end;
+  gap: 16px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.semester-filter-search {
+  grid-column: 1 / span 6;
+  grid-row: 1;
+}
+
+.semester-filter-registration-finalized {
+  grid-column: 1 / span 3;
+  grid-row: 2;
+}
+
+.semester-filter-tuition-open {
+  grid-column: 4 / span 3;
+  grid-row: 2;
+}
+
+.semester-filter-date-field {
+  grid-column: 7 / span 4;
+  grid-row: 2;
+}
+
+.semester-filter-date-exact {
+  grid-column: 11 / -1;
+  grid-row: 2;
+}
+
+.semester-filter-kind {
+  grid-column: 1 / span 5;
+  grid-row: 3;
+}
+
+.semester-filter-status {
+  grid-column: 6 / span 5;
+  grid-row: 3;
+}
+
+.semester-filter-actions {
+  grid-column: 11 / -1;
+  grid-row: 3;
+}
+
+.semester-search-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(136px, 156px);
+}
+
+.semester-search-box {
+  order: 1;
+}
+
+#semester-search-scope {
+  order: 2;
+}
+
+.semester-search-box input {
+  min-width: 0;
+}
+
+.semester-filter-field .form-control,
+.semester-filter-field input,
+.semester-filter-field select {
+  width: 100%;
+}
+
+.semester-filter-actions .btn {
+  white-space: nowrap;
+}
+
+@container (max-width: 980px) {
+  .semester-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .semester-filter-search {
+    order: 1;
+  }
+
+  .semester-filter-registration-finalized {
+    order: 2;
+  }
+
+  .semester-filter-tuition-open {
+    order: 3;
+  }
+
+  .semester-filter-date-field {
+    order: 4;
+  }
+
+  .semester-filter-date-exact {
+    order: 5;
+  }
+
+  .semester-filter-kind {
+    order: 6;
+  }
+
+  .semester-filter-status {
+    order: 7;
+  }
+
+  .semester-filter-actions {
+    order: 8;
+  }
+
+  .semester-filter-search,
+  .semester-filter-kind,
+  .semester-filter-status {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .semester-filter-registration-finalized,
+  .semester-filter-tuition-open,
+  .semester-filter-date-field,
+  .semester-filter-date-exact,
+  .semester-filter-actions {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@container (max-width: 620px) {
+  .semester-filter-grid,
+  .semester-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .semester-filter-search,
+  .semester-filter-kind,
+  .semester-filter-status,
+  .semester-filter-registration-finalized,
+  .semester-filter-tuition-open,
+  .semester-filter-date-field,
+  .semester-filter-date-exact,
+  .semester-filter-actions {
+    grid-column: 1 / -1;
+  }
+}

@@ -138,6 +138,7 @@ function renderTuitionDetail(data) {
     '</div>' +
     '<div class="info-list">' +
       '<div><span class="label">Học kỳ</span><span>' + tuitionEscapeHtml([data.TenHocKy, data.TenNamHoc].filter(Boolean).join(' - ')) + '</span></div>' +
+      '<div><span class="label">Bắt đầu đóng</span><span>' + (data.NgayBatDauDongHocPhi ? formatDate(data.NgayBatDauDongHocPhi) : '-') + '</span></div>' +
       '<div><span class="label">Hạn đóng</span><span>' + (data.HanDongHocPhi ? formatDate(data.HanDongHocPhi) : '-') + '</span></div>' +
       '<div><span class="label">Trạng thái</span><span><span class="badge ' + tuitionStatusBadge(data.TrangThai, data.QuaHan) + '">' + tuitionEscapeHtml(data.TrangThai || '-') + '</span></span></div>' +
       '<div><span class="label">Miễn giảm</span><span>' + tuitionEscapeHtml(discountText || (data.TiLeGiam ? data.TiLeGiam + '%' : '-')) + ' (' + formatCurrency(data.TienMienGiam || 0) + ')</span></div>' +
