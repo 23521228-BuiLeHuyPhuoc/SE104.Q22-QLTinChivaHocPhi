@@ -30,7 +30,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(300px, 1.35fr) minmax(170px, 0.8fr) minmax(170px, 0.8fr) minmax(150px, 0.65fr) minmax(140px, auto);
+  grid-template-columns: minmax(300px, 1.35fr) repeat(3, minmax(150px, 0.75fr)) minmax(132px, 0.55fr);
 }
 
 .open-courses-filter-field {
@@ -60,11 +60,12 @@
 
 .open-courses-filter-actions {
   align-items: stretch;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  justify-content: flex-end;
-  min-width: 120px;
+  display: grid;
+  min-width: 0;
+}
+
+.open-courses-filter-actions .btn {
+  width: 100%;
 }
 
 .open-courses-list-card {

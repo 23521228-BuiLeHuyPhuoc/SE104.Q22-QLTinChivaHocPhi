@@ -5,16 +5,17 @@ block styles
 
 block content
   .page-shell
-    .toolbar
+    .toolbar.admin-toolbar
       .toolbar-title
         h2.page-title Báo cáo thống kê
         p Theo dõi doanh thu, công nợ và sinh viên chưa hoàn thành học phí.
-      .filter-group
+      .filter-group.admin-filter-group
         select#report-semester(onchange="loadReports()")
           option(value="") Tất cả học kỳ
           if semesters && semesters.length
             each semester in semesters
               option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+      .admin-action-group
         a.btn.btn-outline(href="/admin/reports/incomplete-tuition")
           span.material-symbols-rounded(aria-hidden="true") account_balance_wallet
           span Nợ học phí
@@ -46,11 +47,11 @@ block content
           h3#stat-remaining --
           p Còn nợ
 
-    .toolbar#registration-statistics
+    .toolbar.admin-toolbar#registration-statistics
       .toolbar-title
         h3 Thống kê đăng ký môn học
         p Tổng hợp sinh viên đăng ký theo khoa và ngành.
-      .filter-group
+      .admin-action-group
         button.btn.btn-outline(type="button" onclick="exportRegistrationStats()")
           span.material-symbols-rounded(aria-hidden="true") download
           span Excel đăng ký

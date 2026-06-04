@@ -2,10 +2,10 @@ extends ../../layouts/admin
 
 block content
   - const money = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
-  .toolbar
-    .search-box
+  .toolbar.admin-toolbar
+    .search-box.admin-search-group
       input#search-input(type="text" placeholder="Tìm phiếu thu, MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select#filter-semester(onchange="applyFilters()")
         option(value="" selected=(!MaHocKy)) Tất cả học kỳ
         if semesterActivityOptions && semesterActivityOptions.length
@@ -24,6 +24,7 @@ block content
         option(value="Chờ xác nhận" selected=(TrangThai === 'Chờ xác nhận')) Chờ xác nhận
         option(value="Thất bại" selected=(TrangThai === 'Thất bại')) Thất bại
         option(value="Đã hủy" selected=(TrangThai === 'Đã hủy')) Đã hủy
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal()")
         span.material-symbols-rounded(aria-hidden="true") receipt_long
         span Lập phiếu thu

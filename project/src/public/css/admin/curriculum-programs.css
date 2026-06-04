@@ -24,7 +24,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(320px, 1.45fr) minmax(220px, 0.9fr) minmax(170px, 0.7fr) minmax(140px, auto);
+  grid-template-columns: minmax(300px, 1.35fr) minmax(200px, 0.9fr) minmax(160px, 0.7fr) minmax(132px, 0.55fr);
 }
 
 .curriculum-filter-field {
@@ -74,16 +74,19 @@
 
 .curriculum-filter-actions {
   align-items: stretch;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: var(--spacing-sm);
-  justify-content: flex-end;
+  min-width: 0;
 }
 
 .curriculum-filter-actions .btn,
 .curriculum-programs-toolbar-actions .btn {
   min-height: 44px;
   white-space: nowrap;
+}
+
+.curriculum-filter-actions .btn {
+  width: 100%;
 }
 
 .curriculum-summary-grid {

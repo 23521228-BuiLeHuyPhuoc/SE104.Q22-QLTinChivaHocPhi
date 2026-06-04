@@ -1,11 +1,11 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Phân quyền hệ thống
       p Quản lý nhóm người dùng và quyền truy cập theo từng cổng.
-    .filter-group
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openGroupModal('add')") Thêm nhóm
       a.btn.btn-outline(href="/admin/trash?entity=groups") Thùng rác nhóm
 
@@ -59,10 +59,10 @@ block content
 
   //- Tab: Functions
   #tab-functions.tab-panel(style="display:none")
-    .toolbar
+    .toolbar.admin-toolbar
       .toolbar-title
         h2.page-title Quyền truy cập
-      .filter-group
+      .admin-action-group
         button.btn.btn-primary(type="button" onclick="openFunctionModal('add')") Thêm quyền
         a.btn.btn-outline(href="/admin/trash?entity=functions") Thùng rác quyền
     .card
