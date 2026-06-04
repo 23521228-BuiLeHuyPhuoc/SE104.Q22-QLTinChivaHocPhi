@@ -1,14 +1,23 @@
 - const active = activePage || currentPage || ''
 - const adminName = user ? (user.HoTen || user.username || user.TenDangNhap || 'Admin') : 'Admin'
 - const rawChucVu = user ? (user.ChucVu || '') : ''
-- const maNhomLower = user ? String(user.MaNhom || '').toLowerCase() : ''
-- const chucVuLower = rawChucVu.toLowerCase()
-- const isSystem = maNhomLower === 'admin' || maNhomLower === 'admin_he_thong' || maNhomLower === 'system_admin' || !rawChucVu || chucVuLower.includes('hệ thống') || chucVuLower.includes('he thong') || chucVuLower === 'admin hệ thống' || chucVuLower === 'admin' || chucVuLower.includes('system')
-- const isTraining = chucVuLower.includes('đào tạo') || chucVuLower.includes('dao tao') || chucVuLower.includes('training')
-- const isFinance = chucVuLower.includes('tài chính') || chucVuLower.includes('tai chinh') || chucVuLower.includes('finance')
 - const chucVuDisplay = rawChucVu || 'Quản trị viên hệ thống'
 - const adminAvatarUrl = user ? (user.AnhDaiDien || '') : ''
 - const systemLogoUrl = typeof logoUrl !== 'undefined' ? logoUrl : '/uploads/logos/logo_tin_chi_hoc_phi_dark.svg?v=20260524201000'
+- const canOpen = typeof canAccessPath === 'function' ? canAccessPath : function() { return true }
+- const showLocations = canOpen('/admin/locations/provinces') || canOpen('/admin/locations/wards')
+- const showTraining = canOpen('/admin/students') || canOpen('/admin/courses') || canOpen('/admin/open-courses') || canOpen('/admin/prerequisites') || canOpen('/admin/classes') || canOpen('/admin/rooms') || canOpen('/admin/lecturers') || canOpen('/admin/periods') || canOpen('/admin/semesters') || canOpen('/admin/academic-years') || canOpen('/admin/faculties') || canOpen('/admin/majors') || canOpen('/admin/curriculum-programs') || canOpen('/admin/completed-courses')
+- const showRegistration = canOpen('/admin/registrations') || canOpen('/admin/appeals')
+- const showFinance = canOpen('/admin/payments') || canOpen('/admin/tuition') || canOpen('/admin/pricing') || canOpen('/admin/beneficiaries')
+- const showReports = canOpen('/admin/reports') || canOpen('/admin/reports/incomplete-tuition')
+- const showSystem = canOpen('/admin/users') || canOpen('/admin/profile')
+- const showAdmin = canOpen('/admin/permissions') || canOpen('/admin/notifications') || canOpen('/admin/settings')
+
+mixin navItem(href, page, icon, label, title)
+  if canOpen(href)
+    a.sidebar-link(href=href title=(title || label) class=(active === page ? 'active' : ''))
+      span.sidebar-icon.material-symbols-rounded= icon
+      span.link-label= label
 
 nav.sidebar.sidebar-admin(id="sidebar")
   .sidebar-brand
@@ -16,124 +25,67 @@ nav.sidebar.sidebar-admin(id="sidebar")
       img.sidebar-logo(src=systemLogoUrl alt="Logo hệ thống")
 
   .sidebar-nav
-    .sidebar-section
-      .sidebar-section-title Tổng quan
-      a.sidebar-link(href="/admin/dashboard" title="Bảng điều khiển" class=(active === 'dashboard' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded dashboard
-        span.link-label Bảng điều khiển
+    if canOpen('/admin/dashboard')
+      .sidebar-section
+        .sidebar-section-title Tổng quan
+        +navItem('/admin/dashboard', 'dashboard', 'dashboard', 'Bảng điều khiển')
 
-    if isSystem || isTraining
+    if showLocations
       .sidebar-section
         .sidebar-section-title Địa danh
-        a.sidebar-link(href="/admin/locations/provinces" title="Tỉnh/Thành phố" class=(active === 'locations-provinces' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded location_city
-          span.link-label Tỉnh/Thành phố
-        a.sidebar-link(href="/admin/locations/wards" title="Phường/Xã" class=(active === 'locations-wards' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded home_pin
-          span.link-label Phường/Xã
+        +navItem('/admin/locations/provinces', 'locations-provinces', 'location_city', 'Tỉnh/Thành phố')
+        +navItem('/admin/locations/wards', 'locations-wards', 'home_pin', 'Phường/Xã')
 
-    if isSystem || isTraining
+    if showTraining
       .sidebar-section
         .sidebar-section-title Đào tạo
-        a.sidebar-link(href="/admin/students" title="Sinh viên" class=(active === 'students' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded groups
-          span.link-label Sinh viên
-        a.sidebar-link(href="/admin/courses" title="Môn học" class=(active === 'courses' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded menu_book
-          span.link-label Môn học
-        a.sidebar-link(href="/admin/open-courses" title="Môn học mở" class=(active === 'open-courses' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded event_available
-          span.link-label Môn học mở
-        a.sidebar-link(href="/admin/prerequisites" title="Ràng buộc môn học" class=(active === 'prerequisites' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded rule
-          span.link-label Ràng buộc môn học
-        a.sidebar-link(href="/admin/classes" title="Lớp học" class=(active === 'classes' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded meeting_room
-          span.link-label Lớp học
-        a.sidebar-link(href="/admin/rooms" title="Phòng học" class=(active === 'rooms' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded door_front
-          span.link-label Phòng học
-        a.sidebar-link(href="/admin/lecturers" title="Giảng viên" class=(active === 'lecturers' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded co_present
-          span.link-label Giảng viên
-        a.sidebar-link(href="/admin/periods" title="Tiết học" class=(active === 'periods' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded schedule
-          span.link-label Tiết học
-        a.sidebar-link(href="/admin/semesters" title="Học kỳ" class=(active === 'semesters' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded event
-          span.link-label Học kỳ
-        a.sidebar-link(href="/admin/academic-years" title="Năm học" class=(active === 'academic-years' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded calendar_month
-          span.link-label Năm học
-        a.sidebar-link(href="/admin/faculties" title="Khoa" class=(active === 'faculties' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded account_balance
-          span.link-label Khoa
-        a.sidebar-link(href="/admin/majors" title="Ngành học" class=(active === 'majors' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded hub
-          span.link-label Ngành học
-        a.sidebar-link(href="/admin/curriculum-programs" title="Chương trình học" class=(active === 'curriculum-programs' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded account_tree
-          span.link-label Chương trình học
-        a.sidebar-link(href="/admin/completed-courses" title="Môn đã học" class=(active === 'completed-courses' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded history_edu
-          span.link-label Môn đã học
+        +navItem('/admin/students', 'students', 'groups', 'Sinh viên')
+        +navItem('/admin/courses', 'courses', 'menu_book', 'Môn học')
+        +navItem('/admin/open-courses', 'open-courses', 'event_available', 'Môn học mở')
+        +navItem('/admin/prerequisites', 'prerequisites', 'rule', 'Ràng buộc môn học')
+        +navItem('/admin/classes', 'classes', 'meeting_room', 'Lớp học')
+        +navItem('/admin/rooms', 'rooms', 'door_front', 'Phòng học')
+        +navItem('/admin/lecturers', 'lecturers', 'co_present', 'Giảng viên')
+        +navItem('/admin/periods', 'periods', 'schedule', 'Tiết học')
+        +navItem('/admin/semesters', 'semesters', 'event', 'Học kỳ')
+        +navItem('/admin/academic-years', 'academic-years', 'calendar_month', 'Năm học')
+        +navItem('/admin/faculties', 'faculties', 'account_balance', 'Khoa')
+        +navItem('/admin/majors', 'majors', 'hub', 'Ngành học')
+        +navItem('/admin/curriculum-programs', 'curriculum-programs', 'account_tree', 'Chương trình học')
+        +navItem('/admin/completed-courses', 'completed-courses', 'history_edu', 'Môn đã học')
 
-    if isSystem || isTraining
+    if showRegistration
       .sidebar-section
         .sidebar-section-title Đăng ký
-        a.sidebar-link(href="/admin/registrations" title="Đăng ký môn học" class=(active === 'registrations' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded app_registration
-          span.link-label Đăng ký môn học
-        a.sidebar-link(href="/admin/appeals" title="Đơn cứu xét" class=(active === 'appeals' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded fact_check
-          span.link-label Đơn cứu xét
+        +navItem('/admin/registrations', 'registrations', 'app_registration', 'Đăng ký môn học')
+        +navItem('/admin/appeals', 'appeals', 'fact_check', 'Đơn cứu xét')
 
-    if isSystem || isFinance
+    if showFinance
       .sidebar-section
         .sidebar-section-title Tài chính
-        a.sidebar-link(href="/admin/payments" title="Phiếu thu" class=(active === 'payments' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded receipt_long
-          span.link-label Phiếu thu
-        a.sidebar-link(href="/admin/tuition" title="Công nợ học phí" class=(active === 'tuition' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded account_balance_wallet
-          span.link-label Công nợ học phí
-        a.sidebar-link(href="/admin/pricing" title="Đơn giá tín chỉ" class=(active === 'pricing' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded price_change
-          span.link-label Đơn giá tín chỉ
-        a.sidebar-link(href="/admin/beneficiaries" title="Đối tượng ưu tiên" class=(active === 'beneficiaries' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded volunteer_activism
-          span.link-label Đối tượng ưu tiên
+        +navItem('/admin/payments', 'payments', 'receipt_long', 'Phiếu thu')
+        +navItem('/admin/tuition', 'tuition', 'account_balance_wallet', 'Công nợ học phí')
+        +navItem('/admin/pricing', 'pricing', 'price_change', 'Đơn giá tín chỉ')
+        +navItem('/admin/beneficiaries', 'beneficiaries', 'volunteer_activism', 'Đối tượng ưu tiên')
 
-    if isSystem || isFinance
+    if showReports
       .sidebar-section
         .sidebar-section-title Báo cáo
-        a.sidebar-link(href="/admin/reports" title="Thống kê" class=(active === 'reports' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded analytics
-          span.link-label Thống kê
-        a.sidebar-link(href='/admin/reports/incomplete-tuition' title='Sinh viên chưa hoàn thành học phí' class=(active === 'reports-incomplete-tuition' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded account_balance_wallet
-          span.link-label Chưa hoàn thành học phí
-    .sidebar-section
-      .sidebar-section-title Hệ thống
-      a.sidebar-link(href="/admin/users" title="Người dùng" class=(active === 'users' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded manage_accounts
-        span.link-label Người dùng
-      a.sidebar-link(href="/admin/profile" title="Hồ sơ" class=(active === 'profile' ? 'active' : ''))
-        span.sidebar-icon.material-symbols-rounded account_circle
-        span.link-label Hồ sơ
+        +navItem('/admin/reports', 'reports', 'analytics', 'Thống kê')
+        +navItem('/admin/reports/incomplete-tuition', 'reports-incomplete-tuition', 'account_balance_wallet', 'Chưa hoàn thành học phí', 'Sinh viên chưa hoàn thành học phí')
 
-    if isSystem
+    if showSystem
+      .sidebar-section
+        .sidebar-section-title Hệ thống
+        +navItem('/admin/users', 'users', 'manage_accounts', 'Người dùng')
+        +navItem('/admin/profile', 'profile', 'account_circle', 'Hồ sơ')
+
+    if showAdmin
       .sidebar-section
         .sidebar-section-title Quản trị
-        a.sidebar-link(href="/admin/permissions" title="Phân quyền" class=(active === 'permissions' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded admin_panel_settings
-          span.link-label Phân quyền
-        a.sidebar-link(href="/admin/notifications" title="Thông báo" class=(active === 'notifications' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded notifications
-          span.link-label Thông báo
-        a.sidebar-link(href="/admin/settings" title="Tham số hệ thống" class=(active === 'settings' ? 'active' : ''))
-          span.sidebar-icon.material-symbols-rounded tune
-          span.link-label Tham số hệ thống
+        +navItem('/admin/permissions', 'permissions', 'admin_panel_settings', 'Phân quyền')
+        +navItem('/admin/notifications', 'notifications', 'notifications', 'Thông báo')
+        +navItem('/admin/settings', 'settings', 'tune', 'Tham số hệ thống')
 
   .sidebar-footer
     .sidebar-user
