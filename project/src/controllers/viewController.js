@@ -14,7 +14,7 @@ const { getRegistrationSearchValues, normalizeRegistrationSearchScope } = requir
 const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
 const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
 const { createSearchRegex, filterRowsByRegex, getSearchRegexSource, matchesRegex, paginateRows } = require('../utils/searchRegex');
-const { APPEAL_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
+const { APPEAL_STATUS, REGISTRATION_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
 const { getRoomRows } = require('./roomController');
 const { getLecturerRows } = require('./lecturerController');
 const { SETTING_IMPACTS } = require('./settingsController');
@@ -1283,7 +1283,7 @@ const adminRegistrations = async (req, res) => {
     const allRegistrations = await prisma.PHIEUDANGKY.findMany({
       where,
       orderBy: { NgayLap: 'desc' },
-      include: { SINHVIEN: { include: { NGANHHOC: { include: { KHOA: true } } } }, HOCKY: { include: { NAMHOC: true } }, CHITIETDANGKY: { where: { TrangThai: '?? ??ng k?' }, select: { id: true, SoTinChi: true } } }
+      include: { SINHVIEN: { include: { NGANHHOC: { include: { KHOA: true } } } }, HOCKY: { include: { NAMHOC: true } }, CHITIETDANGKY: { where: { TrangThai: REGISTRATION_STATUS.ACTIVE }, select: { id: true, SoTinChi: true } } }
     });
     const filteredRegistrations = filterRowsByRegex(allRegistrations, search, (row) => getRegistrationSearchValues(row, registrationSearchScope));
     const registrations = paginateRows(filteredRegistrations, page, limit);

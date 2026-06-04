@@ -13994,7 +13994,7 @@ WITH demo_ctdk_plan("MinSeq", "MaxSeq", "MaLop") AS (
   (1, 45, 'MA005.N01'),
   (1, 45, 'ENG02.N02'),
   (46, 90, 'IT005.N01'),
-  (46, 90, 'IT006.N01'),
+  (46, 90, 'SE104.N01'),
   (46, 90, 'ENG02.N01')
 ), demo_ctdk_seed AS (
   SELECT

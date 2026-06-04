@@ -69,7 +69,7 @@ block content
       table.data-table
         thead
           tr
-            th MSSV
+            th.registration-student-id-col MSSV
             th Họ tên
             th Ngành/Khoa
             th Số phiếu
@@ -82,7 +82,7 @@ block content
           if registrations && registrations.length > 0
             each r in registrations
               tr
-                td.mono= r.MaSv
+                td.mono.registration-student-id-col= r.MaSv
                 td= r.SINHVIEN ? r.SINHVIEN.HoTen : '-'
                 td.registration-student-academic
                   - const major = r.SINHVIEN && r.SINHVIEN.NGANHHOC ? r.SINHVIEN.NGANHHOC : null

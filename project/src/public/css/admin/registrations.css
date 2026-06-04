@@ -224,6 +224,12 @@
   margin-top: 2px;
 }
 
+.data-table .registration-student-id-col {
+  min-width: 124px;
+  width: 124px;
+  white-space: nowrap;
+}
+
 .card > .table-container > .data-table {
   min-width: 1040px;
 }
