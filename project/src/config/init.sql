@@ -12457,7 +12457,9 @@ WHERE "GiangVien" IS NOT NULL
 -- Source distribution: thong_ke_ctdt_uit_khoa_2023_da_sua.md.
 -- uq_cth is unique on (MaNganh, MaMonHoc), so repeated course codes in the
 -- source file are stored by their first appearance in that program.
-INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy") VALUES
+INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy", "HocKyDuKien")
+SELECT v."MaNganh", v."MaMonHoc", v."HocKy", v."HocKy"
+FROM (VALUES
 ('CNTT', 'IT001', 1),
 ('CNTT', 'MA006', 1),
 ('CNTT', 'MA003', 1),
@@ -13044,7 +13046,8 @@ INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy") VALUES
 ('KHDL', 'DS104', 7),
 ('KHDL', 'DS505', 8),
 ('KHDL', 'DS300', 8),
-('KHDL', 'DS301', 8);
+('KHDL', 'DS301', 8)
+) AS v("MaNganh", "MaMonHoc", "HocKy");
 
 -- =====================================================
 -- INSERT DATA - Lớp mở trong học kỳ (Open Classes per Semester)
