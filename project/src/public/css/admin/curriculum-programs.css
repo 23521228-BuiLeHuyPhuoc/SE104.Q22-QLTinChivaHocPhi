@@ -24,7 +24,7 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(430px, 1.35fr) minmax(320px, 1fr) minmax(230px, 0.75fr) minmax(180px, 0.6fr);
+  grid-template-columns: minmax(390px, 1.35fr) minmax(240px, 1fr) minmax(180px, 0.75fr) max-content;
 }
 
 .curriculum-filter-field {
@@ -73,9 +73,12 @@
 }
 
 .curriculum-filter-actions {
-  align-items: stretch;
-  display: grid;
+  align-items: end;
+  align-self: end;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-sm);
+  justify-content: flex-start;
   min-width: 0;
 }
 
@@ -86,7 +89,8 @@
 }
 
 .curriculum-filter-actions .btn {
-  width: 100%;
+  min-width: 112px;
+  width: auto;
 }
 
 .curriculum-summary-grid {
@@ -488,6 +492,10 @@
   .curriculum-filter-actions,
   .curriculum-major-actions {
     justify-content: flex-start;
+  }
+
+  .curriculum-filter-actions .btn {
+    min-width: 140px;
   }
 
   .curriculum-summary-grid {
