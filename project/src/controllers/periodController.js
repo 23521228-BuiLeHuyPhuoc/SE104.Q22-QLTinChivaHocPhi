@@ -69,15 +69,18 @@ const getPeriods = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { search = '' } = req.query;
+    const searchField = ['MaTiet', 'TenTiet'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = notDeleted();
     const status = parseBoolean(req.query.TrangThai);
     if (status !== undefined) where.TrangThai = status;
     if (search) {
-      where.OR = [
-        { MaTiet: { contains: search, mode: 'insensitive' } },
-        { TenTiet: { contains: search, mode: 'insensitive' } },
-        { MoTa: { contains: search, mode: 'insensitive' } }
-      ];
+      const searchMap = {
+        MaTiet: [{ MaTiet: { contains: search, mode: 'insensitive' } }],
+        TenTiet: [{ TenTiet: { contains: search, mode: 'insensitive' } }]
+      };
+      where.OR = searchField === 'all'
+        ? [...searchMap.MaTiet, ...searchMap.TenTiet]
+        : searchMap[searchField];
     }
 
     const [rows, total] = await Promise.all([

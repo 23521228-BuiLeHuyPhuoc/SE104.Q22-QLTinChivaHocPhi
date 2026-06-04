@@ -453,6 +453,484 @@ function setupHeaderNotifications() {
   }, 60000);
 }
 
+var AdminUI = (function() {
+  var detailModalId = 'admin-ui-detail-modal';
+  var pickerModalId = 'admin-ui-record-picker-modal';
+  var readonlyNoticeReady = false;
+  var activePicker = null;
+  var pickerSearchTimer = null;
+
+  function resolveElement(target) {
+    if (!target) return null;
+    if (typeof target === 'string') return document.querySelector(target);
+    return target;
+  }
+
+  function clearElement(element) {
+    if (!element) return;
+    while (element.firstChild) element.removeChild(element.firstChild);
+  }
+
+  function asArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function createTextElement(tag, className, text) {
+    var element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined && text !== null) element.textContent = String(text);
+    return element;
+  }
+
+  function normalizeSearchOptions(options) {
+    return asArray(options).map(function(option) {
+      if (typeof option === 'string') return { value: option, label: option };
+      return {
+        value: option.value,
+        label: option.label || option.text || option.value
+      };
+    }).filter(function(option) { return option.value !== undefined && option.value !== null; });
+  }
+
+  function createHiddenSearchField(input, name) {
+    if (!name || !input || !input.parentElement) return null;
+    var hidden = input.parentElement.querySelector('input[type="hidden"][data-ui-search-hidden="1"][name="' + name + '"]');
+    if (!hidden) {
+      hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = name;
+      hidden.dataset.uiSearchHidden = '1';
+      input.parentElement.appendChild(hidden);
+    }
+    return hidden;
+  }
+
+  function createSearchCriterionControl(config) {
+    config = config || {};
+    var input = resolveElement(config.input || config.inputSelector);
+    if (!input) return null;
+
+    var container = resolveElement(config.container) || input.closest('.search-box') || input.parentElement;
+    if (!container) return null;
+
+    var existing = container.querySelector('.ui-search-criterion-select');
+    if (existing) return existing;
+
+    var options = normalizeSearchOptions(config.options);
+    if (!options.length) return null;
+
+    container.classList.add('search-box-with-criterion');
+    var select = document.createElement('select');
+    select.className = config.className || 'form-control ui-search-criterion-select';
+    select.setAttribute('aria-label', config.label || 'Tiêu chí tìm kiếm');
+    if (config.id) select.id = config.id;
+    if (config.name) select.name = config.name;
+
+    options.forEach(function(option) {
+      var item = document.createElement('option');
+      item.value = option.value;
+      item.textContent = option.label;
+      select.appendChild(item);
+    });
+
+    select.value = config.value || input.getAttribute('data-search-field') || options[0].value;
+    container.insertBefore(select, input);
+
+    function syncSearchField() {
+      input.dataset.searchField = select.value;
+      var hidden = createHiddenSearchField(input, config.hiddenInputName);
+      if (hidden) hidden.value = select.value;
+      if (typeof config.onChange === 'function') config.onChange(select.value, select, input);
+      try {
+        input.dispatchEvent(new CustomEvent('admin-ui:search-field-change', {
+          bubbles: true,
+          detail: { field: select.value, select: select }
+        }));
+      } catch (e) {}
+    }
+
+    select.addEventListener('change', syncSearchField);
+    syncSearchField();
+    return select;
+  }
+
+  function getDetailModal() {
+    var overlay = document.getElementById(detailModalId);
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = detailModalId;
+      overlay.className = 'modal-overlay admin-ui-modal-overlay';
+
+      var modal = document.createElement('div');
+      modal.className = 'modal modal-wide admin-ui-detail-modal';
+
+      var header = document.createElement('div');
+      header.className = 'modal-header';
+      var title = document.createElement('h2');
+      title.className = 'admin-ui-detail-title';
+      var close = document.createElement('button');
+      close.className = 'modal-close';
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Đóng');
+      close.textContent = '×';
+      close.addEventListener('click', closeDetailModal);
+      header.appendChild(title);
+      header.appendChild(close);
+
+      var body = document.createElement('div');
+      body.className = 'modal-body admin-ui-detail-body';
+
+      var footer = document.createElement('div');
+      footer.className = 'modal-footer admin-ui-detail-footer';
+      var footerClose = document.createElement('button');
+      footerClose.className = 'btn btn-outline';
+      footerClose.type = 'button';
+      footerClose.textContent = 'Đóng';
+      footerClose.addEventListener('click', closeDetailModal);
+      footer.appendChild(footerClose);
+
+      modal.appendChild(header);
+      modal.appendChild(body);
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      overlay.addEventListener('click', function(event) {
+        if (event.target === overlay) closeDetailModal();
+      });
+      document.body.appendChild(overlay);
+    }
+
+    return {
+      overlay: overlay,
+      title: overlay.querySelector('.admin-ui-detail-title'),
+      body: overlay.querySelector('.admin-ui-detail-body'),
+      footer: overlay.querySelector('.admin-ui-detail-footer')
+    };
+  }
+
+  function normalizeDetailRows(config) {
+    if (Array.isArray(config.rows)) return config.rows;
+    var data = config.data || {};
+    return Object.keys(data).map(function(key) {
+      return { label: key, value: data[key] };
+    });
+  }
+
+  function setDetailValue(container, value) {
+    if (value instanceof Node) {
+      container.appendChild(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      container.textContent = value.filter(Boolean).join(', ') || '-';
+      return;
+    }
+    if (value === null || value === undefined || value === '') {
+      container.textContent = '-';
+      return;
+    }
+    container.textContent = String(value);
+  }
+
+  function showDetailModal(config) {
+    config = config || {};
+    var modal = getDetailModal();
+    modal.title.textContent = config.title || 'Chi tiết bản ghi';
+    clearElement(modal.body);
+
+    if (typeof config.render === 'function') {
+      var rendered = config.render(config.data || {}, modal.body);
+      if (rendered instanceof Node) modal.body.appendChild(rendered);
+      else if (typeof rendered === 'string') modal.body.innerHTML = rendered;
+    } else {
+      var rows = normalizeDetailRows(config).filter(function(row) { return row && row.hidden !== true; });
+      if (!rows.length) {
+        modal.body.appendChild(createTextElement('div', 'empty-state', 'Không có dữ liệu chi tiết'));
+      } else {
+        var grid = document.createElement('div');
+        grid.className = 'detail-grid admin-ui-detail-grid';
+        rows.forEach(function(row) {
+          var item = document.createElement('div');
+          item.className = 'admin-ui-detail-item';
+          item.appendChild(createTextElement('strong', '', row.label || row.key || '-'));
+          var value = createTextElement('span', row.className || '', '');
+          if (typeof row.render === 'function') setDetailValue(value, row.render(config.data || {}, row));
+          else setDetailValue(value, row.value);
+          item.appendChild(value);
+          grid.appendChild(item);
+        });
+        modal.body.appendChild(grid);
+      }
+    }
+
+    modal.overlay.classList.add('active');
+    return modal.overlay;
+  }
+
+  function closeDetailModal() {
+    var modal = document.getElementById(detailModalId);
+    if (modal) modal.classList.remove('active');
+  }
+
+  function parseRecordFromRow(row) {
+    if (!row) return null;
+    var raw = row.getAttribute('data-record');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function attachRowDetailHandlers(config) {
+    config = config || {};
+    var root = resolveElement(config.root || config.table) || document;
+    if (!root || root.dataset && root.dataset.uiRowDetailReady === '1') return root;
+    if (root.dataset) root.dataset.uiRowDetailReady = '1';
+    var rowSelector = config.rowSelector || 'tbody tr[data-record]';
+
+    root.addEventListener('click', function(event) {
+      if (event.target.closest('button,a,input,select,textarea,label,.table-actions,[data-no-row-detail]')) return;
+      var row = event.target.closest(rowSelector);
+      if (!row || (root !== document && !root.contains(row))) return;
+      var record = typeof config.getRecord === 'function' ? config.getRecord(row, event) : parseRecordFromRow(row);
+      if (!record) return;
+      var detailConfig = typeof config.buildDetail === 'function'
+        ? config.buildDetail(record, row, event)
+        : { title: config.title || 'Chi tiết bản ghi', data: record, rows: config.rows };
+      if (detailConfig) showDetailModal(detailConfig);
+    });
+
+    root.querySelectorAll(rowSelector).forEach(function(row) {
+      row.classList.add('ui-row-clickable');
+    });
+    return root;
+  }
+
+  function isReadonlyField(element) {
+    if (!element || !element.matches) return false;
+    if (!element.matches('input, textarea, select, .form-control, [data-ui-readonly]')) return false;
+    return element.disabled || element.readOnly || element.getAttribute('aria-disabled') === 'true' || element.hasAttribute('data-ui-readonly');
+  }
+
+  function readonlyMessage(element) {
+    return element.getAttribute('data-readonly-message') ||
+      element.getAttribute('data-disabled-message') ||
+      element.getAttribute('title') ||
+      'Trường này không được sửa.';
+  }
+
+  function markReadonlyFields(root) {
+    root = root || document;
+    root.querySelectorAll('input.form-control, textarea.form-control, select.form-control, [data-ui-readonly]').forEach(function(element) {
+      if (isReadonlyField(element)) {
+        element.classList.add('ui-readonly-field');
+        if (!element.getAttribute('title')) element.setAttribute('title', readonlyMessage(element));
+      }
+    });
+  }
+
+  function initReadonlyNotices(root) {
+    markReadonlyFields(root || document);
+    if (readonlyNoticeReady) return;
+    readonlyNoticeReady = true;
+    document.addEventListener('pointerdown', function(event) {
+      var field = event.target.closest('input, textarea, select, .form-control, [data-ui-readonly]');
+      if (!isReadonlyField(field)) return;
+      if (field.matches('button, [type="button"], [type="submit"], [type="reset"]')) return;
+      showToast(readonlyMessage(field), 'info');
+    }, true);
+  }
+
+  function mapPickerItem(config, item) {
+    if (typeof config.mapItem === 'function') return config.mapItem(item) || {};
+    return {
+      value: item && (item.value || item.id || item.MaMonHoc || item.MaGiangVien || item.MaPhong || item.MaKhoa || item.MaNganh),
+      label: item && (item.label || item.name || item.TenMonHoc || item.HoTen || item.TenPhong || item.TenKhoa || item.TenNganh),
+      meta: item && (item.meta || item.MaMonHoc || item.MaGiangVien || item.MaPhong || '')
+    };
+  }
+
+  function getPickerModal() {
+    var overlay = document.getElementById(pickerModalId);
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = pickerModalId;
+    overlay.className = 'modal-overlay admin-ui-modal-overlay';
+    overlay.innerHTML = '<div class="modal admin-ui-record-picker-modal">' +
+      '<div class="modal-header"><div><h2 class="admin-ui-picker-title">Ch\u1ecdn b\u1ea3n ghi</h2><p class="admin-ui-picker-subtitle"></p></div><button class="modal-close" type="button" aria-label="\u0110\u00f3ng">×</button></div>' +
+      '<div class="modal-body"><div class="search-box admin-ui-picker-search"><input type="search" class="form-control" autocomplete="off"></div><div class="admin-ui-picker-results"></div></div>' +
+      '<div class="modal-footer"><button class="btn btn-outline admin-ui-picker-close" type="button">\u0110\u00f3ng</button></div>' +
+    '</div>';
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', function(event) {
+      if (event.target === overlay || event.target.closest('.modal-close,.admin-ui-picker-close')) closeRecordPicker();
+      var option = event.target.closest('[data-picker-index]');
+      if (option && activePicker) selectPickerItem(Number(option.getAttribute('data-picker-index')));
+    });
+
+    var search = overlay.querySelector('.admin-ui-picker-search input');
+    search.addEventListener('input', function() {
+      clearTimeout(pickerSearchTimer);
+      pickerSearchTimer = setTimeout(renderPickerResults, 250);
+    });
+    return overlay;
+  }
+
+  function getLocalPickerItems(config, search) {
+    var items = asArray(config.items);
+    var keyword = String(search || '').trim().toLowerCase();
+    if (!keyword) return items;
+    return items.filter(function(item) {
+      var mapped = mapPickerItem(config, item);
+      return [mapped.value, mapped.label, mapped.meta].some(function(value) {
+        return String(value || '').toLowerCase().indexOf(keyword) >= 0;
+      });
+    });
+  }
+
+  async function loadPickerItems(config, search) {
+    if (typeof config.loadItems === 'function') return await config.loadItems(search || '');
+    if (config.endpoint) {
+      var params = new URLSearchParams(config.params || {});
+      if (search) params.set(config.searchParam || 'search', search);
+      var separator = config.endpoint.indexOf('?') >= 0 ? '&' : '?';
+      var res = await apiFetch(config.endpoint + separator + params.toString());
+      if (!res || res.success === false) throw new Error((res && res.message) || 'Không tải được danh sách');
+      return Array.isArray(res.data) ? res.data : [];
+    }
+    return getLocalPickerItems(config, search);
+  }
+
+  async function renderPickerResults() {
+    if (!activePicker) return;
+    var overlay = getPickerModal();
+    var search = overlay.querySelector('.admin-ui-picker-search input');
+    var results = overlay.querySelector('.admin-ui-picker-results');
+    var keyword = search ? search.value.trim() : '';
+    results.innerHTML = '<div class="admin-ui-picker-state">Đang tải...</div>';
+
+    try {
+      var items = await loadPickerItems(activePicker, keyword);
+      activePicker.loadedItems = asArray(items);
+      clearElement(results);
+      if (!activePicker.loadedItems.length) {
+        results.appendChild(createTextElement('div', 'admin-ui-picker-state', activePicker.emptyText || 'Không có bản ghi phù hợp'));
+        return;
+      }
+      activePicker.loadedItems.forEach(function(item, index) {
+        var mapped = mapPickerItem(activePicker, item);
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'admin-ui-picker-option';
+        button.setAttribute('data-picker-index', String(index));
+        button.disabled = !!mapped.disabled;
+        button.appendChild(createTextElement('span', 'admin-ui-picker-option-label', mapped.label || mapped.value || '-'));
+        if (mapped.meta) button.appendChild(createTextElement('small', 'admin-ui-picker-option-meta', mapped.meta));
+        if (mapped.badge) button.appendChild(createTextElement('span', 'badge ' + (mapped.badgeClass || 'badge-secondary'), mapped.badge));
+        results.appendChild(button);
+      });
+    } catch (e) {
+      clearElement(results);
+      results.appendChild(createTextElement('div', 'admin-ui-picker-state text-error', e.message || 'Không tải được danh sách'));
+    }
+  }
+
+  function openRecordPicker(config) {
+    activePicker = config || {};
+    activePicker.loadedItems = [];
+    var overlay = getPickerModal();
+    overlay.querySelector('.admin-ui-picker-title').textContent = activePicker.title || 'Chọn bản ghi';
+    overlay.querySelector('.admin-ui-picker-subtitle').textContent = activePicker.subtitle || '';
+    var search = overlay.querySelector('.admin-ui-picker-search input');
+    search.placeholder = activePicker.searchPlaceholder || 'Tìm kiếm...';
+    search.value = '';
+    overlay.classList.add('active');
+    search.focus();
+    renderPickerResults();
+    return overlay;
+  }
+
+  function closeRecordPicker() {
+    var overlay = document.getElementById(pickerModalId);
+    if (overlay) overlay.classList.remove('active');
+    activePicker = null;
+  }
+
+  function selectPickerItem(index) {
+    if (!activePicker || !activePicker.loadedItems) return;
+    var item = activePicker.loadedItems[index];
+    var mapped = mapPickerItem(activePicker, item);
+    if (mapped.disabled) return;
+    if (typeof activePicker.onSelect === 'function') activePicker.onSelect(item, mapped);
+    if (activePicker.select) setSelectPickerValue(activePicker.select, mapped.value, mapped.label);
+    closeRecordPicker();
+  }
+
+  function setSelectPickerValue(select, value, label) {
+    select = resolveElement(select);
+    if (!select) return;
+    var exists = Array.prototype.some.call(select.options, function(option) { return option.value === String(value); });
+    if (!exists) select.add(new Option(label || value, value, true, true));
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function selectedOptionLabel(select) {
+    if (!select || select.selectedIndex < 0) return '';
+    return select.options[select.selectedIndex].textContent || '';
+  }
+
+  function attachRecordPicker(config) {
+    config = config || {};
+    var select = resolveElement(config.select);
+    if (!select || select.dataset.uiRecordPickerReady === '1') return null;
+    select.dataset.uiRecordPickerReady = '1';
+    select.classList.add('record-picker-native-select');
+
+    var control = document.createElement('div');
+    control.className = 'record-picker-control';
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'record-picker-trigger';
+    trigger.innerHTML = '<span class="record-picker-trigger-value"></span><span class="material-symbols-rounded" aria-hidden="true">search</span>';
+    control.appendChild(trigger);
+    select.parentElement.insertBefore(control, select.nextSibling);
+
+    function syncTrigger() {
+      var value = trigger.querySelector('.record-picker-trigger-value');
+      if (!value) return;
+      value.textContent = selectedOptionLabel(select) || config.placeholder || 'Chọn bản ghi';
+      value.classList.toggle('empty', !select.value);
+    }
+
+    trigger.addEventListener('click', function() {
+      openRecordPicker(Object.assign({}, config, { select: select }));
+    });
+    select.addEventListener('change', syncTrigger);
+    syncTrigger();
+    return control;
+  }
+
+  return {
+    createSearchCriterionControl: createSearchCriterionControl,
+    enhanceSearchBox: createSearchCriterionControl,
+    showDetailModal: showDetailModal,
+    closeDetailModal: closeDetailModal,
+    attachRowDetailHandlers: attachRowDetailHandlers,
+    initReadonlyNotices: initReadonlyNotices,
+    markReadonlyFields: markReadonlyFields,
+    openRecordPicker: openRecordPicker,
+    closeRecordPicker: closeRecordPicker,
+    attachRecordPicker: attachRecordPicker,
+    setSelectPickerValue: setSelectPickerValue
+  };
+})();
+
+window.AdminUI = AdminUI;
+
 function renderClientPagination(elementId, meta, loadFunctionName) {
   var nav = document.getElementById(elementId);
   if (!nav) return;
@@ -582,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   setupStudentSidebarScrollPersistence();
   setupHeaderNotifications();
+  AdminUI.initReadonlyNotices(document);
 });
 
 window.addEventListener('resize', syncSidebarToggleIcon);

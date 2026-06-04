@@ -1,14 +1,16 @@
 .toolbar-actions {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+  justify-content: flex-end;
 }
 
 .toolbar-actions .material-symbols-rounded,
 .class-filter-actions .material-symbols-rounded,
 .class-actions .material-symbols-rounded {
-  display: none;
+  flex: 0 0 auto;
+  font-size: 18px;
 }
 
 .class-filter-panel {
@@ -28,7 +30,7 @@
 }
 
 .class-filter-search {
-  grid-column: 4 / -1;
+  grid-column: 4 / span 6;
   grid-row: 1;
 }
 
@@ -42,14 +44,21 @@
   grid-row: 2;
 }
 
+.class-filter-capacity {
+  grid-column: 10 / -1;
+  grid-row: 1;
+}
+
 .class-filter-status {
   grid-column: 4 / span 6;
   grid-row: 2;
 }
 
 .class-filter-actions {
-  align-items: end;
+  align-items: stretch;
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
   grid-column: 10 / -1;
   grid-row: 2;
   justify-content: flex-end;
@@ -132,13 +141,26 @@
 }
 
 .classes-table {
-  min-width: 1040px;
+  min-width: 1140px;
   table-layout: fixed;
 }
 
 .classes-table th,
 .classes-table td {
   vertical-align: top;
+}
+
+.classes-table tbody tr.clickable-row:hover td {
+  background: var(--color-primary-50);
+}
+
+.class-detail-schedules {
+  margin: 8px 0 0 18px;
+  padding: 0;
+}
+
+.class-detail-schedules li + li {
+  margin-top: 4px;
 }
 
 .classes-table th:nth-child(1) {
@@ -166,7 +188,7 @@
 }
 
 .classes-table th:nth-child(7) {
-  width: 172px;
+  width: 260px;
 }
 
 .class-identity-cell,
@@ -264,14 +286,15 @@
 .class-actions {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(2, minmax(78px, 1fr));
+  grid-template-columns: repeat(2, minmax(118px, 1fr));
   width: 100%;
 }
 
 .class-actions .btn {
   justify-content: center;
   min-height: 32px;
-  padding-inline: 8px;
+  min-width: 0;
+  padding-inline: 9px;
   white-space: nowrap;
 }
 
@@ -307,6 +330,7 @@
   .class-filter-search,
   .class-filter-scope,
   .class-filter-semester,
+  .class-filter-capacity,
   .class-filter-status,
   .class-filter-actions {
     grid-column: auto;
@@ -353,7 +377,9 @@
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  min-height: 42px;
+  line-height: 1.35;
+  min-height: 44px;
+  min-width: 0;
   padding: 10px 12px 10px 14px;
   text-align: left;
   transition: border-color var(--transition-speed) var(--transition-smooth),
@@ -520,6 +546,7 @@
   .class-filter-search,
   .class-filter-scope,
   .class-filter-semester,
+  .class-filter-capacity,
   .class-filter-status,
   .class-filter-actions {
     grid-column: 1 / -1;

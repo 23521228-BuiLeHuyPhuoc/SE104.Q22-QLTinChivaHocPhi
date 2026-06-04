@@ -19,6 +19,7 @@ const APPEAL_MESSAGES = {
 };
 
 const FINALIZE_MESSAGES = {
+  registration_not_closed: 'Chi duoc chot dang ky sau khi het han dang ky hoc phan',
   appeal_not_closed: 'Chỉ được chốt đăng ký sau khi hết hạn cứu xét đăng ký',
   pending_appeals: 'Không thể chốt đăng ký khi còn đơn cứu xét chờ duyệt',
   already_finalized: 'Học kỳ đã được chốt đăng ký'
@@ -147,25 +148,25 @@ const getAppealWindowState = (semester, now = new Date()) => {
     semesterEnded: semester?.TrangThai === SEMESTER_ENDED_STATUS
   });
 
-  if (state.isOpen && semester?.NgayChotDangKy) {
-    return {
-      ...state,
-      isOpen: false,
-      isClosed: true,
-      reason: 'finalized',
-      message: APPEAL_MESSAGES.finalized,
-      appealStart: state.start,
-      appealDeadline: state.deadline
-    };
-  }
-
-  if (state.isOpen && semester?.MoThuHocPhi) {
+  if (semester?.MoThuHocPhi) {
     return {
       ...state,
       isOpen: false,
       isClosed: true,
       reason: 'tuition_opened',
       message: APPEAL_MESSAGES.tuition_opened,
+      appealStart: state.start,
+      appealDeadline: state.deadline
+    };
+  }
+
+  if (semester?.NgayChotDangKy) {
+    return {
+      ...state,
+      isOpen: false,
+      isClosed: true,
+      reason: 'finalized',
+      message: APPEAL_MESSAGES.finalized,
       appealStart: state.start,
       appealDeadline: state.deadline
     };
@@ -187,14 +188,16 @@ const getSemesterWorkflowState = (semester, options = {}) => {
   const tuitionOpen = Boolean(semester?.MoThuHocPhi);
 
   let canFinalize = false;
-  let finalizeReason = FINALIZE_MESSAGES.appeal_not_closed;
+  let finalizeReason = FINALIZE_MESSAGES.registration_not_closed;
   if (finalized) {
     finalizeReason = FINALIZE_MESSAGES.already_finalized;
   } else if (pendingAppeals > 0) {
     finalizeReason = FINALIZE_MESSAGES.pending_appeals;
-  } else if (appealWindow.isClosed && appealWindow.reason === 'closed') {
+  } else if (registrationWindow.isClosed && registrationWindow.reason === 'closed') {
     canFinalize = true;
     finalizeReason = null;
+  } else {
+    finalizeReason = registrationWindow.message || FINALIZE_MESSAGES.registration_not_closed;
   }
 
   let canOpenTuitionPayment = false;
@@ -203,8 +206,6 @@ const getSemesterWorkflowState = (semester, options = {}) => {
     openTuitionPaymentReason = PAYMENT_OPEN_MESSAGES.not_finalized;
   } else if (pendingAppeals > 0) {
     openTuitionPaymentReason = PAYMENT_OPEN_MESSAGES.pending_appeals;
-  } else if (!(appealWindow.isClosed && appealWindow.reason === 'closed')) {
-    openTuitionPaymentReason = PAYMENT_OPEN_MESSAGES.appeal_not_closed;
   } else {
     canOpenTuitionPayment = true;
     openTuitionPaymentReason = null;
@@ -264,7 +265,7 @@ const assertCanFinalizeRegistration = (semester, options = {}) => {
   throw {
     status: 400,
     code: 'SEMESTER_CANNOT_FINALIZE_REGISTRATION',
-    message: workflow.finalizeReason || FINALIZE_MESSAGES.appeal_not_closed
+    message: workflow.finalizeReason || FINALIZE_MESSAGES.registration_not_closed
   };
 };
 

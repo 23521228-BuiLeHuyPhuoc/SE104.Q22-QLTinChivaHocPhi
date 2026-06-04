@@ -1,10 +1,19 @@
 extends ../../layouts/admin
 
+block styles
+  link(rel="stylesheet" href="/css/admin/course-tools.css")
+
 block content
-  .toolbar
-    .search-box
-      input#search-input(type="text" placeholder="Tìm mã hoặc tên môn học..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+  .toolbar.admin-toolbar
+    .search-box.search-with-scope.admin-search-group
+      select.form-control#course-search-field(onchange="applyCourseFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=((searchField || 'all') === 'all')) Tất cả
+        option(value="MaMonHoc" selected=(searchField === 'MaMonHoc')) Mã môn
+        option(value="TenMonHoc" selected=(searchField === 'TenMonHoc')) Tên môn
+        option(value="LoaiMon" selected=(searchField === 'LoaiMon')) Loại môn
+        option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Khoa
+      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group.admin-filter-group
       select.form-control#faculty-filter(onchange="applyCourseFilters()")
         option(value="" selected=!filterKhoa) Tất cả khoa
         if faculties && faculties.length > 0
@@ -14,7 +23,9 @@ block content
         option(value="" selected=!filterLoaiMon) Tất cả loại
         option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết
         option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành
+    .admin-action-group
       button.btn.btn-outline(type="button" onclick="exportCourses()") Xuất Excel
+      button.btn.btn-outline(type="button" onclick="openCourseImportModal()") Nhập Excel
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn học
       a.btn.btn-outline(href="/admin/trash?entity=courses") Thùng rác
 
@@ -38,7 +49,7 @@ block content
         tbody#courses-table
           if courses && courses.length > 0
             each c in courses
-              tr.course-row(data-id=c.MaMonHoc onclick=`openCourseDetail('${c.MaMonHoc}')`)
+              tr.course-row.clickable-row(data-id=c.MaMonHoc onclick="openCourseDetail(this.dataset.id)")
                 td.mono= c.MaMonHoc
                 td
                   strong= c.TenMonHoc
@@ -52,8 +63,9 @@ block content
                 td= c.NguoiCapNhatTen || c.NguoiCapNhat || '-'
                 td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
           else
             tr
               td(colspan="9")
@@ -66,13 +78,13 @@ block modals
     .modal
       .modal-header
         h2#modal-title Thêm môn học
-        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closeModal()" aria-label="Đóng") ×
       .modal-body
         form#course-form
           .form-row
             .form-group
               label(for="mh-ma") Mã môn học
-              input.form-control#mh-ma(type="text" required)
+              input.form-control.lockable-field#mh-ma(type="text" required data-lock-message="Mã môn học không được sửa sau khi tạo")
             .form-group
               label(for="mh-ten") Tên môn học
               input.form-control#mh-ten(type="text" required)
@@ -95,7 +107,7 @@ block modals
               input.form-control#mh-sotiet(type="number" min="1" value="45" required)
             .form-group
               label(for="mh-tc") Số tín chỉ
-              input.form-control#mh-tc(type="number" min="1" max="10" value="3" readonly)
+              input.form-control.lockable-field#mh-tc(type="number" min="0" max="10" value="3" readonly data-lock-message="Số tín chỉ không được sửa trực tiếp; hệ thống tính theo số tiết và loại môn")
           .form-group
             label(for="mh-mota") Mô tả
             textarea.form-control#mh-mota(rows="3")
@@ -107,8 +119,26 @@ block modals
     .modal.modal-wide
       .modal-header
         h2 Chi tiết môn học
-        button.modal-close(type="button" onclick="closeCourseDetail()" aria-label="Đóng") x
+        button.modal-close(type="button" onclick="closeCourseDetail()" aria-label="Đóng") ×
       .modal-body#course-detail-content Đang tải...
+
+  #course-import-modal.modal-overlay(onclick="if(event.target===this)closeCourseImportModal()")
+    .modal.modal-wide
+      .modal-header
+        h2 Nhập Excel môn học
+        button.modal-close(type="button" onclick="closeCourseImportModal()" aria-label="Đóng") ×
+      .modal-body
+        .import-format-note
+          strong Format file Excel:
+          span MaMonHoc, TenMonHoc, LoaiMon, SoTinChi, SoTiet, Khoa, TrangThai.
+          small Cột Khoa nhập mã khoa hoặc tên khoa; SoTinChi có thể bỏ trống hoặc phải khớp công thức SoTiet/15 với LT, SoTiet/30 với TH.
+        .form-group
+          label(for="course-import-file") File Excel
+          input.form-control#course-import-file(type="file" accept=".xls,.xlsx")
+        #course-import-result.import-result.hidden
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeCourseImportModal()") Hủy
+        button.btn.btn-primary#course-import-submit(type="button" onclick="importCoursesFromExcel()") Nhập Excel
 
 block scripts
   script(src="/js/admin/courses.js")

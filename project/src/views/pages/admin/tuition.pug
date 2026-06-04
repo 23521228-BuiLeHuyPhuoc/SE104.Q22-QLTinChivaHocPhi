@@ -4,7 +4,11 @@ block content
   - const money = (value) => Number(value || 0).toLocaleString('vi-VN') + ' đ'
   - const statusClass = (value, overdue) => value === 'Đã đóng đủ' ? 'badge-success' : overdue || value === 'Quá hạn' ? 'badge-error' : value === 'Đóng một phần' ? 'badge-warning' : value === 'Chưa phát sinh' ? 'badge-secondary' : 'badge-error'
   .toolbar
-    .search-box
+    .search-box.search-box-with-criterion
+      select.form-control.ui-search-criterion-select#search-field(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="MaSv" selected=(searchField === 'MaSv')) MSSV
+        option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
       input#search-input(type="text" placeholder="Tìm MSSV hoặc họ tên..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-semester(onchange="applyFilters()")
@@ -56,9 +60,10 @@ block content
                 td
                   span.badge(class=statusClass(t.TrangThaiHocPhi || t.TrangThai, t.QuaHan))= t.TrangThaiHocPhi || t.TrangThai || '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" onclick=`viewTuitionDetail(${t.SoPhieu})`)
-                    span.material-symbols-rounded(aria-hidden="true") visibility
-                    span Xem
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" onclick=`viewTuitionDetail(${t.SoPhieu})`)
+                      span.material-symbols-rounded(aria-hidden="true") visibility
+                      span Xem
           else
             tr
               td(colspan="10")

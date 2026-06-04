@@ -19,31 +19,70 @@ const parseDiscountPercent = (value) => {
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
 };
 
-const parsePositiveInteger = (value) => {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+const normalizeSearchField = (value) => {
+  const allowed = ['MaDoiTuong', 'TenDoiTuong'];
+  return allowed.includes(value) ? value : 'all';
+};
+
+const applyBeneficiarySearch = (where, search, searchField) => {
+  const keyword = normalizeText(search);
+  if (!keyword) return;
+
+  if (searchField === 'MaDoiTuong') {
+    where.MaDoiTuong = { contains: keyword, mode: 'insensitive' };
+    return;
+  }
+
+  if (searchField === 'TenDoiTuong') {
+    where.TenDoiTuong = { contains: keyword, mode: 'insensitive' };
+    return;
+  }
+
+  where.OR = [
+    { MaDoiTuong: { contains: keyword, mode: 'insensitive' } },
+    { TenDoiTuong: { contains: keyword, mode: 'insensitive' } }
+  ];
+};
+
+const recomputeBeneficiaryPriorities = async (tx) => {
+  const rows = await tx.DOITUONG.findMany({
+    where: { DaXoa: false },
+    select: { MaDoiTuong: true, TiLeGiamHocPhi: true },
+    orderBy: [{ TiLeGiamHocPhi: 'desc' }, { MaDoiTuong: 'asc' }]
+  });
+
+  let currentPriority = 0;
+  let lastDiscount = null;
+
+  for (const row of rows) {
+    const discount = Number(row.TiLeGiamHocPhi || 0);
+    if (lastDiscount === null || discount !== lastDiscount) {
+      currentPriority += 1;
+      lastDiscount = discount;
+    }
+
+    await tx.DOITUONG.update({
+      where: { MaDoiTuong: row.MaDoiTuong },
+      data: { DoUuTien: currentPriority }
+    });
+  }
 };
 
 const getAllBeneficiaries = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { search = '' } = req.query;
+    const searchField = normalizeSearchField(req.query.searchField);
     const where = notDeleted();
 
-    if (search) {
-      where.OR = [
-        { MaDoiTuong: { contains: search, mode: 'insensitive' } },
-        { TenDoiTuong: { contains: search, mode: 'insensitive' } }
-      ];
-    }
+    applyBeneficiarySearch(where, search, searchField);
 
     const [beneficiaries, total] = await Promise.all([
       prisma.DOITUONG.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { DoUuTien: 'asc' },
+        orderBy: [{ DoUuTien: 'asc' }, { TiLeGiamHocPhi: 'desc' }, { MaDoiTuong: 'asc' }],
         include: { _count: { select: { DOITUONGSINHVIEN: true } } }
       }),
       prisma.DOITUONG.count({ where })
@@ -56,13 +95,12 @@ const getAllBeneficiaries = async (req, res) => {
 
 const createBeneficiary = async (req, res) => {
   try {
-    const { MaDoiTuong, TenDoiTuong, TiLeGiamHocPhi, DoUuTien, MoTa } = req.body;
+    const { MaDoiTuong, TenDoiTuong, TiLeGiamHocPhi, MoTa } = req.body;
     const beneficiaryId = normalizeText(MaDoiTuong);
     const beneficiaryName = normalizeText(TenDoiTuong);
     const discountPercent = parseDiscountPercent(TiLeGiamHocPhi);
-    const priority = parsePositiveInteger(DoUuTien);
 
-    if (!beneficiaryId || !beneficiaryName || discountPercent === null || !priority) {
+    if (!beneficiaryId || !beneficiaryName || discountPercent === null) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin hợp lệ' });
     }
 
@@ -71,15 +109,21 @@ const createBeneficiary = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mã đối tượng đã tồn tại' });
     }
 
-    const obj = await prisma.DOITUONG.create({
-      data: {
-        MaDoiTuong: beneficiaryId,
-        TenDoiTuong: beneficiaryName,
-        TiLeGiamHocPhi: discountPercent,
-        DoUuTien: priority,
-        MoTa: MoTa !== undefined ? normalizeText(MoTa) || null : null,
-        ...updateAudit(req)
-      }
+    const obj = await prisma.$transaction(async (tx) => {
+      await tx.DOITUONG.create({
+        data: {
+          MaDoiTuong: beneficiaryId,
+          TenDoiTuong: beneficiaryName,
+          TiLeGiamHocPhi: discountPercent,
+          DoUuTien: 1,
+          MoTa: MoTa !== undefined ? normalizeText(MoTa) || null : null,
+          ...updateAudit(req)
+        }
+      });
+
+      await recomputeBeneficiaryPriorities(tx);
+
+      return tx.DOITUONG.findUnique({ where: { MaDoiTuong: beneficiaryId } });
     });
     res.status(201).json({ success: true, message: 'Tạo đối tượng thành công', data: obj });
   } catch (error) {
@@ -91,7 +135,15 @@ const createBeneficiary = async (req, res) => {
 const updateBeneficiary = async (req, res) => {
   try {
     const { id } = req.params;
-    const { TenDoiTuong, TiLeGiamHocPhi, DoUuTien, MoTa, TrangThai } = req.body;
+    const { MaDoiTuong, TenDoiTuong, TiLeGiamHocPhi, MoTa, TrangThai } = req.body;
+    const beneficiaryId = normalizeText(id);
+    if (MaDoiTuong !== undefined && normalizeText(MaDoiTuong) !== beneficiaryId) {
+      return res.status(400).json({ success: false, message: 'Mã đối tượng không được sửa' });
+    }
+
+    const existing = await prisma.DOITUONG.findFirst({ where: { MaDoiTuong: beneficiaryId, DaXoa: false } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng' });
+
     const data = updateAudit(req);
 
     if (TenDoiTuong !== undefined) {
@@ -104,15 +156,14 @@ const updateBeneficiary = async (req, res) => {
       if (discountPercent === null) return res.status(400).json({ success: false, message: 'Tỉ lệ giảm học phí phải từ 0 đến 100' });
       data.TiLeGiamHocPhi = discountPercent;
     }
-    if (DoUuTien !== undefined) {
-      const priority = parsePositiveInteger(DoUuTien);
-      if (!priority) return res.status(400).json({ success: false, message: 'Độ ưu tiên phải là số nguyên dương' });
-      data.DoUuTien = priority;
-    }
     if (MoTa !== undefined) data.MoTa = normalizeText(MoTa) || null;
     if (TrangThai !== undefined) data.TrangThai = TrangThai;
 
-    const obj = await prisma.DOITUONG.update({ where: { MaDoiTuong: id }, data });
+    const obj = await prisma.$transaction(async (tx) => {
+      await tx.DOITUONG.update({ where: { MaDoiTuong: beneficiaryId }, data });
+      await recomputeBeneficiaryPriorities(tx);
+      return tx.DOITUONG.findUnique({ where: { MaDoiTuong: beneficiaryId } });
+    });
     res.json({ success: true, message: 'Cập nhật đối tượng thành công', data: obj });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi máy chủ', 'updateBeneficiary error:');
@@ -124,7 +175,10 @@ const deleteBeneficiary = async (req, res) => {
     const { id } = req.params;
     const existing = await prisma.DOITUONG.findFirst({ where: { MaDoiTuong: id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy đối tượng' });
-    await prisma.DOITUONG.update({ where: { MaDoiTuong: id }, data: softDeleteAudit(req) });
+    await prisma.$transaction(async (tx) => {
+      await tx.DOITUONG.update({ where: { MaDoiTuong: id }, data: softDeleteAudit(req) });
+      await recomputeBeneficiaryPriorities(tx);
+    });
     res.json({ success: true, message: 'Đã chuyển đối tượng vào thùng rác' });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi máy chủ', 'deleteBeneficiary error:');

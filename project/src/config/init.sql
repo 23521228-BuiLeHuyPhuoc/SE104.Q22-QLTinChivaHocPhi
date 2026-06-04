@@ -55,6 +55,8 @@ DROP TABLE IF EXISTS "LICHHOCLOP" CASCADE;
 DROP TABLE IF EXISTS "DONGIATINCHI" CASCADE;
 DROP TABLE IF EXISTS "LOPMO" CASCADE;
 DROP TABLE IF EXISTS "MONHOCMO" CASCADE;
+DROP TABLE IF EXISTS "GIANGVIENHOCKY" CASCADE;
+DROP TABLE IF EXISTS "PHONGHOCHOCKY" CASCADE;
 DROP TABLE IF EXISTS "CHUONGTRINHHOC" CASCADE;
 DROP TABLE IF EXISTS "HOCKY" CASCADE;
 DROP TABLE IF EXISTS "NAMHOC" CASCADE;
@@ -67,6 +69,7 @@ DROP TABLE IF EXISTS "CAUHINHDANGKY" CASCADE;
 DROP TABLE IF EXISTS "DIEUKIENMONHOC" CASCADE;
 DROP TABLE IF EXISTS "MONHOC" CASCADE;
 DROP TABLE IF EXISTS "DOITUONGSINHVIEN" CASCADE;
+DROP TABLE IF EXISTS "MATKHAUTAMTAIKHOAN" CASCADE;
 DROP TABLE IF EXISTS "QUANTRIVIEN" CASCADE;
 DROP TABLE IF EXISTS "SINHVIEN" CASCADE;
 DROP TABLE IF EXISTS "NGUOIDUNG" CASCADE;
@@ -90,6 +93,11 @@ CREATE TABLE "TINH" (
     "LoaiTinh" VARCHAR(30) DEFAULT 'Tỉnh',
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT tinh_pkey PRIMARY KEY ("MaTinh"),
     CONSTRAINT chk_loai_tinh CHECK ("LoaiTinh" IN ('Tỉnh', 'Thành phố'))
 );
@@ -120,10 +128,15 @@ CREATE TABLE "PHUONGXA" (
     "KhuVuc" VARCHAR(10) DEFAULT 'KV1',
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT phuong_xa_pkey PRIMARY KEY ("MaPhuongXa"),
     CONSTRAINT fk_phuong_xa_tinh FOREIGN KEY ("MaTinh")
         REFERENCES "TINH"("MaTinh") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT chk_loai_phuong_xa CHECK ("Loai" IN ('Phường', 'Xã', 'Thị trấn')),
+    CONSTRAINT chk_loai_phuong_xa CHECK ("Loai" IN ('Phường', 'Xã')),
     CONSTRAINT chk_khu_vuc CHECK ("KhuVuc" IN ('KV1', 'KV2', 'KV2-NT', 'KV3'))
 );
 
@@ -264,6 +277,28 @@ CREATE TABLE "NGUOIDUNG" (
     CONSTRAINT fk_nd_nhom FOREIGN KEY ("MaNhom")
         REFERENCES "NHOMNGUOIDUNG"("MaNhom") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- =====================================================
+-- 9.1. BANG "MATKHAUTAMTAIKHOAN" - Mat khau tam sinh vien
+-- =====================================================
+CREATE TABLE "MATKHAUTAMTAIKHOAN" (
+    id SERIAL NOT NULL,
+    "MaTaiKhoan" INTEGER NOT NULL,
+    "MaSv" VARCHAR(15) NOT NULL,
+    "TenDangNhap" VARCHAR(50) NOT NULL,
+    "MatKhauTam" VARCHAR(100) NOT NULL,
+    "Email" VARCHAR(100),
+    "TrangThaiGuiEmail" VARCHAR(30) DEFAULT 'pending',
+    "LoiGuiEmail" VARCHAR(300),
+    "NguoiTao" INTEGER,
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT mat_khau_tam_tai_khoan_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_mkttk_tk FOREIGN KEY ("MaTaiKhoan")
+        REFERENCES "NGUOIDUNG"("MaTaiKhoan") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_mkttk_masv ON "MATKHAUTAMTAIKHOAN"("MaSv");
+CREATE INDEX idx_mkttk_ngaytao ON "MATKHAUTAMTAIKHOAN"("NgayTao");
 
 -- 10. BẢNG "SINHVIEN" - Sinh viên (BM1, QĐ1)
 -- Ghi chú: Đối tượng "vùng sâu vùng xa" = sinh viên ở KV3 VÀ là dân tộc thiểu số
@@ -487,9 +522,11 @@ CREATE TABLE "PHONGHOC" (
 CREATE TABLE "GIANGVIEN" (
     "MaGiangVien" VARCHAR(20) NOT NULL,
     "HoTen" VARCHAR(100) NOT NULL,
+    "HocHam" VARCHAR(20),
+    "HocVi" VARCHAR(20),
     "HocHamHocVi" VARCHAR(50),
     "MaKhoa" VARCHAR(10),
-    "Email" VARCHAR(100),
+    "Email" VARCHAR(100) NOT NULL,
     "Sdt" VARCHAR(15),
     "MoTa" VARCHAR(300),
     "TrangThai" BOOLEAN DEFAULT TRUE,
@@ -503,6 +540,7 @@ CREATE TABLE "GIANGVIEN" (
     CONSTRAINT fk_giangvien_khoa FOREIGN KEY ("MaKhoa")
         REFERENCES "KHOA"("MaKhoa") ON DELETE SET NULL ON UPDATE CASCADE
 );
+
 
 -- =====================================================
 -- 13. BẢNG "LOP" - Lớp học
@@ -550,7 +588,6 @@ CREATE TABLE "CHUONGTRINHHOC" (
     "MaMonHoc" VARCHAR(15) NOT NULL,
     "HocKy" INTEGER NOT NULL,
     "HocKyDuKien" INTEGER DEFAULT 1,
-    "BatBuoc" BOOLEAN DEFAULT TRUE,
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -573,6 +610,8 @@ CREATE TABLE "NAMHOC" (
     "NamKetThuc" INTEGER NOT NULL,
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
     CONSTRAINT nam_hoc_pkey PRIMARY KEY ("MaNamHoc")
 );
 
@@ -609,6 +648,56 @@ CREATE TABLE "HOCKY" (
     CONSTRAINT fk_hk_namhoc FOREIGN KEY ("MaNamHoc")
         REFERENCES "NAMHOC"("MaNamHoc") ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
+-- =====================================================
+-- 14.1. BANG "PHONGHOCHOCKY" - Phong hoc ap dung theo hoc ky
+-- =====================================================
+CREATE TABLE "PHONGHOCHOCKY" (
+    id SERIAL NOT NULL,
+    "MaPhong" VARCHAR(50) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "GhiChu" VARCHAR(200),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT phong_hoc_hoc_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_phong_hoc_hoc_ky UNIQUE ("MaPhong", "MaHocKy"),
+    CONSTRAINT fk_phong_hoc_hoc_ky_phong FOREIGN KEY ("MaPhong")
+        REFERENCES "PHONGHOC"("MaPhong") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_phong_hoc_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_phong_hoc_hoc_ky_hk ON "PHONGHOCHOCKY" ("MaHocKy");
+
+-- =====================================================
+-- 14.2. BANG "GIANGVIENHOCKY" - Giang vien giang day theo hoc ky
+-- =====================================================
+CREATE TABLE "GIANGVIENHOCKY" (
+    id SERIAL NOT NULL,
+    "MaGiangVien" VARCHAR(20) NOT NULL,
+    "MaHocKy" VARCHAR(15) NOT NULL,
+    "TrangThai" BOOLEAN DEFAULT TRUE,
+    "GhiChu" VARCHAR(200),
+    "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
+    CONSTRAINT giang_vien_hoc_ky_pkey PRIMARY KEY (id),
+    CONSTRAINT uq_giang_vien_hoc_ky UNIQUE ("MaGiangVien", "MaHocKy"),
+    CONSTRAINT fk_giang_vien_hoc_ky_giang_vien FOREIGN KEY ("MaGiangVien")
+        REFERENCES "GIANGVIEN"("MaGiangVien") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_giang_vien_hoc_ky_hoc_ky FOREIGN KEY ("MaHocKy")
+        REFERENCES "HOCKY"("MaHocKy") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_giang_vien_hoc_ky_hk ON "GIANGVIENHOCKY" ("MaHocKy");
 
 -- =====================================================
 -- 17. BẢNG "LOPMO" - Lớp mở trong học kỳ (BM4, QĐ4, QĐ5)
@@ -888,7 +977,7 @@ CREATE TABLE "PHIEUTHUHOCPHI" (
 -- =====================================================
 CREATE TABLE "THONGBAO" (
     "MaThongBao" SERIAL NOT NULL,
-    "MaTaiKhoanNhan" INTEGER NOT NULL,
+    "MaTaiKhoanNhan" INTEGER,
     "TieuDe" VARCHAR(200) NOT NULL,
     "NoiDung" TEXT NOT NULL,
     "DuongDan" VARCHAR(255),
@@ -4658,7 +4747,7 @@ CREATE OR REPLACE FUNCTION fn_chk_rbtv34_thongbao()
 RETURNS TRIGGER AS $$
 DECLARE v_Nd_TrangThai BOOLEAN;
 BEGIN
-    IF NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
+    IF NEW."MaTaiKhoanNhan" IS NOT NULL AND NEW."DaXoa" = FALSE AND NEW."TrangThai" = TRUE THEN
         SELECT "TrangThai" INTO v_Nd_TrangThai FROM "NGUOIDUNG" WHERE "MaTaiKhoan" = NEW."MaTaiKhoanNhan";
         IF COALESCE(v_Nd_TrangThai, TRUE) = FALSE THEN
             RAISE EXCEPTION 'RBTV34: NGUOIDUNG % khong hop le.', NEW."MaTaiKhoanNhan";
@@ -8330,6 +8419,8 @@ INSERT INTO "CHUCNANG" ("MaChucNang", "TenChucNang", "TenManHinhDuocLoad") VALUE
 ('ADMIN_DASHBOARD', 'Bảng điều khiển quản trị', '/admin/dashboard'),
 ('ADMIN_STUDENTS', 'Quản lý sinh viên', '/admin/students'),
 ('ADMIN_LOCATIONS', 'Quản lý địa danh', '/admin/locations'),
+('ADMIN_LOCATION_PROVINCES', 'Quản lý tỉnh/thành phố', '/admin/locations/provinces'),
+('ADMIN_LOCATION_WARDS', 'Quản lý phường/xã', '/admin/locations/wards'),
 ('ADMIN_COURSES', 'Quản lý môn học', '/admin/courses'),
 ('ADMIN_OPEN_COURSES', 'Quản lý môn học mở', '/admin/open-courses'),
 ('ADMIN_CLASSES', 'Quản lý lớp học', '/admin/classes'),
@@ -8371,6 +8462,8 @@ INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
 ('ADMIN', 'ADMIN_DASHBOARD'),
 ('ADMIN', 'ADMIN_STUDENTS'),
 ('ADMIN', 'ADMIN_LOCATIONS'),
+('ADMIN', 'ADMIN_LOCATION_PROVINCES'),
+('ADMIN', 'ADMIN_LOCATION_WARDS'),
 ('ADMIN', 'ADMIN_COURSES'),
 ('ADMIN', 'ADMIN_OPEN_COURSES'),
 ('ADMIN', 'ADMIN_CLASSES'),
@@ -8399,6 +8492,8 @@ INSERT INTO "PHANQUYEN" ("MaNhom", "MaChucNang") VALUES
 ('ADMIN', 'ADMIN_PROFILE'),
 ('ADMIN_DAOTAO', 'ADMIN_DASHBOARD'),
 ('ADMIN_DAOTAO', 'ADMIN_LOCATIONS'),
+('ADMIN_DAOTAO', 'ADMIN_LOCATION_PROVINCES'),
+('ADMIN_DAOTAO', 'ADMIN_LOCATION_WARDS'),
 ('ADMIN_DAOTAO', 'ADMIN_STUDENTS'),
 ('ADMIN_DAOTAO', 'ADMIN_COURSES'),
 ('ADMIN_DAOTAO', 'ADMIN_OPEN_COURSES'),
@@ -11959,22 +12054,41 @@ WITH giang_vien_nguon AS (
   WHERE l."GiangVien" IS NOT NULL AND TRIM(l."GiangVien") <> ''
   GROUP BY TRIM(l."GiangVien")
 )
-INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHamHocVi", "MaKhoa", "TrangThai")
+INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHam", "HocVi", "HocHamHocVi", "MaKhoa", "Email", "TrangThai")
 SELECT
   "MaGiangVien",
-  NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(PGS\.TS|TS\.|ThS\.)\s+', '')), ''),
+  NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(GS\.TS|PGS\.TS|GS\.|PGS\.|TS\.|ThS\.)\s+', '')), ''),
   CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.%' THEN 'GS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.%' THEN 'PGS'
+    ELSE NULL
+  END,
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
+    ELSE NULL
+  END,
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'GS.TS'
     WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'PGS.TS'
-    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS.'
-    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS.'
+    WHEN "GiangVienDayDu" LIKE 'GS. %' THEN 'GS'
+    WHEN "GiangVienDayDu" LIKE 'PGS. %' THEN 'PGS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
     ELSE NULL
   END,
   "MaKhoa",
+  LOWER("MaGiangVien") || '@uit.edu.vn',
   TRUE
 FROM giang_vien_nguon
 ON CONFLICT ("MaGiangVien") DO UPDATE SET
   "HoTen" = EXCLUDED."HoTen",
-  "HocHamHocVi" = EXCLUDED."HocHamHocVi",
+  "HocHam" = COALESCE("GIANGVIEN"."HocHam", EXCLUDED."HocHam"),
+  "HocVi" = COALESCE("GIANGVIEN"."HocVi", EXCLUDED."HocVi"),
+  "HocHamHocVi" = COALESCE("GIANGVIEN"."HocHamHocVi", EXCLUDED."HocHamHocVi"),
+  "Email" = COALESCE(NULLIF("GIANGVIEN"."Email", ''), EXCLUDED."Email"),
   "MaKhoa" = COALESCE("GIANGVIEN"."MaKhoa", EXCLUDED."MaKhoa"),
   "DaXoa" = FALSE,
   "NguoiXoa" = NULL,
@@ -13176,6 +13290,97 @@ JOIN LATERAL (
 WHERE l."MaLop" = lm."MaLop"
   AND COALESCE(lm."TrangThai", TRUE) = TRUE;
 
+-- Seed phong hoc va giang vien theo tung hoc ky. Cac dong da dung trong lich lop
+-- luon duoc giu; phan con lai lay theo thu tu on dinh de moi hoc ky co tap du lieu rieng.
+WITH ranked_rooms AS (
+  SELECT p."MaPhong", ROW_NUMBER() OVER (ORDER BY p."MaPhong") AS rn
+  FROM "PHONGHOC" p
+  WHERE COALESCE(p."DaXoa", FALSE) = FALSE
+), semester_room_limit AS (
+  SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+  FROM "HOCKY" hk
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%'
+), used_rooms AS (
+  SELECT DISTINCT COALESCE(lh."MaPhong", NULLIF(TRIM(lh."PhongHoc"), '')) AS "MaPhong", lm."MaHocKy"
+  FROM "LICHHOCLOP" lh
+  JOIN "LOPMO" lm ON lm.id = lh."LopMoId"
+  WHERE COALESCE(lh."TrangThai", TRUE) = TRUE
+    AND COALESCE(lm."TrangThai", TRUE) = TRUE
+    AND COALESCE(lh."MaPhong", NULLIF(TRIM(lh."PhongHoc"), '')) IS NOT NULL
+), room_allocations AS (
+  SELECT rr."MaPhong", srl."MaHocKy", 'Seed theo tap phong hoc cua hoc ky' AS "GhiChu"
+  FROM ranked_rooms rr
+  CROSS JOIN semester_room_limit srl
+  WHERE rr.rn <= CASE WHEN srl."ThuTu" = 3 THEN 4 WHEN srl."ThuTu" = 2 THEN 7 ELSE 9 END
+  UNION
+  SELECT ur."MaPhong", ur."MaHocKy", 'Tu dong them vi co lich lop dang dung phong'
+  FROM used_rooms ur
+  JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
+)
+INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
+SELECT "MaPhong", "MaHocKy", TRUE, MAX("GhiChu")
+FROM room_allocations
+GROUP BY "MaPhong", "MaHocKy"
+ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("PHONGHOCHOCKY"."GhiChu", EXCLUDED."GhiChu");
+
+WITH ranked_lecturers AS (
+  SELECT gv."MaGiangVien", ROW_NUMBER() OVER (ORDER BY gv."MaGiangVien") AS rn
+  FROM "GIANGVIEN" gv
+  WHERE COALESCE(gv."DaXoa", FALSE) = FALSE
+), semester_lecturer_limit AS (
+  SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+  FROM "HOCKY" hk
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND hk."MaHocKy" NOT LIKE 'HK-DEMO-%'
+), used_lecturers AS (
+  SELECT DISTINCT lm."MaGiangVien", lm."MaHocKy"
+  FROM "LOPMO" lm
+  WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+    AND NULLIF(TRIM(lm."MaGiangVien"), '') IS NOT NULL
+), lecturer_allocations AS (
+  SELECT rl."MaGiangVien", sll."MaHocKy", 'Seed theo tap giang vien cua hoc ky' AS "GhiChu"
+  FROM ranked_lecturers rl
+  CROSS JOIN semester_lecturer_limit sll
+  WHERE rl.rn <= CASE WHEN sll."ThuTu" = 3 THEN 6 WHEN sll."ThuTu" = 2 THEN 12 ELSE 16 END
+  UNION
+  SELECT ul."MaGiangVien", ul."MaHocKy", 'Tu dong them vi co lop mo dang phan cong'
+  FROM used_lecturers ul
+  JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
+)
+INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
+SELECT "MaGiangVien", "MaHocKy", TRUE, MAX("GhiChu")
+FROM lecturer_allocations
+GROUP BY "MaGiangVien", "MaHocKy"
+ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("GIANGVIENHOCKY"."GhiChu", EXCLUDED."GhiChu");
+
+UPDATE "GIANGVIEN"
+SET
+  "HocHam" = COALESCE("HocHam", CASE
+    WHEN "HocHamHocVi" ILIKE 'GS.%' OR "HocHamHocVi" = 'GS' THEN 'GS'
+    WHEN "HocHamHocVi" ILIKE 'PGS.%' OR "HocHamHocVi" = 'PGS' THEN 'PGS'
+    ELSE NULL
+  END),
+  "HocVi" = COALESCE("HocVi", CASE
+    WHEN "HocHamHocVi" ILIKE '%TS%' THEN 'TS'
+    WHEN "HocHamHocVi" ILIKE '%ThS%' THEN 'ThS'
+    ELSE NULL
+  END),
+  "Email" = COALESCE(NULLIF(TRIM("Email"), ''), LOWER("MaGiangVien") || '@uit.edu.vn')
+WHERE NULLIF(TRIM(COALESCE("Email", '')), '') IS NULL
+   OR "HocHam" IS NULL
+   OR "HocVi" IS NULL;
+
 -- =====================================================
 -- INSERT DATA - Đối tượng của Sinh viên (Student Priority Objects)
 -- =====================================================
@@ -13454,33 +13659,17 @@ SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), GREATEST((SELE
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), GREATEST((SELECT MAX("SoPhieuThu") FROM "PHIEUTHUHOCPHI"), 104), true);
 
 -- =====================================================
--- INSERT DATA - Thông báo cá nhân (Personal Notifications)
--- Số tiền trong thông báo phải khớp với dữ liệu thực tế
+-- INSERT DATA - Thông báo hạn hệ thống
+-- Không seed sẵn thông báo phát sinh theo sự kiện như đăng ký môn hoặc thanh toán học phí.
 -- =====================================================
-INSERT INTO "THONGBAO" ("TieuDe", "NoiDung", "MaTaiKhoanNhan", "DuongDan", "DaDoc") VALUES
--- Thông báo cho sinh viên 22520001 ("MaTaiKhoan" từ subquery)
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Học phí: 378,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/phieu-dang-ky/1', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 378,000 VNĐ học phí HK2 2025-2026.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/phieu-thu/1', TRUE),
-('Nhắc nhở lịch học', 'Môn Cấu trúc dữ liệu và giải thuật sẽ bắt đầu vào Thứ 6, Tiết 1-3 tại phòng C.0917.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520001'), '/lich-hoc', FALSE),
--- Thông báo cho sinh viên 22520002
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 6 môn học cho HK2 2025-2026. Tổng số tín chỉ: 17. Được giảm 50% học phí do thuộc đối tượng vùng sâu vùng xa. Học phí sau giảm: 229,500 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002'), '/phieu-dang-ky/2', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 229,500 VNĐ học phí HK2 2025-2026 (sau giảm 50%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520002'), '/phieu-thu/2', TRUE),
--- Thông báo cho sinh viên 22520003
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Được giảm 50% học phí do thuộc hộ cận nghèo. Học phí sau giảm: 189,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003'), '/phieu-dang-ky/3', TRUE),
-('Nhắc nhở đóng học phí', 'Bạn còn nợ 39,000 VNĐ học phí HK2 2025-2026. Hạn đóng: 15/06/2026.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520003'), '/cong-no', FALSE),
--- Thông báo cho sinh viên 22520004
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Được giảm 30% học phí do thuộc diện con thương binh, bệnh binh. Học phí sau giảm: 264,600 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004'), '/phieu-dang-ky/4', TRUE),
-('Nhắc nhở đóng học phí', 'Bạn còn nợ 64,600 VNĐ học phí HK2 2025-2026. Hạn đóng: 15/06/2026.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520004'), '/cong-no', FALSE),
--- Thông báo cho sinh viên 22520005
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 12. Được giảm 30% học phí do thuộc dân tộc thiểu số. Học phí sau giảm: 226,800 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005'), '/phieu-dang-ky/5', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 226,800 VNĐ học phí HK2 2025-2026 (sau giảm 30%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = '22520005'), '/phieu-thu/5', TRUE),
--- Thông báo cho tài khoản demo student / MSSV 22520006
-('Đăng ký môn học thành công', 'Bạn đã đăng ký thành công 5 môn học cho HK2 2025-2026. Tổng số tín chỉ: 14. Được giảm 50% học phí do thuộc đối tượng sinh viên khuyết tật. Học phí sau giảm: 189,000 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'student'), '/phieu-dang-ky/6', TRUE),
-('Thanh toán học phí thành công', 'Bạn đã thanh toán thành công 189,000 VNĐ học phí HK2 2025-2026 (sau giảm 50%).', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'student'), '/phieu-thu/6', TRUE),
-('Nhắc nhở lịch học', 'Môn Lập trình hướng đối tượng sẽ học vào Thứ 4, Tiết 6-8 tại phòng E.0915.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'student'), '/lich-hoc', FALSE),
--- Thông báo cho Admin
-('Báo cáo đăng ký HK2 2025-2026', 'Tổng số sinh viên đã đăng ký: 6. Tổng số lớp mở: 261. Tổng doanh thu dự kiến: 1,476,900 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/dang-ky', FALSE),
-('Cảnh báo sinh viên nợ học phí', 'Có 2 sinh viên chưa đóng đủ học phí HK2 2025-2026. Tổng công nợ còn lại: 103,600 VNĐ.', (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'), '/bao-cao/cong-no', FALSE);
+INSERT INTO "THONGBAO" (
+  "TieuDe", "NoiDung", "MaTaiKhoanNhan", "Loai", "LoaiThongBao", "DOITUONG",
+  "DuongDan", "GhimTop", "NgayHetHan", "DaDoc", "NguoiTao"
+) VALUES
+('Hạn đăng ký học phần HK1 2026-2027', 'Sinh viên hoàn tất đăng ký học phần HK1 2026-2027 trước 23:59 ngày 10/06/2026.', NULL, 'hoc_vu', 'han_dang_ky_hoc_phan', 'Sinh viên', '/student/course-registration', TRUE, '2026-06-10 23:59:59', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin')),
+('Hạn cứu xét đăng ký học phần HK1 2026-2027', 'Các đơn cứu xét đăng ký học phần HK1 2026-2027 chỉ tiếp nhận đến hết ngày 17/06/2026.', NULL, 'hoc_vu', 'han_he_thong', 'Sinh viên', '/student/my-courses', FALSE, '2026-06-17 23:59:59', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin')),
+('Hạn thu học phí HK2 2025-2026', 'Sinh viên còn công nợ học phí HK2 2025-2026 cần hoàn tất thanh toán trước ngày 30/06/2026.', NULL, 'tai_chinh', 'han_thu_hoc_phi', 'Sinh viên', '/student/my-tuition', TRUE, '2026-06-30 23:59:59', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin')),
+('Hạn bảo trì hệ thống đăng ký', 'Hệ thống đăng ký học phần tạm dừng bảo trì từ 22:00 ngày 05/06/2026 đến 02:00 ngày 06/06/2026.', NULL, 'he_thong', 'han_he_thong', 'Tất cả', '/student/notifications', FALSE, '2026-06-06 02:00:00', FALSE, (SELECT "MaTaiKhoan" FROM "NGUOIDUNG" WHERE "TenDangNhap" = 'admin'));
 
 -- =====================================================
 -- INSERT DATA - Môn đã học (Completed Courses)
@@ -14079,19 +14268,20 @@ WITH admin_account AS (
 )
 UPDATE "THONGBAO" tb
 SET
-  "Loai" = CASE
+  "Loai" = COALESCE(NULLIF(tb."Loai", ''), CASE
     WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'tai_chinh'
     WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'hoc_vu'
     WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'he_thong'
     ELSE 'chung'
-  END,
-  "LoaiThongBao" = CASE
-    WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'Tài chính'
-    WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'Học vụ'
-    WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'Hệ thống'
-    ELSE 'Chung'
-  END,
+  END),
+  "LoaiThongBao" = COALESCE(tb."LoaiThongBao", CASE
+    WHEN tb."TieuDe" ILIKE '%học phí%' OR tb."NoiDung" ILIKE '%học phí%' THEN 'han_thu_hoc_phi'
+    WHEN tb."TieuDe" ILIKE '%đăng ký%' OR tb."TieuDe" ILIKE '%lịch học%' THEN 'han_dang_ky_hoc_phan'
+    WHEN tb."TieuDe" ILIKE '%báo cáo%' OR tb."TieuDe" ILIKE '%cảnh báo%' THEN 'thong_bao_he_thong'
+    ELSE 'han_he_thong'
+  END),
   "DOITUONG" = CASE
+    WHEN tb."DOITUONG" IS NOT NULL AND tb."DOITUONG" <> '' THEN tb."DOITUONG"
     WHEN tb."MaTaiKhoanNhan" = (SELECT "MaTaiKhoan" FROM admin_account) THEN 'Admin'
     ELSE 'Sinh viên'
   END,

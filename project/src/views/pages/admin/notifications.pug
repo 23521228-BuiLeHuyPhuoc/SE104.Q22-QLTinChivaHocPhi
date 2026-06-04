@@ -1,17 +1,22 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Quản lý thông báo
       p Soạn, gửi và quản lý thông báo cho sinh viên và quản trị viên.
-    .filter-group
+    .filter-group.admin-filter-group
+      select#filter-nguon(onchange="applyFilters()")
+        option(value="" selected=(!filterNguon)) Tất cả nguồn
+        option(value="manual" selected=(filterNguon === 'manual')) Thủ công
+        option(value="auto" selected=(filterNguon === 'auto')) Tự động
       select#filter-loai(onchange="applyFilters()")
         option(value="" selected=(!filterLoai)) Tất cả loại
         option(value="chung" selected=(filterLoai === 'chung')) Chung
         option(value="hoc_vu" selected=(filterLoai === 'hoc_vu')) Học vụ
         option(value="tai_chinh" selected=(filterLoai === 'tai_chinh')) Tài chính
         option(value="he_thong" selected=(filterLoai === 'he_thong')) Hệ thống
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Tạo thông báo
       a.btn.btn-outline(href="/admin/trash?entity=notifications") Thùng rác
 
@@ -26,8 +31,10 @@ block content
             th Mã
             th Tiêu đề
             th Loại
+            th Nguồn
             th Đối tượng
             th Ghim
+            th Hết hạn
             th Ngày tạo
             th Thao tác
         tbody
@@ -35,26 +42,36 @@ block content
             each n in notifications
               - const loaiLabel = n.Loai === 'chung' ? 'Chung' : n.Loai === 'hoc_vu' ? 'Học vụ' : n.Loai === 'tai_chinh' ? 'Tài chính' : n.Loai === 'he_thong' ? 'Hệ thống' : n.Loai
               - const loaiBadge = n.Loai === 'chung' ? 'badge-info' : n.Loai === 'hoc_vu' ? 'badge-primary' : n.Loai === 'tai_chinh' ? 'badge-warning' : 'badge-error'
-              tr
+              - const isAuto = n.LoaiThongBao && n.LoaiThongBao.indexOf('auto_') === 0
+              - const sourceLabel = isAuto ? 'Tự động' : 'Thủ công'
+              - const sourceBadge = isAuto ? 'badge-secondary' : 'badge-success'
+              tr(data-record=JSON.stringify(n))
                 td.mono= n.MaThongBao
                 td
                   strong= n.TieuDe
                   small= n.NoiDung ? n.NoiDung.substring(0, 60) + (n.NoiDung.length > 60 ? '...' : '') : ''
                 td
                   span.badge(class=loaiBadge)= loaiLabel
+                td
+                  span.badge(class=sourceBadge)= sourceLabel
                 td= n.DOITUONG || 'Tất cả'
                 td
                   if n.GhimTop
-                    span.badge.badge-warning 📌 Ghim
+                    span.badge.badge-warning Ghim
                   else
-                    span.text-muted —
+                    span.text-muted -
+                td= n.NgayHetHan ? new Date(n.NgayHetHan).toLocaleDateString('vi-VN') : '-'
                 td= n.NgayTao ? new Date(n.NgayTao).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(n) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteNotification(${n.MaThongBao})`) Xóa
+                td.table-actions(data-no-row-detail="true")
+                  .table-action-list
+                    if isAuto
+                      button.btn.btn-sm.btn-outline(type="button" disabled title="Thông báo tự động không sửa thủ công") Sửa
+                    else
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(n) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteNotification(${n.MaThongBao})`) Xóa
           else
             tr
-              td(colspan="7")
+              td(colspan="9")
                 .empty-state Chưa có thông báo nào
 
 block modals
@@ -74,11 +91,17 @@ block modals
           .form-row
             .form-group
               label(for="notif-loai") Loại thông báo
-              select.form-control#notif-loai
+              select.form-control#notif-loai(onchange="syncNotificationTypeByCategory()")
                 option(value="chung") Chung
                 option(value="hoc_vu") Học vụ
                 option(value="tai_chinh") Tài chính
                 option(value="he_thong") Hệ thống
+            .form-group
+              label(for="notif-loai-thongbao") Nhóm hạn
+              select.form-control#notif-loai-thongbao
+                option(value="han_dang_ky_hoc_phan") Hạn đăng ký học phần
+                option(value="han_thu_hoc_phi") Hạn thu học phí
+                option(value="han_he_thong") Hạn hệ thống
             .form-group
               label(for="notif-target-type") Gửi cho
               select.form-control#notif-target-type(onchange="syncNotificationTarget()")

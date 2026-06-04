@@ -16,6 +16,7 @@ router.get('/', adminMiddleware, roleController.getAllRoles);
 router.get('/accounts', adminMiddleware, roleController.getAllAccounts);
 router.post('/accounts', adminMiddleware, roleController.createAccount);
 router.post('/accounts/batch-create-student-accounts', adminMiddleware, systemAdminMiddleware, roleController.batchCreateStudentAccounts);
+router.get('/accounts/student-credentials', adminMiddleware, systemAdminMiddleware, roleController.getTemporaryStudentCredentials);
 router.post('/batch-create-student-accounts', adminMiddleware, systemAdminMiddleware, roleController.batchCreateStudentAccounts);
 router.put('/accounts/:id/reset-password', adminMiddleware, systemAdminMiddleware, roleController.resetPassword);
 router.delete('/accounts/:id', adminMiddleware, systemAdminMiddleware, roleController.deleteAccount);

@@ -55,6 +55,20 @@ const TRASH_ENTITIES = {
     type: 'string',
     title: ['TenNganh', 'MaNganh']
   },
+  provinces: {
+    label: 'Tỉnh/Thành phố',
+    model: 'TINH',
+    pk: 'MaTinh',
+    type: 'string',
+    title: ['TenTinh', 'MaTinh']
+  },
+  wards: {
+    label: 'Phường/Xã',
+    model: 'PHUONGXA',
+    pk: 'MaPhuongXa',
+    type: 'string',
+    title: ['TenPhuongXa', 'MaPhuongXa']
+  },
   completedCourses: {
     label: 'Môn đã học',
     model: 'MONDAHOC',

@@ -1,6 +1,11 @@
 const prisma = require('../config/database');
-const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+
+const PROVINCE_TYPES = ['Tỉnh', 'Thành phố'];
+const WARD_TYPES = ['Phường', 'Xã'];
+const AREA_CODES = ['KV1', 'KV2', 'KV2-NT', 'KV3'];
 
 const cleanText = (value) => String(value || '').trim();
 
@@ -9,17 +14,62 @@ const parseBoolean = (value) => {
   return value === true || value === 'true';
 };
 
-const buildProvinceWhere = (query) => {
-  const { search, TrangThai } = query;
-  const where = {};
+const getContainsFilter = (field, search) => ({
+  [field]: { contains: search, mode: 'insensitive' }
+});
 
-  if (search) {
-    where.OR = [
-      { MaTinh: { contains: search, mode: 'insensitive' } },
-      { TenTinh: { contains: search, mode: 'insensitive' } },
-      { LoaiTinh: { contains: search, mode: 'insensitive' } }
-    ];
+const applyScopedSearch = (where, search, searchField, scopes) => {
+  if (!search) return;
+  const exactScope = scopes[searchField];
+  if (exactScope) {
+    exactScope(where, search);
+    return;
   }
+  where.OR = Object.values(scopes).map((applyScope) => applyScope({}, search, true));
+};
+
+const provinceSearchScopes = {
+  MaTinh: (where, search, returnOnly) => {
+    const filter = getContainsFilter('MaTinh', search);
+    if (returnOnly) return filter;
+    Object.assign(where, filter);
+  },
+  TenTinh: (where, search, returnOnly) => {
+    const filter = getContainsFilter('TenTinh', search);
+    if (returnOnly) return filter;
+    Object.assign(where, filter);
+  },
+  LoaiTinh: (where, search, returnOnly) => {
+    const filter = getContainsFilter('LoaiTinh', search);
+    if (returnOnly) return filter;
+    Object.assign(where, filter);
+  }
+};
+
+const wardSearchScopes = {
+  MaPhuongXa: (where, search, returnOnly) => {
+    const filter = getContainsFilter('MaPhuongXa', search);
+    if (returnOnly) return filter;
+    Object.assign(where, filter);
+  },
+  TenPhuongXa: (where, search, returnOnly) => {
+    const filter = getContainsFilter('TenPhuongXa', search);
+    if (returnOnly) return filter;
+    Object.assign(where, filter);
+  },
+  Loai: (where, search, returnOnly) => {
+    const filter = getContainsFilter('Loai', search);
+    if (returnOnly) return filter;
+    Object.assign(where, filter);
+  }
+};
+
+const buildProvinceWhere = (query) => {
+  const { search, searchField, LoaiTinh, TrangThai } = query;
+  const where = notDeleted();
+
+  applyScopedSearch(where, cleanText(search), cleanText(searchField), provinceSearchScopes);
+  if (LoaiTinh) where.LoaiTinh = LoaiTinh;
 
   const status = parseBoolean(TrangThai);
   if (status !== undefined) where.TrangThai = status;
@@ -28,26 +78,60 @@ const buildProvinceWhere = (query) => {
 };
 
 const buildWardWhere = (query) => {
-  const { search, MaTinh, KhuVuc, TrangThai } = query;
-  const where = {};
+  const { search, searchField, MaTinh, Loai, KhuVuc, TrangThai } = query;
+  const where = notDeleted();
 
   if (MaTinh) where.MaTinh = MaTinh;
   if (KhuVuc) where.KhuVuc = KhuVuc;
-
-  if (search) {
-    where.OR = [
-      { MaPhuongXa: { contains: search, mode: 'insensitive' } },
-      { TenPhuongXa: { contains: search, mode: 'insensitive' } },
-      { Loai: { contains: search, mode: 'insensitive' } },
-      { KhuVuc: { contains: search, mode: 'insensitive' } },
-      { TINH: { TenTinh: { contains: search, mode: 'insensitive' } } }
-    ];
-  }
+  applyScopedSearch(where, cleanText(search), cleanText(searchField), wardSearchScopes);
+  if (Loai) where.Loai = Loai;
 
   const status = parseBoolean(TrangThai);
   if (status !== undefined) where.TrangThai = status;
 
   return where;
+};
+
+const attachUpdaterNames = async (rows = []) => {
+  const ids = Array.from(new Set(rows.map((row) => row.NguoiCapNhat).filter(Boolean)));
+  if (!ids.length) return rows;
+
+  const users = await prisma.TAIKHOAN.findMany({
+    where: { MaTaiKhoan: { in: ids } },
+    select: { MaTaiKhoan: true, HoTen: true, TenDangNhap: true }
+  });
+  const userMap = new Map(users.map((user) => [user.MaTaiKhoan, user.HoTen || user.TenDangNhap]));
+  return rows.map((row) => ({
+    ...row,
+    NguoiCapNhatTen: userMap.get(row.NguoiCapNhat) || row.NguoiCapNhat
+  }));
+};
+
+const getNextNumericCode = async (modelName, idField) => {
+  const model = prisma[modelName];
+  const rows = await model.findMany({ select: { [idField]: true } });
+  let max = 0;
+  rows.forEach((row) => {
+    const id = cleanText(row[idField]);
+    if (!/^\d+$/.test(id)) return;
+    const numericId = Number(id);
+    if (Number.isFinite(numericId) && numericId > max) max = numericId;
+  });
+
+  let candidate = String(max + 1);
+  while (await model.findUnique({ where: { [idField]: candidate } })) {
+    max += 1;
+    candidate = String(max + 1);
+  }
+  return candidate;
+};
+
+const rejectCodeChange = (body, field, currentValue, label, res) => {
+  if (body[field] === undefined) return false;
+  const incoming = cleanText(body[field]);
+  if (!incoming || incoming === currentValue) return false;
+  res.status(400).json({ success: false, message: `${label} không được sửa` });
+  return true;
 };
 
 const getAllProvinces = async (req, res) => {
@@ -61,14 +145,14 @@ const getAllProvinces = async (req, res) => {
         skip,
         take: limit,
         orderBy: { MaTinh: 'asc' },
-        include: { _count: { select: { PHUONGXA: true } } }
+        include: { _count: { select: { PHUONGXA: { where: notDeleted() } } } }
       }),
       prisma.TINH.count({ where })
     ]);
 
     res.json({
       success: true,
-      data: rows,
+      data: await attachUpdaterNames(rows),
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
@@ -78,29 +162,26 @@ const getAllProvinces = async (req, res) => {
 
 const createProvince = async (req, res) => {
   try {
-    const MaTinh = cleanText(req.body.MaTinh);
     const TenTinh = cleanText(req.body.TenTinh);
     const LoaiTinh = cleanText(req.body.LoaiTinh) || 'Tỉnh';
 
-    if (!MaTinh || !TenTinh) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập mã tỉnh và tên tỉnh/thành phố' });
+    if (!TenTinh) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên tỉnh/thành phố' });
     }
 
-    if (!['Tỉnh', 'Thành phố'].includes(LoaiTinh)) {
-      return res.status(400).json({ success: false, message: 'Loại tỉnh không hợp lệ' });
+    if (!PROVINCE_TYPES.includes(LoaiTinh)) {
+      return res.status(400).json({ success: false, message: 'Loại tỉnh/thành phố không hợp lệ' });
     }
 
-    const existing = await prisma.TINH.findUnique({ where: { MaTinh } });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Mã tỉnh đã tồn tại' });
-    }
-
+    const MaTinh = await getNextNumericCode('TINH', 'MaTinh');
+    const status = parseBoolean(req.body.TrangThai);
     const province = await prisma.TINH.create({
       data: {
         MaTinh,
         TenTinh,
         LoaiTinh,
-        TrangThai: req.body.TrangThai !== undefined ? req.body.TrangThai : true
+        TrangThai: status !== undefined ? status : true,
+        ...updateAudit(req)
       }
     });
 
@@ -112,12 +193,15 @@ const createProvince = async (req, res) => {
 
 const updateProvince = async (req, res) => {
   try {
-    const existing = await prisma.TINH.findUnique({ where: { MaTinh: req.params.id } });
+    const id = cleanText(req.params.id);
+    const existing = await prisma.TINH.findFirst({ where: { MaTinh: id, DaXoa: false } });
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tỉnh/thành phố' });
     }
 
-    const data = {};
+    if (rejectCodeChange(req.body, 'MaTinh', id, 'Mã tỉnh', res)) return;
+
+    const data = { ...updateAudit(req) };
     if (req.body.TenTinh !== undefined) {
       const TenTinh = cleanText(req.body.TenTinh);
       if (!TenTinh) return res.status(400).json({ success: false, message: 'Tên tỉnh không được để trống' });
@@ -126,22 +210,42 @@ const updateProvince = async (req, res) => {
 
     if (req.body.LoaiTinh !== undefined) {
       const LoaiTinh = cleanText(req.body.LoaiTinh);
-      if (!['Tỉnh', 'Thành phố'].includes(LoaiTinh)) {
-        return res.status(400).json({ success: false, message: 'Loại tỉnh không hợp lệ' });
+      if (!PROVINCE_TYPES.includes(LoaiTinh)) {
+        return res.status(400).json({ success: false, message: 'Loại tỉnh/thành phố không hợp lệ' });
       }
       data.LoaiTinh = LoaiTinh;
     }
 
-    if (req.body.TrangThai !== undefined) data.TrangThai = req.body.TrangThai;
+    if (req.body.TrangThai !== undefined) data.TrangThai = parseBoolean(req.body.TrangThai);
 
-    const province = await prisma.TINH.update({
-      where: { MaTinh: req.params.id },
-      data
-    });
+    const province = await prisma.TINH.update({ where: { MaTinh: id }, data });
 
     res.json({ success: true, message: 'Cập nhật tỉnh/thành phố thành công', data: province });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi server', 'updateProvince error:');
+  }
+};
+
+const deleteProvince = async (req, res) => {
+  try {
+    const id = cleanText(req.params.id);
+    const existing = await prisma.TINH.findFirst({ where: { MaTinh: id, DaXoa: false } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tỉnh/thành phố' });
+    }
+
+    const wardCount = await prisma.PHUONGXA.count({ where: { MaTinh: id, DaXoa: false } });
+    if (wardCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa tỉnh/thành phố này vì còn ${wardCount} phường/xã liên quan`
+      });
+    }
+
+    await prisma.TINH.update({ where: { MaTinh: id }, data: softDeleteAudit(req) });
+    res.json({ success: true, message: 'Đã xóa tỉnh/thành phố' });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'deleteProvince error:');
   }
 };
 
@@ -163,7 +267,7 @@ const getAllWards = async (req, res) => {
 
     res.json({
       success: true,
-      data: rows,
+      data: await attachUpdaterNames(rows),
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
@@ -173,34 +277,30 @@ const getAllWards = async (req, res) => {
 
 const createWard = async (req, res) => {
   try {
-    const MaPhuongXa = cleanText(req.body.MaPhuongXa);
     const TenPhuongXa = cleanText(req.body.TenPhuongXa);
     const MaTinh = cleanText(req.body.MaTinh);
     const Loai = cleanText(req.body.Loai) || 'Xã';
     const KhuVuc = cleanText(req.body.KhuVuc) || 'KV1';
 
-    if (!MaPhuongXa || !TenPhuongXa || !MaTinh) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập mã, tên phường/xã và tỉnh' });
+    if (!TenPhuongXa || !MaTinh) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập tên phường/xã và tỉnh' });
     }
 
-    if (!['Phường', 'Xã', 'Thị trấn'].includes(Loai)) {
-      return res.status(400).json({ success: false, message: 'Loại phường/xã không hợp lệ' });
+    if (!WARD_TYPES.includes(Loai)) {
+      return res.status(400).json({ success: false, message: 'Loại phường/xã chỉ được là Phường hoặc Xã' });
     }
 
-    if (!['KV1', 'KV2', 'KV2-NT', 'KV3'].includes(KhuVuc)) {
+    if (!AREA_CODES.includes(KhuVuc)) {
       return res.status(400).json({ success: false, message: 'Khu vực không hợp lệ' });
     }
 
-    const [existing, province] = await Promise.all([
-      prisma.PHUONGXA.findUnique({ where: { MaPhuongXa } }),
-      prisma.TINH.findUnique({ where: { MaTinh } })
-    ]);
-
-    if (existing) return res.status(400).json({ success: false, message: 'Mã phường/xã đã tồn tại' });
+    const province = await prisma.TINH.findFirst({ where: { MaTinh, DaXoa: false } });
     if (!province || province.TrangThai === false) {
       return res.status(400).json({ success: false, message: 'Tỉnh/thành phố không tồn tại hoặc đã khóa' });
     }
 
+    const MaPhuongXa = await getNextNumericCode('PHUONGXA', 'MaPhuongXa');
+    const status = parseBoolean(req.body.TrangThai);
     const ward = await prisma.PHUONGXA.create({
       data: {
         MaPhuongXa,
@@ -208,7 +308,8 @@ const createWard = async (req, res) => {
         MaTinh,
         Loai,
         KhuVuc,
-        TrangThai: req.body.TrangThai !== undefined ? req.body.TrangThai : true
+        TrangThai: status !== undefined ? status : true,
+        ...updateAudit(req)
       }
     });
 
@@ -220,12 +321,15 @@ const createWard = async (req, res) => {
 
 const updateWard = async (req, res) => {
   try {
-    const existing = await prisma.PHUONGXA.findUnique({ where: { MaPhuongXa: req.params.id } });
+    const id = cleanText(req.params.id);
+    const existing = await prisma.PHUONGXA.findFirst({ where: { MaPhuongXa: id, DaXoa: false } });
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy phường/xã' });
     }
 
-    const data = {};
+    if (rejectCodeChange(req.body, 'MaPhuongXa', id, 'Mã phường/xã', res)) return;
+
+    const data = { ...updateAudit(req) };
 
     if (req.body.TenPhuongXa !== undefined) {
       const TenPhuongXa = cleanText(req.body.TenPhuongXa);
@@ -234,7 +338,7 @@ const updateWard = async (req, res) => {
     }
 
     if (req.body.MaTinh !== undefined) {
-      const province = await prisma.TINH.findUnique({ where: { MaTinh: cleanText(req.body.MaTinh) } });
+      const province = await prisma.TINH.findFirst({ where: { MaTinh: cleanText(req.body.MaTinh), DaXoa: false } });
       if (!province || province.TrangThai === false) {
         return res.status(400).json({ success: false, message: 'Tỉnh/thành phố không tồn tại hoặc đã khóa' });
       }
@@ -243,26 +347,23 @@ const updateWard = async (req, res) => {
 
     if (req.body.Loai !== undefined) {
       const Loai = cleanText(req.body.Loai);
-      if (!['Phường', 'Xã', 'Thị trấn'].includes(Loai)) {
-        return res.status(400).json({ success: false, message: 'Loại phường/xã không hợp lệ' });
+      if (!WARD_TYPES.includes(Loai)) {
+        return res.status(400).json({ success: false, message: 'Loại phường/xã chỉ được là Phường hoặc Xã' });
       }
       data.Loai = Loai;
     }
 
     if (req.body.KhuVuc !== undefined) {
       const KhuVuc = cleanText(req.body.KhuVuc);
-      if (!['KV1', 'KV2', 'KV2-NT', 'KV3'].includes(KhuVuc)) {
+      if (!AREA_CODES.includes(KhuVuc)) {
         return res.status(400).json({ success: false, message: 'Khu vực không hợp lệ' });
       }
       data.KhuVuc = KhuVuc;
     }
 
-    if (req.body.TrangThai !== undefined) data.TrangThai = req.body.TrangThai;
+    if (req.body.TrangThai !== undefined) data.TrangThai = parseBoolean(req.body.TrangThai);
 
-    const ward = await prisma.PHUONGXA.update({
-      where: { MaPhuongXa: req.params.id },
-      data
-    });
+    const ward = await prisma.PHUONGXA.update({ where: { MaPhuongXa: id }, data });
 
     res.json({ success: true, message: 'Cập nhật phường/xã thành công', data: ward });
   } catch (error) {
@@ -270,11 +371,36 @@ const updateWard = async (req, res) => {
   }
 };
 
+const deleteWard = async (req, res) => {
+  try {
+    const id = cleanText(req.params.id);
+    const existing = await prisma.PHUONGXA.findFirst({ where: { MaPhuongXa: id, DaXoa: false } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy phường/xã' });
+    }
+
+    const studentCount = await prisma.SINHVIEN.count({ where: { MaPhuongXa: id, DaXoa: false } });
+    if (studentCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa phường/xã này vì còn ${studentCount} sinh viên liên quan`
+      });
+    }
+
+    await prisma.PHUONGXA.update({ where: { MaPhuongXa: id }, data: softDeleteAudit(req) });
+    res.json({ success: true, message: 'Đã xóa phường/xã' });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'deleteWard error:');
+  }
+};
+
 module.exports = {
   getAllProvinces,
   createProvince,
   updateProvince,
+  deleteProvince,
   getAllWards,
   createWard,
-  updateWard
+  updateWard,
+  deleteWard
 };

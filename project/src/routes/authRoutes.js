@@ -13,7 +13,7 @@ router.post('/reset-password', authController.resetPassword);
 
 // Protected routes
 router.get('/me', authMiddleware, authController.getMe);
-router.put('/profile', authMiddleware, authController.updateStudentProfile);
+router.put('/profile', authMiddleware, authController.updateProfile);
 router.post('/avatar', authMiddleware, avatarUploadMiddleware, authController.uploadAvatar);
 router.put('/change-password', authMiddleware, authController.changePassword);
 

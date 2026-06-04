@@ -22,6 +22,11 @@ function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-groups').style.display = tab === 'groups' ? '' : 'none';
   document.getElementById('tab-functions').style.display = tab === 'functions' ? '' : 'none';
+  document.querySelectorAll('.permission-tab-btn').forEach(function(button) {
+    var active = button.getAttribute('data-tab') === tab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
 }
 
 function getGroupPortal(groupId) {
@@ -57,7 +62,7 @@ function isFunctionAllowedForGroup(groupId, func) {
 
 document.addEventListener('DOMContentLoaded', function() {
   var tab = new URLSearchParams(window.location.search).get('tab');
-  if (tab === 'functions') switchTab('functions');
+  switchTab(tab === 'functions' ? 'functions' : 'groups');
 });
 
 function openGroupModal(mode, data) {

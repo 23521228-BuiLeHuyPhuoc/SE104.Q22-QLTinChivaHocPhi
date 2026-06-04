@@ -112,6 +112,39 @@
     });
   }
 
+  async function saveProfile() {
+    var button = document.getElementById('btn-save-profile');
+    var body = {
+      HoTen: document.getElementById('p-hoten').value.trim(),
+      Email: document.getElementById('p-email').value.trim(),
+      Sdt: document.getElementById('p-sdt').value.trim(),
+      PhongBan: document.getElementById('p-phongban').value.trim()
+    };
+    if (!body.HoTen || !body.Email) {
+      showToast('Vui lòng nhập họ tên và email', 'error');
+      return;
+    }
+    if (button) button.disabled = true;
+    try {
+      var res = await apiFetch('/api/auth/profile', { method: 'PUT', body: body });
+      if (res.success) {
+        showToast(res.message || 'Đã cập nhật hồ sơ', 'success');
+        if (res.data && res.data.admin) currentAdmin = res.data.admin;
+      } else {
+        showToast(res.message || 'Không thể cập nhật hồ sơ', 'error');
+      }
+    } catch (e) {
+      showToast('Lỗi kết nối khi cập nhật hồ sơ', 'error');
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function bindProfileSave() {
+    var button = document.getElementById('btn-save-profile');
+    if (button) button.addEventListener('click', saveProfile);
+  }
+
   async function loadProfile() {
     try {
       var meRes = await apiFetch('/api/auth/me');
@@ -132,6 +165,7 @@
         document.getElementById('p-sdt').value = admin.Sdt || '';
         document.getElementById('p-chucvu').value = admin.ChucVu || user.ChucVu || '';
         document.getElementById('p-phongban').value = admin.PhongBan || '';
+        if (window.AdminUI) AdminUI.initReadonlyNotices(document);
         setAvatarPreview(currentAdmin.AnhDaiDien, currentAdmin.HoTen);
       }
     } catch (e) {
@@ -141,5 +175,6 @@
   }
 
   bindAvatarUpload();
+  bindProfileSave();
   loadProfile();
 })();

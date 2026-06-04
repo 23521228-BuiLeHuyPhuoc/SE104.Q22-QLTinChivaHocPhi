@@ -1,10 +1,16 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
-    .search-box
-      input#search-input(type="text" placeholder="Tìm mã khoa, tên khoa..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+  .toolbar.admin-toolbar
+    .search-box.search-box-with-criterion.admin-search-group
+      select.form-control.ui-search-criterion-select#faculty-search-field(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Mã khoa
+        option(value="TenKhoa" selected=(searchField === 'TenKhoa')) Tên khoa
+        option(value="TenVietTat" selected=(searchField === 'TenVietTat')) Tên viết tắt
+      input#search-input(type="text" placeholder="Tìm mã khoa, tên khoa hoặc tên viết tắt..." value=(search || '') onkeyup="debounceSearch()")
+    .filter-group.admin-filter-group
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm khoa
       a.btn.btn-outline(href="/admin/trash?entity=faculties") Thùng rác
 
@@ -29,7 +35,7 @@ block content
         tbody
           if faculties && faculties.length > 0
             each f in faculties
-              tr
+              tr(data-record=JSON.stringify(f))
                 td.mono= f.MaKhoa
                 td
                   strong= f.TenKhoa
@@ -41,10 +47,11 @@ block content
                 td= f._count ? f._count.NGANHHOC : 0
                 td= f._count ? f._count.MONHOC : 0
                 td= f.NguoiCapNhatTen || f.NguoiCapNhat || '-'
-                td= f.NgayCapNhat ? new Date(f.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFaculty('${f.MaKhoa}')`) Xóa
+                td= f.NgayCapNhat ? new Date(f.NgayCapNhat).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '-'
+                td.table-actions(data-no-row-detail="true")
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(f) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteFaculty('${f.MaKhoa}')`) Xóa
           else
             tr
               td(colspan="10")
@@ -63,7 +70,7 @@ block modals
           .form-row
             .form-group
               label(for="fac-ma") Mã khoa
-              input.form-control#fac-ma(type="text" required placeholder="VD: CNTT")
+              input.form-control#fac-ma(type="text" required placeholder="VD: CNTT" data-readonly-message="Mã khoa không được sửa.")
             .form-group
               label(for="fac-ten") Tên khoa
               input.form-control#fac-ten(type="text" required placeholder="VD: Công nghệ thông tin")

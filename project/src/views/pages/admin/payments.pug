@@ -75,6 +75,8 @@ block content
             th Số tiền
             th Phương thức
             th Ngày thu
+            th Mã giao dịch
+            th Xác nhận
             th Người thu
             th Trạng thái
             th Thao tác
@@ -90,18 +92,21 @@ block content
                 td
                   strong= p.HocKyDisplay || '-'
                 td.currency= money(p.SoTienThu)
-                td= p.HinhThucThu || '-'
+                td= p.HinhThucThu || 'Chưa chọn'
                 td= p.NgayLap ? new Date(p.NgayLap).toLocaleDateString('vi-VN') : '-'
+                td.mono= p.MaGiaoDich || '-'
+                td= p.NgayXacNhan ? new Date(p.NgayXacNhan).toLocaleString('vi-VN') : '-'
                 td= p.NguoiThu || '-'
                 td
                   span.badge(class=paymentBadge)= paymentStatus
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" onclick=`viewPaymentDetail(${p.SoPhieuThu})`)
-                    span.material-symbols-rounded(aria-hidden="true") visibility
-                    span Xem
-                  button.btn.btn-sm.btn-secondary(type="button" onclick=`printPayment(${p.SoPhieuThu})`)
-                    span.material-symbols-rounded(aria-hidden="true") print
-                    span In
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" onclick=`viewPaymentDetail(${p.SoPhieuThu})`)
+                      span.material-symbols-rounded(aria-hidden="true") visibility
+                      span Xem
+                    button.btn.btn-sm.btn-secondary(type="button" onclick=`printPayment(${p.SoPhieuThu})`)
+                      span.material-symbols-rounded(aria-hidden="true") print
+                      span In
                   if paymentStatus === 'Chờ xác nhận'
                     button.btn.btn-sm.btn-success(type="button" onclick=`confirmPayment(${p.SoPhieuThu})`) Xác nhận
                   if paymentStatus === 'Chờ xác nhận'
@@ -110,7 +115,7 @@ block content
                     button.btn.btn-sm.btn-outline(type="button" onclick=`cancelPayment(${p.SoPhieuThu})`) Hủy
           else
             tr
-              td(colspan="10")
+              td(colspan="12")
                 .empty-state Chưa có phiếu thu
 
   include ../../partials/pagination
@@ -163,6 +168,7 @@ block modals
               each semester in semesterActivityOptions
                 option(value=semester.MaHocKy)= semester.label
         p.text-muted Hệ thống sẽ tạo phiếu cho các phiếu đăng ký còn nợ và chưa có phiếu thu đang hiệu lực.
+        #payment-bulk-result.hidden
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeBulkModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveBulkPayments()") Tạo phiếu

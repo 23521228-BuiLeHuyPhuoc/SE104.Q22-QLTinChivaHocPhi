@@ -67,14 +67,15 @@ const tuitionStatus = (amountDue, amountPaid, dueDate) => {
   if (amountDue <= 0) return 'Chưa phát sinh';
   if (remaining <= 0) return 'Đã đóng đủ';
   if (dueDate && new Date(dueDate) < new Date()) return 'Quá hạn';
-  return 'Còn nợ';
+  if (amountPaid > 0) return 'Đóng một phần';
+  return 'Chưa đóng';
 };
 
 const matchesTuitionStatus = (row, status) => {
   if (!status) return true;
   if (status === 'paid') return row.TrangThai === 'Đã đóng đủ';
   if (status === 'partial') return row.TrangThai === 'Đóng một phần';
-  if (status === 'unpaid') return ['Còn nợ', 'Chưa đóng'].includes(row.TrangThai);
+  if (status === 'unpaid') return row.TrangThai === 'Chưa đóng';
   if (status === 'overdue') return row.TrangThai === 'Quá hạn' || row.QuaHan;
   if (status === 'none') return row.TrangThai === 'Chưa phát sinh';
   return row.TrangThai === status;
@@ -149,9 +150,15 @@ const getAllTuition = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
     const { search = '', MaHocKy, status } = req.query;
+    const searchField = ['MaSv', 'HoTen'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false } };
     if (MaHocKy) where.MaHocKy = MaHocKy;
-    if (search) where.SINHVIEN.OR = [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }];
+    if (search) {
+      const searchFilter = { contains: String(search).trim(), mode: 'insensitive' };
+      if (searchField === 'MaSv') where.SINHVIEN.MaSv = searchFilter;
+      else if (searchField === 'HoTen') where.SINHVIEN.HoTen = searchFilter;
+      else where.SINHVIEN.OR = [{ MaSv: searchFilter }, { HoTen: searchFilter }];
+    }
 
     const include = {
       SINHVIEN: true,
@@ -370,9 +377,17 @@ const getTuitionStats = async (req, res) => {
   try {
     const where = { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false } };
     if (req.query.MaHocKy) where.MaHocKy = req.query.MaHocKy;
-    const rows = await prisma.PHIEUDANGKY.findMany({ where, include: { PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS } } } });
+    const rows = await prisma.PHIEUDANGKY.findMany({ where, include: { PHIEUTHUHOCPHI: { where: { TrangThai: { in: [PAYMENT_SUCCESS, PAYMENT_REFUND] } } } } });
     const totalAmount = rows.reduce((s, r) => s + Number(r.TongTienPhaiDong || 0), 0);
-    const paidAmount = rows.reduce((s, r) => s + r.PHIEUTHUHOCPHI.reduce((ss, p) => ss + Number(p.SoTienThu), 0), 0);
+    const paidAmount = rows.reduce((s, r) => {
+      const paid = r.PHIEUTHUHOCPHI
+        .filter((p) => p.TrangThai === PAYMENT_SUCCESS)
+        .reduce((ss, p) => ss + Number(p.SoTienThu || 0), 0);
+      const refunded = r.PHIEUTHUHOCPHI
+        .filter((p) => p.TrangThai === PAYMENT_REFUND)
+        .reduce((ss, p) => ss + Number(p.SoTienThu || 0), 0);
+      return s + Math.max(paid - refunded, 0);
+    }, 0);
     res.json({ success: true, data: { totalAmount, paidAmount, remainingAmount: totalAmount - paidAmount } });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition stats error:');

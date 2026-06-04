@@ -1,13 +1,21 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
+  - const beneficiaryDateTimeFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  - const formatBeneficiaryDateTime = (value) => value ? beneficiaryDateTimeFormatter.format(new Date(value)) : '-'
+
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Đối tượng ưu tiên
       p Quản lý chính sách giảm học phí và đối tượng sinh viên được ưu tiên.
-    .search-box
-      input#search-input(type='text' placeholder='Tìm mã hoặc tên đối tượng...' value=(search || '') onkeyup='debounceSearch()')
-    .filter-group
+    .search-box.search-box-with-criterion.admin-search-group
+      select.form-control.ui-search-criterion-select#beneficiary-search-field(onchange='applyFilters()' aria-label='Tiêu chí tìm kiếm')
+        option(value='all' selected=((searchField || 'all') === 'all')) Tất cả
+        option(value='MaDoiTuong' selected=(searchField === 'MaDoiTuong')) Mã
+        option(value='TenDoiTuong' selected=(searchField === 'TenDoiTuong')) Tên đối tượng
+      input#search-input(type='text' placeholder='Nhập từ khóa đối tượng...' value=(search || '') data-search-field=(searchField || 'all') onkeyup='debounceSearch()')
+    .filter-group.admin-filter-group
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đối tượng
       a.btn.btn-outline(href="/admin/trash?entity=beneficiaries") Thùng rác
 
@@ -31,7 +39,7 @@ block content
         tbody
           if beneficiaries && beneficiaries.length > 0
             each b in beneficiaries
-              tr
+              tr(data-record=JSON.stringify(b))
                 td.mono= b.MaDoiTuong
                 td
                   strong= b.TenDoiTuong
@@ -41,11 +49,12 @@ block content
                 td= b._count ? b._count.DOITUONGSINHVIEN : 0
                 td= b.MoTa || '-'
                 td= b.NguoiCapNhatTen || b.NguoiCapNhat || '-'
-                td= b.NgayCapNhat ? new Date(b.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  button.btn.btn-sm.btn-primary(type="button" data-id=b.MaDoiTuong data-name=b.TenDoiTuong onclick="openStudentsModal(this.dataset.id, this.dataset.name)") Xem SV
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(b) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" data-id=b.MaDoiTuong onclick="deleteBeneficiary(this.dataset.id)") Xóa
+                td= formatBeneficiaryDateTime(b.NgayCapNhat)
+                td.table-actions(data-no-row-detail="true")
+                  .table-action-list
+                    button.btn.btn-sm.btn-primary(type="button" data-id=b.MaDoiTuong data-name=b.TenDoiTuong onclick="openStudentsModal(this.dataset.id, this.dataset.name)") Xem SV
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(b) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" data-id=b.MaDoiTuong onclick="deleteBeneficiary(this.dataset.id)") Xóa
           else
             tr
               td(colspan="9")
@@ -65,7 +74,7 @@ block modals
           .form-row
             .form-group
               label(for="ben-ma") Mã đối tượng
-              input.form-control#ben-ma(type="text" required placeholder="VD: DT01")
+              input.form-control#ben-ma(type='text' required placeholder='VD: DT01' data-readonly-message='Mã đối tượng không được sửa.')
             .form-group
               label(for="ben-ten") Tên đối tượng
               input.form-control#ben-ten(type="text" required placeholder="VD: Con thương binh")
@@ -74,8 +83,8 @@ block modals
               label(for="ben-tile") Tỉ lệ giảm học phí (%)
               input.form-control#ben-tile(type="number" min="0" max="100" step="0.01" required placeholder="VD: 50")
             .form-group
-              label(for="ben-uutien") Độ ưu tiên
-              input.form-control#ben-uutien(type="number" min="1" required placeholder="VD: 1")
+              label Độ ưu tiên
+              #ben-uutien-preview.beneficiary-priority-preview Tự động tính theo tỉ lệ giảm
           .form-group
             label(for="ben-mota") Mô tả
             textarea.form-control#ben-mota(rows="3" placeholder="Mô tả đối tượng...")

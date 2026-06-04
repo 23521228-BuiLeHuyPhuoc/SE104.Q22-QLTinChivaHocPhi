@@ -13,18 +13,42 @@ function escapeMajorHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function formatAdminDateTime(value) {
+  if (!value) return '-';
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+}
+
 function debounceSearch() {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(function() { applyFilters(); }, 400);
 }
 
 function applyFilters() {
-  var s = document.getElementById('search-input').value;
+  var s = document.getElementById('search-input').value.trim();
   var k = document.getElementById('filter-khoa').value;
-  var url = '/admin/majors?page=1';
-  if (s) url += '&search=' + encodeURIComponent(s);
-  if (k) url += '&MaKhoa=' + encodeURIComponent(k);
-  window.location.href = url;
+  var searchField = document.getElementById('major-search-field').value;
+  var params = new URLSearchParams({ page: '1' });
+  if (s) params.set('search', s);
+  if (searchField && searchField !== 'all') params.set('searchField', searchField);
+  if (k) params.set('MaKhoa', k);
+  window.location.href = '/admin/majors?' + params.toString();
+}
+
+function setMajorCodeReadonly(isReadonly) {
+  var input = document.getElementById('maj-ma');
+  input.readOnly = isReadonly;
+  input.classList.toggle('ui-readonly-field', isReadonly);
+  if (window.AdminUI) AdminUI.markReadonlyFields(document.getElementById('major-form'));
 }
 
 function openModal(mode, data) {
@@ -32,7 +56,7 @@ function openModal(mode, data) {
   editId = editMode ? data.MaNganh : null;
   document.getElementById('modal-title').textContent = editMode ? 'Sửa ngành' : 'Thêm ngành';
   document.getElementById('maj-ma').value = editMode ? data.MaNganh : '';
-  document.getElementById('maj-ma').disabled = editMode;
+  setMajorCodeReadonly(editMode);
   document.getElementById('maj-ten').value = editMode ? data.TenNganh : '';
   document.getElementById('maj-khoa').value = editMode ? data.MaKhoa : '';
   document.getElementById('maj-tinchi').value = editMode ? (data.SoTinChiToiThieu || 120) : 120;
@@ -68,9 +92,18 @@ async function deleteMajor(id) {
   else { showToast(res.message || 'Lỗi', 'error'); }
 }
 
-function selectCurriculumMajor(id) {
-  document.getElementById('curriculum-major').value = id;
+function selectCurriculumMajor(id, name) {
+  var select = document.getElementById('curriculum-major');
+  if (!select) return;
+  if (!Array.prototype.some.call(select.options, function(option) { return option.value === id; })) {
+    select.add(new Option(id + (name ? ' - ' + name : ''), id, true, true));
+  }
+  select.value = id;
+  var title = document.getElementById('curriculum-title');
+  if (title) title.textContent = 'Chương trình đào tạo' + (name ? ' - ' + name : '');
   loadCurriculum();
+  var card = select.closest('.card');
+  if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function debounceCurriculumSearch() {
@@ -176,6 +209,29 @@ document.addEventListener('DOMContentLoaded', function() {
     courseInput.addEventListener('input', function() {
       clearTimeout(curriculumTimer);
       curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
+    });
+  }
+
+  if (window.AdminUI) {
+    AdminUI.attachRowDetailHandlers({
+      rowSelector: 'tbody tr[data-record]',
+      title: 'Chi tiết ngành học',
+      buildDetail: function(record) {
+        return {
+          title: 'Chi tiết ngành ' + (record.MaNganh || ''),
+          rows: [
+            { label: 'Mã ngành', value: record.MaNganh },
+            { label: 'Tên ngành', value: record.TenNganh },
+            { label: 'Khoa', value: record.KHOA ? record.KHOA.TenKhoa : record.MaKhoa },
+            { label: 'Số tín chỉ tối thiểu', value: record.SoTinChiToiThieu || 120 },
+            { label: 'Thời gian đào tạo', value: record.ThoiGianDaoTao ? record.ThoiGianDaoTao + ' năm' : '4 năm' },
+            { label: 'Số sinh viên', value: record._count ? record._count.SINHVIEN : 0 },
+            { label: 'Mô tả', value: record.MoTa },
+            { label: 'Sửa bởi', value: record.NguoiCapNhatTen || record.NguoiCapNhat || '-' },
+            { label: 'Sửa lúc', value: formatAdminDateTime(record.NgayCapNhat) }
+          ]
+        };
+      }
     });
   }
 });

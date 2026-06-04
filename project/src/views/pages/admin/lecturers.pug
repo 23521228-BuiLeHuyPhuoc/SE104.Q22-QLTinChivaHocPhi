@@ -1,10 +1,16 @@
 extends ../../layouts/admin
 
 block content
-  .toolbar
-    .search-box
-      input#search-input(type="text" placeholder="Tìm mã, họ tên, email giảng viên..." value=(search || '') onkeyup="debounceLecturerSearch()")
-    .filter-group
+  .toolbar.admin-toolbar
+    .search-box.admin-search-group
+      input#search-input(type="text" placeholder="Tìm giảng viên..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceLecturerSearch()")
+    .filter-group.admin-filter-group
+      select.form-control#filter-semester(onchange="applyLecturerFilters()")
+        if semesterOptions && semesterOptions.length
+          each semester in semesterOptions
+            option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+        else
+          option(value="" selected) Chưa có học kỳ
       select.form-control#filter-faculty(onchange="applyLecturerFilters()")
         option(value="" selected=(!selectedFaculty)) Tất cả khoa
         each faculty in facultyOptions || []
@@ -13,22 +19,25 @@ block content
         option(value="" selected=(!status)) Tất cả trạng thái
         option(value="active" selected=(status === 'active')) Đang dạy
         option(value="inactive" selected=(status === 'inactive')) Tạm khóa
+    .admin-action-group
       button.btn.btn-primary(type="button" onclick="openLecturerModal('add')") Thêm giảng viên
       a.btn.btn-outline(href="/admin/trash?entity=lecturers") Thùng rác
 
   .card
     .card-header
       h3 Danh sách giảng viên
-      span.card-count= lecturers ? `${lecturers.length} bản ghi` : '0 bản ghi'
+      span.card-count= lecturers ? (lecturers.length + ' bản ghi') : '0 bản ghi'
     .table-container
-      table.data-table
+      table.data-table#lecturers-table
         thead
           tr
             th Mã GV
+            th Học hàm
+            th Học vị
             th Họ tên
             th Khoa
             th Liên hệ
-            th Số lớp
+            th Học kỳ
             th Trạng thái
             th Sửa bởi
             th Sửa lúc
@@ -36,27 +45,31 @@ block content
         tbody
           if lecturers && lecturers.length > 0
             each lecturer in lecturers
-              tr
+              tr(data-record=JSON.stringify(lecturer))
                 td.mono= lecturer.MaGiangVien
+                td= lecturer.HocHam || '-'
+                td= lecturer.HocVi || '-'
                 td
-                  strong #{lecturer.HocHamHocVi ? lecturer.HocHamHocVi + ' ' : ''}#{lecturer.HoTen}
+                  strong= lecturer.HoTen
                   if lecturer.MoTa
                     small= lecturer.MoTa
                 td= lecturer.KHOA ? lecturer.KHOA.TenKhoa : (lecturer.MaKhoa || '-')
                 td
                   div= lecturer.Email || '-'
                   small= lecturer.Sdt || ''
-                td= lecturer._count ? lecturer._count.LOPMO : 0
+                td= lecturer.HocKyLabel || lecturer.MaHocKy || '-'
                 td
                   span.badge(class=lecturer.TrangThai === false ? 'badge-secondary' : 'badge-success')= lecturer.TrangThai === false ? 'Tạm khóa' : 'Đang dạy'
                 td= lecturer.NguoiCapNhatTen || lecturer.NguoiCapNhat || '-'
                 td= lecturer.NgayCapNhat ? new Date(lecturer.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(lecturer) onclick="openLecturerModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" data-magv=lecturer.MaGiangVien onclick="deleteLecturer(this.dataset.magv)") Xóa
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(lecturer) data-no-row-detail="true" onclick="openLecturerModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-outline(type="button" data-magv=lecturer.MaGiangVien data-no-row-detail="true" onclick="openLecturerClasses(this.dataset.magv)") Xem lớp
+                    button.btn.btn-sm.btn-danger(type="button" data-magv=lecturer.MaGiangVien data-no-row-detail="true" onclick="deleteLecturer(this.dataset.magv)") Xóa
           else
             tr
-              td(colspan="9")
+              td(colspan="11")
                 .empty-state Chưa có giảng viên phù hợp
 
   include ../../partials/pagination
@@ -71,15 +84,20 @@ block modals
         form#lecturer-form
           .form-row
             .form-group
+              label(for="lecturer-hocky") Học kỳ áp dụng
+              select.form-control#lecturer-hocky(required)
+                if semesterOptions && semesterOptions.length
+                  each semester in semesterOptions
+                    option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+                else
+                  option(value="") Chưa có học kỳ
+            .form-group
               label(for="lecturer-ma") Mã giảng viên
-              input.form-control#lecturer-ma(type="text" required placeholder="VD: GV001")
+              input.form-control#lecturer-ma(type="text" required placeholder="VD: GV001" data-readonly-message="Mã giảng viên là khóa chính nên không được sửa sau khi tạo.")
+          .form-row
             .form-group
               label(for="lecturer-hoten") Họ tên
               input.form-control#lecturer-hoten(type="text" required placeholder="VD: Nguyễn Văn A")
-          .form-row
-            .form-group
-              label(for="lecturer-hocham") Học hàm/học vị
-              input.form-control#lecturer-hocham(type="text" placeholder="VD: TS., ThS., PGS.TS")
             .form-group
               label(for="lecturer-khoa") Khoa
               select.form-control#lecturer-khoa
@@ -88,8 +106,23 @@ block modals
                   option(value=faculty.MaKhoa) #{faculty.MaKhoa} - #{faculty.TenKhoa}
           .form-row
             .form-group
+              label(for="lecturer-hocham") Học hàm
+              select.form-control#lecturer-hocham
+                option(value="") Không có
+                option(value="GS") GS
+                option(value="PGS") PGS
+            .form-group
+              label(for="lecturer-hocvi") Học vị
+              select.form-control#lecturer-hocvi
+                option(value="") Không có
+                option(value="CN") CN
+                option(value="KS") KS
+                option(value="ThS") ThS
+                option(value="TS") TS
+          .form-row
+            .form-group
               label(for="lecturer-email") Email
-              input.form-control#lecturer-email(type="email")
+              input.form-control#lecturer-email(type="email" required placeholder="name@uit.edu.vn")
             .form-group
               label(for="lecturer-sdt") Số điện thoại
               input.form-control#lecturer-sdt(type="text")
@@ -105,6 +138,37 @@ block modals
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeLecturerModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveLecturer()") Lưu
+
+  #lecturer-classes-modal.modal-overlay(onclick="if(event.target===this)closeLecturerClassesModal()")
+    .modal.modal-wide
+      .modal-header
+        h2#lecturer-classes-title Lớp giảng dạy
+        button.modal-close(type="button" onclick="closeLecturerClassesModal()" aria-label="Đóng") ×
+      .modal-body
+        .form-row
+          .form-group
+            label(for="lecturer-classes-semester") Học kỳ
+            select.form-control#lecturer-classes-semester(onchange="reloadLecturerClasses()")
+              if semesterOptions && semesterOptions.length
+                each semester in semesterOptions
+                  option(value=semester.MaHocKy selected=(selectedSemester === semester.MaHocKy)) #{semester.TenHocKy}#{semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : ''}
+              else
+                option(value="") Chưa có học kỳ
+        .table-container
+          table.data-table
+            thead
+              tr
+                th Mã lớp
+                th Môn học
+                th Phòng
+                th Lịch học
+                th Đã đăng ký
+            tbody#lecturer-classes-body
+              tr
+                td(colspan="5")
+                  .empty-state Chọn giảng viên để xem lớp
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeLecturerClassesModal()") Đóng
 
 block scripts
   script(src="/js/admin/lecturers.js")

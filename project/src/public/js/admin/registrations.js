@@ -1,5 +1,5 @@
 var searchTimer;
-var currentDetailStudentId = null;
+var currentDetailRegistrationId = null;
 
 function debounceSearch() {
   clearTimeout(searchTimer);
@@ -37,60 +37,10 @@ document.addEventListener('DOMContentLoaded', function() {
   renderRegistrationActivityPanel();
 });
 
-function toggleRegistrationStats() {
-  var panel = document.getElementById('registration-stats-panel');
-  var button = document.getElementById('registration-stats-toggle');
-  if (!panel || !button) return;
-  panel.hidden = !panel.hidden;
-  button.setAttribute('aria-expanded', String(!panel.hidden));
-  button.textContent = panel.hidden ? 'Thống kê đăng ký môn học' : 'Ẩn thống kê đăng ký';
-  if (!panel.hidden) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-async function exportRegistrations() {
-  var params = new URLSearchParams();
-  var search = document.getElementById('search-input').value.trim();
-  var searchScope = document.getElementById('registration-search-scope');
-  var status = document.getElementById('filter-status').value;
-  var semester = document.getElementById('registration-semester');
-  if (search) params.set('search', search);
-  if (searchScope && searchScope.value) params.set('searchScope', searchScope.value);
-  if (status) params.set('status', status);
-  if (semester && semester.value) params.set('MaHocKy', semester.value);
-
-  try {
-    var token = getToken();
-    var headers = token ? { Authorization: 'Bearer ' + token } : {};
-    var res = await fetch('/api/registrations/export' + (params.toString() ? '?' + params.toString() : ''), { headers: headers });
-    if (!res.ok) {
-      var errorText = await res.text();
-      try {
-        var errorJson = JSON.parse(errorText);
-        showToast(errorJson.message || 'Không thể xuất Excel', 'error');
-      } catch (e) {
-        showToast(errorText || 'Không thể xuất Excel', 'error');
-      }
-      return;
-    }
-
-    var blob = await res.blob();
-    var url = window.URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = 'thong-ke-dang-ky-mon-hoc.xls';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    showToast('Không thể xuất Excel', 'error');
-  }
-}
-
 function closeRegistrationDetail() {
   var modal = document.getElementById('registration-detail-modal');
   if (modal) modal.classList.remove('active');
-  currentDetailStudentId = null;
+  currentDetailRegistrationId = null;
 }
 
 function registrationEscapeHtml(value) {
@@ -126,7 +76,7 @@ function renderRegistrationActivityPanel() {
   var badge = document.getElementById('registration-window-badge');
   var start = document.getElementById('registration-window-start');
   var end = document.getElementById('registration-window-end');
-  var pending = document.getElementById('registration-pending-appeals');
+  var tuitionStatus = document.getElementById('registration-tuition-status');
   var button = document.getElementById('finalize-registration-btn');
 
   if (!activity) {
@@ -134,7 +84,7 @@ function renderRegistrationActivityPanel() {
     setActivityBadge(badge, getActivityBadgeMeta(null));
     if (start) start.textContent = '-';
     if (end) end.textContent = '-';
-    if (pending) pending.textContent = '-';
+    if (tuitionStatus) tuitionStatus.textContent = '-';
     if (button) {
       button.disabled = true;
       button.title = 'Chọn học kỳ để chốt đăng ký';
@@ -148,7 +98,13 @@ function renderRegistrationActivityPanel() {
   setActivityBadge(badge, getActivityBadgeMeta(windowState));
   if (start) start.textContent = formatActivityDateTime(activity.NgayBatDauDangKy || windowState.registrationStart || windowState.start);
   if (end) end.textContent = formatActivityDateTime(activity.NgayKetThucDangKy || windowState.registrationDeadline || windowState.deadline);
-  if (pending) pending.textContent = String(activity.pendingAppeals || workflow.pendingAppeals || 0);
+  if (tuitionStatus) {
+    var paymentWindow = activity.tuitionPaymentWindow || {};
+    var paymentStart = activity.NgayMoThuHocPhi || paymentWindow.paymentStart || paymentWindow.start;
+    tuitionStatus.textContent = workflow.tuitionOpen || activity.MoThuHocPhi
+      ? 'Đã mở thu' + (paymentStart ? ' từ ' + formatActivityDateTime(paymentStart) : '')
+      : 'Chưa mở thu';
+  }
   if (button) {
     var alreadyFinalized = Boolean(workflow.finalized || activity.NgayChotDangKy);
     button.disabled = alreadyFinalized || !workflow.canFinalize;
@@ -171,7 +127,7 @@ async function finalizeSelectedRegistration() {
       showToast(
         'Đã chốt đăng ký: ' + (summary.SoLopDatNguong || 0) + ' lớp mở, ' +
           (summary.SoLopBiDong || 0) + ' lớp đóng, ' +
-          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy',
+          (summary.SoDangKyBiHuy || 0) + ' đăng ký bị hủy, đã mở thu học phí',
         'success'
       );
       setTimeout(function() { window.location.reload(); }, 500);
@@ -191,8 +147,10 @@ async function loadAllStudentRegistrationCourses(maSv) {
   var courses = [];
   var page = 1;
   var totalPages = 1;
+  var activity = getSelectedRegistrationActivity();
+  var semesterQuery = activity && activity.MaHocKy ? '&MaHocKy=' + encodeURIComponent(activity.MaHocKy) : '';
   do {
-    var res = await apiFetch('/api/registrations/student/' + encodeURIComponent(maSv) + '?page=' + page);
+    var res = await apiFetch('/api/registrations/student/' + encodeURIComponent(maSv) + '?page=' + page + semesterQuery);
     if (!res || res.success === false) throw new Error((res && res.message) || 'Không tải được chi tiết đăng ký');
     courses = courses.concat((res.data && res.data.courses) || []);
     totalPages = Number(res.pagination && res.pagination.totalPages || 1);
@@ -270,13 +228,81 @@ async function openStudentRegistrationDetail(maSv) {
   var modal = document.getElementById('registration-detail-modal');
   var content = document.getElementById('registration-detail-content');
   if (!modal || !content) return;
-  currentDetailStudentId = maSv;
+  currentDetailRegistrationId = null;
   modal.classList.add('active');
   content.textContent = 'Đang tải...';
 
   try {
     var courses = await loadAllStudentRegistrationCourses(maSv);
     renderStudentRegistrationDetail(maSv, courses);
+  } catch (error) {
+    content.textContent = error.message || 'Không tải được chi tiết đăng ký';
+  }
+}
+
+function registrationDetailSemester(registration) {
+  var semester = registration.HOCKY || {};
+  var year = semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : '';
+  return registration.HocKyDisplay || (semester.TenHocKy ? semester.TenHocKy + year : (registration.MaHocKy || '-'));
+}
+
+function renderRegistrationDetail(registration) {
+  var content = document.getElementById('registration-detail-content');
+  if (!content) return;
+
+  var student = registration.SINHVIEN || {};
+  var details = registration.CHITIETDANGKY || [];
+  var activeDetails = details.filter(isActiveRegistration);
+  var semester = registrationDetailSemester(registration);
+  var totalCredits = Number(registration.TongTinChi || activeDetails.reduce(function(sum, item) { return sum + Number(item.SoTinChi || 0); }, 0));
+
+  var rows = details.map(function(item) {
+    var course = item.LOP && item.LOP.MONHOC ? item.LOP.MONHOC : (item.MONHOC || {});
+    var canCancel = isActiveRegistration(item) && item.id;
+    var action = canCancel
+      ? '<button class="btn btn-sm btn-danger" type="button" onclick="cancelRegistrationDetail(' + Number(item.id) + ')">Hủy</button>'
+      : '<span class="text-muted">' + registrationEscapeHtml(item.LyDoHuy || '-') + '</span>';
+    return '<tr>' +
+      '<td class="mono">' + registrationEscapeHtml(item.MaMonHoc || course.MaMonHoc || '-') + '</td>' +
+      '<td>' + registrationEscapeHtml(course.TenMonHoc || '-') + '</td>' +
+      '<td class="mono">' + registrationEscapeHtml(item.MaLop || '-') + '</td>' +
+      '<td>' + Number(item.SoTinChi || course.SoTinChi || 0) + '</td>' +
+      '<td>' + registrationEscapeHtml(registrationTypeLabel(item.LoaiDangKy)) + '</td>' +
+      '<td><span class="badge ' + registrationStatusBadge(item.TrangThai) + '">' + registrationEscapeHtml(item.TrangThai || '-') + '</span></td>' +
+      '<td>' + action + '</td>' +
+    '</tr>';
+  }).join('');
+
+  content.innerHTML =
+    '<div class="detail-grid registration-summary-grid">' +
+      '<div><strong>Số phiếu</strong><span>' + registrationEscapeHtml(registration.SoPhieu || '-') + '</span></div>' +
+      '<div><strong>MSSV</strong><span>' + registrationEscapeHtml(registration.MaSv || student.MaSv || '-') + '</span></div>' +
+      '<div><strong>Họ tên</strong><span>' + registrationEscapeHtml(student.HoTen || '-') + '</span></div>' +
+      '<div><strong>Học kỳ</strong><span>' + registrationEscapeHtml(semester) + '</span></div>' +
+      '<div><strong>Số môn</strong><span>' + activeDetails.length + '</span></div>' +
+      '<div><strong>Tổng tín chỉ</strong><span>' + totalCredits + '</span></div>' +
+      '<div><strong>Trạng thái phiếu</strong><span>' + registrationEscapeHtml(registration.TrangThai || '-') + '</span></div>' +
+    '</div>' +
+    '<div class="registration-semester-block mt-3">' +
+      '<h4>' + registrationEscapeHtml(semester) + '</h4>' +
+      '<div class="table-container"><table class="data-table"><thead><tr>' +
+        '<th>Mã môn</th><th>Tên môn</th><th>Lớp</th><th>Tín chỉ</th><th>Loại đăng ký</th><th>Trạng thái</th><th>Thao tác</th>' +
+      '</tr></thead><tbody>' + (rows || '<tr><td colspan="7"><div class="empty-state">Phiếu này chưa có môn đăng ký</div></td></tr>') + '</tbody></table></div>' +
+    '</div>';
+}
+
+async function openRegistrationDetail(soPhieu) {
+  var modal = document.getElementById('registration-detail-modal');
+  var content = document.getElementById('registration-detail-content');
+  if (!modal || !content || !soPhieu) return;
+  currentDetailRegistrationId = soPhieu;
+  modal.classList.add('active');
+  content.textContent = 'Đang tải...';
+
+  try {
+    var res = await apiFetch('/api/registrations/' + encodeURIComponent(soPhieu));
+    if (!res || res.success === false) throw new Error((res && res.message) || 'Không tải được chi tiết đăng ký');
+    renderRegistrationDetail(res.data || {});
   } catch (error) {
     content.textContent = error.message || 'Không tải được chi tiết đăng ký';
   }
@@ -290,7 +316,7 @@ async function cancelRegistrationDetail(id) {
     var res = await apiFetch('/api/registrations/' + encodeURIComponent(id) + '/cancel', { method: 'PUT' });
     if (res.success) {
       showToast(res.message || 'Hủy đăng ký thành công', 'success');
-      if (currentDetailStudentId) openStudentRegistrationDetail(currentDetailStudentId);
+      if (currentDetailRegistrationId) openRegistrationDetail(currentDetailRegistrationId);
       return;
     }
     showToast(res.message || 'Không thể hủy đăng ký', 'error');

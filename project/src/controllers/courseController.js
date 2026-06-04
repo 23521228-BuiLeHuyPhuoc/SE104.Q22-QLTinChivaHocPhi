@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const XLSX = require('xlsx');
 const { formatCourse, formatCourseList } = require('../models/courseModel');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
@@ -7,12 +8,78 @@ const { getThesisEligibility } = require('../services/curriculumService');
 
 const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
 const VALID_COURSE_TYPES = new Set(['LT', 'TH']);
+const VALID_COURSE_SEARCH_FIELDS = new Set(['all', 'MaMonHoc', 'TenMonHoc', 'LoaiMon', 'MaKhoa']);
 
 const normalizeText = (value) => String(value || '').trim();
+
+const normalizeLookupText = (value) => normalizeText(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 const parsePositiveInteger = (value) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const calculateCourseCredits = (lessonCount, courseType) => {
+  const divisor = courseType === 'TH' ? 30 : 15;
+  return Math.floor(Number(lessonCount || 0) / divisor);
+};
+
+const normalizeCourseType = (value) => {
+  const raw = normalizeText(value).toUpperCase();
+  if (VALID_COURSE_TYPES.has(raw)) return raw;
+  const keyword = normalizeLookupText(value);
+  if (keyword === 'ly thuyet' || keyword === 'ly thuyet ' || keyword.includes('ly thuyet')) return 'LT';
+  if (keyword === 'thuc hanh' || keyword.includes('thuc hanh')) return 'TH';
+  return raw;
+};
+
+const getCourseTypeSearchClauses = (search) => {
+  const term = normalizeText(search);
+  const keyword = normalizeLookupText(term);
+  const clauses = [{ LoaiMon: { contains: term, mode: 'insensitive' } }];
+  if (keyword === 'lt' || keyword.includes('ly thuyet')) clauses.push({ LoaiMon: 'LT' });
+  if (keyword === 'th' || keyword.includes('thuc hanh')) clauses.push({ LoaiMon: 'TH' });
+  return clauses;
+};
+
+const getCourseSearchClauses = (search, searchField = 'all') => {
+  const term = normalizeText(search);
+  if (!term) return [];
+  const field = VALID_COURSE_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
+  const byCourseCode = { MaMonHoc: { contains: term, mode: 'insensitive' } };
+  const byCourseName = { TenMonHoc: { contains: term, mode: 'insensitive' } };
+  const byFaculty = {
+    OR: [
+      { MaKhoa: { contains: term, mode: 'insensitive' } },
+      { KHOA: { TenKhoa: { contains: term, mode: 'insensitive' } } }
+    ]
+  };
+
+  if (field === 'MaMonHoc') return [byCourseCode];
+  if (field === 'TenMonHoc') return [byCourseName];
+  if (field === 'LoaiMon') return getCourseTypeSearchClauses(term);
+  if (field === 'MaKhoa') return [byFaculty];
+  return [byCourseCode, byCourseName, byFaculty, ...getCourseTypeSearchClauses(term)];
+};
+
+const applyCourseSearch = (where, search, searchField) => {
+  const clauses = getCourseSearchClauses(search, searchField);
+  if (clauses.length) where.OR = clauses;
+};
+
+const normalizeExcelValue = (value) => {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'object' && value.text) return normalizeText(value.text);
+  if (typeof value === 'object' && value.result) return normalizeText(value.result);
+  return normalizeText(value);
+};
+
+const parseCourseStatus = (value) => {
+  const text = normalizeLookupText(value);
+  if (!text) return true;
+  if (['true', '1', 'dang dung', 'dang hoat dong', 'active'].includes(text)) return true;
+  if (['false', '0', 'tam khoa', 'tam dung', 'inactive'].includes(text)) return false;
+  return null;
 };
 
 const getStudentIdFromRequest = async (req) => {
@@ -27,10 +94,10 @@ const getStudentIdFromRequest = async (req) => {
 const getAllCourses = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search = '', LoaiMon, MaKhoa, TrangThai, sortBy = 'MaMonHoc', sortOrder = 'asc', all } = req.query;
+    const { search = '', searchField = 'all', LoaiMon, MaKhoa, TrangThai, sortBy = 'MaMonHoc', sortOrder = 'asc', all } = req.query;
     const returnAll = all === 'true';
     const where = notDeleted();
-    if (search) where.OR = [{ MaMonHoc: { contains: search, mode: 'insensitive' } }, { TenMonHoc: { contains: search, mode: 'insensitive' } }];
+    applyCourseSearch(where, search, searchField);
     if (LoaiMon) where.LoaiMon = LoaiMon;
     if (MaKhoa) where.MaKhoa = MaKhoa;
     if (TrangThai !== undefined) where.TrangThai = TrangThai === 'true';
@@ -57,46 +124,10 @@ const getCourseById = async (req, res) => {
   try {
     const mh = await prisma.MONHOC.findFirst({
       where: { MaMonHoc: req.params.id, DaXoa: false },
-      include: {
-        KHOA: true,
-        DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC: {
-          where: { DaXoa: false, TrangThai: true },
-          include: { MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: true }
-        },
-        LOP: {
-          where: { DaXoa: false },
-          include: { LOPMO: { include: { HOCKY: { include: { NAMHOC: true } } } } },
-          orderBy: { MaLop: 'asc' }
-        },
-        CHUONGTRINHHOC: {
-          include: { NGANHHOC: true },
-          orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }]
-        }
-      }
+      include: { KHOA: true }
     });
     if (!mh) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
-    const prerequisites = mh.DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC.map((dk) => ({
-      MaMonDieuKien: dk.MaMonDieuKien,
-      TenMonDieuKien: dk.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC.TenMonHoc,
-      LoaiDieuKien: dk.LoaiDieuKien
-    }));
-    const openedClasses = (mh.LOP || []).flatMap((lop) => (lop.LOPMO || []).map((opened) => ({
-      MaLop: lop.MaLop,
-      TenLop: lop.TenLop,
-      GiangVien: lop.GiangVien,
-      MaHocKy: opened.MaHocKy,
-      TenHocKy: opened.HOCKY?.TenHocKy,
-      TenNamHoc: opened.HOCKY?.NAMHOC?.TenNamHoc,
-      TrangThai: opened.TrangThai
-    })));
-    const curricula = (mh.CHUONGTRINHHOC || []).map((row) => ({
-      MaNganh: row.MaNganh,
-      TenNganh: row.NGANHHOC?.TenNganh,
-      HocKyDuKien: row.HocKyDuKien,
-      BatBuoc: row.BatBuoc !== false,
-      TrangThai: row.TrangThai !== false
-    }));
-    res.json({ success: true, data: { ...formatCourse(mh), prerequisites, openedClasses, curricula } });
+    res.json({ success: true, data: formatCourse(mh) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi máy chủ', 'Get course by ID error:');
   }
@@ -108,7 +139,7 @@ const createCourse = async (req, res) => {
     const courseId = normalizeText(MaMonHoc);
     const courseName = normalizeText(TenMonHoc);
     const facultyId = normalizeText(MaKhoa);
-    const courseType = normalizeText(LoaiMon).toUpperCase();
+    const courseType = normalizeCourseType(LoaiMon);
     const lessonCount = parsePositiveInteger(SoTiet);
 
     if (!courseId || !courseName || !lessonCount || !courseType || !facultyId) {
@@ -141,6 +172,12 @@ const updateCourse = async (req, res) => {
   try {
     const existing = await prisma.MONHOC.findFirst({ where: { MaMonHoc: req.params.id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học' });
+    if (req.body.MaMonHoc !== undefined && normalizeText(req.body.MaMonHoc) !== req.params.id) {
+      return res.status(400).json({ success: false, message: 'Mã môn học không được sửa' });
+    }
+    if (req.body.SoTinChi !== undefined) {
+      return res.status(400).json({ success: false, message: 'Số tín chỉ không được sửa trực tiếp; hệ thống tính theo số tiết và loại môn' });
+    }
     const { TenMonHoc, SoTiet, LoaiMon, MaKhoa, MoTa, TrangThai } = req.body;
     const data = {};
 
@@ -155,7 +192,7 @@ const updateCourse = async (req, res) => {
       data.SoTiet = lessonCount;
     }
     if (LoaiMon !== undefined) {
-      const courseType = normalizeText(LoaiMon).toUpperCase();
+      const courseType = normalizeCourseType(LoaiMon);
       if (!VALID_COURSE_TYPES.has(courseType)) return res.status(400).json({ success: false, message: 'Loại môn học không hợp lệ' });
       data.LoaiMon = courseType;
     }
@@ -201,9 +238,9 @@ const escapeCell = (value) => String(value ?? '').replace(/&/g, '&amp;').replace
 
 const exportCourses = async (req, res) => {
   try {
-    const { search = '', LoaiMon, MaKhoa } = req.query;
+    const { search = '', searchField = 'all', LoaiMon, MaKhoa } = req.query;
     const where = notDeleted();
-    if (search) where.OR = [{ MaMonHoc: { contains: search, mode: 'insensitive' } }, { TenMonHoc: { contains: search, mode: 'insensitive' } }];
+    applyCourseSearch(where, search, searchField);
     if (LoaiMon) where.LoaiMon = LoaiMon;
     if (MaKhoa) where.MaKhoa = MaKhoa;
     const rows = await prisma.MONHOC.findMany({
@@ -228,6 +265,167 @@ const exportCourses = async (req, res) => {
     return res.send(workbook);
   } catch (error) {
     return sendErrorResponse(res, error, 'KhA´ng tha»ƒ xuaº¥t danh sA¡ch mA´n ha»c', 'exportCourses error:');
+  }
+};
+
+const normalizeImportHeader = (value) => normalizeLookupText(value).replace(/[^a-z0-9]/g, '');
+
+const findImportColumn = (headers, aliases) => {
+  const normalizedAliases = aliases.map(normalizeImportHeader);
+  return headers.findIndex((header) => normalizedAliases.includes(normalizeImportHeader(header)));
+};
+
+const importCourses = async (req, res) => {
+  try {
+    if (!req.file?.buffer) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn file Excel' });
+    }
+
+    let workbook;
+    try {
+      workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    } catch (error) {
+      return res.status(400).json({ success: false, message: 'Không thể đọc file Excel. Vui lòng dùng file .xls hoặc .xlsx đúng format' });
+    }
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = sheetName ? workbook.Sheets[sheetName] : null;
+    if (!sheet) return res.status(400).json({ success: false, message: 'File Excel không có sheet dữ liệu' });
+
+    const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+    if (!matrix.length) return res.status(400).json({ success: false, message: 'File Excel không có dữ liệu' });
+
+    const headers = matrix[0].map(normalizeExcelValue);
+    const columns = {
+      MaMonHoc: findImportColumn(headers, ['MaMonHoc', 'Mã môn', 'Mã môn học']),
+      TenMonHoc: findImportColumn(headers, ['TenMonHoc', 'Tên môn học', 'Tên môn']),
+      LoaiMon: findImportColumn(headers, ['LoaiMon', 'Loại môn', 'Loại']),
+      SoTinChi: findImportColumn(headers, ['SoTinChi', 'Số tín chỉ', 'Tín chỉ']),
+      SoTiet: findImportColumn(headers, ['SoTiet', 'Số tiết']),
+      Khoa: findImportColumn(headers, ['Khoa', 'MaKhoa', 'Mã khoa', 'Tên khoa']),
+      TrangThai: findImportColumn(headers, ['TrangThai', 'Trạng thái'])
+    };
+    const missingHeaders = [
+      ['MaMonHoc', 'MaMonHoc'],
+      ['TenMonHoc', 'TenMonHoc'],
+      ['LoaiMon', 'LoaiMon'],
+      ['SoTiet', 'SoTiet'],
+      ['Khoa', 'Khoa']
+    ].filter(([key]) => columns[key] < 0).map(([, label]) => label);
+
+    if (missingHeaders.length) {
+      return res.status(400).json({ success: false, message: 'File Excel thiếu cột bắt buộc: ' + missingHeaders.join(', ') });
+    }
+
+    const inputRows = matrix.slice(1).map((cells, index) => ({ cells, rowNumber: index + 2 })).filter(({ cells }) => (
+      cells.some((cell) => normalizeExcelValue(cell))
+    ));
+    if (!inputRows.length) return res.status(400).json({ success: false, message: 'File Excel không có dòng dữ liệu' });
+
+    const faculties = await prisma.KHOA.findMany({
+      where: { DaXoa: false },
+      select: { MaKhoa: true, TenKhoa: true }
+    });
+    const facultyByCode = new Map(faculties.map((faculty) => [normalizeLookupText(faculty.MaKhoa), faculty.MaKhoa]));
+    const facultyByName = new Map(faculties.map((faculty) => [normalizeLookupText(faculty.TenKhoa), faculty.MaKhoa]));
+    const seenCourseCodes = new Map();
+    const rowResults = [];
+    const validRows = [];
+
+    inputRows.forEach(({ cells, rowNumber }) => {
+      const getCell = (key) => columns[key] >= 0 ? normalizeExcelValue(cells[columns[key]]) : '';
+      const MaMonHoc = getCell('MaMonHoc');
+      const TenMonHoc = getCell('TenMonHoc');
+      const LoaiMon = normalizeCourseType(getCell('LoaiMon'));
+      const SoTiet = parsePositiveInteger(getCell('SoTiet'));
+      const SoTinChiRaw = getCell('SoTinChi');
+      const KhoaRaw = getCell('Khoa');
+      const TrangThaiRaw = getCell('TrangThai');
+      const errors = [];
+
+      if (!MaMonHoc) errors.push('Thiếu mã môn học');
+      if (!TenMonHoc) errors.push('Thiếu tên môn học');
+      if (!VALID_COURSE_TYPES.has(LoaiMon)) errors.push('Loại môn học phải là LT hoặc TH');
+      if (!SoTiet) errors.push('Số tiết phải là số nguyên dương');
+
+      const facultyKey = normalizeLookupText(KhoaRaw);
+      const MaKhoa = facultyByCode.get(facultyKey) || facultyByName.get(facultyKey) || '';
+      if (!MaKhoa) errors.push('Khoa không tồn tại; cột Khoa chấp nhận mã khoa hoặc tên khoa');
+
+      const TrangThai = columns.TrangThai >= 0 ? parseCourseStatus(TrangThaiRaw) : true;
+      if (TrangThai === null) errors.push('Trạng thái phải là Đang dùng/Tạm khóa hoặc true/false');
+
+      if (MaMonHoc) {
+        const duplicateRow = seenCourseCodes.get(MaMonHoc.toUpperCase());
+        if (duplicateRow) errors.push('Trùng mã môn học trong file với dòng ' + duplicateRow);
+        else seenCourseCodes.set(MaMonHoc.toUpperCase(), rowNumber);
+      }
+
+      if (SoTinChiRaw && SoTiet && VALID_COURSE_TYPES.has(LoaiMon)) {
+        const parsedCredit = Number(SoTinChiRaw);
+        const expectedCredit = calculateCourseCredits(SoTiet, LoaiMon);
+        if (!Number.isInteger(parsedCredit)) {
+          errors.push('Số tín chỉ trong file phải là số nguyên nếu có nhập');
+        } else if (parsedCredit !== expectedCredit) {
+          errors.push('Số tín chỉ phải là ' + expectedCredit + ' theo số tiết và loại môn; không nhập trực tiếp giá trị khác');
+        }
+      }
+
+      const result = {
+        row: rowNumber,
+        MaMonHoc,
+        TenMonHoc,
+        status: errors.length ? 'failed' : 'pending',
+        message: errors.join('; ')
+      };
+      rowResults.push(result);
+      if (!errors.length) validRows.push({ rowNumber, MaMonHoc, TenMonHoc, LoaiMon, SoTiet, MaKhoa, TrangThai, result });
+    });
+
+    const existingCourses = validRows.length ? await prisma.MONHOC.findMany({
+      where: { MaMonHoc: { in: validRows.map((row) => row.MaMonHoc) } },
+      select: { MaMonHoc: true, DaXoa: true }
+    }) : [];
+    const existingByCode = new Map(existingCourses.map((course) => [course.MaMonHoc, course]));
+
+    for (const row of validRows) {
+      const existing = existingByCode.get(row.MaMonHoc);
+      if (existing) {
+        row.result.status = 'failed';
+        row.result.message = existing.DaXoa ? 'Mã môn học đang nằm trong thùng rác, cần khôi phục hoặc đổi mã' : 'Mã môn học đã tồn tại';
+        continue;
+      }
+
+      try {
+        await prisma.MONHOC.create({
+          data: {
+            MaMonHoc: row.MaMonHoc,
+            TenMonHoc: row.TenMonHoc,
+            SoTiet: row.SoTiet,
+            LoaiMon: row.LoaiMon,
+            MaKhoa: row.MaKhoa,
+            TrangThai: row.TrangThai,
+            ...updateAudit(req)
+          }
+        });
+        row.result.status = 'success';
+        row.result.message = 'Nhập thành công';
+        existingByCode.set(row.MaMonHoc, { MaMonHoc: row.MaMonHoc, DaXoa: false });
+      } catch (error) {
+        row.result.status = 'failed';
+        row.result.message = error.code === 'P2002' ? 'Mã môn học đã tồn tại' : 'Không thể tạo môn học';
+      }
+    }
+
+    const successCount = rowResults.filter((row) => row.status === 'success').length;
+    const errorCount = rowResults.filter((row) => row.status === 'failed').length;
+    res.json({
+      success: true,
+      message: 'Nhập Excel hoàn tất: thành công ' + successCount + ', thất bại ' + errorCount,
+      data: { successCount, errorCount, rows: rowResults }
+    });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Không thể nhập Excel môn học', 'importCourses error:');
   }
 };
 
@@ -287,7 +485,6 @@ const getMyCurriculum = async (req, res) => {
         MaNganh: student.MaNganh,
         MaMonHoc: course.MaMonHoc,
         HocKyDuKien: Math.min(Math.floor(index / 6) + 1, 8),
-        BatBuoc: true,
         MONHOC: course
       }));
     }
@@ -340,7 +537,6 @@ const getMyCurriculum = async (req, res) => {
         LoaiMon: course.LoaiMon,
         SoTinChi: Number(course.SoTinChi || 0),
         HocKyDuKien: row.HocKyDuKien || 8,
-        BatBuoc: row.BatBuoc !== false,
         MaKhoa: course.MaKhoa,
         TenKhoa: course.KHOA?.TenKhoa,
         status,
@@ -388,5 +584,6 @@ module.exports = {
   getCourseStats,
   getMyCurriculum,
   getOpenedClasses,
-  exportCourses
+  exportCourses,
+  importCourses
 };

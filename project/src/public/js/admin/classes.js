@@ -59,12 +59,14 @@ function applyFilters() {
   var scope = document.getElementById('filter-search-scope');
   var semester = document.getElementById('filter-semester');
   var status = document.getElementById('filter-open-status');
+  var capacitySort = document.getElementById('filter-capacity-sort');
 
   params.set('page', '1');
   if (search && search.value.trim()) params.set('search', search.value.trim());
   if (scope && scope.value) params.set('searchScope', scope.value);
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (status && status.value) params.set('openStatus', status.value);
+  if (capacitySort && capacitySort.value) params.set('capacitySort', capacitySort.value);
   window.location.href = '/admin/classes?' + params.toString();
 }
 
@@ -283,6 +285,80 @@ function selectEntityPickerOption(button) {
   if (!type || !button) return;
   setPickerValue(type, button.dataset.value || '', button.dataset.label || '');
   closeEntityPicker();
+}
+
+function classDetailValue(label, value) {
+  return '<div><strong>' + classEscapeHtml(label) + '</strong><span>' + classEscapeHtml(value || '-') + '</span></div>';
+}
+
+function classDetailSemester(opened) {
+  if (!opened) return '-';
+  var semester = opened.HOCKY || {};
+  var year = semester.NAMHOC && semester.NAMHOC.TenNamHoc ? ' - ' + semester.NAMHOC.TenNamHoc : '';
+  return (semester.TenHocKy || opened.MaHocKy || '-') + year;
+}
+
+function classDetailScheduleText(schedule) {
+  if (!schedule) return '-';
+  var day = Number(schedule.ThuTrongTuan) === 1 ? 'Chủ nhật' : 'Thứ ' + (schedule.ThuTrongTuan || '-');
+  var room = schedule.PHONGHOC ? roomOptionLabel(schedule.PHONGHOC) : (schedule.PhongHoc || schedule.MaPhong || '-');
+  return day + ', tiết ' + (schedule.MaTietBatDau || '-') + '-' + (schedule.MaTietKetThuc || '-') + ', phòng ' + room;
+}
+
+function renderClassDetail(cls) {
+  var content = document.getElementById('class-detail-content');
+  if (!content) return;
+  var openedRows = cls.LOPMO || [];
+  var activeOpened = openedRows.find(function(item) { return item.TrangThai !== false; }) || openedRows[0] || null;
+  var schedules = activeOpened && activeOpened.LICHHOCLOP ? activeOpened.LICHHOCLOP : [];
+  var course = cls.MONHOC || {};
+  var lecturer = activeOpened && activeOpened.GIANGVIEN
+    ? lecturerOptionLabel(activeOpened.GIANGVIEN)
+    : (cls.GIANGVIEN ? lecturerOptionLabel(cls.GIANGVIEN) : '');
+  var room = cls.PHONGHOC ? roomOptionLabel(cls.PHONGHOC) : (cls.PhongHoc || cls.MaPhong || '-');
+  var registeredCount = activeOpened ? Number(activeOpened.SoLuongDaDangKy || 0) : (cls.CHITIETDANGKY ? cls.CHITIETDANGKY.length : 0);
+  var status = activeOpened ? (activeOpened.TrangThai === false ? 'Đã đóng' : 'Đang mở') : 'Chưa mở';
+  var scheduleRows = schedules.length
+    ? schedules.map(function(schedule) {
+        return '<li>' + classEscapeHtml(classDetailScheduleText(schedule)) + '</li>';
+      }).join('')
+    : '<li>Chưa có lịch mở lớp</li>';
+
+  content.innerHTML =
+    '<div class="detail-grid">' +
+      classDetailValue('Mã lớp', cls.MaLop) +
+      classDetailValue('Tên lớp', cls.TenLop) +
+      classDetailValue('Môn học', (course.TenMonHoc || cls.MaMonHoc) + (cls.MaMonHoc ? ' (' + cls.MaMonHoc + ')' : '')) +
+      classDetailValue('Khoa', course.KHOA && course.KHOA.TenKhoa) +
+      classDetailValue('Giảng viên', lecturer || cls.GiangVien) +
+      classDetailValue('Phòng mặc định', room) +
+      classDetailValue('Học kỳ đang mở', classDetailSemester(activeOpened)) +
+      classDetailValue('Trạng thái', status) +
+      classDetailValue('Sĩ số', registeredCount + ' / ' + (cls.SoLuongToiDa || '-')) +
+      classDetailValue('Cập nhật', classFormatDate(cls.NgayCapNhat || cls.NgayTao)) +
+    '</div>' +
+    '<div class="detail-note"><strong>Lịch học</strong><ul class="class-detail-schedules">' + scheduleRows + '</ul></div>';
+}
+
+async function openClassDetail(id) {
+  if (window.event && window.event.target && window.event.target.closest('button, a')) return;
+  var modal = document.getElementById('class-detail-modal');
+  var content = document.getElementById('class-detail-content');
+  if (!id || !modal || !content) return;
+  modal.classList.add('active');
+  content.innerHTML = '<div class="empty-state">Đang tải thông tin lớp học...</div>';
+  try {
+    var res = await apiFetch('/api/classes/' + encodeURIComponent(id));
+    if (!res || res.success === false) throw new Error((res && res.message) || 'Không thể tải chi tiết lớp');
+    renderClassDetail(res.data || {});
+  } catch (error) {
+    content.innerHTML = '<div class="empty-state">' + classEscapeHtml(error.message || 'Không thể tải chi tiết lớp') + '</div>';
+  }
+}
+
+function closeClassDetail() {
+  var modal = document.getElementById('class-detail-modal');
+  if (modal) modal.classList.remove('active');
 }
 
 function openModal(mode, cl) {

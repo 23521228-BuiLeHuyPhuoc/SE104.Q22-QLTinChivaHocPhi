@@ -176,6 +176,8 @@ function getSemesterFilters() {
   var searchScope = document.getElementById('semester-search-scope');
   var dateField = document.getElementById('semester-date-field');
   var dateExact = document.getElementById('semester-date-exact');
+  var registrationFinalized = document.getElementById('semester-registration-finalized');
+  var tuitionOpen = document.getElementById('semester-tuition-open');
   var exactValue = dateExact ? dateExact.value : '';
 
   if (dateExact) dateExact.classList.remove('is-invalid');
@@ -185,6 +187,8 @@ function getSemesterFilters() {
     searchScope: searchScope ? searchScope.value : 'semesterCode',
     semesterKind: getActiveSegmentValue('semester-kind-filter'),
     status: getActiveSegmentValue('semester-status-filter'),
+    registrationFinalized: registrationFinalized ? registrationFinalized.value : '',
+    tuitionOpen: tuitionOpen ? tuitionOpen.value : '',
     dateField: dateField ? dateField.value : 'all',
     dateExact: exactValue,
     limit: SEMESTER_PAGE_LIMIT
@@ -202,6 +206,8 @@ function buildSemesterQuery(page) {
   if (filters.q && filters.searchScope) params.set('searchScope', filters.searchScope);
   if (filters.semesterKind) params.set('semesterKind', filters.semesterKind);
   if (filters.status) params.set('status', filters.status);
+  if (filters.registrationFinalized) params.set('registrationFinalized', filters.registrationFinalized);
+  if (filters.tuitionOpen) params.set('tuitionOpen', filters.tuitionOpen);
   if (filters.dateField && filters.dateField !== 'all') params.set('dateField', filters.dateField);
   if (filters.dateExact) params.set('dateExact', filters.dateExact);
   return params;
@@ -219,6 +225,49 @@ function getSemesterStatusBadge(status) {
   return 'badge-secondary';
 }
 
+function formatSemesterDetailStatus(condition, yesLabel, noLabel) {
+  return condition ? yesLabel : noLabel;
+}
+
+function initSemesterRowDetails() {
+  if (!window.AdminUI) return;
+  var body = document.getElementById('semester-list-body');
+  if (!body) return;
+  AdminUI.attachRowDetailHandlers({
+    root: body,
+    rowSelector: '.semester-list-row[data-record-index]',
+    getRecord: function(row) {
+      var index = parseInt(row.getAttribute('data-record-index'), 10);
+      return Number.isFinite(index) ? semesterRecords[index] : null;
+    },
+    buildDetail: function(record) {
+      var yearName = record.NAMHOC && record.NAMHOC.TenNamHoc ? record.NAMHOC.TenNamHoc : (record.TenNamHoc || record.MaNamHoc || '-');
+      return {
+        title: 'Chi tiết học kỳ ' + (record.MaHocKy || ''),
+        rows: [
+          { label: 'Mã học kỳ', value: record.MaHocKy },
+          { label: 'Tên học kỳ', value: record.TenHocKy },
+          { label: 'Năm học', value: yearName },
+          { label: 'Loại học kỳ', value: getSemesterKindLabel(record) },
+          { label: 'Trạng thái học kỳ', value: record.TrangThai || '-' },
+          { label: 'Bắt đầu học kỳ', value: formatSemesterDate(record.NgayBatDau) },
+          { label: 'Kết thúc học kỳ', value: formatSemesterDate(record.NgayKetThuc) },
+          { label: 'Bắt đầu đăng ký', value: formatSemesterDate(record.NgayBatDauDangKy) },
+          { label: 'Hạn đăng ký', value: formatSemesterDate(record.NgayKetThucDangKy) },
+          { label: 'Ngày chốt đăng ký', value: formatSemesterDate(record.NgayChotDangKy) },
+          { label: 'Trạng thái chốt đăng ký', value: formatSemesterDetailStatus(record.NgayChotDangKy, 'Đã chốt đăng ký', 'Chưa chốt đăng ký') },
+          { label: 'Trạng thái mở thu', value: formatSemesterDetailStatus(record.MoThuHocPhi, 'Đang mở thu', 'Chưa mở thu') },
+          { label: 'Ngày mở thu học phí', value: formatSemesterDate(record.NgayMoThuHocPhi) },
+          { label: 'Hạn đóng học phí', value: formatSemesterDate(record.HanDongHocPhi) },
+          { label: 'Số lớp mở', value: record.SoLopMo || 0 },
+          { label: 'Số sinh viên đăng ký', value: record.SoSinhVienDangKy || 0 },
+          { label: 'Người sửa', value: record.NguoiCapNhatTen || record.NguoiCapNhat || '-' },
+          { label: 'Thời điểm sửa', value: formatSemesterDateTime(record.NgayCapNhat) }
+        ]
+      };
+    }
+  });
+}
 function renderSemesterRows(rows) {
   var body = document.getElementById('semester-list-body');
   if (!body) return;
@@ -232,7 +281,7 @@ function renderSemesterRows(rows) {
     var yearName = s.NAMHOC && s.NAMHOC.TenNamHoc ? s.NAMHOC.TenNamHoc : (s.TenNamHoc || s.MaNamHoc || '-');
     var status = s.TrangThai || '-';
     return [
-      '<div class="semester-list-row">',
+      '<div class="semester-list-row ui-row-clickable" data-record-index="' + index + '">',
         '<div class="semester-identity">',
           '<div class="semester-meta">',
             '<div class="semester-field"><span class="semester-field-label">Mã</span><span class="semester-field-value mono">' + escapeHtml(s.MaHocKy || '-') + '</span></div>',
@@ -262,7 +311,7 @@ function renderSemesterRows(rows) {
           '<div class="semester-field"><span class="semester-field-label">Người sửa</span><span class="semester-field-value">' + escapeHtml(s.NguoiCapNhatTen || s.NguoiCapNhat || '-') + '</span></div>',
           '<div class="semester-field"><span class="semester-field-label">Thời điểm sửa</span><span class="semester-field-value">' + escapeHtml(formatSemesterDateTime(s.NgayCapNhat)) + '</span></div>',
         '</div>',
-        '<div class="semester-actions">',
+        '<div class="semester-actions" data-no-row-detail="true">',
           '<button class="btn btn-sm btn-outline" type="button" data-action="edit" data-index="' + index + '">Sửa</button>',
           '<button class="btn btn-sm btn-danger" type="button" data-action="delete" data-id="' + escapeHtml(s.MaHocKy || '') + '">Xóa</button>',
         '</div>',
@@ -346,9 +395,13 @@ function resetSemesterFilters() {
   var searchScope = document.getElementById('semester-search-scope');
   var dateField = document.getElementById('semester-date-field');
   var dateExact = document.getElementById('semester-date-exact');
+  var registrationFinalized = document.getElementById('semester-registration-finalized');
+  var tuitionOpen = document.getElementById('semester-tuition-open');
 
   if (keyword) keyword.value = '';
   if (searchScope) searchScope.value = 'semesterCode';
+  if (registrationFinalized) registrationFinalized.value = '';
+  if (tuitionOpen) tuitionOpen.value = '';
   if (dateField) dateField.value = 'all';
   if (dateExact) {
     dateExact.value = '';
@@ -643,12 +696,14 @@ function bindSemesterFilters() {
   var searchScope = document.getElementById('semester-search-scope');
   var dateField = document.getElementById('semester-date-field');
   var dateExact = document.getElementById('semester-date-exact');
+  var registrationFinalized = document.getElementById('semester-registration-finalized');
+  var tuitionOpen = document.getElementById('semester-tuition-open');
   var reset = document.getElementById('semester-filter-reset');
   var pagination = document.getElementById('semester-pagination');
   var listBody = document.getElementById('semester-list-body');
 
   if (keyword) keyword.addEventListener('input', debounceSemesterSearch);
-  [searchScope, dateField, dateExact].forEach(function(input) {
+  [searchScope, registrationFinalized, tuitionOpen, dateField, dateExact].forEach(function(input) {
     if (!input) return;
     input.addEventListener('change', function() { loadSemesters(1); });
   });
@@ -691,6 +746,7 @@ function bindSemesterFilters() {
 document.addEventListener('DOMContentLoaded', function() {
   loadAcademicYears();
   bindSemesterFilters();
+  initSemesterRowDetails();
   bindSemesterDateValidation();
   loadSemesters(1);
   ['hk-ma', 'hk-ten', 'hk-loai'].forEach(function(id) {

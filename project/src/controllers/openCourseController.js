@@ -16,6 +16,14 @@ const parseBoolean = (value, fallback = true) => {
   return String(value).toLowerCase() === 'true';
 };
 
+const parseStatusFilter = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const text = String(value).toLowerCase();
+  if (text === 'active' || text === 'true') return true;
+  if (text === 'inactive' || text === 'false') return false;
+  return null;
+};
+
 const getOpenCourseRow = async (id) => {
   const rows = await prisma.$queryRaw`
     SELECT
@@ -64,12 +72,13 @@ const buildOpenCourseWhere = (query = {}) => {
 
   if (query.MaHocKy) conditions.push(Prisma.sql`mhm."MaHocKy" = ${query.MaHocKy}`);
   if (query.MaKhoa) conditions.push(Prisma.sql`mh."MaKhoa" = ${query.MaKhoa}`);
-  if (query.TrangThai !== undefined && query.TrangThai !== '') {
-    conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = ${parseBoolean(query.TrangThai)}`);
-  }
+  const statusFilter = parseStatusFilter(query.TrangThai);
+  if (statusFilter !== null) conditions.push(Prisma.sql`COALESCE(mhm."TrangThai", TRUE) = ${statusFilter}`);
   if (query.search) {
     const term = `%${String(query.search).trim()}%`;
-    conditions.push(Prisma.sql`(mhm."MaMonHoc" ILIKE ${term} OR mh."TenMonHoc" ILIKE ${term})`);
+    if (query.searchField === 'TenMonHoc') conditions.push(Prisma.sql`mh."TenMonHoc" ILIKE ${term}`);
+    else if (query.searchField === 'MaMonHoc') conditions.push(Prisma.sql`mhm."MaMonHoc" ILIKE ${term}`);
+    else conditions.push(Prisma.sql`(mhm."MaMonHoc" ILIKE ${term} OR mh."TenMonHoc" ILIKE ${term})`);
   }
 
   return Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
@@ -177,6 +186,18 @@ const getOpenCourses = async (req, res) => {
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, returnAll ? 1 : page, returnAll ? Math.max(total, 1) : limit) });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi server', 'getOpenCourses error:');
+  }
+};
+
+const getOpenCourseById = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+    const row = await getOpenCourseRow(id);
+    if (!row) return res.status(404).json({ success: false, message: 'Không tìm thấy môn học mở' });
+    res.json({ success: true, data: row });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'getOpenCourseById error:');
   }
 };
 
@@ -324,6 +345,7 @@ const getAvailableCourses = async (req, res) => {
 
 module.exports = {
   getOpenCourses,
+  getOpenCourseById,
   createOpenCourse,
   updateOpenCourse,
   deleteOpenCourse,

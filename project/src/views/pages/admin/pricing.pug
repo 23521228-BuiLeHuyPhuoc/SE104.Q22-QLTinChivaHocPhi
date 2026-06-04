@@ -4,11 +4,14 @@ block styles
   link(rel="stylesheet" href="/css/admin/pricing.css")
 
 block content
-  .toolbar.pricing-toolbar
+  - const pricingDateTimeFormatter = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  - const formatPricingDateTime = (value) => value ? pricingDateTimeFormatter.format(new Date(value)) : '-'
+
+  .toolbar.pricing-toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Đơn giá tín chỉ
       p Thiết lập đơn giá cho từng loại môn và loại đăng ký theo học kỳ.
-    .pricing-toolbar-actions
+    .pricing-toolbar-actions.admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm đơn giá
       a.btn.btn-outline(href="/admin/trash?entity=pricing") Thùng rác
 
@@ -82,7 +85,7 @@ block content
               - const loaiMonLabel = p.LoaiMon === 'LT' ? 'Lý thuyết' : 'Thực hành'
               - const loaiHocLabel = p.LoaiHoc === 'hoc_moi' ? 'Học mới' : p.LoaiHoc === 'hoc_lai' ? 'Học lại' : p.LoaiHoc === 'hoc_cai_thien' ? 'Cải thiện' : p.LoaiHoc === 'hoc_he' ? 'Học hè' : p.LoaiHoc
               - const loaiHocBadge = p.LoaiHoc === 'hoc_moi' ? 'badge-primary' : p.LoaiHoc === 'hoc_he' ? 'badge-warning' : p.LoaiHoc === 'hoc_cai_thien' ? 'badge-info' : p.LoaiHoc === 'hoc_lai' ? 'badge-error' : 'badge-secondary'
-              tr
+              tr(data-record=JSON.stringify(p))
                 td.mono= p.id
                 td
                   span.badge(class=p.LoaiMon === 'LT' ? 'badge-info' : 'badge-success')= loaiMonLabel
@@ -96,10 +99,11 @@ block content
                   else
                     span.badge.badge-secondary Ngưng
                 td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
-                td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
-                td.table-actions
-                  button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                  button.btn.btn-sm.btn-danger(type="button" onclick=`deletePricing(${p.id})`) Xóa
+                td= formatPricingDateTime(p.NgayCapNhat)
+                td.table-actions(data-no-row-detail="true")
+                  .table-action-list
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deletePricing(${p.id})`) Xóa
           else
             tr
               td(colspan="9")
@@ -142,6 +146,13 @@ block modals
           .form-group
             label(for="pr-ghichu") Ghi chú
             input.form-control#pr-ghichu(type="text" placeholder="Ghi chú thêm...")
+          #pricing-audit-panel.pricing-audit-panel.hidden
+            .pricing-audit-item
+              span Sửa bởi
+              strong#pr-updater -
+            .pricing-audit-item
+              span Sửa lúc
+              strong#pr-updated-at -
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeModal()") Hủy
         button.btn.btn-primary(type="button" onclick="savePricing()") Lưu

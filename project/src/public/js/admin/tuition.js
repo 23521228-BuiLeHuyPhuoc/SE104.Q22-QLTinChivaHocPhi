@@ -16,10 +16,12 @@ function debounceSearch() {
 
 function applyFilters() {
   var search = document.getElementById('search-input').value.trim();
+  var searchField = document.getElementById('search-field') ? document.getElementById('search-field').value : 'all';
   var status = document.getElementById('filter-status').value;
   var semester = document.getElementById('filter-semester').value;
   var url = '/admin/tuition?page=1';
   if (search) url += '&search=' + encodeURIComponent(search);
+  if (searchField && searchField !== 'all') url += '&searchField=' + encodeURIComponent(searchField);
   if (semester) url += '&MaHocKy=' + encodeURIComponent(semester);
   if (status) url += '&status=' + encodeURIComponent(status);
   window.location.href = url;

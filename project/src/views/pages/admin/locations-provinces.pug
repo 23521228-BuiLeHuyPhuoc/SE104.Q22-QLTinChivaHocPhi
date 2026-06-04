@@ -4,6 +4,7 @@ block styles
   link(rel="stylesheet" href="/css/admin/locations.css")
 
 block content
+  - const formatLocationDateTime = (value) => value ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) : '-'
   .location-page
     .location-overview.location-overview-single
       .location-stat
@@ -24,9 +25,19 @@ block content
           | Thêm tỉnh
 
       .location-toolbar
-        .search-box
-          input#province-search-input(type="text" placeholder="Tìm mã, tên tỉnh/thành phố..." value=(search || '') onkeyup="debounceProvinceSearch()")
+        .location-search-control
+          select.form-control.location-search-field#province-search-field(onchange="applyProvinceFilters()")
+            option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+            option(value="MaTinh" selected=(searchField === 'MaTinh')) Mã
+            option(value="TenTinh" selected=(searchField === 'TenTinh')) Tên
+            option(value="LoaiTinh" selected=(searchField === 'LoaiTinh')) Loại
+          .search-box
+            input#province-search-input(type="text" placeholder="Nhập từ khóa tìm kiếm..." value=(search || '') onkeyup="debounceProvinceSearch()")
         .filter-group
+          select.form-control#province-filter-type(onchange="applyProvinceFilters()")
+            option(value="" selected=(!LoaiTinh)) Tất cả loại
+            option(value="Tỉnh" selected=(LoaiTinh === 'Tỉnh')) Tỉnh
+            option(value="Thành phố" selected=(LoaiTinh === 'Thành phố')) Thành phố
           select.form-control#province-filter-status(onchange="applyProvinceFilters()")
             option(value="" selected=(!status)) Tất cả trạng thái
             option(value="active" selected=(status === 'active')) Đang dùng
@@ -44,12 +55,13 @@ block content
               th Loại
               th Số phường/xã
               th Trạng thái
-              th Ngày tạo
+              th Sửa bởi
+              th Sửa lúc
               th Thao tác
           tbody
             if provinces && provinces.length
               each p in provinces
-                tr
+                tr.location-clickable(data-record=JSON.stringify(p) onclick="openProvinceDetail(this)")
                   td.mono= p.MaTinh
                   td
                     strong= p.TenTinh
@@ -57,14 +69,19 @@ block content
                   td= p._count ? p._count.PHUONGXA : 0
                   td
                     span.badge(class=p.TrangThai === false ? 'badge-secondary' : 'badge-success')= p.TrangThai === false ? 'Tạm khóa' : 'Đang dùng'
-                  td= p.NgayTao ? new Date(p.NgayTao).toLocaleDateString('vi-VN') : '-'
+                  td= p.NguoiCapNhatTen || p.NguoiCapNhat || '-'
+                  td= formatLocationDateTime(p.NgayCapNhat)
                   td.table-actions
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openProvinceEdit(this)")
-                      span.material-symbols-rounded edit
-                      | Sửa
+                    .table-action-list
+                      button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="event.stopPropagation(); openProvinceEdit(this)")
+                        span.material-symbols-rounded edit
+                        | Sửa
+                      button.btn.btn-sm.btn-danger(type="button" data-id=p.MaTinh data-name=p.TenTinh onclick="event.stopPropagation(); deleteProvince(this)")
+                        span.material-symbols-rounded delete
+                        | Xóa
             else
               tr
-                td(colspan="7")
+                td(colspan="8")
                   .empty-state Không có tỉnh/thành phố phù hợp
 
       if totalPages && totalPages > 1
@@ -83,7 +100,7 @@ block modals
           .form-row
             .form-group
               label(for="province-ma") Mã tỉnh
-              input.form-control#province-ma(type="text" required placeholder="VD: 79")
+              input.form-control.readonly-control#province-ma(type="text" readonly value="Tự động khi lưu" data-locked-message="Mã tỉnh tự tăng và không được sửa" onclick="notifyReadonlyField(this)")
             .form-group
               label(for="province-ten") Tên tỉnh/thành phố
               input.form-control#province-ten(type="text" required placeholder="VD: Thành phố Hồ Chí Minh")
@@ -101,6 +118,15 @@ block modals
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeProvinceModal()") Hủy
         button.btn.btn-primary(type="button" onclick="saveProvince()") Lưu
+
+  #location-detail-modal.modal-overlay(onclick="if(event.target===this)closeLocationDetailModal()")
+    .modal.location-detail-modal
+      .modal-header
+        h2#location-detail-title Chi tiết tỉnh/thành phố
+        button.modal-close(type="button" onclick="closeLocationDetailModal()")
+          span.material-symbols-rounded close
+      .modal-body
+        #location-detail-content.location-detail-grid
 
 block scripts
   script(src="/js/admin/locations.js")

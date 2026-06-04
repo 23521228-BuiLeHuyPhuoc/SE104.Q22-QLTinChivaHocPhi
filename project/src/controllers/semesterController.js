@@ -105,7 +105,10 @@ const academicYearSelect = (year) => ({
   TenNamHoc: year.TenNamHoc,
   NamBatDau: year.NamBatDau,
   NamKetThuc: year.NamKetThuc,
-  TrangThai: year.TrangThai
+  TrangThai: year.TrangThai,
+  NguoiCapNhat: year.NguoiCapNhat,
+  NguoiCapNhatTen: year.NguoiCapNhatTen,
+  NgayCapNhat: year.NgayCapNhat
 });
 
 const parseAcademicYearCode = (value) => {
@@ -247,6 +250,8 @@ const buildSemesterWhere = (query = {}) => {
   const searchScope = ['semesterCode', 'semesterName', 'academicYear'].includes(query.searchScope) ? query.searchScope : 'semesterCode';
   const semesterKind = normalizeSemesterKind(query.semesterKind || (query.searchField === 'HocKy' ? query.search : ''));
   const status = String(query.status || '').trim();
+  const registrationFinalized = String(query.registrationFinalized || '').trim();
+  const tuitionOpen = String(query.tuitionOpen || '').trim();
   const requestedDateField = SEMESTER_DATE_FIELDS.has(query.dateField) ? query.dateField : 'all';
   const legacyDateSearch = query.searchField && SEMESTER_DATE_FIELDS.has(query.searchField) ? query.search : '';
   const exactDate = parseFilterDate(query.dateExact || query.date || legacyDateSearch, 'Ngày chính xác');
@@ -273,6 +278,10 @@ const buildSemesterWhere = (query = {}) => {
 
   if (semesterKind) and.push({ ThuTu: parseInt(semesterKind, 10) });
   if (status) and.push({ TrangThai: status });
+  if (registrationFinalized === 'finalized') and.push({ NgayChotDangKy: { not: null } });
+  if (registrationFinalized === 'not_finalized') and.push({ NgayChotDangKy: null });
+  if (tuitionOpen === 'open') and.push({ MoThuHocPhi: true });
+  if (tuitionOpen === 'closed') and.push({ MoThuHocPhi: false });
 
   if (dateFrom || dateTo) {
     const range = {};
@@ -609,13 +618,14 @@ const finalizeRegistration = async (req, res) => {
         await recalculateRegistrationTotals(tx, registration.SoPhieu);
       }
 
+      const finalizedAt = new Date();
       await tx.HOCKY.update({
         where: { MaHocKy: maHocKy },
         data: {
           TrangThai: ONGOING_SEMESTER_STATUS,
-          NgayChotDangKy: new Date(),
-          MoThuHocPhi: false,
-          NgayMoThuHocPhi: null,
+          NgayChotDangKy: finalizedAt,
+          MoThuHocPhi: true,
+          NgayMoThuHocPhi: finalizedAt,
           ...updateAudit(req)
         }
       });
@@ -626,13 +636,15 @@ const finalizeRegistration = async (req, res) => {
         SoLopDatNguong: openedAfterFinalize.length,
         SoLopBiDong: closedAfterFinalize.length,
         SoDangKyBiHuy: cancelled.count,
+        MoThuHocPhi: true,
+        NgayMoThuHocPhi: finalizedAt,
         classes: classSummaries
       };
     });
 
     res.json({
       success: true,
-      message: 'Chốt đăng ký học phần thành công. Học kỳ đã chuyển sang trạng thái đang diễn ra.',
+      message: 'Chốt đăng ký học phần thành công. Học kỳ đã chuyển sang giai đoạn thu học phí.',
       data: result
     });
   } catch (error) {
@@ -807,8 +819,28 @@ const deleteSemester = async (req, res) => {
 
 const getAcademicYears = async (req, res) => {
   try {
-    const years = await prisma.NAMHOC.findMany({ where: { TrangThai: true }, orderBy: { TenNamHoc: 'desc' } });
-    res.json({ success: true, data: years.map(academicYearSelect) });
+    const search = String(req.query.search || '').trim();
+    const searchField = ['MaNamHoc', 'TenNamHoc'].includes(req.query.searchField) ? req.query.searchField : 'all';
+    const status = String(req.query.status || '').trim();
+    const where = {};
+
+    if (status === 'active') where.TrangThai = true;
+    else if (status === 'inactive') where.TrangThai = false;
+    else where.TrangThai = true;
+
+    if (search) {
+      const searchMap = {
+        MaNamHoc: [{ MaNamHoc: { contains: search, mode: 'insensitive' } }],
+        TenNamHoc: [{ TenNamHoc: { contains: search, mode: 'insensitive' } }]
+      };
+      where.OR = searchField === 'all'
+        ? [...searchMap.MaNamHoc, ...searchMap.TenNamHoc]
+        : searchMap[searchField];
+    }
+
+    const years = await prisma.NAMHOC.findMany({ where, orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }] });
+    const withUpdaterNames = await attachUpdaterNames(years);
+    res.json({ success: true, data: withUpdaterNames.map(academicYearSelect) });
   } catch (error) {
     return sendErrorResponse(res, error, 'Lỗi server', 'Get academic years error:');
   }
@@ -841,7 +873,8 @@ const createAcademicYear = async (req, res) => {
         TenNamHoc: String(TenNamHoc || code).trim(),
         NamBatDau: start,
         NamKetThuc: end,
-        TrangThai: parseAcademicYearStatus(TrangThai)
+        TrangThai: parseAcademicYearStatus(TrangThai),
+        ...updateAudit(req)
       }
     });
 
@@ -865,7 +898,8 @@ const updateAcademicYear = async (req, res) => {
 
     const data = {
       NamBatDau: start,
-      NamKetThuc: end
+      NamKetThuc: end,
+      ...updateAudit(req)
     };
     if (TenNamHoc !== undefined) {
       data.TenNamHoc = String(TenNamHoc || '').trim();

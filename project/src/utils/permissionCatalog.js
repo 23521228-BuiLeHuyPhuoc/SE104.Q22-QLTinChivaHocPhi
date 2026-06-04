@@ -18,6 +18,8 @@ const PERMISSION_PORTALS = {
 };
 
 const PERMISSION_CATALOG = [
+  { code: 'ADMIN_LOCATION_PROVINCES', name: 'Quản lý tỉnh/thành phố', screen: '/admin/locations/provinces', paths: ['/admin/locations/provinces', '/api/locations/provinces'] },
+  { code: 'ADMIN_LOCATION_WARDS', name: 'Quản lý phường/xã', screen: '/admin/locations/wards', paths: ['/admin/locations/wards', '/api/locations/wards'] },
   { code: 'ADMIN_DASHBOARD', name: 'Bảng điều khiển quản trị', screen: '/admin/dashboard', paths: ['/admin/dashboard', '/api/dashboard'] },
   { code: 'ADMIN_STUDENTS', name: 'Quản lý sinh viên', screen: '/admin/students', paths: ['/admin/students', '/api/students'] },
   { code: 'ADMIN_LOCATIONS', name: 'Quản lý địa danh', screen: '/admin/locations', paths: ['/admin/locations', '/api/locations'] },
@@ -32,9 +34,9 @@ const PERMISSION_CATALOG = [
   { code: 'ADMIN_PREREQ', name: 'Quản lý ràng buộc môn học', screen: '/admin/prerequisites', paths: ['/admin/prerequisites', '/api/prerequisites'] },
   { code: 'ADMIN_REGS', name: 'Quản lý đăng ký môn học', screen: '/admin/registrations', paths: ['/admin/registrations', '/api/registrations'] },
   { code: 'ADMIN_APPEALS', name: 'Duyệt đơn cứu xét đăng ký', screen: '/admin/appeals', paths: ['/admin/appeals', '/api/appeals'] },
-  { code: 'ADMIN_TUITION', name: 'Quản lý học phí', screen: '/admin/tuition', paths: ['/admin/tuition', '/api/tuition'] },
+  { code: 'ADMIN_TUITION', name: 'Công nợ học phí', screen: '/admin/tuition', paths: ['/admin/tuition', '/api/tuition'] },
   { code: 'ADMIN_PAYMENTS', name: 'Quản lý phiếu thu', screen: '/admin/payments', paths: ['/admin/payments', '/api/payments'] },
-  { code: 'ADMIN_REPORTS', name: 'Báo cáo thống kê', screen: '/admin/reports', paths: ['/admin/reports'] },
+  { code: 'ADMIN_REPORTS', name: 'Báo cáo thống kê', screen: '/admin/reports', paths: ['/admin/reports', '/admin/reports/incomplete-tuition'] },
   { code: 'ADMIN_USERS', name: 'Quản lý người dùng', screen: '/admin/users', paths: ['/admin/users', '/api/roles'] },
   { code: 'ADMIN_FACULTIES', name: 'Quản lý khoa', screen: '/admin/faculties', paths: ['/admin/faculties', '/api/faculties'] },
   { code: 'ADMIN_MAJORS', name: 'Quản lý ngành học', screen: '/admin/majors', paths: ['/admin/majors', '/api/majors'] },
@@ -71,6 +73,8 @@ const STUDENT_PERMISSION_CODES = PERMISSION_CATALOG
 const TRAINING_ADMIN_PERMISSIONS = [
   'ADMIN_DASHBOARD',
   'ADMIN_LOCATIONS',
+  'ADMIN_LOCATION_PROVINCES',
+  'ADMIN_LOCATION_WARDS',
   'ADMIN_STUDENTS',
   'ADMIN_COURSES',
   'ADMIN_OPEN_COURSES',

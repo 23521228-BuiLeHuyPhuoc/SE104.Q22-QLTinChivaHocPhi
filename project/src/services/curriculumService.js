@@ -74,7 +74,6 @@ const buildCurriculumRow = (row, semesterMap) => {
     LoaiMon: row.MONHOC?.LoaiMon,
     SoTinChi: Number(row.MONHOC?.SoTinChi || 0),
     HocKyDuKien: row.HocKyDuKien,
-    BatBuoc: row.BatBuoc !== false,
     TrangThai: row.TrangThai !== false,
     GhiChu: row.GhiChu,
     conditions: conditions.map(conditionPayload),
@@ -161,7 +160,6 @@ const validateCurriculumPlacement = async (payload, currentId = null) => {
       MaMonHoc,
       HocKy: HocKyDuKien,
       HocKyDuKien,
-      BatBuoc: toBool(payload.BatBuoc, true),
       TrangThai: toBool(payload.TrangThai, true),
       GhiChu: payload.GhiChu ? String(payload.GhiChu).trim() : null
     }
@@ -204,16 +202,15 @@ const calculateCurriculumDebt = async (MaSv, MaHocKy) => {
   const passedSet = new Set(passedRows.map((row) => row.MaMonHoc));
 
   // Tách môn bắt buộc và tự chọn
-  const mandatoryCourses = curriculum.filter((row) => row.BatBuoc !== false);
-  const electiveCourses = curriculum.filter((row) => row.BatBuoc === false);
+  const mandatoryCourses = curriculum;
+  const electiveCourses = [];
 
   // Nợ môn bắt buộc: các môn bắt buộc chưa qua
   const missingMandatory = mandatoryCourses.filter((row) => !passedSet.has(row.MaMonHoc)).map((row) => ({
     MaMonHoc: row.MaMonHoc,
     TenMonHoc: row.MONHOC?.TenMonHoc,
     SoTinChi: Number(row.MONHOC?.SoTinChi || 0),
-    HocKyDuKien: row.HocKyDuKien,
-    BatBuoc: true
+    HocKyDuKien: row.HocKyDuKien
   }));
   const mandatoryDebtCredits = missingMandatory.reduce((sum, row) => sum + Number(row.SoTinChi || 0), 0);
 
@@ -236,8 +233,7 @@ const calculateCurriculumDebt = async (MaSv, MaHocKy) => {
       MaMonHoc: '_TU_CHON_',
       TenMonHoc: `Thiếu ${electiveDebtCredits} tín chỉ tự chọn`,
       SoTinChi: electiveDebtCredits,
-      HocKyDuKien: null,
-      BatBuoc: false
+      HocKyDuKien: null
     });
   }
 

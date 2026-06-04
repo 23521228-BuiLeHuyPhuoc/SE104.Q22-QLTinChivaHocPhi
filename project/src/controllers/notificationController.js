@@ -4,6 +4,24 @@ const { updateAudit, softDeleteAudit, getActorId } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 
 const getUserId = (req) => Number(req.user?.MaTaiKhoan || req.user?.id || 0);
+const AUTO_NOTIFICATION_PREFIX = 'auto_';
+const MANUAL_NOTIFICATION_TYPES = new Set([
+  'han_thu_hoc_phi',
+  'han_dang_ky_hoc_phan',
+  'han_he_thong',
+  'thong_bao_he_thong',
+  'thong_bao_ca_nhan'
+]);
+
+const isAutoNotificationType = (value) => String(value || '').startsWith(AUTO_NOTIFICATION_PREFIX);
+
+const normalizeManualNotificationType = (value, category) => {
+  const normalized = String(value || '').trim();
+  if (MANUAL_NOTIFICATION_TYPES.has(normalized)) return normalized;
+  if (category === 'tai_chinh') return 'han_thu_hoc_phi';
+  if (category === 'hoc_vu') return 'han_dang_ky_hoc_phan';
+  return 'han_he_thong';
+};
 
 const baseNotificationWhere = () => ({
   DaXoa: false,
@@ -161,6 +179,7 @@ const createPublicNotification = async (req, res) => {
         DuongDan: url || DuongDan || null,
         DaDoc: false,
         Loai: 'ca_nhan',
+        LoaiThongBao: 'thong_bao_ca_nhan',
         DOITUONG: 'Cá nhân',
         NguoiTao: getActorId(req)
       }
@@ -173,8 +192,9 @@ const createPublicNotification = async (req, res) => {
 
 const createAdminNotification = async (req, res) => {
   try {
-    const { TieuDe, NoiDung, Loai, DOITUONG, GhimTop, NgayHetHan, DuongDan, targetType, targetValue, MaKhoa, MaNganh } = req.body;
+    const { TieuDe, NoiDung, Loai, LoaiThongBao, DOITUONG, GhimTop, NgayHetHan, DuongDan, targetType, targetValue, MaKhoa, MaNganh } = req.body;
     if (!TieuDe || !NoiDung) return res.status(400).json({ success: false, message: 'Vui lòng nhập tiêu đề và nội dung' });
+    const notificationType = normalizeManualNotificationType(LoaiThongBao, Loai || 'chung');
     let target = DOITUONG || 'Tất cả';
     if (targetType === 'faculty' && (targetValue || MaKhoa)) target = `Khoa:${targetValue || MaKhoa}`;
     if (targetType === 'major' && (targetValue || MaNganh)) target = `Ngành:${targetValue || MaNganh}`;
@@ -185,6 +205,7 @@ const createAdminNotification = async (req, res) => {
         TieuDe,
         NoiDung,
         Loai: Loai || 'chung',
+        LoaiThongBao: notificationType,
         DOITUONG: target,
         DuongDan: DuongDan || null,
         GhimTop: GhimTop || false,
@@ -203,11 +224,17 @@ const updateNotification = async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
-    const { TieuDe, NoiDung, Loai, DOITUONG, GhimTop, NgayHetHan, TrangThai, DuongDan, targetType, targetValue, MaKhoa, MaNganh } = req.body;
+    const existing = await prisma.THONGBAO.findUnique({ where: { MaThongBao: id }, select: { LoaiThongBao: true } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy thông báo' });
+    if (isAutoNotificationType(existing.LoaiThongBao)) {
+      return res.status(400).json({ success: false, message: 'Thông báo tự động được tạo theo sự kiện, không chỉnh sửa thủ công' });
+    }
+    const { TieuDe, NoiDung, Loai, LoaiThongBao, DOITUONG, GhimTop, NgayHetHan, TrangThai, DuongDan, targetType, targetValue, MaKhoa, MaNganh } = req.body;
     const data = updateAudit(req);
     if (TieuDe) data.TieuDe = TieuDe;
     if (NoiDung) data.NoiDung = NoiDung;
     if (Loai) data.Loai = Loai;
+    if (LoaiThongBao !== undefined || Loai) data.LoaiThongBao = normalizeManualNotificationType(LoaiThongBao, Loai);
     if (DOITUONG) data.DOITUONG = DOITUONG;
     if (targetType === 'faculty' && (targetValue || MaKhoa)) data.DOITUONG = `Khoa:${targetValue || MaKhoa}`;
     if (targetType === 'major' && (targetValue || MaNganh)) data.DOITUONG = `Ngành:${targetValue || MaNganh}`;

@@ -206,7 +206,7 @@ const getMyCompletedCourses = async (req, res) => {
 const getAllCompletedCourses = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search, MaSv, MaHocKy, MaMonHoc, KetQua, MaKhoa, LoaiMon, SoTinChi, all } = req.query;
+    const { search, searchField = 'all', MaSv, MaHocKy, MaMonHoc, KetQua, MaKhoa, LoaiMon, SoTinChi, all } = req.query;
     const where = notDeleted();
 
     if (MaSv) where.MaSv = MaSv;
@@ -221,14 +221,18 @@ const getAllCompletedCourses = async (req, res) => {
       };
     }
     if (search) {
-      where.OR = [
+      if (searchField === 'MaSv') where.MaSv = { contains: search, mode: 'insensitive' };
+      else if (searchField === 'HoTen') where.SINHVIEN = { HoTen: { contains: search, mode: 'insensitive' } };
+      else if (searchField === 'MaHocKy') where.OR = [
+        { MaHocKy: { contains: search, mode: 'insensitive' } },
+        { HOCKY: { TenHocKy: { contains: search, mode: 'insensitive' } } },
+        { HOCKY: { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } } },
+        { HOCKY: { MaNamHoc: { contains: search, mode: 'insensitive' } } }
+      ];
+      else where.OR = [
         { MaSv: { contains: search, mode: 'insensitive' } },
         { SINHVIEN: { HoTen: { contains: search, mode: 'insensitive' } } },
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
-        { MONHOC: { KHOA: { TenKhoa: { contains: search, mode: 'insensitive' } } } },
-        { MaLop: { contains: search, mode: 'insensitive' } },
-        { LOP: { GiangVien: { contains: search, mode: 'insensitive' } } }
+        { MaHocKy: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -305,6 +309,13 @@ const updateCompletedCourse = async (req, res) => {
   if (!recordId) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const { MaSv, MaMonHoc, MaHocKy, MaLop, LanHoc, KetQua, GhiChu } = req.body;
     const data = updateAudit(req);
+    const existing = await prisma.MONDAHOC.findFirst({ where: { id: recordId, DaXoa: false } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Khong tim thay mon da hoc' });
+
+    if (MaSv !== undefined && MaSv !== existing.MaSv) return res.status(400).json({ success: false, message: 'Khong duoc phep sua MSSV cua mon da hoc' });
+    if (MaMonHoc !== undefined && MaMonHoc !== existing.MaMonHoc) return res.status(400).json({ success: false, message: 'Khong duoc phep sua ma mon hoc cua mon da hoc' });
+    if (MaHocKy !== undefined && MaHocKy !== existing.MaHocKy) return res.status(400).json({ success: false, message: 'Khong duoc phep sua hoc ky cua mon da hoc' });
+    if (LanHoc !== undefined && Number(LanHoc) !== Number(existing.LanHoc)) return res.status(400).json({ success: false, message: 'Khong duoc phep sua lan hoc cua mon da hoc' });
 
     if (MaSv !== undefined) data.MaSv = MaSv;
     if (MaMonHoc !== undefined) data.MaMonHoc = MaMonHoc;

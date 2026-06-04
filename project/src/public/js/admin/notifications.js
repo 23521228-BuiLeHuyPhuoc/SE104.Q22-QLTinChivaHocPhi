@@ -12,9 +12,30 @@ function notificationSafe(value) {
 
 function applyFilters() {
   var loai = document.getElementById('filter-loai').value;
-  var url = '/admin/notifications?';
-  if (loai) url += 'Loai=' + encodeURIComponent(loai);
+  var nguon = document.getElementById('filter-nguon').value;
+  var params = new URLSearchParams();
+  if (loai) params.set('Loai', loai);
+  if (nguon) params.set('Nguon', nguon);
+  var query = params.toString();
+  var url = '/admin/notifications' + (query ? '?' + query : '');
   window.location.href = url;
+}
+
+function getDefaultManualType(category) {
+  if (category === 'tai_chinh') return 'han_thu_hoc_phi';
+  if (category === 'hoc_vu') return 'han_dang_ky_hoc_phan';
+  return 'han_he_thong';
+}
+
+function syncNotificationTypeByCategory() {
+  var category = document.getElementById('notif-loai').value;
+  var type = document.getElementById('notif-loai-thongbao');
+  if (!type || editMode) return;
+  type.value = getDefaultManualType(category);
+}
+
+function isAutoNotification(data) {
+  return data && data.LoaiThongBao && String(data.LoaiThongBao).indexOf('auto_') === 0;
 }
 
 function parseTarget(target) {
@@ -51,6 +72,10 @@ function filterNotificationMajors() {
 
 function openModal(mode, data) {
   data = data || {};
+  if (mode === 'edit' && isAutoNotification(data)) {
+    showToast('Thông báo tự động được tạo theo sự kiện, không chỉnh sửa thủ công', 'error');
+    return;
+  }
   editMode = mode === 'edit';
   editId = editMode ? data.MaThongBao : null;
   var target = parseTarget(editMode ? data.DOITUONG : 'Tất cả');
@@ -59,6 +84,7 @@ function openModal(mode, data) {
   document.getElementById('notif-tieude').value = editMode ? data.TieuDe : '';
   document.getElementById('notif-noidung').value = editMode ? data.NoiDung : '';
   document.getElementById('notif-loai').value = editMode ? data.Loai : 'chung';
+  document.getElementById('notif-loai-thongbao').value = editMode ? (data.LoaiThongBao || getDefaultManualType(data.Loai)) : getDefaultManualType('chung');
   document.getElementById('notif-target-type').value = target.type;
   document.getElementById('notif-faculty').value = target.type === 'faculty' ? target.value : '';
   filterNotificationMajors();
@@ -97,6 +123,7 @@ function buildNotificationBody() {
     TieuDe: document.getElementById('notif-tieude').value.trim(),
     NoiDung: document.getElementById('notif-noidung').value.trim(),
     Loai: document.getElementById('notif-loai').value,
+    LoaiThongBao: document.getElementById('notif-loai-thongbao').value,
     DOITUONG: doituong,
     targetType: targetType,
     targetValue: targetValue,
@@ -115,6 +142,10 @@ function validateNotificationBody(body) {
   }
   if (!body.DOITUONG) {
     showToast('Vui lòng chọn đối tượng gửi', 'error');
+    return false;
+  }
+  if (String(body.LoaiThongBao || '').indexOf('auto_') === 0) {
+    showToast('Loại tự động chỉ được tạo bởi sự kiện hệ thống', 'error');
     return false;
   }
   return true;
@@ -143,6 +174,7 @@ function previewNotification() {
     '<p style="white-space:pre-wrap">' + notificationSafe(body.NoiDung) + '</p>' +
     '<div class="info-list">' +
       '<div><span class="label">Loại</span><span>' + notificationSafe(body.Loai) + '</span></div>' +
+      '<div><span class="label">Nhóm hạn</span><span>' + notificationSafe(body.LoaiThongBao) + '</span></div>' +
       '<div><span class="label">Gửi cho</span><span>' + notificationSafe(body.DOITUONG) + '</span></div>' +
       '<div><span class="label">Hết hạn</span><span>' + (body.NgayHetHan ? notificationSafe(body.NgayHetHan) : '-') + '</span></div>' +
       '<div><span class="label">Liên kết</span><span>' + notificationSafe(body.DuongDan || '-') + '</span></div>' +
@@ -161,3 +193,38 @@ async function deleteNotification(id) {
     showToast(res.message || 'Lỗi', 'error');
   }
 }
+
+function notificationTypeLabel(value) {
+  if (value === 'chung') return 'Chung';
+  if (value === 'hoc_vu') return 'Học vụ';
+  if (value === 'tai_chinh') return 'Tài chính';
+  if (value === 'he_thong') return 'Hệ thống';
+  return value || '-';
+}
+
+function initNotificationRowDetails() {
+  if (!window.AdminUI) return;
+  AdminUI.attachRowDetailHandlers({
+    table: '.data-table',
+    buildDetail: function(record) {
+      var isAuto = record.LoaiThongBao && record.LoaiThongBao.indexOf('auto_') === 0;
+      return {
+        title: 'Chi tiết thông báo #' + (record.MaThongBao || ''),
+        rows: [
+          { label: 'Mã thông báo', value: record.MaThongBao },
+          { label: 'Tiêu đề', value: record.TieuDe },
+          { label: 'Loại', value: notificationTypeLabel(record.Loai) },
+          { label: 'Nguồn', value: isAuto ? 'Tự động' : 'Thủ công' },
+          { label: 'Đối tượng', value: record.DOITUONG || 'Tất cả' },
+          { label: 'Ghim top', value: record.GhimTop ? 'Có' : 'Không' },
+          { label: 'Ngày hết hạn', value: record.NgayHetHan ? formatDate(record.NgayHetHan) : '-' },
+          { label: 'Ngày tạo', value: record.NgayTao ? formatDate(record.NgayTao) : '-' },
+          { label: 'Liên kết', value: record.DuongDan },
+          { label: 'Nội dung', value: record.NoiDung }
+        ]
+      };
+    }
+  });
+}
+
+initNotificationRowDetails();

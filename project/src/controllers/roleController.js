@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const prisma = require('../config/database');
 const { isSystemAdminUser } = require('../middleware/auth');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
@@ -9,6 +11,107 @@ const normalizeEmail = (value) => normalize(value).toLowerCase();
 const isStudentGroup = (MaNhom) => normalize(MaNhom).toUpperCase() === 'SINHVIEN';
 const roleFromGroup = (MaNhom) => (isStudentGroup(MaNhom) ? 'student' : 'admin');
 const DEFAULT_ACCOUNT_PASSWORD = process.env.DEFAULT_ACCOUNT_PASSWORD || '123456';
+const RANDOM_STUDENT_PASSWORD_LENGTH = Math.max(8, Number(process.env.STUDENT_RANDOM_PASSWORD_LENGTH || 10));
+const ACCOUNT_SEARCH_FIELDS = new Set(['all', 'TenDangNhap', 'HoTen', 'Email', 'MaSv']);
+
+const getCurrentUserId = (user) => Number(user?.id || user?.MaTaiKhoan || 0) || null;
+
+const normalizeAccountSearchField = (value) => {
+  const field = normalize(value) || 'all';
+  return ACCOUNT_SEARCH_FIELDS.has(field) ? field : 'all';
+};
+
+const buildAccountSearchWhere = (search, searchField) => {
+  const term = normalize(search);
+  if (!term) return null;
+  const field = normalizeAccountSearchField(searchField);
+  const clause = { contains: term, mode: 'insensitive' };
+  if (field === 'TenDangNhap') return { TenDangNhap: clause };
+  if (field === 'HoTen') return { HoTen: clause };
+  if (field === 'Email') return { Email: clause };
+  if (field === 'MaSv') return { MaSv: clause };
+  return {
+    OR: [
+      { TenDangNhap: clause },
+      { HoTen: clause },
+      { Email: clause },
+      { MaSv: clause }
+    ]
+  };
+};
+
+const generateRandomPassword = () => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < RANDOM_STUDENT_PASSWORD_LENGTH; i += 1) {
+    password += alphabet[crypto.randomInt(0, alphabet.length)];
+  }
+  return password;
+};
+
+const truncateText = (value, maxLength) => {
+  const text = normalize(value);
+  return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text;
+};
+
+const createMailer = () => {
+  if (!process.env.SMTP_HOST) return null;
+  const port = Number(process.env.SMTP_PORT || 587);
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: port === 465,
+    auth: process.env.SMTP_USER && process.env.SMTP_PASS
+      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+      : undefined
+  });
+};
+
+const sendStudentCredentialEmail = async (transporter, credential) => {
+  if (!credential.Email) {
+    return { TrangThaiGuiEmail: 'missing_email', LoiGuiEmail: 'Sinh viên chưa có email' };
+  }
+  if (!transporter) {
+    return { TrangThaiGuiEmail: 'not_configured', LoiGuiEmail: 'Chưa cấu hình SMTP để gửi Gmail' };
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER || 'no-reply@example.com',
+      to: credential.Email,
+      subject: 'Tài khoản hệ thống đăng ký môn học và học phí',
+      text: [
+        `Xin chào ${credential.HoTen || credential.MaSv},`,
+        '',
+        'Tài khoản sinh viên của bạn đã được tạo.',
+        `Tên đăng nhập: ${credential.TenDangNhap}`,
+        `Mật khẩu: ${credential.MatKhauTam}`,
+        '',
+        'Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.'
+      ].join('\n'),
+      html: `
+        <p>Xin chào ${credential.HoTen || credential.MaSv},</p>
+        <p>Tài khoản sinh viên của bạn đã được tạo.</p>
+        <p><strong>Tên đăng nhập:</strong> ${credential.TenDangNhap}</p>
+        <p><strong>Mật khẩu:</strong> ${credential.MatKhauTam}</p>
+        <p>Vui lòng đăng nhập và đổi mật khẩu sau khi sử dụng lần đầu.</p>
+      `
+    });
+    return { TrangThaiGuiEmail: 'sent', LoiGuiEmail: null };
+  } catch (error) {
+    return { TrangThaiGuiEmail: 'failed', LoiGuiEmail: truncateText(error.message, 300) };
+  }
+};
+
+const updateCredentialEmailStatus = async (id, status) => {
+  if (!id) return status;
+  await prisma.MATKHAUTAMTAIKHOAN.update({
+    where: { id },
+    data: status,
+    select: { id: true }
+  }).catch(() => null);
+  return status;
+};
 
 const adminTitleFromGroup = (group) => {
   const MaNhom = normalize(group?.MaNhom).toUpperCase();
@@ -91,7 +194,7 @@ const getMyRole = async (req, res) => {
 const getAllAccounts = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search, Role: filterRole, role, MaNhom } = req.query;
+    const { search, searchField, Role: filterRole, role, MaNhom } = req.query;
     const where = {};
     const allowedGroups = await getCreatableGroups(req.user);
     const allowedGroupCodes = allowedGroups.map((group) => group.MaNhom);
@@ -100,13 +203,8 @@ const getAllAccounts = async (req, res) => {
       return res.json({ success: true, data: [], pagination: getPaginationMeta(0, page, limit) });
     }
 
-    if (search) {
-      where.OR = [
-        { TenDangNhap: { contains: search, mode: 'insensitive' } },
-        { HoTen: { contains: search, mode: 'insensitive' } },
-        { Email: { contains: search, mode: 'insensitive' } }
-      ];
-    }
+    const searchWhere = buildAccountSearchWhere(search, searchField);
+    if (searchWhere) Object.assign(where, searchWhere);
     const roleFilter = filterRole || role;
     if (roleFilter && ['admin', 'student'].includes(roleFilter)) where.Role = roleFilter;
     where.MaNhom = MaNhom || { in: allowedGroupCodes };
@@ -159,11 +257,16 @@ const createAccount = async (req, res) => {
 
     const targetRole = roleFromGroup(targetGroup.MaNhom);
     const rawPassword = String(req.body.password || req.body.MatKhau || '');
+    const confirmPassword = String(req.body.passwordConfirm || req.body.confirmPassword || req.body.XacNhanMatKhau || '');
     if (rawPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
     }
 
-    const currentUserId = Number(req.user.id || req.user.MaTaiKhoan || 0) || null;
+    if (confirmPassword && confirmPassword !== rawPassword) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu xác nhận không khớp' });
+    }
+
+    const currentUserId = getCurrentUserId(req.user);
     const hashed = await bcrypt.hash(rawPassword, 10);
 
     if (targetRole === 'student') {
@@ -213,7 +316,7 @@ const createAccount = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Tên đăng nhập hoặc email đã tồn tại' });
       }
 
-      const account = await prisma.$transaction(async (tx) => {
+      const studentAccountResult = await prisma.$transaction(async (tx) => {
         const created = await tx.TAIKHOAN.create({
           data: {
             TenDangNhap: username,
@@ -251,13 +354,41 @@ const createAccount = async (req, res) => {
           select: { MaSv: true }
         });
 
-        return created;
+        const credential = await tx.MATKHAUTAMTAIKHOAN.create({
+          data: {
+            MaTaiKhoan: created.MaTaiKhoan,
+            MaSv: student.MaSv,
+            TenDangNhap: created.TenDangNhap,
+            MatKhauTam: rawPassword,
+            Email: email || null,
+            TrangThaiGuiEmail: 'pending',
+            NguoiTao: currentUserId
+          },
+          select: { id: true }
+        });
+
+        return { account: created, credentialId: credential.id };
       });
+
+      const emailStatus = await updateCredentialEmailStatus(
+        studentAccountResult.credentialId,
+        await sendStudentCredentialEmail(createMailer(), {
+          ...student,
+          Email: email || student.Email,
+          TenDangNhap: studentAccountResult.account.TenDangNhap,
+          MatKhauTam: rawPassword
+        })
+      );
 
       return res.status(201).json({
         success: true,
         message: 'Tạo tài khoản sinh viên thành công',
-        data: account
+        data: {
+          ...studentAccountResult.account,
+          temporaryPassword: rawPassword,
+          emailStatus: emailStatus.TrangThaiGuiEmail,
+          emailError: emailStatus.LoiGuiEmail
+        }
       });
     }
 
@@ -377,26 +508,14 @@ const resetPassword = async (req, res) => {
 
 const batchCreateStudentAccounts = async (req, res) => {
   try {
-    const rawList = req.body.MaSvList || req.body.maSvList || req.body.students || [];
-    const listItems = Array.isArray(rawList) ? rawList : String(rawList).split(/[\s,;]+/);
-    const textItems = String(req.body.MaSvText || req.body.list || '').split(/[\s,;]+/);
-    const maSvList = listItems
-      .concat(textItems)
-      .map(normalize)
-      .filter(Boolean);
     const MaNganh = normalize(req.body.MaNganh || req.body.major);
     const MaKhoa = normalize(req.body.MaKhoa || req.body.faculty);
-    const password = normalize(req.body.password || req.body.defaultPassword) || DEFAULT_ACCOUNT_PASSWORD;
 
-    if (password.length < 6) {
-      return res.status(400).json({ success: false, message: 'Mật khẩu mặc định phải có ít nhất 6 ký tự' });
-    }
-    if (!maSvList.length && !MaNganh && !MaKhoa) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập danh sách MSSV hoặc chọn ngành/khoa' });
+    if (!MaNganh && !MaKhoa) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn khoa hoặc ngành để tạo tài khoản sinh viên hàng loạt' });
     }
 
     const studentWhere = { DaXoa: false };
-    if (maSvList.length) studentWhere.MaSv = { in: Array.from(new Set(maSvList)) };
     if (MaNganh) studentWhere.MaNganh = MaNganh;
     if (MaKhoa) studentWhere.NGANHHOC = { MaKhoa };
 
@@ -405,15 +524,22 @@ const batchCreateStudentAccounts = async (req, res) => {
       prisma.SINHVIEN.findMany({
         where: studentWhere,
         orderBy: { MaSv: 'asc' },
-        select: { MaSv: true, MaTaiKhoan: true, HoTen: true, Email: true, Sdt: true, AnhDaiDien: true }
+        select: {
+          MaSv: true,
+          MaTaiKhoan: true,
+          HoTen: true,
+          Email: true,
+          Sdt: true,
+          AnhDaiDien: true,
+          NGANHHOC: { select: { MaNganh: true, TenNganh: true, KHOA: { select: { MaKhoa: true, TenKhoa: true } } } }
+        }
       })
     ]);
 
     if (!studentGroup) return res.status(400).json({ success: false, message: 'Không tìm thấy nhóm SINHVIEN' });
     if (!students.length) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên phù hợp' });
 
-    const currentUserId = Number(req.user.id || req.user.MaTaiKhoan || 0) || null;
-    const hashed = await bcrypt.hash(password, 10);
+    const currentUserId = getCurrentUserId(req.user);
     const result = await prisma.$transaction(async (tx) => {
       const created = [];
       const skipped = [];
@@ -433,6 +559,8 @@ const batchCreateStudentAccounts = async (req, res) => {
           continue;
         }
 
+        const password = generateRandomPassword();
+        const hashed = await bcrypt.hash(password, 10);
         const account = await tx.TAIKHOAN.create({
           data: {
             TenDangNhap: student.MaSv,
@@ -449,18 +577,55 @@ const batchCreateStudentAccounts = async (req, res) => {
             NgayDuyet: new Date(),
             NguoiDuyet: currentUserId
           },
-          select: { MaTaiKhoan: true, TenDangNhap: true, MaSv: true }
+          select: { MaTaiKhoan: true, TenDangNhap: true, MaSv: true, HoTen: true, Email: true }
         });
 
         await tx.SINHVIEN.update({
           where: { MaSv: student.MaSv },
           data: { MaTaiKhoan: account.MaTaiKhoan, NguoiCapNhat: currentUserId, NgayCapNhat: new Date() }
         });
-        created.push(account);
+        const credential = await tx.MATKHAUTAMTAIKHOAN.create({
+          data: {
+            MaTaiKhoan: account.MaTaiKhoan,
+            MaSv: student.MaSv,
+            TenDangNhap: account.TenDangNhap,
+            MatKhauTam: password,
+            Email: student.Email || null,
+            TrangThaiGuiEmail: 'pending',
+            NguoiTao: currentUserId
+          },
+          select: { id: true }
+        });
+
+        created.push({
+          ...account,
+          HoTen: student.HoTen,
+          Email: student.Email || null,
+          MatKhauTam: password,
+          credentialId: credential.id,
+          TenNganh: student.NGANHHOC?.TenNganh || '',
+          TenKhoa: student.NGANHHOC?.KHOA?.TenKhoa || ''
+        });
       }
 
       return { created, skipped };
     });
+
+    const transporter = createMailer();
+    const createdWithEmail = [];
+    for (const credential of result.created) {
+      const emailStatus = await updateCredentialEmailStatus(
+        credential.credentialId,
+        await sendStudentCredentialEmail(transporter, credential)
+      );
+      createdWithEmail.push({
+        ...credential,
+        emailStatus: emailStatus.TrangThaiGuiEmail,
+        emailError: emailStatus.LoiGuiEmail
+      });
+    }
+
+    const sentCount = createdWithEmail.filter((item) => item.emailStatus === 'sent').length;
 
     res.status(201).json({
       success: true,
@@ -468,9 +633,10 @@ const batchCreateStudentAccounts = async (req, res) => {
       data: {
         createdCount: result.created.length,
         skippedCount: result.skipped.length,
-        created: result.created,
+        emailSentCount: sentCount,
+        created: createdWithEmail,
         skipped: result.skipped,
-        defaultPassword: password
+        passwordMode: 'random'
       }
     });
   } catch (error) {
@@ -478,6 +644,68 @@ const batchCreateStudentAccounts = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Có tài khoản sinh viên bị trùng dữ liệu' });
     }
         return sendErrorResponse(res, error, 'Lỗi server', 'Batch create student accounts error:');
+  }
+};
+
+const getTemporaryStudentCredentials = async (req, res) => {
+  try {
+    const { page, limit, skip } = getPagination(req.query);
+    const { search, searchField } = req.query;
+    const where = {};
+    const searchWhere = buildAccountSearchWhere(search, searchField);
+    if (searchWhere) {
+      if (searchWhere.OR) {
+        where.OR = searchWhere.OR.map((clause) => {
+          if (clause.HoTen) return { TAIKHOAN: { HoTen: clause.HoTen } };
+          return clause;
+        });
+      } else if (searchWhere.HoTen) {
+        where.TAIKHOAN = { HoTen: searchWhere.HoTen };
+      } else {
+        Object.assign(where, searchWhere);
+      }
+    }
+
+    const [rows, total] = await Promise.all([
+      prisma.MATKHAUTAMTAIKHOAN.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { NgayTao: 'desc' },
+        select: {
+          id: true,
+          MaTaiKhoan: true,
+          MaSv: true,
+          TenDangNhap: true,
+          MatKhauTam: true,
+          Email: true,
+          TrangThaiGuiEmail: true,
+          LoiGuiEmail: true,
+          NgayTao: true,
+          TAIKHOAN: { select: { HoTen: true, Email: true, MaSv: true, TenDangNhap: true } }
+        }
+      }),
+      prisma.MATKHAUTAMTAIKHOAN.count({ where })
+    ]);
+
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        id: row.id,
+        MaTaiKhoan: row.MaTaiKhoan,
+        MaSv: row.MaSv,
+        HoTen: row.TAIKHOAN?.HoTen || '',
+        TenDangNhap: row.TenDangNhap,
+        MatKhauTam: row.MatKhauTam,
+        Email: row.Email || row.TAIKHOAN?.Email || '',
+        TrangThaiGuiEmail: row.TrangThaiGuiEmail,
+        LoiGuiEmail: row.LoiGuiEmail,
+        NgayTao: row.NgayTao
+      })),
+      pagination: getPaginationMeta(total, page, limit)
+    });
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Lỗi server', 'Get temporary student credentials error:');
   }
 };
 
@@ -620,4 +848,4 @@ const updateUserRole = async (req, res) => {
   }
 };
 
-module.exports = { getAllRoles, getMyRole, getAllAccounts, createAccount, resetPassword, batchCreateStudentAccounts, deleteAccount, updateUserRole };
+module.exports = { getAllRoles, getMyRole, getAllAccounts, createAccount, resetPassword, batchCreateStudentAccounts, getTemporaryStudentCredentials, deleteAccount, updateUserRole };

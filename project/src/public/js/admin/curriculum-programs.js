@@ -6,10 +6,12 @@ var curriculumCourseLoadToken = 0;
 function applyCurriculumProgramFilters() {
   var params = new URLSearchParams();
   var search = document.getElementById('cp-search');
+  var searchField = document.getElementById('cp-search-field');
   var major = document.getElementById('cp-major');
   var status = document.getElementById('cp-status');
 
   if (search && search.value.trim()) params.set('search', search.value.trim());
+  if (searchField && searchField.value) params.set('searchField', searchField.value);
   if (major && major.value) params.set('major', major.value);
   if (status && status.value) params.set('status', status.value);
 
@@ -25,6 +27,107 @@ function debounceCurriculumProgramSearch() {
 function curriculumCourseOptionLabel(course) {
   if (!course) return '';
   return (course.MaMonHoc || '') + ' - ' + (course.TenMonHoc || '');
+}
+
+function curriculumEscapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function setCurriculumCourseSelection(courseOrCode, label) {
+  var hidden = document.getElementById('cp-item-course');
+  var title = document.getElementById('cp-item-course-title');
+  var subtitle = document.getElementById('cp-item-course-subtitle');
+  var course = typeof courseOrCode === 'object' && courseOrCode ? courseOrCode : null;
+  var code = course ? course.MaMonHoc : (courseOrCode || '');
+  var name = course ? course.TenMonHoc : (label || '');
+  if (hidden) hidden.value = code || '';
+  if (title) title.textContent = code ? (name || code) : 'Chưa chọn môn học';
+  if (subtitle) {
+    subtitle.textContent = code
+      ? [code, course && course.KHOA ? course.KHOA.TenKhoa : '', course && course.SoTinChi ? course.SoTinChi + ' TC' : ''].filter(Boolean).join(' · ')
+      : 'Bấm tìm kiếm để chọn môn học';
+  }
+}
+
+function setCurriculumProgramLockedState(locked) {
+  var major = document.getElementById('cp-item-major');
+  var picker = document.getElementById('cp-item-course-picker');
+  var summary = document.getElementById('cp-item-course-summary');
+  if (major) {
+    major.dataset.locked = locked ? 'true' : 'false';
+    major.classList.toggle('is-locked', !!locked);
+  }
+  [picker, summary].forEach(function(element) {
+    if (element) element.classList.toggle('is-locked', !!locked);
+  });
+}
+
+function notifyCurriculumLockedField() {
+  showToast('Không được phép sửa ngành và môn học. Hãy gỡ dòng này và thêm lại nếu chọn sai.', 'error');
+}
+
+function openCurriculumCoursePicker() {
+  if (editingCurriculumProgramId) {
+    notifyCurriculumLockedField();
+    return;
+  }
+  var modal = document.getElementById('curriculum-course-picker-modal');
+  var input = document.getElementById('curriculum-course-picker-search');
+  if (!modal) return;
+  if (input) input.value = '';
+  modal.classList.add('active');
+  loadCurriculumCoursePickerRows();
+  setTimeout(function() { if (input) input.focus(); }, 50);
+}
+
+function closeCurriculumCoursePicker() {
+  var modal = document.getElementById('curriculum-course-picker-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+async function loadCurriculumCoursePickerRows() {
+  var body = document.getElementById('curriculum-course-picker-body');
+  var input = document.getElementById('curriculum-course-picker-search');
+  if (!body) return;
+  var params = new URLSearchParams({ all: 'true', TrangThai: 'true' });
+  if (input && input.value.trim()) params.set('search', input.value.trim());
+  body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Đang tải môn học...</div></td></tr>';
+  try {
+    var res = await apiFetch('/api/courses?' + params.toString());
+    var rows = res && res.success && Array.isArray(res.data) ? res.data : [];
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Không tìm thấy môn học phù hợp</div></td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(course) {
+      var record = curriculumEscapeHtml(JSON.stringify(course));
+      return '<tr>' +
+        '<td class="mono">' + curriculumEscapeHtml(course.MaMonHoc || '-') + '</td>' +
+        '<td>' + curriculumEscapeHtml(course.TenMonHoc || '-') + '</td>' +
+        '<td>' + curriculumEscapeHtml((course.KHOA && course.KHOA.TenKhoa) || course.TenKhoa || '-') + '</td>' +
+        '<td>' + curriculumEscapeHtml(course.SoTinChi || '-') + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" type="button" data-course="' + record + '" onclick="selectCurriculumCourseFromPicker(this)">Chọn</button></td>' +
+      '</tr>';
+    }).join('');
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">Không thể tải danh sách môn học</div></td></tr>';
+  }
+}
+
+function selectCurriculumCourseFromPicker(button) {
+  if (!button) return;
+  try {
+    var course = JSON.parse(button.dataset.course || '{}');
+    setCurriculumCourseSelection(course);
+    closeCurriculumCoursePicker();
+  } catch (error) {
+    showToast('Không thể chọn môn học này', 'error');
+  }
 }
 
 function appendCurriculumCourseOption(list, value, label) {
@@ -78,24 +181,17 @@ function openCurriculumProgramModal(mode, row) {
   var form = document.getElementById('curriculum-program-form');
   var title = document.getElementById('curriculum-program-modal-title');
   var filterMajor = document.getElementById('cp-major');
-  var courseInput = document.getElementById('cp-item-course');
 
   if (form) form.reset();
   if (title) title.textContent = editingCurriculumProgramId ? 'Sửa môn trong chương trình' : 'Thêm môn vào chương trình';
   setCurriculumProgramSaving(false);
+  setCurriculumProgramLockedState(!!editingCurriculumProgramId);
 
   document.getElementById('cp-item-major').value = row.MaNganh || (filterMajor ? filterMajor.value : '');
   document.getElementById('cp-item-semester').value = row.HocKyDuKien || 1;
-  document.getElementById('cp-item-required').value = row.BatBuoc === false ? 'false' : 'true';
   document.getElementById('cp-item-active').value = row.TrangThai === false ? 'false' : 'true';
   document.getElementById('cp-item-note').value = row.GhiChu || '';
-
-  if (courseInput) {
-    courseInput.value = row.MaMonHoc || '';
-    courseInput.disabled = !!editingCurriculumProgramId;
-  }
-
-  loadCurriculumCourseOptions('', row.MaMonHoc || '', row.TenMonHoc ? curriculumCourseOptionLabel(row) : '');
+  setCurriculumCourseSelection(row.MaMonHoc || '', row.TenMonHoc ? curriculumCourseOptionLabel(row) : '');
   if (modal) modal.classList.add('active');
 }
 
@@ -118,7 +214,6 @@ async function saveCurriculumProgramItem() {
     MaNganh: document.getElementById('cp-item-major').value,
     MaMonHoc: document.getElementById('cp-item-course').value.trim().toUpperCase(),
     HocKyDuKien: document.getElementById('cp-item-semester').value,
-    BatBuoc: document.getElementById('cp-item-required').value === 'true',
     TrangThai: document.getElementById('cp-item-active').value === 'true',
     GhiChu: document.getElementById('cp-item-note').value.trim()
   };
@@ -166,25 +261,34 @@ async function deleteCurriculumProgramItem(id) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var courseInput = document.getElementById('cp-item-course');
-  if (courseInput) {
-    courseInput.addEventListener('input', function() {
-      clearTimeout(curriculumCourseSearchTimer);
-      curriculumCourseSearchTimer = setTimeout(function() {
-        loadCurriculumCourseOptions(courseInput.value);
-      }, 250);
+  var majorSelect = document.getElementById('cp-item-major');
+  if (majorSelect) {
+    ['mousedown', 'keydown'].forEach(function(eventName) {
+      majorSelect.addEventListener(eventName, function(event) {
+        if (majorSelect.dataset.locked === 'true') {
+          event.preventDefault();
+          notifyCurriculumLockedField();
+        }
+      });
     });
+  }
 
-    courseInput.addEventListener('focus', function() {
-      var options = document.getElementById('cp-course-options');
-      if (options && !options.options.length) loadCurriculumCourseOptions('');
+  var pickerSearch = document.getElementById('curriculum-course-picker-search');
+  if (pickerSearch) {
+    pickerSearch.addEventListener('input', function() {
+      clearTimeout(curriculumCourseSearchTimer);
+      curriculumCourseSearchTimer = setTimeout(loadCurriculumCoursePickerRows, 250);
     });
   }
 
   document.addEventListener('keydown', function(event) {
     var modal = document.getElementById('curriculum-program-modal');
+    var pickerModal = document.getElementById('curriculum-course-picker-modal');
     if (event.key === 'Escape' && modal && modal.classList.contains('active')) {
       closeCurriculumProgramModal();
+    }
+    if (event.key === 'Escape' && pickerModal && pickerModal.classList.contains('active')) {
+      closeCurriculumCoursePicker();
     }
   });
 });

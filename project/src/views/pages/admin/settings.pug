@@ -5,22 +5,25 @@ block content
     .page-heading
       .page-kicker Cài đặt hệ thống
       h2 Tham số quy chế đăng ký
-      p Thiết lập giới hạn tín chỉ khi đăng ký môn học cho toàn hệ thống.
+      p Thiết lập các ngưỡng đang được dùng trực tiếp trong đăng ký học phần, thanh toán học phí và điều kiện khóa luận.
 
-    .content-grid
+    .content-grid.settings-grid
       .card
         .card-header
-          h3 Quy định đăng ký môn học
+          h3 Quy định tín chỉ
         .card-body
           .form-group
             label(for="st-toithieu") Số tín chỉ tối thiểu / kỳ
             input.form-control#st-toithieu(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiThieu : 14))
+            small.text-muted Kiểm tra ở bước tạo, checkout và xác nhận thanh toán học phí sau khi đăng ký đã chốt.
           .form-group
             label(for="st-toida") Số tín chỉ tối đa / kỳ
             input.form-control#st-toida(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiDa : 24))
+            small.text-muted Chặn đăng ký thêm khi tổng tín chỉ vượt ngưỡng thông thường.
           .form-group
             label(for="st-toidavuot") Số tín chỉ tối đa khi vượt
             input.form-control#st-toidavuot(type="number" min="1" value=(settings ? settings.SoTinChiDangKyToiDaKhiVuot : 30))
+            small.text-muted Giới hạn cứng của hệ thống, luôn phải lớn hơn hoặc bằng số tín chỉ tối đa.
       .card
         .card-header
           h3 Ràng buộc Anh văn
@@ -28,12 +31,14 @@ block content
           .form-group
             label(for="st-anhvan") Mã môn Anh văn bắt buộc
             input.form-control#st-anhvan(type="text" value=(settings && settings.DanhSachMonAnhVanBatBuoc ? settings.DanhSachMonAnhVanBatBuoc : 'ENG01,ENG02,ENG03') placeholder="VD: ENG01,ENG02,ENG03")
+            small.text-muted Chỉ lưu các mã môn đang tồn tại và còn hoạt động.
           .form-group
             label(for="st-namkiemtra") Năm kiểm tra hoàn tất Anh văn
             input.form-control#st-namkiemtra(type="number" min="1" value=(settings && settings.NamKiemTraAnhVan ? settings.NamKiemTraAnhVan : 2))
           .form-group
             label(for="st-gioihananhvan") Giới hạn tín chỉ khi chưa đạt
             input.form-control#st-gioihananhvan(type="number" min="1" value=(settings && settings.GioiHanTinChiChuaDatAnhVan ? settings.GioiHanTinChiChuaDatAnhVan : 14))
+            small.text-muted Áp dụng khi sinh viên đã tới mốc kiểm tra nhưng chưa qua đủ môn Anh văn bắt buộc.
       .card
         .card-header
           h3 Điều kiện khóa luận
@@ -41,10 +46,32 @@ block content
           .form-group
             label(for="st-khoaluan-no") Số tín chỉ nợ tối đa khi đăng ký khóa luận
             input.form-control#st-khoaluan-no(type="number" min="0" value=(settings && settings.GioiHanTinChiNoKhoaLuan !== null && settings.GioiHanTinChiNoKhoaLuan !== undefined ? settings.GioiHanTinChiNoKhoaLuan : 8))
-            small.text-muted Sinh viên chỉ đủ điều kiện đăng ký khóa luận khi số tín chỉ còn nợ không vượt quá giá trị này.
+            small.text-muted Sinh viên đủ điều kiện khóa luận khi số tín chỉ còn nợ không vượt quá giá trị này.
 
     .card
-      .card-body.d-flex.justify-between.align-center
+      .card-header
+        h3 Ràng buộc đang sử dụng tham số
+      .table-container
+        table.data-table.settings-impact-table
+          thead
+            tr
+              th Tham số
+              th Luồng bị ảnh hưởng
+          tbody
+            if settingImpacts && settingImpacts.length
+              each item in settingImpacts
+                tr
+                  td
+                    strong= item.label
+                    small.mono= item.key
+                  td= item.constraint
+            else
+              tr
+                td(colspan="2")
+                  .empty-state Chưa có dữ liệu ràng buộc
+
+    .card
+      .card-body.d-flex.justify-between.align-center.settings-save-bar
         if settings && settings.NgayCapNhat
           span.text-muted Cập nhật lần cuối: #{new Date(settings.NgayCapNhat).toLocaleString('vi-VN')}
         else

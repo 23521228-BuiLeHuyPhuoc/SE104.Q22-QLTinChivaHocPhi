@@ -3,8 +3,14 @@ extends ../../layouts/admin
 block content
   - const groups = groupOptions || []
   - const accountGroups = creatableGroups || groups.map(group => ({ ...group, Role: group.MaNhom === 'SINHVIEN' ? 'student' : 'admin' }))
-  .toolbar
-    .search-box
+  .toolbar.users-toolbar
+    .search-box.search-box-with-criterion
+      select#search-field.form-control(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="TenDangNhap" selected=(searchField === 'TenDangNhap')) Tên đăng nhập
+        option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
+        option(value="Email" selected=(searchField === 'Email')) Email
+        option(value="MaSv" selected=(searchField === 'MaSv')) Mã sinh viên
       input#search-input(type="text" placeholder="Tìm tên đăng nhập, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
     .filter-group
       select#filter-role(onchange="applyFilters()")
@@ -18,6 +24,9 @@ block content
       if canCreateAccounts
         button.btn.btn-primary(type="button" onclick="openAccountModal()") Tạo tài khoản
       if canManageAccounts
+        button.btn.btn-outline(type="button" onclick="openCredentialListModal()")
+          span.material-symbols-rounded(aria-hidden="true") visibility
+          span Danh sách TK
         button.btn.btn-outline(type="button" onclick="openBatchStudentModal()")
           span.material-symbols-rounded(aria-hidden="true") group_add
           span Tạo TK cho SV
@@ -31,12 +40,9 @@ block content
         thead
           tr
             th ID
-            th Tên đăng nhập
-            th Họ tên
-            th Mã SV
-            th Email
-            th Nhóm
-            th Vai trò
+            th Tài khoản
+            th Liên hệ
+            th Nhóm / vai trò
             th Ngày tạo
             th Thao tác
         tbody#accounts-table
@@ -45,47 +51,48 @@ block content
               - const group = groups.find(g => g.MaNhom === acc.MaNhom)
               - const groupName = group ? group.TenNhom : acc.MaNhom
               - const roleLabel = acc.Role === 'admin' ? (groupName || 'Quản trị viên') : 'Sinh viên'
-              tr
+              tr(data-record=JSON.stringify(acc))
                 td.mono= acc.MaTaiKhoan
-                td
+                td.stacked-cell.account-summary
                   strong= acc.TenDangNhap
+                  if acc.MaSv
+                    small= `MSSV: ${acc.MaSv}`
                   if acc.QUANTRIVIEN && acc.QUANTRIVIEN.ChucVu
                     small= acc.QUANTRIVIEN.ChucVu
-                td= acc.HoTen || '-'
-                td= acc.MaSv || '-'
-                td= acc.Email || '-'
-                td
+                td.stacked-cell.user-contact
+                  strong= acc.HoTen || '-'
+                  small= acc.Email || '-'
+                  if acc.Sdt
+                    small= acc.Sdt
+                td.stacked-cell
                   span.badge.badge-secondary= groupName || '-'
-                td
                   if acc.Role === 'admin'
                     span.badge.badge-info= roleLabel
                   else
                     span.badge.badge-success= roleLabel
                 td= acc.NgayTao ? new Date(acc.NgayTao).toLocaleDateString('vi-VN') : '-'
-                td.table-actions.user-action-cell
-                  if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
-                    span.text-muted.current-account-note Tài khoản hiện tại
-                  else if canManageAccounts
-                    .account-actions
-                      .account-group-control
-                        span.material-symbols-rounded.account-group-icon(aria-hidden="true") groups
-                        select.account-group-select(id=`group-${acc.MaTaiKhoan}` aria-label=`Chọn nhóm cho ${acc.TenDangNhap}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
-                          each optionGroup in groups
-                            option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
-                      button.btn.btn-sm.btn-secondary.account-action-button(type="button" title="Đổi nhóm" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)")
-                        span.material-symbols-rounded(aria-hidden="true") sync_alt
-                        span Đổi
-                      button.btn.btn-sm.btn-outline.account-action-button(type="button" title="Reset mật khẩu" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="resetAccountPassword(this)")
-                        span.material-symbols-rounded(aria-hidden="true") key
-                        span Reset MK
-                      button.btn.btn-sm.btn-danger.account-action-button(type="button" title="Xóa tài khoản" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)")
-                        span.material-symbols-rounded(aria-hidden="true") delete
-                        span Xóa
-                  else
-                    span.text-muted Chỉ admin hệ thống
+                td.table-actions.user-action-cell(data-no-row-detail="true")
+                  .table-action-list
+                    if currentUserId && parseInt(acc.MaTaiKhoan, 10) === parseInt(currentUserId, 10)
+                      span.text-muted.current-account-note Tài khoản hiện tại
+                    else if canManageAccounts
+                      .account-actions
+                        .account-group-control
+                          span.material-symbols-rounded.account-group-icon(aria-hidden="true") groups
+                          select.account-group-select(id=`group-${acc.MaTaiKhoan}` aria-label=`Chọn nhóm cho ${acc.TenDangNhap}` data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap data-current-group=acc.MaNhom)
+                            each optionGroup in groups
+                              option(value=optionGroup.MaNhom selected=(acc.MaNhom === optionGroup.MaNhom))= optionGroup.TenNhom || optionGroup.MaNhom
+                        button.btn.btn-sm.btn-secondary.account-action-button(type="button" title="Đổi nhóm" data-id=acc.MaTaiKhoan onclick="handleGroupChange(this)")
+                          span.material-symbols-rounded(aria-hidden="true") sync_alt
+                          span Đổi
+                        button.btn.btn-sm.btn-danger.account-action-button(type="button" title="Xóa tài khoản" data-id=acc.MaTaiKhoan data-username=acc.TenDangNhap onclick="deleteAccount(this)")
+                          span.material-symbols-rounded(aria-hidden="true") delete
+                          span Xóa
+                    else
+                      span.text-muted Chỉ admin hệ thống
           else
             tr
-              td(colspan="9")
+              td(colspan="6")
                 .empty-state Không có tài khoản phù hợp
 
   include ../../partials/pagination
@@ -114,6 +121,9 @@ block modals
             .form-group
               label(for="acc-password") Mật khẩu
               input.form-control#acc-password(type="password" required autocomplete="new-password")
+            .form-group
+              label(for="acc-password-confirm") Xác nhận mật khẩu
+              input.form-control#acc-password-confirm(type="password" required autocomplete="new-password")
           .form-row
             .form-group
               label(for="acc-hoten") Họ tên
@@ -157,20 +167,20 @@ block modals
                 if majors && majors.length
                   each major in majors
                     option(value=major.MaNganh data-faculty=major.MaKhoa)= `${major.TenNganh || major.MaNganh}${major.KHOA ? ' - ' + major.KHOA.TenKhoa : ''}`
-          .form-row
-            .form-group
-              label(for="batch-password") Mật khẩu mặc định
-              input.form-control#batch-password(type="text" value="123456")
-            .form-group
-              label(for="batch-note") Kiểu chọn
-              input.form-control#batch-note(type="text" value="Có thể chọn khoa/ngành hoặc nhập danh sách MSSV" readonly)
-          .form-group
-            label(for="batch-mssv-list") Danh sách MSSV
-            textarea.form-control#batch-mssv-list(rows="5" placeholder="Mỗi dòng một MSSV, hoặc phân tách bằng dấu phẩy/khoảng trắng")
           #batch-result.empty-state.hidden
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeBatchStudentModal()") Đóng
         button.btn.btn-primary#btn-batch-create(type="button" onclick="batchCreateStudentAccounts()") Tạo tài khoản
+
+  #credential-list-modal.modal-overlay(onclick="if(event.target===this)closeCredentialListModal()")
+    .modal.modal-wide
+      .modal-header
+        h2 Danh sách tài khoản đã tạo
+        button.modal-close(type="button" onclick="closeCredentialListModal()" aria-label="Đóng") ×
+      .modal-body
+        #credential-list-content.empty-state Đang tải danh sách...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closeCredentialListModal()") Đóng
 
 block scripts
   script(src="/js/admin/users.js")

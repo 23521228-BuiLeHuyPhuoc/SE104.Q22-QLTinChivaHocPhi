@@ -30,6 +30,7 @@ router.get('/admin/registrations', vc.requireViewAuth, vc.requireViewAdmin, vc.a
 router.get('/admin/appeals', vc.requireViewAuth, vc.requireViewAdmin, vc.adminAppeals);
 router.get('/admin/tuition', vc.requireViewAuth, vc.requireViewAdmin, vc.adminTuition);
 router.get('/admin/payments', vc.requireViewAuth, vc.requireViewAdmin, vc.adminPayments);
+router.get('/admin/reports/incomplete-tuition', vc.requireViewAuth, vc.requireViewAdmin, vc.adminIncompleteTuitionReport);
 router.get('/admin/reports', vc.requireViewAuth, vc.requireViewAdmin, vc.adminReports);
 router.get('/admin/users', vc.requireViewAuth, vc.requireViewAdmin, vc.adminUsers);
 router.get('/admin/faculties', vc.requireViewAuth, vc.requireViewAdmin, vc.adminFaculties);

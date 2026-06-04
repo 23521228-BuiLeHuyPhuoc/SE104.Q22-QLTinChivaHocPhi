@@ -221,7 +221,7 @@ const getMajors = async (req, res) => {
 
 const getProvinces = async (req, res) => {
   try {
-    const provinces = await prisma.TINH.findMany({ where: { TrangThai: true }, orderBy: { TenTinh: 'asc' } });
+    const provinces = await prisma.TINH.findMany({ where: { TrangThai: true, DaXoa: false }, orderBy: { TenTinh: 'asc' } });
     res.json({ success: true, data: provinces });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get provinces error:');
@@ -230,7 +230,7 @@ const getProvinces = async (req, res) => {
 
 const getDistrictsByProvince = async (req, res) => {
   try {
-    const wards = await prisma.PHUONGXA.findMany({ where: { MaTinh: req.params.provinceId, TrangThai: true }, orderBy: { TenPhuongXa: 'asc' } });
+    const wards = await prisma.PHUONGXA.findMany({ where: { MaTinh: req.params.provinceId, TrangThai: true, DaXoa: false }, orderBy: { TenPhuongXa: 'asc' } });
     res.json({ success: true, data: wards });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get districts error:');
@@ -474,7 +474,7 @@ const importStudents = async (req, res) => {
         select: { MaDanToc: true }
       }),
       prisma.PHUONGXA.findMany({
-        where: { MaPhuongXa: { in: validRows.map((item) => item.data.MaPhuongXa) }, TrangThai: true },
+        where: { MaPhuongXa: { in: validRows.map((item) => item.data.MaPhuongXa) }, TrangThai: true, DaXoa: false },
         select: { MaPhuongXa: true }
       })
     ]);

@@ -4,11 +4,11 @@ block styles
   link(rel="stylesheet" href="/css/admin/semesters.css")
 
 block content
-  .toolbar
+  .toolbar.admin-toolbar
     .toolbar-title
       h2.page-title Quản lý học kỳ
       p Cấu hình kỳ học, thời gian đăng ký và hạn đóng học phí.
-    .toolbar-actions
+    .toolbar-actions.admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')")
         span.material-symbols-rounded add
         span Thêm học kỳ
@@ -41,6 +41,18 @@ block content
           button.segmented-option(type="button" data-value="Sắp diễn ra") Sắp diễn ra
           button.segmented-option(type="button" data-value="Đang diễn ra") Đang diễn ra
           button.segmented-option(type="button" data-value="Đã kết thúc") Đã kết thúc
+      .semester-filter-field.semester-filter-registration-finalized
+        label(for="semester-registration-finalized") Trạng thái chốt đăng ký
+        select.form-control#semester-registration-finalized
+          option(value="") Tất cả
+          option(value="finalized") Đã chốt đăng ký
+          option(value="not_finalized") Chưa chốt đăng ký
+      .semester-filter-field.semester-filter-tuition-open
+        label(for="semester-tuition-open") Trạng thái mở thu
+        select.form-control#semester-tuition-open
+          option(value="") Tất cả
+          option(value="open") Đang mở thu
+          option(value="closed") Chưa mở thu
       .semester-filter-field.semester-filter-date-field
         label(for="semester-date-field") Mốc thời gian cần tìm
         select.form-control#semester-date-field
