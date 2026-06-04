@@ -38,6 +38,10 @@ function hasReportStatsSection() {
   return !!(document.getElementById('stat-students') || document.getElementById('student-stats-table') || document.getElementById('registration-total-receipts'));
 }
 
+function hasRegistrationStatsSection() {
+  return !!(document.getElementById('stat-registrations') || document.getElementById('registration-total-receipts'));
+}
+
 function hasIncompleteTuitionSection() {
   return !!document.getElementById('incomplete-tuition-table');
 }
@@ -82,11 +86,12 @@ function renderRegistrationStats(data) {
 
 async function loadReportStats() {
   if (!hasReportStatsSection()) return;
+  var loadRegistrationStats = hasRegistrationStatsSection();
 
   var responses = await Promise.all([
     apiFetch('/api/students/stats').catch(function() { return null; }),
     apiFetch('/api/courses/stats').catch(function() { return null; }),
-    apiFetch(withSemester('/api/registrations/stats')).catch(function() { return null; }),
+    loadRegistrationStats ? apiFetch(withSemester('/api/registrations/stats')).catch(function() { return null; }) : Promise.resolve(null),
     apiFetch(withSemester('/api/tuition/stats')).catch(function() { return null; }),
     apiFetch(withSemester('/api/payments/stats')).catch(function() { return null; }),
     apiFetch('/api/dashboard/revenue-monthly?year=' + new Date().getFullYear()).catch(function() { return null; })
@@ -111,7 +116,7 @@ async function loadReportStats() {
   }
 
   if (cRes && cRes.success) setText('stat-courses', cRes.data.total || 0);
-  if (rRes && rRes.success) {
+  if (loadRegistrationStats && rRes && rRes.success) {
     setText('stat-registrations', rRes.data.totalRegistrations || rRes.data.total || 0);
     renderRegistrationStats(rRes.data);
   }

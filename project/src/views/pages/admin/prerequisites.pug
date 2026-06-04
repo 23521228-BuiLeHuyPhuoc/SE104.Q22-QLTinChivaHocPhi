@@ -6,6 +6,7 @@ block styles
 block content
   .toolbar.admin-toolbar
     .search-box.search-with-scope.admin-search-group
+      label.admin-search-label(for="prereq-search-field") Tìm theo
       select.form-control#prereq-search-field(onchange="applyPrereqFilters()" aria-label="Tiêu chí tìm kiếm")
         option(value="code" selected=((prereqSearchField || 'code') === 'code')) Mã môn
         option(value="courseName" selected=(prereqSearchField === 'courseName')) Tên môn học

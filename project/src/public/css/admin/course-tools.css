@@ -1,11 +1,16 @@
 .search-with-scope {
   --search-scope-width: clamp(132px, 28%, 210px);
-  align-items: stretch;
-  display: flex;
-  gap: var(--spacing-sm);
+  align-items: end;
+  display: grid;
+  gap: 7px var(--spacing-sm);
+  grid-template-columns: var(--search-scope-width) minmax(0, 1fr);
   max-width: none;
   min-width: min(100%, 280px);
   width: 100%;
+}
+
+.search-with-scope .admin-search-label {
+  grid-column: 1 / -1;
 }
 
 .search-with-scope .form-control,
@@ -14,17 +19,17 @@
 }
 
 .search-with-scope select.form-control {
-  flex: 0 0 var(--search-scope-width);
+  grid-column: 1;
   height: 44px;
   min-width: 132px;
-  width: auto;
+  width: 100%;
 }
 
 .search-with-scope input {
-  flex: 1 1 240px;
+  grid-column: 2;
   height: 44px;
   padding-left: 44px;
-  width: auto;
+  width: 100%;
 }
 
 .search-with-scope::before {
@@ -206,13 +211,13 @@
 
   .search-with-scope {
     --search-scope-width: 100%;
-    flex-direction: column;
     gap: var(--spacing-sm);
+    grid-template-columns: 1fr;
   }
 
   .search-with-scope select.form-control,
   .search-with-scope input {
-    flex-basis: auto;
+    grid-column: 1;
     width: 100%;
   }
 

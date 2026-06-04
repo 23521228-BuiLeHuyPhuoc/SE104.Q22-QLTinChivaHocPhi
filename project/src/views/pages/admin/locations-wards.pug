@@ -6,13 +6,6 @@ block styles
 block content
   - const formatLocationDateTime = (value) => value ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(value)) : '-'
   .location-page
-    .location-overview.location-overview-single
-      .location-stat
-        span.material-symbols-rounded.location-stat-icon home_pin
-        .location-stat-content
-          strong= totalRecords || 0
-          span Phường/Xã
-
     section.card.location-section#ward-section
       .location-section-header
         .location-section-title
@@ -26,6 +19,7 @@ block content
 
       .location-toolbar.location-toolbar-wide
         .location-search-control
+          label.location-search-label(for="ward-search-field") Tìm theo
           select.form-control.location-search-field#ward-search-field(onchange="applyWardFilters()")
             option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
             option(value="MaPhuongXa" selected=(searchField === 'MaPhuongXa')) Mã

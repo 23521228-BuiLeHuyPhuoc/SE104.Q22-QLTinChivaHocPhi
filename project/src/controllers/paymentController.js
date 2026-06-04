@@ -14,6 +14,30 @@ const PAYMENT_FAILED = PAYMENT_STATUS.FAILED;
 const PAYMENT_CANCELLED = PAYMENT_STATUS.CANCELLED;
 const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
 const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_SUCCESS];
+const PAYMENT_SEARCH_FIELDS = new Set(['all', 'SoPhieuThu', 'MaSv', 'HoTen']);
+
+const buildPaymentSearchWhere = (search = '', searchField = 'all') => {
+  const keyword = String(search || '').trim();
+  if (!keyword) return {};
+
+  const field = PAYMENT_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
+  const textClause = { contains: keyword, mode: 'insensitive' };
+  const receiptNumber = Number.parseInt(keyword, 10);
+  const canSearchReceipt = Number.isInteger(receiptNumber) && String(receiptNumber) === keyword;
+  const receiptClause = canSearchReceipt ? { SoPhieuThu: receiptNumber } : null;
+
+  if (field === 'SoPhieuThu') return receiptClause || { SoPhieuThu: -1 };
+  if (field === 'MaSv') return { MaSv: textClause };
+  if (field === 'HoTen') return { SINHVIEN: { HoTen: textClause } };
+
+  return {
+    OR: [
+      receiptClause,
+      { MaSv: textClause },
+      { SINHVIEN: { HoTen: textClause } }
+    ].filter(Boolean)
+  };
+};
 
 const getSemesterKindLabel = (semester) => {
   if (!semester) return '';
@@ -206,12 +230,12 @@ const buildVietQrPayload = (registration, receipt, amount) => {
 const getAllPayments = async (req, res) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
-    const { search = '', MaHocKy, HinhThucThu, TrangThai } = req.query;
+    const { search = '', searchField = 'all', MaHocKy, HinhThucThu, TrangThai } = req.query;
     const where = {};
     if (HinhThucThu) where.HinhThucThu = HinhThucThu;
     if (TrangThai) where.TrangThai = TrangThai;
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
-    if (search) where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] };
+    Object.assign(where, buildPaymentSearchWhere(search, searchField));
 
     const [rows, total] = await Promise.all([
       prisma.PHIEUTHUHOCPHI.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } }),
@@ -751,12 +775,12 @@ const getPaymentStats = async (req, res) => {
 
 const exportPayments = async (req, res) => {
   try {
-    const { search = '', MaHocKy, HinhThucThu, TrangThai } = req.query;
+    const { search = '', searchField = 'all', MaHocKy, HinhThucThu, TrangThai } = req.query;
     const where = {};
     if (HinhThucThu) where.HinhThucThu = HinhThucThu;
     if (TrangThai) where.TrangThai = TrangThai;
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
-    if (search) where.SINHVIEN = { OR: [{ MaSv: { contains: search, mode: 'insensitive' } }, { HoTen: { contains: search, mode: 'insensitive' } }] };
+    Object.assign(where, buildPaymentSearchWhere(search, searchField));
 
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({
       where,

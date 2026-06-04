@@ -30,7 +30,15 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(300px, 1.35fr) minmax(170px, 0.8fr) minmax(170px, 0.8fr) minmax(150px, 0.65fr) minmax(140px, auto);
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+}
+
+.open-courses-search-field {
+  grid-column: 1 / span 2;
+}
+
+.open-courses-filter-field:has(#oc-filter-hocky) {
+  grid-column: 3 / span 2;
 }
 
 .open-courses-filter-field {
@@ -60,11 +68,12 @@
 
 .open-courses-filter-actions {
   align-items: stretch;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  justify-content: flex-end;
-  min-width: 120px;
+  display: grid;
+  min-width: 0;
+}
+
+.open-courses-filter-actions .btn {
+  width: 100%;
 }
 
 .open-courses-list-card {
@@ -286,6 +295,7 @@
   }
 
   .open-courses-search-field,
+  .open-courses-filter-field:has(#oc-filter-hocky),
   .open-courses-filter-actions {
     grid-column: 1 / -1;
   }

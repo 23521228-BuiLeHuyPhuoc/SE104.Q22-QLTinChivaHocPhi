@@ -3,16 +3,17 @@ extends ../../layouts/admin
 block content
   - const groups = groupOptions || []
   - const accountGroups = creatableGroups || groups.map(group => ({ ...group, Role: group.MaNhom === 'SINHVIEN' ? 'student' : 'admin' }))
-  .toolbar.users-toolbar
-    .search-box.search-box-with-criterion
-      select#search-field.form-control(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
+  .toolbar.users-toolbar.admin-toolbar
+    .search-box.search-box-with-criterion.admin-search-group
+      label.admin-search-label(for="search-field") Tìm theo
+      select#search-field.form-control.ui-search-criterion-select(onchange="applyFilters()" aria-label="Tiêu chí tìm kiếm")
         option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
         option(value="TenDangNhap" selected=(searchField === 'TenDangNhap')) Tên đăng nhập
         option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
         option(value="Email" selected=(searchField === 'Email')) Email
         option(value="MaSv" selected=(searchField === 'MaSv')) Mã sinh viên
       input#search-input(type="text" placeholder="Tìm tên đăng nhập, họ tên hoặc email..." value=(search || '') onkeyup="debounceSearch()")
-    .filter-group
+    .filter-group.admin-filter-group
       select#filter-role(onchange="applyFilters()")
         option(value="" selected=(!filterRole)) Tất cả vai trò
         option(value="admin" selected=(filterRole === 'admin')) Quản trị viên
@@ -21,6 +22,7 @@ block content
         option(value="" selected=(!filterGroup)) Tất cả nhóm
         each group in groups
           option(value=group.MaNhom selected=(filterGroup === group.MaNhom))= group.TenNhom || group.MaNhom
+    .admin-action-group
       if canCreateAccounts
         button.btn.btn-primary(type="button" onclick="openAccountModal()") Tạo tài khoản
       if canManageAccounts

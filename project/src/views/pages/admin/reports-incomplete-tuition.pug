@@ -2,16 +2,17 @@ extends ../../layouts/admin
 
 block content
   .page-shell
-    .toolbar
+    .toolbar.admin-toolbar
       .toolbar-title
         h2.page-title Sinh viên chưa hoàn thành học phí
         p Theo dõi sinh viên còn nợ, đóng một phần hoặc quá hạn học phí theo học kỳ.
-      .filter-group
+      .filter-group.admin-filter-group
         select#report-semester(onchange="loadReports()")
           option(value="") Tất cả học kỳ
           if semesters && semesters.length
             each semester in semesters
               option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
+      .admin-action-group
         button.btn.btn-outline(type="button" onclick="exportIncompleteCsv()")
           span.material-symbols-rounded(aria-hidden="true") download
           span Excel
@@ -23,10 +24,10 @@ block content
       .card-header
         h3 Danh sách sinh viên chưa hoàn thành học phí
       .card-body
-        .toolbar
-          .search-box
+        .toolbar.admin-toolbar.debt-filter-toolbar
+          .search-box.admin-search-group
             input#debt-search(type="text" placeholder="Tìm MSSV hoặc họ tên..." onkeyup="debounceDebtSearch()")
-          .filter-group
+          .filter-group.admin-filter-group
             select#debt-faculty(onchange="filterDebtMajors(); loadIncompleteTuition()")
               option(value="") Tất cả khoa
               if faculties && faculties.length

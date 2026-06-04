@@ -9,6 +9,7 @@ block content
       h2.page-title Đối tượng ưu tiên
       p Quản lý chính sách giảm học phí và đối tượng sinh viên được ưu tiên.
     .search-box.search-box-with-criterion.admin-search-group
+      label.admin-search-label(for='beneficiary-search-field') Tìm theo
       select.form-control.ui-search-criterion-select#beneficiary-search-field(onchange='applyFilters()' aria-label='Tiêu chí tìm kiếm')
         option(value='all' selected=((searchField || 'all') === 'all')) Tất cả
         option(value='MaDoiTuong' selected=(searchField === 'MaDoiTuong')) Mã

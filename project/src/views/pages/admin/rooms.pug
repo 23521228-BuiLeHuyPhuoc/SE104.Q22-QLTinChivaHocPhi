@@ -2,7 +2,15 @@ extends ../../layouts/admin
 
 block content
   .toolbar.admin-toolbar
-    .search-box.admin-search-group
+    .search-box.search-box-with-criterion.admin-search-group
+      label.admin-search-label(for="room-search-field") Tìm theo
+      select.form-control.ui-search-criterion-select#room-search-field(onchange="applyRoomFilters()" aria-label="Tiêu chí tìm kiếm")
+        option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
+        option(value="MaPhong" selected=(searchField === 'MaPhong')) Mã phòng
+        option(value="TenPhong" selected=(searchField === 'TenPhong')) Tên phòng
+        option(value="ToaNha" selected=(searchField === 'ToaNha')) Tòa nhà
+        option(value="LoaiPhong" selected=(searchField === 'LoaiPhong')) Loại phòng
+        option(value="MaHocKy" selected=(searchField === 'MaHocKy')) Học kỳ
       input#search-input(type="text" placeholder="Tìm phòng học..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceRoomSearch()")
     .filter-group.admin-filter-group
       select.form-control#filter-semester(onchange="applyRoomFilters()")

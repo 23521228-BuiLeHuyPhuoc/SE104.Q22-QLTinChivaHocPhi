@@ -11957,6 +11957,12 @@ INSERT INTO "LOP" ("MaLop", "TenLop", "MaMonHoc", "GiangVien", "LichHoc", "Phong
 ('IS359.N01', 'Đồ án chuyên ngành Hệ thống Thông tin y tế', 'IS359', 'PGS.TS Cao Kim Dũng', 'Thứ 3, Tiết 8-10', 'I.1460', 60),
 ('CS5032.N01', 'Thực tập doanh nghiệp', 'CS5032', 'ThS. Nguyễn Mai Dũng', 'Thứ 4, Tiết 1-3', 'I.1461', 60);
 
+INSERT INTO "LOP" (
+  "MaLop", "TenLop", "MaMonHoc", "GiangVien", "LichHoc",
+  "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "PhongHoc", "SoLuongToiDa"
+) VALUES
+('ENG02.N02', 'Anh văn 2', 'ENG02', 'ThS. Mai Mai Bình', 'Thứ 3, Tiết 1-3', 3, 'T1', 'T3', 'B.1462', 60);
+
 -- Chuẩn hóa dữ liệu lớp: giảng viên là tên người, lịch học dùng tiếng Việt có dấu.
 WITH danh_sach_giang_vien AS (
   SELECT
@@ -12805,7 +12811,7 @@ INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "SoLuongDaDangKy") VALUES
 ('HK2-2526', 'EC401.N01', 0),
 ('HK2-2526', 'EC402.N01', 0),
 ('HK2-2526', 'ENG01.N01', 0),
-('HK2-2526', 'ENG02.N01', 6),
+('HK2-2526', 'ENG02.N01', 1),
 ('HK2-2526', 'ENG03.N01', 0),
 ('HK2-2526', 'ENG04.N01', 0),
 ('HK2-2526', 'ENG05.N01', 0),
@@ -13290,6 +13296,9 @@ JOIN LATERAL (
 WHERE l."MaLop" = lm."MaLop"
   AND COALESCE(lm."TrangThai", TRUE) = TRUE;
 
+INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "SoLuongDaDangKy") VALUES
+('HK2-2526', 'ENG02.N02', 5);
+
 -- Seed phong hoc va giang vien theo tung hoc ky. Cac dong da dung trong lich lop
 -- luon duoc giu; phan con lai lay theo thu tu on dinh de moi hoc ky co tap du lieu rieng.
 WITH ranked_rooms AS (
@@ -13461,38 +13470,72 @@ SELECT setval(pg_get_serial_sequence('"PHIEUDANGKY"', 'SoPhieu'), 6, true);
 -- =====================================================
 -- INSERT DATA - Chi tiết đăng ký (Registration Details)
 -- =====================================================
-INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai") VALUES
-(1, 'IT002.N01', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'IT003.N01', 'IT003', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'MA004.N01', 'MA004', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(1, 'MA005.N01', 'MA005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(1, 'ENG02.N01', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký'),
-(2, 'IT002.N01', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'IT003.N01', 'IT003', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'IT012.N01', 'IT012', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'MA004.N01', 'MA004', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(2, 'MA005.N01', 'MA005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(2, 'ENG02.N01', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký'),
-(3, 'IT002.N01', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'IT003.N01', 'IT003', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'MA004.N01', 'MA004', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(3, 'MA005.N01', 'MA005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(3, 'ENG02.N01', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký'),
-(4, 'IT002.N01', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(4, 'IT003.N01', 'IT003', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(4, 'MA004.N01', 'MA004', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(4, 'MA005.N01', 'MA005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(4, 'ENG02.N01', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký'),
-(5, 'IT002.N01', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'IT005.N01', 'IT005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(5, 'MA004.N01', 'MA004', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(5, 'IT006.N01', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký'),
-(5, 'ENG02.N01', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký'),
-(6, 'IT002.N01', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(6, 'IT003.N01', 'IT003', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(6, 'MA004.N01', 'MA004', 'hoc_moi', 4, 'LT', 27000, 108000, 'Đã đăng ký'),
-(6, 'MA005.N01', 'MA005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký'),
-(6, 'ENG02.N01', 'ENG02', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký');
+WITH seed_ctdk("SoPhieu", "MaLop", "LoaiDangKy", "TrangThai") AS (
+  VALUES
+  (1, 'IT002.N01', 'hoc_moi', 'Đã đăng ký'),
+  (1, 'IT003.N01', 'hoc_moi', 'Đã đăng ký'),
+  (1, 'MA004.N01', 'hoc_moi', 'Đã đăng ký'),
+  (1, 'MA005.N01', 'hoc_moi', 'Đã đăng ký'),
+  (1, 'ENG02.N02', 'hoc_moi', 'Đã đăng ký'),
+  (2, 'IT002.N01', 'hoc_moi', 'Đã đăng ký'),
+  (2, 'IT003.N01', 'hoc_moi', 'Đã đăng ký'),
+  (2, 'IT012.N01', 'hoc_moi', 'Đã đăng ký'),
+  (2, 'MA004.N01', 'hoc_moi', 'Đã đăng ký'),
+  (2, 'MA005.N01', 'hoc_moi', 'Đã đăng ký'),
+  (2, 'ENG02.N02', 'hoc_moi', 'Đã đăng ký'),
+  (3, 'IT002.N01', 'hoc_moi', 'Đã đăng ký'),
+  (3, 'IT003.N01', 'hoc_moi', 'Đã đăng ký'),
+  (3, 'MA004.N01', 'hoc_moi', 'Đã đăng ký'),
+  (3, 'MA005.N01', 'hoc_moi', 'Đã đăng ký'),
+  (3, 'ENG02.N02', 'hoc_moi', 'Đã đăng ký'),
+  (4, 'IT002.N01', 'hoc_moi', 'Đã đăng ký'),
+  (4, 'IT003.N01', 'hoc_moi', 'Đã đăng ký'),
+  (4, 'MA004.N01', 'hoc_moi', 'Đã đăng ký'),
+  (4, 'MA005.N01', 'hoc_moi', 'Đã đăng ký'),
+  (4, 'ENG02.N02', 'hoc_moi', 'Đã đăng ký'),
+  (5, 'IT002.N01', 'hoc_moi', 'Đã đăng ký'),
+  (5, 'IT005.N01', 'hoc_moi', 'Đã đăng ký'),
+  (5, 'MA004.N01', 'hoc_moi', 'Đã đăng ký'),
+  (5, 'IT006.N01', 'hoc_moi', 'Đã đăng ký'),
+  (5, 'ENG02.N01', 'hoc_moi', 'Đã đăng ký'),
+  (6, 'IT002.N01', 'hoc_moi', 'Đã đăng ký'),
+  (6, 'IT003.N01', 'hoc_moi', 'Đã đăng ký'),
+  (6, 'MA004.N01', 'hoc_moi', 'Đã đăng ký'),
+  (6, 'MA005.N01', 'hoc_moi', 'Đã đăng ký'),
+  (6, 'ENG02.N02', 'hoc_moi', 'Đã đăng ký')
+), priced_ctdk AS (
+  SELECT
+    s."SoPhieu",
+    s."MaLop",
+    l."MaMonHoc",
+    s."LoaiDangKy",
+    mh."SoTinChi",
+    mh."LoaiMon",
+    fn_lay_don_gia(
+      mh."LoaiMon",
+      CASE WHEN hk."LoaiHocKy" = 'Hè' AND s."LoaiDangKy" = 'hoc_moi' THEN 'hoc_he' ELSE s."LoaiDangKy" END,
+      pdk."MaHocKy"
+    ) AS "DonGia",
+    s."TrangThai"
+  FROM seed_ctdk s
+  JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = s."SoPhieu"
+  JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+  JOIN "LOPMO" lm ON lm."MaHocKy" = pdk."MaHocKy" AND lm."MaLop" = s."MaLop" AND COALESCE(lm."TrangThai", TRUE) = TRUE
+  JOIN "LOP" l ON l."MaLop" = s."MaLop" AND COALESCE(l."DaXoa", FALSE) = FALSE AND COALESCE(l."TrangThai", TRUE) = TRUE
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc" AND COALESCE(mh."DaXoa", FALSE) = FALSE AND COALESCE(mh."TrangThai", TRUE) = TRUE
+)
+INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai")
+SELECT
+  "SoPhieu",
+  "MaLop",
+  "MaMonHoc",
+  "LoaiDangKy",
+  "SoTinChi",
+  "LoaiMon",
+  "DonGia",
+  "SoTinChi" * "DonGia",
+  "TrangThai"
+FROM priced_ctdk;
 
 -- =====================================================
 -- INSERT DATA - Phiếu thu học phí (Tuition Payment Receipts)
@@ -13587,6 +13630,344 @@ WHERE NOT EXISTS (
     AND lh."MaTietKetThuc" = v."MaTietKetThuc"
 );
 
+-- =====================================================
+-- SEMESTER-AWARE SEED COMPLETENESS
+-- Cac dong bo sung duoc sinh tu danh muc goc va chi chen khi quan he hop le.
+-- =====================================================
+
+WITH giang_vien_nguon AS (
+  SELECT
+    TRIM(l."GiangVien") AS "GiangVienDayDu",
+    'GV' || UPPER(substr(md5(TRIM(l."GiangVien")), 1, 8)) AS "MaGiangVien",
+    MIN(mh."MaKhoa") AS "MaKhoa"
+  FROM "LOP" l
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+  WHERE l."GiangVien" IS NOT NULL AND TRIM(l."GiangVien") <> ''
+  GROUP BY TRIM(l."GiangVien")
+)
+INSERT INTO "GIANGVIEN" ("MaGiangVien", "HoTen", "HocHam", "HocVi", "HocHamHocVi", "MaKhoa", "Email", "TrangThai")
+SELECT
+  "MaGiangVien",
+  NULLIF(TRIM(regexp_replace("GiangVienDayDu", '^(GS\.TS|PGS\.TS|GS\.|PGS\.|TS\.|ThS\.)\s+', '')), ''),
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.%' THEN 'GS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.%' THEN 'PGS'
+    ELSE NULL
+  END,
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
+    ELSE NULL
+  END,
+  CASE
+    WHEN "GiangVienDayDu" LIKE 'GS.TS %' THEN 'GS.TS'
+    WHEN "GiangVienDayDu" LIKE 'PGS.TS %' THEN 'PGS.TS'
+    WHEN "GiangVienDayDu" LIKE 'GS. %' THEN 'GS'
+    WHEN "GiangVienDayDu" LIKE 'PGS. %' THEN 'PGS'
+    WHEN "GiangVienDayDu" LIKE 'TS. %' THEN 'TS'
+    WHEN "GiangVienDayDu" LIKE 'ThS. %' THEN 'ThS'
+    ELSE NULL
+  END,
+  "MaKhoa",
+  LOWER("MaGiangVien") || '@uit.edu.vn',
+  TRUE
+FROM giang_vien_nguon
+ON CONFLICT ("MaGiangVien") DO UPDATE SET
+  "HoTen" = COALESCE(NULLIF("GIANGVIEN"."HoTen", ''), EXCLUDED."HoTen"),
+  "HocHam" = COALESCE("GIANGVIEN"."HocHam", EXCLUDED."HocHam"),
+  "HocVi" = COALESCE("GIANGVIEN"."HocVi", EXCLUDED."HocVi"),
+  "HocHamHocVi" = COALESCE("GIANGVIEN"."HocHamHocVi", EXCLUDED."HocHamHocVi"),
+  "Email" = COALESCE(NULLIF("GIANGVIEN"."Email", ''), EXCLUDED."Email"),
+  "MaKhoa" = COALESCE("GIANGVIEN"."MaKhoa", EXCLUDED."MaKhoa"),
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL;
+
+UPDATE "LOP"
+SET "MaGiangVien" = 'GV' || UPPER(substr(md5(TRIM("GiangVien")), 1, 8))
+WHERE "GiangVien" IS NOT NULL
+  AND TRIM("GiangVien") <> ''
+  AND (
+    "MaGiangVien" IS NULL
+    OR NOT EXISTS (SELECT 1 FROM "GIANGVIEN" gv WHERE gv."MaGiangVien" = "LOP"."MaGiangVien")
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM "GIANGVIEN" gv
+    WHERE gv."MaGiangVien" = 'GV' || UPPER(substr(md5(TRIM("LOP"."GiangVien")), 1, 8))
+  );
+
+WITH phong_nguon AS (
+  SELECT "MaPhong", MAX("SucChua") AS "SucChua", BOOL_OR("LaPhongThucHanh") AS "LaPhongThucHanh"
+  FROM (
+    SELECT
+      NULLIF(TRIM(COALESCE(l."MaPhong", l."PhongHoc")), '') AS "MaPhong",
+      COALESCE(l."SoLuongToiDa", 60) AS "SucChua",
+      (l."MaLop" LIKE '%_TH.%' OR COALESCE(l."SoLuongToiDa", 60) <= 30) AS "LaPhongThucHanh"
+    FROM "LOP" l
+    WHERE NULLIF(TRIM(COALESCE(l."MaPhong", l."PhongHoc", '')), '') IS NOT NULL
+    UNION ALL
+    SELECT
+      NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc")), '') AS "MaPhong",
+      60 AS "SucChua",
+      FALSE AS "LaPhongThucHanh"
+    FROM "LICHHOCLOP" lh
+    WHERE NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') IS NOT NULL
+  ) src
+  WHERE "MaPhong" IS NOT NULL
+  GROUP BY "MaPhong"
+)
+INSERT INTO "PHONGHOC" ("MaPhong", "TenPhong", "ToaNha", "SucChua", "LoaiPhong", "TrangThai")
+SELECT
+  "MaPhong",
+  'Phong ' || "MaPhong",
+  NULLIF(split_part("MaPhong", '.', 1), ''),
+  "SucChua",
+  CASE WHEN "LaPhongThucHanh" THEN 'thuc_hanh' ELSE 'ly_thuyet' END,
+  TRUE
+FROM phong_nguon
+ON CONFLICT ("MaPhong") DO UPDATE SET
+  "SucChua" = GREATEST(COALESCE("PHONGHOC"."SucChua", 0), COALESCE(EXCLUDED."SucChua", 0)),
+  "LoaiPhong" = COALESCE("PHONGHOC"."LoaiPhong", EXCLUDED."LoaiPhong"),
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL;
+
+UPDATE "LOP"
+SET "MaPhong" = TRIM("PhongHoc")
+WHERE "PhongHoc" IS NOT NULL
+  AND TRIM("PhongHoc") <> ''
+  AND EXISTS (SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM("LOP"."PhongHoc"));
+
+UPDATE "LICHHOCLOP"
+SET "MaPhong" = TRIM("PhongHoc")
+WHERE "PhongHoc" IS NOT NULL
+  AND TRIM("PhongHoc") <> ''
+  AND "MaPhong" IS DISTINCT FROM TRIM("PhongHoc")
+  AND EXISTS (SELECT 1 FROM "PHONGHOC" p WHERE p."MaPhong" = TRIM("LICHHOCLOP"."PhongHoc"));
+
+UPDATE "LOP" l
+SET
+  "MaGiangVien" = COALESCE(l."MaGiangVien", lm."MaGiangVien"),
+  "GiangVien" = COALESCE(l."GiangVien", lm."GiangVien"),
+  "ThuTrongTuan" = COALESCE(l."ThuTrongTuan", lh."ThuTrongTuan"),
+  "MaTietBatDau" = COALESCE(l."MaTietBatDau", lh."MaTietBatDau"),
+  "MaTietKetThuc" = COALESCE(l."MaTietKetThuc", lh."MaTietKetThuc"),
+  "MaPhong" = COALESCE(l."MaPhong", lh."MaPhong"),
+  "PhongHoc" = COALESCE(l."PhongHoc", lh."PhongHoc")
+FROM "LOPMO" lm
+JOIN LATERAL (
+  SELECT *
+  FROM "LICHHOCLOP" lh
+  WHERE lh."LopMoId" = lm.id
+    AND COALESCE(lh."TrangThai", TRUE) = TRUE
+  ORDER BY lh.id
+  LIMIT 1
+) lh ON TRUE
+WHERE l."MaLop" = lm."MaLop"
+  AND COALESCE(lm."TrangThai", TRUE) = TRUE;
+
+UPDATE "LOPMO" lm
+SET
+  "MaGiangVien" = COALESCE(lm."MaGiangVien", l."MaGiangVien"),
+  "GiangVien" = COALESCE(lm."GiangVien", l."GiangVien")
+FROM "LOP" l
+WHERE l."MaLop" = lm."MaLop";
+
+WITH class_plan("ThuTuHocKy", "MaLop") AS (
+  VALUES
+  (1, 'IT001.N01'),
+  (1, 'MA006.N01'),
+  (1, 'MA003.N01'),
+  (1, 'ENG01.N01'),
+  (1, 'ME001.N01'),
+  (1, 'SS006.N01'),
+  (2, 'IT002.N01'),
+  (2, 'IT003.N01'),
+  (2, 'MA004.N01'),
+  (2, 'MA005.N01'),
+  (2, 'ENG02.N01'),
+  (3, 'ENG02.N01'),
+  (3, 'IT005.N01')
+)
+INSERT INTO "LOPMO" ("MaHocKy", "MaLop", "MaGiangVien", "GiangVien", "SoLuongDaDangKy", "TrangThai", "GhiChu")
+SELECT
+  hk."MaHocKy",
+  l."MaLop",
+  l."MaGiangVien",
+  l."GiangVien",
+  0,
+  CASE WHEN hk."TrangThai" = 'Đã kết thúc' THEN FALSE ELSE TRUE END,
+  'Seed bo sung lop mo theo hoc ky'
+FROM "HOCKY" hk
+JOIN class_plan cp ON cp."ThuTuHocKy" = CASE WHEN hk."LoaiHocKy" = 'Hè' THEN 3 ELSE COALESCE(hk."ThuTu", 1) END
+JOIN "LOP" l ON l."MaLop" = cp."MaLop"
+JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
+WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+  AND COALESCE(l."DaXoa", FALSE) = FALSE
+  AND COALESCE(l."TrangThai", TRUE) = TRUE
+  AND COALESCE(mh."DaXoa", FALSE) = FALSE
+  AND COALESCE(mh."TrangThai", TRUE) = TRUE
+  AND NULLIF(TRIM(COALESCE(l."MaGiangVien", l."GiangVien", '')), '') IS NOT NULL
+ON CONFLICT ("MaHocKy", "MaLop") DO NOTHING;
+
+WITH source_schedule AS (
+  SELECT
+    lm.id AS "LopMoId",
+    lm."MaHocKy",
+    hk."TrangThai" AS "HocKyTrangThai",
+    COALESCE(lm."TrangThai", TRUE) AS "LopMoTrangThai",
+    l."MaLop",
+    NULLIF(TRIM(COALESCE(lm."MaGiangVien", lm."GiangVien", l."MaGiangVien", l."GiangVien", '')), '') AS "GiangVienKey",
+    l."ThuTrongTuan",
+    l."MaTietBatDau",
+    l."MaTietKetThuc",
+    NULLIF(TRIM(COALESCE(l."MaPhong", l."PhongHoc", '')), '') AS "MaPhong",
+    COALESCE(l."PhongHoc", l."MaPhong") AS "PhongHoc",
+    bd."ThuTu" AS "TietBatDauThuTu",
+    kt."ThuTu" AS "TietKetThucThuTu",
+    CASE WHEN hk."TrangThai" = 'Đã kết thúc' OR COALESCE(lm."TrangThai", TRUE) = FALSE THEN FALSE ELSE TRUE END AS "TrangThai"
+  FROM "LOPMO" lm
+  JOIN "HOCKY" hk ON hk."MaHocKy" = lm."MaHocKy"
+  JOIN "LOP" l ON l."MaLop" = lm."MaLop"
+  JOIN "TIETHOC" bd ON bd."MaTiet" = l."MaTietBatDau"
+  JOIN "TIETHOC" kt ON kt."MaTiet" = l."MaTietKetThuc"
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND COALESCE(l."DaXoa", FALSE) = FALSE
+    AND COALESCE(l."TrangThai", TRUE) = TRUE
+    AND l."ThuTrongTuan" BETWEEN 1 AND 7
+    AND bd."ThuTu" <= kt."ThuTu"
+    AND NULLIF(TRIM(COALESCE(l."MaPhong", l."PhongHoc", '')), '') IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM "LICHHOCLOP" lh WHERE lh."LopMoId" = lm.id)
+)
+INSERT INTO "LICHHOCLOP" ("LopMoId", "ThuTrongTuan", "MaTietBatDau", "MaTietKetThuc", "MaPhong", "PhongHoc", "GhiChu", "TrangThai")
+SELECT
+  ss."LopMoId",
+  ss."ThuTrongTuan",
+  ss."MaTietBatDau",
+  ss."MaTietKetThuc",
+  ss."MaPhong",
+  ss."PhongHoc",
+  ss."MaLop" || ' - seed schedule by semester',
+  ss."TrangThai"
+FROM source_schedule ss
+WHERE ss."TrangThai" = FALSE
+   OR NOT EXISTS (
+  SELECT 1
+  FROM "LICHHOCLOP" lh2
+  JOIN "LOPMO" lm2 ON lm2.id = lh2."LopMoId"
+  JOIN "TIETHOC" bd2 ON bd2."MaTiet" = lh2."MaTietBatDau"
+  JOIN "TIETHOC" kt2 ON kt2."MaTiet" = lh2."MaTietKetThuc"
+  WHERE lm2."MaHocKy" = ss."MaHocKy"
+    AND lm2.id <> ss."LopMoId"
+    AND COALESCE(lm2."TrangThai", TRUE) = TRUE
+    AND COALESCE(lh2."TrangThai", TRUE) = TRUE
+    AND lh2."ThuTrongTuan" = ss."ThuTrongTuan"
+    AND ss."TietBatDauThuTu" <= kt2."ThuTu"
+    AND bd2."ThuTu" <= ss."TietKetThucThuTu"
+    AND (
+      NULLIF(TRIM(COALESCE(lm2."MaGiangVien", lm2."GiangVien", '')), '') = ss."GiangVienKey"
+      OR NULLIF(TRIM(COALESCE(lh2."MaPhong", lh2."PhongHoc", '')), '') = ss."MaPhong"
+    )
+);
+
+WITH base_prices AS (
+  SELECT DISTINCT ON ("LoaiMon", "LoaiHoc")
+    "LoaiMon", "LoaiHoc", "DonGia"
+  FROM "DONGIATINCHI"
+  WHERE "MaHocKy" IS NULL
+    AND COALESCE("DaXoa", FALSE) = FALSE
+    AND COALESCE("TrangThai", TRUE) = TRUE
+  ORDER BY "LoaiMon", "LoaiHoc", id
+)
+INSERT INTO "DONGIATINCHI" ("LoaiMon", "LoaiHoc", "DonGia", "MaHocKy", "NgayApDung", "TrangThai", "GhiChu")
+SELECT
+  bp."LoaiMon",
+  bp."LoaiHoc",
+  bp."DonGia",
+  hk."MaHocKy",
+  COALESCE(hk."NgayBatDau", CURRENT_DATE),
+  CASE WHEN hk."TrangThai" = 'Đã kết thúc' THEN FALSE ELSE TRUE END,
+  'Seed don gia theo hoc ky tu bang gia goc'
+FROM base_prices bp
+CROSS JOIN "HOCKY" hk
+WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+ON CONFLICT ("LoaiMon", "LoaiHoc", "MaHocKy") DO NOTHING;
+
+WITH ranked_rooms AS (
+  SELECT p."MaPhong", ROW_NUMBER() OVER (ORDER BY p."MaPhong") AS rn
+  FROM "PHONGHOC" p
+  WHERE COALESCE(p."DaXoa", FALSE) = FALSE
+    AND COALESCE(p."TrangThai", TRUE) = TRUE
+), semesters AS (
+  SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+  FROM "HOCKY" hk
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+), used_rooms AS (
+  SELECT DISTINCT NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc")), '') AS "MaPhong", lm."MaHocKy"
+  FROM "LICHHOCLOP" lh
+  JOIN "LOPMO" lm ON lm.id = lh."LopMoId"
+  WHERE COALESCE(lh."TrangThai", TRUE) = TRUE
+    AND COALESCE(lm."TrangThai", TRUE) = TRUE
+    AND NULLIF(TRIM(COALESCE(lh."MaPhong", lh."PhongHoc", '')), '') IS NOT NULL
+), room_allocations AS (
+  SELECT rr."MaPhong", s."MaHocKy", 'Seed phong hoc theo hoc ky' AS "GhiChu"
+  FROM ranked_rooms rr
+  CROSS JOIN semesters s
+  WHERE rr.rn <= CASE WHEN s."ThuTu" = 3 THEN 4 WHEN s."ThuTu" = 2 THEN 7 ELSE 9 END
+  UNION
+  SELECT ur."MaPhong", ur."MaHocKy", 'Tu dong them phong dang co lich lop'
+  FROM used_rooms ur
+  JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
+)
+INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
+SELECT "MaPhong", "MaHocKy", TRUE, MAX("GhiChu")
+FROM room_allocations
+GROUP BY "MaPhong", "MaHocKy"
+ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("PHONGHOCHOCKY"."GhiChu", EXCLUDED."GhiChu");
+
+WITH ranked_lecturers AS (
+  SELECT gv."MaGiangVien", ROW_NUMBER() OVER (ORDER BY gv."MaGiangVien") AS rn
+  FROM "GIANGVIEN" gv
+  WHERE COALESCE(gv."DaXoa", FALSE) = FALSE
+    AND COALESCE(gv."TrangThai", TRUE) = TRUE
+), semesters AS (
+  SELECT hk."MaHocKy", COALESCE(hk."ThuTu", 1) AS "ThuTu"
+  FROM "HOCKY" hk
+  WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
+), used_lecturers AS (
+  SELECT DISTINCT lm."MaGiangVien", lm."MaHocKy"
+  FROM "LOPMO" lm
+  WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+    AND NULLIF(TRIM(lm."MaGiangVien"), '') IS NOT NULL
+), lecturer_allocations AS (
+  SELECT rl."MaGiangVien", s."MaHocKy", 'Seed giang vien theo hoc ky' AS "GhiChu"
+  FROM ranked_lecturers rl
+  CROSS JOIN semesters s
+  WHERE rl.rn <= CASE WHEN s."ThuTu" = 3 THEN 3 WHEN s."ThuTu" = 2 THEN 6 ELSE 8 END
+  UNION
+  SELECT ul."MaGiangVien", ul."MaHocKy", 'Tu dong them giang vien dang co lop mo'
+  FROM used_lecturers ul
+  JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
+)
+INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
+SELECT "MaGiangVien", "MaHocKy", TRUE, MAX("GhiChu")
+FROM lecturer_allocations
+GROUP BY "MaGiangVien", "MaHocKy"
+ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
+  "TrangThai" = TRUE,
+  "DaXoa" = FALSE,
+  "NguoiXoa" = NULL,
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("GIANGVIENHOCKY"."GhiChu", EXCLUDED."GhiChu");
+
 SET app.finalize_registration = '1';
 
 INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TrangThai", "GhiChu") VALUES
@@ -13603,18 +13984,59 @@ INSERT INTO "PHIEUDANGKY" ("SoPhieu", "MaSv", "MaHocKy", "NgayLap", "TrangThai",
 (204, '22520004', 'HKH-2627', '2026-03-10 08:30:00', 'Đã đăng ký', 'Demo: phiếu thanh toán thất bại')
 ON CONFLICT ("SoPhieu") DO NOTHING;
 
-INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai", "NgayDangKy", "NgayHuy", "LyDoHuy") VALUES
-(101, 'IT002.2627A', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:00:00', NULL, NULL),
-(102, 'IT002.2627A', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:10:00', NULL, NULL),
-(103, 'IT002.2627A', 'IT002', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã đăng ký', '2026-05-20 08:20:00', NULL, NULL),
-(104, 'IT006.2627B', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-21 09:05:00', NULL, NULL),
-(105, 'IT006.2627B', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:10:00', NULL, NULL),
-(106, 'IT006.2627B', 'IT006', 'hoc_moi', 1, 'LT', 27000, 27000, 'Đã đăng ký', '2026-04-10 08:20:00', NULL, NULL),
-(107, 'IT005.2627B', 'IT005', 'hoc_moi', 3, 'LT', 27000, 81000, 'Đã hủy', '2026-04-10 08:30:00', '2026-04-21 09:10:00', 'Hủy do không đủ sinh viên đăng ký'),
-(201, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:00:00', NULL, NULL),
-(202, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:10:00', NULL, NULL),
-(203, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:20:00', NULL, NULL),
-(204, 'ENG02.2627H', 'ENG02', 'hoc_moi', 1, 'LT', 35000, 35000, 'Đã đăng ký', '2026-03-10 08:30:00', NULL, NULL)
+WITH seed_demo_ctdk("SoPhieu", "MaLop", "LoaiDangKy", "TrangThai", "NgayDangKy", "NgayHuy", "LyDoHuy") AS (
+  VALUES
+  (101, 'IT002.2627A', 'hoc_moi', 'Đã đăng ký', '2026-05-20 08:00:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (102, 'IT002.2627A', 'hoc_moi', 'Đã đăng ký', '2026-05-20 08:10:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (103, 'IT002.2627A', 'hoc_moi', 'Đã đăng ký', '2026-05-20 08:20:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (104, 'IT006.2627B', 'hoc_moi', 'Đã đăng ký', '2026-04-21 09:05:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (105, 'IT006.2627B', 'hoc_moi', 'Đã đăng ký', '2026-04-10 08:10:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (106, 'IT006.2627B', 'hoc_moi', 'Đã đăng ký', '2026-04-10 08:20:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (107, 'IT005.2627B', 'hoc_moi', 'Đã hủy', '2026-04-10 08:30:00'::timestamp, '2026-04-21 09:10:00'::timestamp, 'Hủy do không đủ sinh viên đăng ký'),
+  (201, 'ENG02.2627H', 'hoc_moi', 'Đã đăng ký', '2026-03-10 08:00:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (202, 'ENG02.2627H', 'hoc_moi', 'Đã đăng ký', '2026-03-10 08:10:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (203, 'ENG02.2627H', 'hoc_moi', 'Đã đăng ký', '2026-03-10 08:20:00'::timestamp, NULL::timestamp, NULL::varchar),
+  (204, 'ENG02.2627H', 'hoc_moi', 'Đã đăng ký', '2026-03-10 08:30:00'::timestamp, NULL::timestamp, NULL::varchar)
+), priced_demo_ctdk AS (
+  SELECT
+    s."SoPhieu",
+    s."MaLop",
+    l."MaMonHoc",
+    s."LoaiDangKy",
+    mh."SoTinChi",
+    mh."LoaiMon",
+    fn_lay_don_gia(
+      mh."LoaiMon",
+      CASE WHEN hk."LoaiHocKy" = 'Hè' AND s."LoaiDangKy" = 'hoc_moi' THEN 'hoc_he' ELSE s."LoaiDangKy" END,
+      pdk."MaHocKy"
+    ) AS "DonGia",
+    s."TrangThai",
+    s."NgayDangKy",
+    s."NgayHuy",
+    s."LyDoHuy"
+  FROM seed_demo_ctdk s
+  JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = s."SoPhieu"
+  JOIN "HOCKY" hk ON hk."MaHocKy" = pdk."MaHocKy"
+  JOIN "LOPMO" lm ON lm."MaHocKy" = pdk."MaHocKy" AND lm."MaLop" = s."MaLop"
+  JOIN "LOP" l ON l."MaLop" = s."MaLop" AND COALESCE(l."DaXoa", FALSE) = FALSE AND COALESCE(l."TrangThai", TRUE) = TRUE
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc" AND COALESCE(mh."DaXoa", FALSE) = FALSE AND COALESCE(mh."TrangThai", TRUE) = TRUE
+  WHERE s."TrangThai" <> 'Đã đăng ký' OR COALESCE(lm."TrangThai", TRUE) = TRUE
+)
+INSERT INTO "CHITIETDANGKY" ("SoPhieu", "MaLop", "MaMonHoc", "LoaiDangKy", "SoTinChi", "LoaiMon", "DonGia", "ThanhTien", "TrangThai", "NgayDangKy", "NgayHuy", "LyDoHuy")
+SELECT
+  "SoPhieu",
+  "MaLop",
+  "MaMonHoc",
+  "LoaiDangKy",
+  "SoTinChi",
+  "LoaiMon",
+  "DonGia",
+  "SoTinChi" * "DonGia",
+  "TrangThai",
+  "NgayDangKy",
+  "NgayHuy",
+  "LyDoHuy"
+FROM priced_demo_ctdk
 ON CONFLICT ("SoPhieu", "MaMonHoc") DO NOTHING;
 
 RESET app.finalize_registration;
@@ -14361,18 +14783,28 @@ FOR EACH ROW
 EXECUTE FUNCTION prevent_student_schedule_conflict();
 
 INSERT INTO "MONHOCMO" ("MaHocKy", "MaMonHoc", "TrangThai", "GhiChu")
-SELECT DISTINCT lm."MaHocKy", l."MaMonHoc", TRUE, 'Tu dong tao tu lop mo hien co'
+SELECT
+  lm."MaHocKy",
+  l."MaMonHoc",
+  BOOL_OR(COALESCE(lm."TrangThai", TRUE) AND hk."TrangThai" <> 'Đã kết thúc') AS "TrangThai",
+  CASE
+    WHEN BOOL_OR(COALESCE(lm."TrangThai", TRUE) AND hk."TrangThai" <> 'Đã kết thúc') THEN 'Tu dong tao tu lop mo hien co'
+    ELSE 'Tu dong tao tu lop mo lich su'
+  END AS "GhiChu"
 FROM "LOPMO" lm
+JOIN "HOCKY" hk ON hk."MaHocKy" = lm."MaHocKy"
 JOIN "LOP" l ON l."MaLop" = lm."MaLop"
 JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
-WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
+WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
   AND COALESCE(l."DaXoa", FALSE) = FALSE
   AND COALESCE(mh."DaXoa", FALSE) = FALSE
+GROUP BY lm."MaHocKy", l."MaMonHoc"
 ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
-  "TrangThai" = TRUE,
+  "TrangThai" = EXCLUDED."TrangThai",
   "DaXoa" = FALSE,
   "NguoiXoa" = NULL,
-  "NgayXoa" = NULL;
+  "NgayXoa" = NULL,
+  "GhiChu" = COALESCE("MONHOCMO"."GhiChu", EXCLUDED."GhiChu");
 
 CREATE OR REPLACE FUNCTION fn_check_lopmo_monhocmo()
 RETURNS TRIGGER AS $$
