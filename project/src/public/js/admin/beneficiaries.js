@@ -210,7 +210,7 @@ function applyFilters() {
   var url = '/admin/beneficiaries?page=1';
   if (searchField && searchField.value) url += '&searchField=' + encodeURIComponent(searchField.value);
   if (search) url += '&search=' + encodeURIComponent(search);
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 function onBeneficiaryImportFileChange() {

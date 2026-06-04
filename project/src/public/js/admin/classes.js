@@ -67,7 +67,7 @@ function applyFilters() {
   if (semester && semester.value) params.set('MaHocKy', semester.value);
   if (status && status.value) params.set('openStatus', status.value);
   if (capacitySort && capacitySort.value) params.set('capacitySort', capacitySort.value);
-  window.location.href = '/admin/classes?' + params.toString();
+  navigatePageContent('/admin/classes?' + params.toString());
 }
 
 function setOpenStatusFilter(value) {
@@ -553,11 +553,13 @@ async function loadClassStudents() {
 document.addEventListener('DOMContentLoaded', function() {
   var entitySearch = document.getElementById('entity-picker-search');
   if (entitySearch) {
-    entitySearch.addEventListener('input', function() {
-      clearTimeout(entityPickerState.timer);
-      entityPickerState.timer = setTimeout(function() {
-        loadEntityPickerRows(entitySearch.value.trim());
-      }, 250);
+    entitySearch.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(entityPickerState.timer);
+        entityPickerState.timer = setTimeout(function() {
+          loadEntityPickerRows(entitySearch.value.trim());
+        }, 250);
+      });
     });
   }
 

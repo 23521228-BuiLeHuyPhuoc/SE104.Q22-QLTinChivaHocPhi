@@ -104,7 +104,7 @@ function applyPeriodFilters() {
   var params = new URLSearchParams({ page: '1' });
   if (search) params.set('search', search);
   if (searchField && searchField !== 'all') params.set('searchField', searchField);
-  window.location.href = '/admin/periods?' + params.toString();
+  navigatePageContent('/admin/periods?' + params.toString());
 }
 
 function debounceSearch() {

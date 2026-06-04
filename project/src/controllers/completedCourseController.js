@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { ACTIVE_REGISTRATION_STATUS } = require('../services/curriculumService');
@@ -131,10 +132,10 @@ const getMyCompletedCourses = async (req, res) => {
   try {
     const maSv = await getStudentIdFromRequest(req);
     if (!maSv) {
-      return res.status(403).json({ success: false, message: 'Không xác định được sinh viên hiện tại' });
+      return res.status(403).json({ success: false, message: 'Kh??ng x??c ?????nh ???????c sinh vi??n hi???n t???i' });
     }
 
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { MaHocKy, KetQua, search, LoaiMon, MaKhoa } = req.query;
     const where = { MaSv: maSv, DaXoa: false };
     if (MaHocKy) where.MaHocKy = MaHocKy;
@@ -145,43 +146,30 @@ const getMyCompletedCourses = async (req, res) => {
         ...(MaKhoa ? { MaKhoa } : {})
       };
     }
-    if (search) {
-      where.OR = [
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } },
-        { MONHOC: { LoaiMon: { contains: search, mode: 'insensitive' } } },
-        { MONHOC: { KHOA: { TenKhoa: { contains: search, mode: 'insensitive' } } } },
-        { MaLop: { contains: search, mode: 'insensitive' } },
-        { LOP: { TenLop: { contains: search, mode: 'insensitive' } } },
-        { LOP: { GiangVien: { contains: search, mode: 'insensitive' } } }
-      ];
-    }
 
-    const [completedCourses, allRows, total] = await Promise.all([
-      prisma.MONDAHOC.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: [{ MaHocKy: 'desc' }, { LanHoc: 'desc' }, { NgayTao: 'desc' }, { id: 'desc' }],
-        include: {
-          MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true, KHOA: { select: { MaKhoa: true, TenKhoa: true } } } },
-          HOCKY: { select: { MaHocKy: true, TenHocKy: true, NAMHOC: { select: { TenNamHoc: true } } } },
-          LOP: { select: { MaLop: true, TenLop: true, GiangVien: true } }
-        }
-      }),
-      prisma.MONDAHOC.findMany({
-        where,
-        select: {
-          MaMonHoc: true,
-          KetQua: true,
-          MONHOC: { select: { SoTinChi: true } }
-        }
-      }),
-      prisma.MONDAHOC.count({ where })
+    const allRows = await prisma.MONDAHOC.findMany({
+      where,
+      orderBy: [{ MaHocKy: 'desc' }, { LanHoc: 'desc' }, { NgayTao: 'desc' }, { id: 'desc' }],
+      include: {
+        MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true, KHOA: { select: { MaKhoa: true, TenKhoa: true } } } },
+        HOCKY: { select: { MaHocKy: true, TenHocKy: true, MaNamHoc: true, NAMHOC: { select: { TenNamHoc: true } } } },
+        LOP: { select: { MaLop: true, TenLop: true, GiangVien: true } }
+      }
+    });
+    const filtered = filterRowsByRegex(allRows, search, (row) => [
+      row.MaMonHoc,
+      row.MONHOC && row.MONHOC.TenMonHoc,
+      row.MONHOC && row.MONHOC.LoaiMon,
+      row.MONHOC && row.MONHOC.KHOA && row.MONHOC.KHOA.TenKhoa,
+      row.MaLop,
+      row.LOP && row.LOP.TenLop,
+      row.LOP && row.LOP.GiangVien
     ]);
+    const completedCourses = paginateRows(filtered, page, limit);
+    const total = filtered.length;
 
     const passedCreditsByCourse = new Map();
-    allRows.forEach((item) => {
+    filtered.forEach((item) => {
       if (item.KetQua === 'qua_mon' && item.MONHOC) {
         passedCreditsByCourse.set(item.MaMonHoc, Number(item.MONHOC.SoTinChi || 0));
       }
@@ -192,20 +180,20 @@ const getMyCompletedCourses = async (req, res) => {
       data: completedCourses,
       summary: {
         totalAttempts: total,
-        passedCount: allRows.filter((item) => item.KetQua === 'qua_mon').length,
-        failedCount: allRows.filter((item) => item.KetQua === 'rot').length,
+        passedCount: filtered.filter((item) => item.KetQua === 'qua_mon').length,
+        failedCount: filtered.filter((item) => item.KetQua === 'rot').length,
         passedCredits: Array.from(passedCreditsByCourse.values()).reduce((sum, credits) => sum + credits, 0)
       },
       pagination: getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getMyCompletedCourses error:');
+        return sendErrorResponse(res, error, 'L???i m??y ch???', 'getMyCompletedCourses error:');
   }
 };
 
 const getAllCompletedCourses = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search, searchField = 'all', MaSv, MaHocKy, MaMonHoc, KetQua, MaKhoa, LoaiMon, SoTinChi, all } = req.query;
     const where = notDeleted();
 
@@ -220,38 +208,30 @@ const getAllCompletedCourses = async (req, res) => {
         ...(SoTinChi ? { SoTinChi: parseInt(SoTinChi, 10) } : {})
       };
     }
-    if (search) {
-      if (searchField === 'MaSv') where.MaSv = { contains: search, mode: 'insensitive' };
-      else if (searchField === 'HoTen') where.SINHVIEN = { HoTen: { contains: search, mode: 'insensitive' } };
-      else if (searchField === 'MaHocKy') where.OR = [
-        { MaHocKy: { contains: search, mode: 'insensitive' } },
-        { HOCKY: { TenHocKy: { contains: search, mode: 'insensitive' } } },
-        { HOCKY: { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } } },
-        { HOCKY: { MaNamHoc: { contains: search, mode: 'insensitive' } } }
-      ];
-      else where.OR = [
-        { MaSv: { contains: search, mode: 'insensitive' } },
-        { SINHVIEN: { HoTen: { contains: search, mode: 'insensitive' } } },
-        { MaHocKy: { contains: search, mode: 'insensitive' } }
-      ];
-    }
 
-    const [completedCourses, total] = await Promise.all([
-      prisma.MONDAHOC.findMany({
-        where,
-        skip: all === 'true' ? undefined : skip,
-        take: all === 'true' ? undefined : limit,
-        orderBy: [{ NgayTao: 'desc' }, { id: 'desc' }],
-        include: {
-          SINHVIEN: { select: { MaSv: true, HoTen: true } },
-          MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true, KHOA: { select: { MaKhoa: true, TenKhoa: true } } } },
-          HOCKY: { select: { MaHocKy: true, TenHocKy: true, NAMHOC: { select: { TenNamHoc: true } } } },
-          LOP: { select: { MaLop: true, TenLop: true } },
-          TAIKHOAN: { select: { HoTen: true, TenDangNhap: true } }
-        }
-      }),
-      prisma.MONDAHOC.count({ where })
-    ]);
+    const allRows = await prisma.MONDAHOC.findMany({
+      where,
+      orderBy: [{ NgayTao: 'desc' }, { id: 'desc' }],
+      include: {
+        SINHVIEN: { select: { MaSv: true, HoTen: true } },
+        MONHOC: { select: { MaMonHoc: true, TenMonHoc: true, SoTinChi: true, LoaiMon: true, KHOA: { select: { MaKhoa: true, TenKhoa: true } } } },
+        HOCKY: { select: { MaHocKy: true, TenHocKy: true, MaNamHoc: true, NAMHOC: { select: { TenNamHoc: true } } } },
+        LOP: { select: { MaLop: true, TenLop: true } },
+        TAIKHOAN: { select: { HoTen: true, TenDangNhap: true } }
+      }
+    });
+    const filtered = filterRowsByRegex(allRows, search, (row) => {
+      const values = {
+        MaSv: [row.MaSv],
+        HoTen: [row.SINHVIEN && row.SINHVIEN.HoTen],
+        MaHocKy: [row.MaHocKy, row.HOCKY && row.HOCKY.TenHocKy, row.HOCKY && row.HOCKY.MaNamHoc, row.HOCKY && row.HOCKY.NAMHOC && row.HOCKY.NAMHOC.TenNamHoc]
+      };
+      return searchField === 'MaSv' || searchField === 'HoTen' || searchField === 'MaHocKy'
+        ? values[searchField] || []
+        : Object.values(values).flat();
+    });
+    const completedCourses = all === 'true' ? filtered : paginateRows(filtered, page, limit);
+    const total = filtered.length;
 
     res.json({
       success: true,
@@ -259,7 +239,7 @@ const getAllCompletedCourses = async (req, res) => {
       pagination: all === 'true' ? getPaginationMeta(total, 1, total || limit) : getPaginationMeta(total, page, limit)
     });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi máy chủ', 'getAllCompletedCourses error:');
+        return sendErrorResponse(res, error, 'L???i m??y ch???', 'getAllCompletedCourses error:');
   }
 };
 

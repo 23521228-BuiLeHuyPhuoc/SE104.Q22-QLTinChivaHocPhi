@@ -41,7 +41,7 @@ function applyFilters() {
   if (s) params.set('search', s);
   if (searchField && searchField !== 'all') params.set('searchField', searchField);
   if (k) params.set('MaKhoa', k);
-  window.location.href = '/admin/majors?' + params.toString();
+  navigatePageContent('/admin/majors?' + params.toString());
 }
 
 function setMajorCodeReadonly(isReadonly) {
@@ -206,9 +206,11 @@ async function deleteCurriculumItem(id) {
 document.addEventListener('DOMContentLoaded', function() {
   var courseInput = document.getElementById('ctdt-course');
   if (courseInput) {
-    courseInput.addEventListener('input', function() {
-      clearTimeout(curriculumTimer);
-      curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
+    courseInput.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(curriculumTimer);
+        curriculumTimer = setTimeout(function() { loadCourseOptions(courseInput.value); }, 250);
+      });
     });
   }
 

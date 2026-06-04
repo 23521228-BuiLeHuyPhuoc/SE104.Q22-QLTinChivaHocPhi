@@ -122,9 +122,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('completed-semester').addEventListener('change', function() { loadCompletedCourses(1); });
   document.getElementById('completed-loai').addEventListener('change', function() { loadCompletedCourses(1); });
   document.getElementById('completed-khoa').addEventListener('change', function() { loadCompletedCourses(1); });
-  document.getElementById('completed-search').addEventListener('input', function() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(function() { loadCompletedCourses(1); }, 300);
+  document.getElementById('completed-search').addEventListener('keydown', function(event) {
+    runSearchOnEnter(event, function() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function() { loadCompletedCourses(1); }, 300);
+    });
   });
   apiFetch('/api/faculties').then(function(res) {
     var select = document.getElementById('completed-khoa');

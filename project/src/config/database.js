@@ -1471,8 +1471,9 @@ const ensureAuthSchema = async () => {
       JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
     )
     INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
-    SELECT "MaPhong", "MaHocKy", TRUE, "GhiChu"
+    SELECT "MaPhong", "MaHocKy", TRUE, MAX("GhiChu")
     FROM room_allocations
+    GROUP BY "MaPhong", "MaHocKy"
     ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
       "TrangThai" = TRUE,
       "DaXoa" = FALSE,
@@ -1507,8 +1508,9 @@ const ensureAuthSchema = async () => {
       JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
     )
     INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
-    SELECT "MaGiangVien", "MaHocKy", TRUE, "GhiChu"
+    SELECT "MaGiangVien", "MaHocKy", TRUE, MAX("GhiChu")
     FROM lecturer_allocations
+    GROUP BY "MaGiangVien", "MaHocKy"
     ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
       "TrangThai" = TRUE,
       "DaXoa" = FALSE,
@@ -1593,8 +1595,8 @@ const ensureAuthSchema = async () => {
           AND COALESCE(l."TrangThai", TRUE) = TRUE
           AND l."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND COALESCE(l."MaPhong", l."PhongHoc") = v_phong
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < CASE WHEN kt."ThuTu" > bd."ThuTu" THEN kt."ThuTu" ELSE bd."ThuTu" + 1 END
+          AND bd."ThuTu" < CASE WHEN v_kt_thutu > v_bd_thutu THEN v_kt_thutu ELSE v_bd_thutu + 1 END
       ) THEN
         RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Phong % bi trung lich voi lop khac.', v_phong;
       END IF;
@@ -1609,8 +1611,8 @@ const ensureAuthSchema = async () => {
           AND COALESCE(l."TrangThai", TRUE) = TRUE
           AND l."ThuTrongTuan" = NEW."ThuTrongTuan"
           AND COALESCE(l."MaGiangVien", l."GiangVien") = v_giangvien
-          AND v_bd_thutu <= kt."ThuTu"
-          AND bd."ThuTu" <= v_kt_thutu
+          AND v_bd_thutu < CASE WHEN kt."ThuTu" > bd."ThuTu" THEN kt."ThuTu" ELSE bd."ThuTu" + 1 END
+          AND bd."ThuTu" < CASE WHEN v_kt_thutu > v_bd_thutu THEN v_kt_thutu ELSE v_bd_thutu + 1 END
       ) THEN
         RAISE EXCEPTION 'RBTV_LOP_THONGTIN: Giang vien % bi trung lich voi lop khac.', v_giangvien;
       END IF;
@@ -2310,8 +2312,8 @@ const ensureAuthSchema = async () => {
       JOIN "TIETHOC" teo ON teo."MaTiet" = lh_old."MaTietKetThuc"
       WHERE p_new."SoPhieu" = NEW."SoPhieu"
         AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
-        AND tbn."ThuTu" <= teo."ThuTu"
-        AND tbo."ThuTu" <= ten."ThuTu";
+        AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
+        AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END;
 
       IF conflict_count > 0 THEN
         RAISE EXCEPTION 'Sinh vien bi trung lich hoc trong hoc ky nay';

@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 
 const PROVINCE_TYPES = ['Tỉnh', 'Thành phố'];
 const WARD_TYPES = ['Phường', 'Xã'];
@@ -14,61 +15,10 @@ const parseBoolean = (value) => {
   return value === true || value === 'true';
 };
 
-const getContainsFilter = (field, search) => ({
-  [field]: { contains: search, mode: 'insensitive' }
-});
-
-const applyScopedSearch = (where, search, searchField, scopes) => {
-  if (!search) return;
-  const exactScope = scopes[searchField];
-  if (exactScope) {
-    exactScope(where, search);
-    return;
-  }
-  where.OR = Object.values(scopes).map((applyScope) => applyScope({}, search, true));
-};
-
-const provinceSearchScopes = {
-  MaTinh: (where, search, returnOnly) => {
-    const filter = getContainsFilter('MaTinh', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  TenTinh: (where, search, returnOnly) => {
-    const filter = getContainsFilter('TenTinh', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  LoaiTinh: (where, search, returnOnly) => {
-    const filter = getContainsFilter('LoaiTinh', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  }
-};
-
-const wardSearchScopes = {
-  MaPhuongXa: (where, search, returnOnly) => {
-    const filter = getContainsFilter('MaPhuongXa', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  TenPhuongXa: (where, search, returnOnly) => {
-    const filter = getContainsFilter('TenPhuongXa', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  },
-  Loai: (where, search, returnOnly) => {
-    const filter = getContainsFilter('Loai', search);
-    if (returnOnly) return filter;
-    Object.assign(where, filter);
-  }
-};
-
 const buildProvinceWhere = (query) => {
-  const { search, searchField, LoaiTinh, TrangThai } = query;
+  const { LoaiTinh, TrangThai } = query;
   const where = notDeleted();
 
-  applyScopedSearch(where, cleanText(search), cleanText(searchField), provinceSearchScopes);
   if (LoaiTinh) where.LoaiTinh = LoaiTinh;
 
   const status = parseBoolean(TrangThai);
@@ -78,12 +28,11 @@ const buildProvinceWhere = (query) => {
 };
 
 const buildWardWhere = (query) => {
-  const { search, searchField, MaTinh, Loai, KhuVuc, TrangThai } = query;
+  const { MaTinh, Loai, KhuVuc, TrangThai } = query;
   const where = notDeleted();
 
   if (MaTinh) where.MaTinh = MaTinh;
   if (KhuVuc) where.KhuVuc = KhuVuc;
-  applyScopedSearch(where, cleanText(search), cleanText(searchField), wardSearchScopes);
   if (Loai) where.Loai = Loai;
 
   const status = parseBoolean(TrangThai);
@@ -136,27 +85,27 @@ const rejectCodeChange = (body, field, currentValue, label, res) => {
 
 const getAllProvinces = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const where = buildProvinceWhere(req.query);
+    const { page, limit } = getPagination(req.query);
+    const where = buildProvinceWhere({ ...req.query, search: '' });
 
-    const [rows, total] = await Promise.all([
-      prisma.TINH.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { MaTinh: 'asc' },
-        include: { _count: { select: { PHUONGXA: { where: notDeleted() } } } }
-      }),
-      prisma.TINH.count({ where })
-    ]);
+    const rows = await prisma.TINH.findMany({
+      where,
+      orderBy: { MaTinh: 'asc' },
+      include: { _count: { select: { PHUONGXA: { where: notDeleted() } } } }
+    });
+    const searchField = cleanText(req.query.searchField);
+    const filtered = filterRowsByRegex(rows, req.query.search, (row) => {
+      const values = { MaTinh: [row.MaTinh], TenTinh: [row.TenTinh], LoaiTinh: [row.LoaiTinh] };
+      return values[searchField] || Object.values(values).flat();
+    });
 
     res.json({
       success: true,
-      data: await attachUpdaterNames(rows),
-      pagination: getPaginationMeta(total, page, limit)
+      data: await attachUpdaterNames(paginateRows(filtered, page, limit)),
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'getAllProvinces error:');
+    return sendErrorResponse(res, error, 'L\u1ed7i server', 'getAllProvinces error:');
   }
 };
 
@@ -251,27 +200,27 @@ const deleteProvince = async (req, res) => {
 
 const getAllWards = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const where = buildWardWhere(req.query);
+    const { page, limit } = getPagination(req.query);
+    const where = buildWardWhere({ ...req.query, search: '' });
 
-    const [rows, total] = await Promise.all([
-      prisma.PHUONGXA.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { MaPhuongXa: 'asc' },
-        include: { TINH: true }
-      }),
-      prisma.PHUONGXA.count({ where })
-    ]);
+    const rows = await prisma.PHUONGXA.findMany({
+      where,
+      orderBy: { MaPhuongXa: 'asc' },
+      include: { TINH: true }
+    });
+    const searchField = cleanText(req.query.searchField);
+    const filtered = filterRowsByRegex(rows, req.query.search, (row) => {
+      const values = { MaPhuongXa: [row.MaPhuongXa], TenPhuongXa: [row.TenPhuongXa], Loai: [row.Loai] };
+      return values[searchField] || Object.values(values).flat();
+    });
 
     res.json({
       success: true,
-      data: await attachUpdaterNames(rows),
-      pagination: getPaginationMeta(total, page, limit)
+      data: await attachUpdaterNames(paginateRows(filtered, page, limit)),
+      pagination: getPaginationMeta(filtered.length, page, limit)
     });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'getAllWards error:');
+    return sendErrorResponse(res, error, 'L\u1ed7i server', 'getAllWards error:');
   }
 };
 

@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { getPaginationMeta } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const {
@@ -258,24 +259,6 @@ const buildSemesterWhere = (query = {}) => {
   const dateFrom = exactDate || parseFilterDate(query.dateFrom, 'Từ ngày');
   const dateTo = exactDate || parseFilterDate(query.dateTo, 'Đến ngày');
 
-  if (q && query.searchField !== 'HocKy' && !SEMESTER_DATE_FIELDS.has(query.searchField)) {
-    const scopedSearch = {
-      semesterCode: [
-        { MaHocKy: { contains: q, mode: 'insensitive' } }
-      ],
-      semesterName: [
-        { TenHocKy: { contains: q, mode: 'insensitive' } }
-      ],
-      academicYear: [
-        { MaNamHoc: { contains: q, mode: 'insensitive' } },
-        { NAMHOC: { TenNamHoc: { contains: q, mode: 'insensitive' } } }
-      ]
-    };
-    and.push({
-      OR: scopedSearch[searchScope]
-    });
-  }
-
   if (semesterKind) and.push({ ThuTu: parseInt(semesterKind, 10) });
   if (status) and.push({ TrangThai: status });
   if (registrationFinalized === 'finalized') and.push({ NgayChotDangKy: { not: null } });
@@ -314,32 +297,39 @@ const attachUpdaterNames = async (rows = []) => {
 };
 
 const getSemesterPage = async (query = {}) => {
-  const { page, limit, skip } = getSemesterPagination(query);
-  const where = buildSemesterWhere(query);
-  const [semesters, total] = await Promise.all([
-    prisma.HOCKY.findMany({
-      where,
-      skip,
-      take: limit,
-      include: {
-        NAMHOC: true,
-        _count: {
-          select: {
-            LOPMO: true,
-            PHIEUDANGKY: true,
-            DONCUUXETDANGKY: { where: { TrangThai: APPEAL_STATUS.PENDING } }
-          }
+  const { page, limit } = getSemesterPagination(query);
+  const where = buildSemesterWhere({ ...query, q: '', search: '' });
+  const semesters = await prisma.HOCKY.findMany({
+    where,
+    include: {
+      NAMHOC: true,
+      _count: {
+        select: {
+          LOPMO: true,
+          PHIEUDANGKY: true,
+          DONCUUXETDANGKY: { where: { TrangThai: APPEAL_STATUS.PENDING } }
         }
-      },
-      orderBy: [{ NAMHOC: { NamBatDau: 'desc' } }, { ThuTu: 'asc' }, { MaHocKy: 'asc' }]
-    }),
-    prisma.HOCKY.count({ where })
-  ]);
+      }
+    },
+    orderBy: [{ NAMHOC: { NamBatDau: 'desc' } }, { ThuTu: 'asc' }, { MaHocKy: 'asc' }]
+  });
 
-  const withUpdaterNames = await attachUpdaterNames(semesters);
+  const searchScope = ['semesterCode', 'semesterName', 'academicYear'].includes(query.searchScope) ? query.searchScope : 'semesterCode';
+  const keyword = String(query.q || query.search || '').trim();
+  const filtered = filterRowsByRegex(semesters, keyword, (row) => {
+    const values = {
+      semesterCode: [row.MaHocKy],
+      semesterName: [row.TenHocKy],
+      academicYear: [row.MaNamHoc, row.NAMHOC && row.NAMHOC.TenNamHoc]
+    };
+    return values[searchScope] || values.semesterCode;
+  });
+  const pageRows = paginateRows(filtered, page, limit);
+
+  const withUpdaterNames = await attachUpdaterNames(pageRows);
   return {
     data: withUpdaterNames.map(semesterSelect),
-    pagination: getPaginationMeta(total, page, limit)
+    pagination: getPaginationMeta(filtered.length, page, limit)
   };
 };
 
@@ -828,21 +818,15 @@ const getAcademicYears = async (req, res) => {
     else if (status === 'inactive') where.TrangThai = false;
     else where.TrangThai = true;
 
-    if (search) {
-      const searchMap = {
-        MaNamHoc: [{ MaNamHoc: { contains: search, mode: 'insensitive' } }],
-        TenNamHoc: [{ TenNamHoc: { contains: search, mode: 'insensitive' } }]
-      };
-      where.OR = searchField === 'all'
-        ? [...searchMap.MaNamHoc, ...searchMap.TenNamHoc]
-        : searchMap[searchField];
-    }
-
     const years = await prisma.NAMHOC.findMany({ where, orderBy: [{ NamBatDau: 'desc' }, { MaNamHoc: 'desc' }] });
-    const withUpdaterNames = await attachUpdaterNames(years);
+    const filtered = filterRowsByRegex(years, search, (row) => {
+      const values = { MaNamHoc: [row.MaNamHoc], TenNamHoc: [row.TenNamHoc] };
+      return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
+    });
+    const withUpdaterNames = await attachUpdaterNames(filtered);
     res.json({ success: true, data: withUpdaterNames.map(academicYearSelect) });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'Get academic years error:');
+    return sendErrorResponse(res, error, 'L???i server', 'Get academic years error:');
   }
 };
 

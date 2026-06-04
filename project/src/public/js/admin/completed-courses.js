@@ -29,7 +29,7 @@ function applyFilters() {
     var el = document.getElementById(pair[1]);
     if (el && el.value) params.set(pair[0], el.value);
   });
-  window.location.href = '/admin/completed-courses?' + params.toString();
+  navigatePageContent('/admin/completed-courses?' + params.toString());
 }
 
 function notifyCompletedLockedField() {

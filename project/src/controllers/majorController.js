@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const {
   getCurriculumRows,
   validateCurriculumPlacement,
@@ -25,25 +26,27 @@ const parsePositiveNumber = (value, fallback = null) => {
 
 const getAllMajors = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search, MaKhoa, all } = req.query;
     const searchField = ['MaNganh', 'TenNganh', 'TenKhoa'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = notDeleted();
-    if (search) {
-      const searchMap = {
-        MaNganh: [{ MaNganh: { contains: search, mode: 'insensitive' } }],
-        TenNganh: [{ TenNganh: { contains: search, mode: 'insensitive' } }],
-        TenKhoa: [{ KHOA: { is: { TenKhoa: { contains: search, mode: 'insensitive' } } } }]
-      };
-      where.OR = searchField === 'all'
-        ? [...searchMap.MaNganh, ...searchMap.TenNganh, ...searchMap.TenKhoa]
-        : searchMap[searchField];
-    }
     if (MaKhoa) where.MaKhoa = MaKhoa;
-    const [majors, total] = await Promise.all([
-      prisma.NGANHHOC.findMany({ where, skip: all === 'true' ? undefined : skip, take: all === 'true' ? undefined : limit, orderBy: { MaNganh: 'asc' }, include: { KHOA: true, _count: { select: { SINHVIEN: true } } } }),
-      prisma.NGANHHOC.count({ where })
-    ]);
+    const rows = await prisma.NGANHHOC.findMany({
+      where,
+      orderBy: { MaNganh: 'asc' },
+      include: { KHOA: true, _count: { select: { SINHVIEN: true } } }
+    });
+    const getValues = (row) => {
+      const values = {
+        MaNganh: [row.MaNganh],
+        TenNganh: [row.TenNganh],
+        TenKhoa: [row.KHOA && row.KHOA.TenKhoa]
+      };
+      return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
+    };
+    const filtered = filterRowsByRegex(rows, search, getValues);
+    const majors = all === 'true' ? filtered : paginateRows(filtered, page, limit);
+    const total = filtered.length;
     res.json({ success: true, data: majors, pagination: getPaginationMeta(total, page, all === 'true' ? (total || limit) : limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'getAllMajors error:');

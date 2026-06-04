@@ -25,7 +25,7 @@ block content
           option(value="courseName" selected=(cpSearchField === 'courseName')) Tên môn
         label(for="cp-search") Từ khóa
         .search-box.curriculum-search-box
-          input#cp-search(type="text" name="search" value=(search || '') placeholder="Tìm mã ngành, tên ngành, mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceCurriculumProgramSearch()")
+          input#cp-search(type="text" name="search" value=(search || '') placeholder="Tìm mã ngành, tên ngành, mã môn hoặc tên môn" autocomplete="off" onkeydown="runSearchOnEnter(event, debounceCurriculumProgramSearch)")
       .curriculum-filter-field
         label(for="cp-major") Ngành
         select.form-control#cp-major(name="major" onchange="applyCurriculumProgramFilters()")

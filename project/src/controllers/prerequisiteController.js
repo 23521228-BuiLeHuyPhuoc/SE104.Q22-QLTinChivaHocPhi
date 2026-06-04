@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 
 const CONDITION_TYPES = new Set(['tien_quyet', 'hoc_truoc']);
 const SEARCH_FIELDS = new Set(['code', 'courseName', 'requiredName']);
@@ -20,39 +21,31 @@ const includeCourses = {
 
 const getPrerequisites = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '', searchField = 'code', LoaiDieuKien = '', TrangThai = '' } = req.query;
     const where = notDeleted();
     if (CONDITION_TYPES.has(LoaiDieuKien)) where.LoaiDieuKien = LoaiDieuKien;
     if (TrangThai !== '') where.TrangThai = TrangThai === 'true';
-    if (search) {
-      const field = SEARCH_FIELDS.has(searchField) ? searchField : 'code';
-      if (field === 'courseName') {
-        where.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC = { TenMonHoc: { contains: search, mode: 'insensitive' } };
-      } else if (field === 'requiredName') {
-        where.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC = { TenMonHoc: { contains: search, mode: 'insensitive' } };
-      } else {
-        where.OR = [
-          { MaMonHoc: { contains: search, mode: 'insensitive' } },
-          { MaMonDieuKien: { contains: search, mode: 'insensitive' } }
-        ];
-      }
-    }
 
-    const [rows, total] = await Promise.all([
-      prisma.DIEUKIENMONHOC.findMany({
-        where,
-        skip,
-        take: limit,
-        include: includeCourses,
-        orderBy: [{ MaMonHoc: 'asc' }, { LoaiDieuKien: 'asc' }, { MaMonDieuKien: 'asc' }]
-      }),
-      prisma.DIEUKIENMONHOC.count({ where })
-    ]);
+    const rows = await prisma.DIEUKIENMONHOC.findMany({
+      where,
+      include: includeCourses,
+      orderBy: [{ MaMonHoc: 'asc' }, { LoaiDieuKien: 'asc' }, { MaMonDieuKien: 'asc' }]
+    });
+    const field = SEARCH_FIELDS.has(searchField) ? searchField : 'code';
+    const filtered = filterRowsByRegex(rows, search, (row) => {
+      const values = {
+        code: [row.MaMonHoc, row.MaMonDieuKien],
+        courseName: [row.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC && row.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC.TenMonHoc],
+        requiredName: [row.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC && row.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC.TenMonHoc]
+      };
+      return values[field] || values.code;
+    });
+    const pageRows = paginateRows(filtered, page, limit);
 
-    res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data: pageRows, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get prerequisites error:');
+        return sendErrorResponse(res, error, 'L???i server', 'Get prerequisites error:');
   }
 };
 

@@ -2,6 +2,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 
 const parseBoolean = (value) => {
   if (value === undefined || value === null || value === '') return undefined;
@@ -67,31 +68,23 @@ const normalizePeriodPayload = (body, partial = false) => {
 
 const getPeriods = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '' } = req.query;
     const searchField = ['MaTiet', 'TenTiet'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = notDeleted();
     const status = parseBoolean(req.query.TrangThai);
     if (status !== undefined) where.TrangThai = status;
-    if (search) {
-      const searchMap = {
-        MaTiet: [{ MaTiet: { contains: search, mode: 'insensitive' } }],
-        TenTiet: [{ TenTiet: { contains: search, mode: 'insensitive' } }]
-      };
-      where.OR = searchField === 'all'
-        ? [...searchMap.MaTiet, ...searchMap.TenTiet]
-        : searchMap[searchField];
-    }
 
-    const [rows, total] = await Promise.all([
-      prisma.TIETHOC.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: [{ ThuTu: 'asc' }, { MaTiet: 'asc' }]
-      }),
-      prisma.TIETHOC.count({ where })
-    ]);
+    const allRows = await prisma.TIETHOC.findMany({
+      where,
+      orderBy: [{ ThuTu: 'asc' }, { MaTiet: 'asc' }]
+    });
+    const filtered = filterRowsByRegex(allRows, search, (row) => {
+      const values = { MaTiet: [row.MaTiet], TenTiet: [row.TenTiet] };
+      return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
+    });
+    const rows = paginateRows(filtered, page, limit);
+    const total = filtered.length;
 
     res.json({ success: true, data: rows, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {

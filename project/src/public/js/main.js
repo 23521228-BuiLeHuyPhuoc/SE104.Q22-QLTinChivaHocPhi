@@ -34,6 +34,186 @@ async function apiFetch(url, options) {
   return await res.json();
 }
 
+function runSearchOnEnter(event, callback) {
+  if (!event || event.key !== 'Enter') return;
+  event.preventDefault();
+  if (typeof callback === 'function') callback(event);
+}
+
+function escapeClientRegex(value) {
+  return String(value || '').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+function createClientSearchRegex(value) {
+  var keyword = String(value || '').trim();
+  if (!keyword) return null;
+  try {
+    return new RegExp(keyword, 'i');
+  } catch (e) {
+    return new RegExp(escapeClientRegex(keyword), 'i');
+  }
+}
+
+function clientRegexMatches(value, regex) {
+  if (!regex) return true;
+  regex.lastIndex = 0;
+  return regex.test(String(value == null ? '' : value));
+}
+
+var pageContentNavigationController = null;
+
+function getPageContentNavigationUrl(url) {
+  try {
+    return new URL(url, window.location.origin);
+  } catch (e) {
+    return null;
+  }
+}
+
+function canNavigatePageContent(url) {
+  var target = getPageContentNavigationUrl(url);
+  if (!target || target.origin !== window.location.origin) return false;
+  if (target.pathname.indexOf('/admin') !== 0) return false;
+  if (target.pathname.indexOf('/admin/login') === 0) return false;
+  return Boolean(document.querySelector('main.page-content'));
+}
+
+function getPageContentFocusState(root) {
+  var active = document.activeElement;
+  if (!root || !active || !root.contains(active)) return null;
+  if (!active.matches || !active.matches('input, textarea, select, button')) return null;
+  return {
+    id: active.id || '',
+    name: active.getAttribute('name') || '',
+    tag: active.tagName,
+    start: active.selectionStart,
+    end: active.selectionEnd
+  };
+}
+
+function getPageContentAttributeSelector(name, value) {
+  return '[' + name + '="' + String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]';
+}
+
+function restorePageContentFocus(root, state) {
+  if (!root || !state) return;
+  var selector = state.id ? getPageContentAttributeSelector('id', state.id) : '';
+  var target = selector ? root.querySelector(selector) : null;
+  if (!target && state.name) target = root.querySelector(state.tag.toLowerCase() + getPageContentAttributeSelector('name', state.name));
+  if (!target || !target.focus) return;
+  target.focus({ preventScroll: true });
+  if (typeof state.start === 'number' && typeof target.setSelectionRange === 'function') {
+    try { target.setSelectionRange(state.start, state.end); } catch (e) {}
+  }
+}
+
+function runPageContentUpdatedHooks(root, url) {
+  if (window.AdminUI) AdminUI.initReadonlyNotices(root || document);
+
+  [
+    'initFacultyMajorFilters',
+    'initStudentRowDetails',
+    'initAccountRowDetails',
+    'initPricingRowDetails',
+    'updatePricingSearchPlaceholder',
+    'initLecturerPage',
+    'initRoomPage',
+    'initBeneficiaryRowDetails',
+    'initNotificationRowDetails',
+    'renderPaymentActivityPanel',
+    'updateRegistrationSearchPlaceholder',
+    'renderRegistrationActivityPanel'
+  ].forEach(function(name) {
+    if (typeof window[name] === 'function') {
+      try { window[name](); } catch (e) {}
+    }
+  });
+
+  if (window.AdminUI && root) {
+    root.querySelectorAll('table.data-table').forEach(function(table) {
+      if (table.dataset.uiRowDetailReady === '1') return;
+      if (!table.querySelector('tbody tr[data-record]:not([onclick])')) return;
+      AdminUI.attachRowDetailHandlers({ table: table });
+    });
+  }
+
+  try {
+    document.dispatchEvent(new CustomEvent('admin:content-updated', { detail: { root: root, url: url } }));
+  } catch (e) {}
+}
+
+async function navigatePageContent(url, options) {
+  options = options || {};
+  var target = getPageContentNavigationUrl(url);
+  if (!target || !canNavigatePageContent(target.href)) {
+    window.location.href = target ? target.href : url;
+    return;
+  }
+
+  var root = document.querySelector('main.page-content');
+  var focusState = getPageContentFocusState(root);
+  if (pageContentNavigationController) pageContentNavigationController.abort();
+  pageContentNavigationController = window.AbortController ? new AbortController() : null;
+
+  root.classList.add('is-loading');
+  root.setAttribute('aria-busy', 'true');
+
+  try {
+    var headers = { 'X-Requested-With': 'fetch' };
+    var token = getToken();
+    if (token) headers.Authorization = 'Bearer ' + token;
+    var response = await fetch(target.href, {
+      method: 'GET',
+      headers: headers,
+      credentials: 'same-origin',
+      signal: pageContentNavigationController ? pageContentNavigationController.signal : undefined
+    });
+
+    var redirectedUrl = getPageContentNavigationUrl(response.url || target.href);
+    if (response.status === 401 || (redirectedUrl && redirectedUrl.pathname.indexOf('/admin/login') === 0)) {
+      clearToken();
+      window.location.href = getLoginPathForCurrentPage();
+      return;
+    }
+    if (!response.ok) throw new Error('Request failed');
+
+    var html = await response.text();
+    var nextDocument = new DOMParser().parseFromString(html, 'text/html');
+    var nextRoot = nextDocument.querySelector('main.page-content');
+    if (!nextRoot) throw new Error('Missing page content');
+
+    root.innerHTML = nextRoot.innerHTML;
+    if (nextDocument.title) document.title = nextDocument.title;
+
+    if (options.push !== false && target.href !== window.location.href) {
+      window.history.pushState({ pageContent: true }, '', target.pathname + target.search + target.hash);
+    }
+
+    runPageContentUpdatedHooks(root, target.href);
+    restorePageContentFocus(root, focusState);
+  } catch (error) {
+    if (error && error.name === 'AbortError') return;
+    window.location.href = target.href;
+  } finally {
+    root.classList.remove('is-loading');
+    root.removeAttribute('aria-busy');
+  }
+}
+
+document.addEventListener('click', function(event) {
+  var link = event.target.closest ? event.target.closest('nav.pagination a') : null;
+  if (!link || link.target || link.hasAttribute('download') || link.dataset.noAjax === 'true') return;
+  if (!canNavigatePageContent(link.href)) return;
+  event.preventDefault();
+  navigatePageContent(link.href);
+});
+
+window.addEventListener('popstate', function() {
+  if (canNavigatePageContent(window.location.href)) navigatePageContent(window.location.href, { push: false });
+});
+
+window.navigatePageContent = navigatePageContent;
+
 function showToast(message, type) {
   type = type || 'info';
   var container = document.getElementById('toast-container');
@@ -772,21 +952,23 @@ var AdminUI = (function() {
     });
 
     var search = overlay.querySelector('.admin-ui-picker-search input');
-    search.addEventListener('input', function() {
-      clearTimeout(pickerSearchTimer);
-      pickerSearchTimer = setTimeout(renderPickerResults, 250);
+    search.addEventListener('keydown', function(event) {
+      runSearchOnEnter(event, function() {
+        clearTimeout(pickerSearchTimer);
+        pickerSearchTimer = setTimeout(renderPickerResults, 250);
+      });
     });
     return overlay;
   }
 
   function getLocalPickerItems(config, search) {
     var items = asArray(config.items);
-    var keyword = String(search || '').trim().toLowerCase();
-    if (!keyword) return items;
+    var regex = createClientSearchRegex(search);
+    if (!regex) return items;
     return items.filter(function(item) {
       var mapped = mapPickerItem(config, item);
       return [mapped.value, mapped.label, mapped.meta].some(function(value) {
-        return String(value || '').toLowerCase().indexOf(keyword) >= 0;
+        return clientRegexMatches(value, regex);
       });
     });
   }

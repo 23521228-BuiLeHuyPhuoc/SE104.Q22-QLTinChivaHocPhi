@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex } = require('../utils/searchRegex');
 
 const active = { DaXoa: false };
 const PAYMENT_SUCCESS = 'Thành công';
@@ -10,13 +11,6 @@ const getTuitionDebtRows = async (filters = {}) => {
   const studentWhere = { DaXoa: false };
   if (filters.MaNganh) studentWhere.MaNganh = filters.MaNganh;
   if (filters.MaKhoa) studentWhere.NGANHHOC = { MaKhoa: filters.MaKhoa };
-  if (filters.search) {
-    studentWhere.OR = [
-      { MaSv: { contains: filters.search, mode: 'insensitive' } },
-      { HoTen: { contains: filters.search, mode: 'insensitive' } }
-    ];
-  }
-
   const where = {
     SINHVIEN: studentWhere,
     HOCKY: active
@@ -34,7 +28,7 @@ const getTuitionDebtRows = async (filters = {}) => {
   });
 
   const now = new Date();
-  return rows.map((row) => {
+  const mappedRows = rows.map((row) => {
     const totalDue = toNumber(row.TongTienPhaiDong);
     const totalPaid = row.PHIEUTHUHOCPHI.reduce((sum, receipt) => sum + toNumber(receipt.SoTienThu), 0);
     const debt = Math.max(totalDue - totalPaid, 0);
@@ -64,7 +58,9 @@ const getTuitionDebtRows = async (filters = {}) => {
       QuaHan: overdue,
       TrangThai: status
     };
-  })
+  });
+
+  return filterRowsByRegex(mappedRows, filters.search, (row) => [row.MaSv, row.MSSV, row.HoTen])
     .filter((row) => row.ConNo > 0)
     .filter((row) => !filters.TrangThai || row.TrangThai === filters.TrangThai)
     .filter((row) => filters.overdue === undefined || row.QuaHan === filters.overdue)

@@ -2,33 +2,30 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 
 const getAllFaculties = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search } = req.query;
     const searchField = ['MaKhoa', 'TenKhoa', 'TenVietTat'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = notDeleted();
-    if (search) {
-      const searchMap = {
-        MaKhoa: [{ MaKhoa: { contains: search, mode: 'insensitive' } }],
-        TenKhoa: [{ TenKhoa: { contains: search, mode: 'insensitive' } }],
-        TenVietTat: [{ TenVietTat: { contains: search, mode: 'insensitive' } }]
+    const rows = await prisma.KHOA.findMany({
+      where,
+      orderBy: { MaKhoa: 'asc' },
+      include: { _count: { select: { MONHOC: true, NGANHHOC: true } } }
+    });
+    const getValues = (row) => {
+      const values = {
+        MaKhoa: [row.MaKhoa],
+        TenKhoa: [row.TenKhoa],
+        TenVietTat: [row.TenVietTat]
       };
-      where.OR = searchField === 'all'
-        ? [...searchMap.MaKhoa, ...searchMap.TenKhoa, ...searchMap.TenVietTat]
-        : searchMap[searchField];
-    }
-    const [faculties, total] = await Promise.all([
-      prisma.KHOA.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { MaKhoa: 'asc' },
-        include: { _count: { select: { MONHOC: true, NGANHHOC: true } } }
-      }),
-      prisma.KHOA.count({ where })
-    ]);
+      return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
+    };
+    const filtered = filterRowsByRegex(rows, search, getValues);
+    const faculties = paginateRows(filtered, page, limit);
+    const total = filtered.length;
     res.json({ success: true, data: faculties, pagination: getPaginationMeta(total, page, limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'getAllFaculties error:');

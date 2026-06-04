@@ -11,7 +11,7 @@ block content
         option(value="Khoa" selected=(searchField === 'Khoa')) Khoa
         option(value="Email" selected=(searchField === 'Email')) Email
         option(value="MaHocKy" selected=(searchField === 'MaHocKy')) Học kỳ
-      input#search-input(type="text" placeholder="Tìm giảng viên..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceLecturerSearch()")
+      input#search-input(type="text" placeholder="Tìm giảng viên..." value=(search || '') data-search-field=(searchField || 'all') onkeydown="runSearchOnEnter(event, debounceLecturerSearch)")
     .filter-group.admin-filter-group
       select.form-control#filter-semester(onchange="applyLecturerFilters()")
         if semesterOptions && semesterOptions.length

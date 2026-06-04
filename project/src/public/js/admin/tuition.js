@@ -24,7 +24,7 @@ function applyFilters() {
   if (searchField && searchField !== 'all') url += '&searchField=' + encodeURIComponent(searchField);
   if (semester) url += '&MaHocKy=' + encodeURIComponent(semester);
   if (status) url += '&status=' + encodeURIComponent(status);
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 function closeTuitionDetail() {

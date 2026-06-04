@@ -28,7 +28,7 @@ function applyFilters() {
   var params = new URLSearchParams({ page: '1' });
   if (s) params.set('search', s);
   if (searchField && searchField !== 'all') params.set('searchField', searchField);
-  window.location.href = '/admin/faculties?' + params.toString();
+  navigatePageContent('/admin/faculties?' + params.toString());
 }
 
 function setFacultyCodeReadonly(isReadonly) {

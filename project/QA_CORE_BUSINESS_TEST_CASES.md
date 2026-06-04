@@ -35,10 +35,10 @@ Pham vi: audit source code trong `project/src`, `project/prisma`, `project/tests
 | Nhom | Rule trong code |
 |---|---|
 | Hoc ky | `NgayBatDau < NgayKetThuc`; ngay dang ky phai truoc ngay bat dau hoc ky; cuu xet bat dau sau ket thuc dang ky; han dong hoc phi nam trong hoc ky; chi mot hoc ky `Dang dien ra`; finalize chi sau khi cuu xet ket thuc va khong con don pending; mo thu hoc phi chi sau finalize. |
-| Dang ky | Sinh vien chi dang ky cho chinh minh; admin co the dang ky thay; chi dang ky trong registration window; khoa dang ky/huy khi phieu da co thanh toan `Thanh cong`; khong dang ky trung mon active; kiem tra trung lich theo thu va tiet overlap inclusive; kiem tra gioi han tin chi theo `THAMSO` va rule Anh Van; kiem tra lop con cho; sau sua co kiem tra mon tien quyet `tien_quyet`. |
+| Dang ky | Sinh vien chi dang ky cho chinh minh; admin co the dang ky thay; chi dang ky trong registration window; khoa dang ky/huy khi phieu da co thanh toan `Thanh cong`; khong dang ky trung mon active; kiem tra trung lich theo thu va tiet bang khoang `[start, effectiveEnd)` va cho phep cham bien; kiem tra gioi han tin chi theo `THAMSO` va rule Anh Van; kiem tra lop con cho; sau sua co kiem tra mon tien quyet `tien_quyet`. |
 | Huy dang ky | Chi huy trong han dang ky truc tiep; khong huy khi phieu da thanh toan thanh cong; huy cap nhat `CHITIETDANGKY`, giam `LOPMO.SoLuongDaDangKy`, tinh lai tong tien va tin chi. |
 | Cuu xet | Sinh vien chi thao tac don cua minh; validate loai don `them/huy/doi`; chi gui trong appeal window; khong gui/duyet sau `NgayChotDangKy` hoac khi `MoThuHocPhi`; duyet them/doi chay lai rule lop day, trung mon, trung lich, tin chi, tien quyet, tinh hoc phi. |
-| Lop/lop mo | Lop mo phai thuoc mon hoc da mo trong hoc ky; lich lop mo kiem tra trung phong, trung giang vien, trung lop theo overlap inclusive; tiet bat dau <= tiet ket thuc; thu trong tuan 1-7; phong/giang vien phai active. |
+| Lop/lop mo | Lop mo phai thuoc mon hoc da mo trong hoc ky; lich lop mo kiem tra trung phong, trung giang vien, trung lop bang khoang `[start, effectiveEnd)` va cho phep cham bien; tiet bat dau <= tiet ket thuc; thu trong tuan 1-7; phong/giang vien phai active. |
 | Hoc phi | Tien tung dong = `SoTinChi * DonGia`; `LoaiHoc` tu lich su `MONDAHOC`: qua mon -> `hoc_cai_thien`, rot -> `hoc_lai`, mac dinh `hoc_moi`; hoc ky he doi `hoc_moi` thanh `hoc_he`; tong phieu chi tinh chi tiet active; mien giam chon doi tuong active co `DoUuTien` nho nhat. |
 | Thanh toan | Admin tao phieu thu dung so tien con no; chi thanh toan sau khi het dang ky/cuu xet, da finalize, khong con don pending, `MoThuHocPhi=true`; checkout so tien phai bang phieu thu va bang con no; admin confirm chi cho receipt pending; success payment khoa dang ky/huy. |
 | Permission | Student endpoints `student/:studentId` co `ensureStudentAccess`; admin route dung `adminMiddleware`; VNPAY/ZaloPay callback khong auth nhung co signature/mac. |
@@ -107,7 +107,7 @@ Admin tao nam hoc qua `/api/semesters/years`, tao hoc ky qua `/api/semesters`, v
 
 ### B. Admin mo lop hoc phan
 
-Mo mon hoc trong hoc ky qua `MONHOCMO`; mo lop qua `LOPMO` chi khi mon cua lop da mo. Lich hoc trong `LICHHOCLOP` phai co thu 1-7, tiet bat dau <= tiet ket thuc, phong active, giang vien active. Trung phong/giang vien/lop trong cung hoc ky bi chan bang overlap inclusive `start <= oldEnd && oldStart <= end`.
+Mo mon hoc trong hoc ky qua `MONHOCMO`; mo lop qua `LOPMO` chi khi mon cua lop da mo. Lich hoc trong `LICHHOCLOP` phai co thu 1-7, tiet bat dau <= tiet ket thuc, phong active, giang vien active. Trung phong/giang vien/lop trong cung hoc ky bi chan bang overlap nua mo `start < oldEffectiveEnd && oldStart < effectiveEnd`; cac khoang chi cham bien nhu `1-3` va `3-5` duoc phep.
 
 ### C. Sinh vien dang ky hoc phan
 
@@ -172,8 +172,8 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 | CLS-007 | Admin / Classes | Tao lop | Phong active | Validation | Admin | MaPhong khoa | POST | 400 | `LOP` | High | Supertest |
 | CLS-008 | Admin / Classes | Tao lop | Giang vien active | Validation | Admin | MaGV khoa | POST | 400 | `LOP` | High | Supertest |
 | CLS-009 | Admin / Classes | Catalog schedule | Trung phong cung tiet | Business rule | Lop A phong P tiet 1-3 | Tao B P tiet 2-4 | 409 | `LOP` | Critical | Supertest |
-| CLS-010 | Admin / Classes | Catalog schedule | Trung GV cung tiet | Business rule | Lop A GV G tiet 1-3 | Tao B G tiet 3-5 | 409 inclusive | `LOP` | Critical | Supertest |
-| CLS-011 | Admin / Classes | Catalog schedule | Giao bien tiet la trung | Boundary | A tiet 1-3 | B tiet 3-5 | 409 | `LOP` | Critical | Supertest |
+| CLS-010 | Admin / Classes | Catalog schedule | Trung GV cung tiet | Business rule | Lop A GV G tiet 1-4 | Tao B G tiet 2-4 | 409 overlap that | `LOP` | Critical | Supertest |
+| CLS-011 | Admin / Classes | Catalog schedule | Cham bien tiet khong trung | Boundary | A tiet 1-3 | B tiet 3-5 | 201 | `LOP` | Critical | Supertest |
 | CLS-012 | Admin / Classes | Catalog schedule | Khac ngay khong trung | Happy path | A thu 2 | B thu 3 | 201 | `LOP` | Medium | Supertest |
 | CLS-013 | Admin / Classes | Sua lop | Khong cho ten rong | Validation | Co lop | TenLop spaces | PUT | 400 | `LOP` | Medium | Supertest |
 | CLS-014 | Admin / Classes | Xoa lop | Soft delete | Happy path | Lop chua dung | DELETE | `DaXoa=true` | `LOP` | Medium | Supertest |
@@ -210,7 +210,7 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 | REG-015 | Student / Course Registration | Dang ky | Trung mon khac lop | Business rule | Da DK mon M lop A | POST lop B cung mon | 400 | `CHITIETDANGKY` | Critical | Supertest |
 | REG-016 | Student / Course Registration | Dang ky | Trung lop/double click | Regression | Da DK lop | POST lai | 400/409 | Unique `uq_ctdk` | Critical | Supertest |
 | REG-017 | Student / Course Registration | Dang ky | Trung lich cung thu overlap | Business rule | Da DK tiet 1-3 | DK tiet 2-4 | 400 | `CHITIETDANGKY` | Critical | Supertest |
-| REG-018 | Student / Course Registration | Dang ky | Giao bien tiet trung | Boundary | Da DK tiet 1-3 | DK tiet 3-5 | 400 | `CHITIETDANGKY` | Critical | Supertest |
+| REG-018 | Student / Course Registration | Dang ky | Cham bien tiet khong trung | Boundary | Da DK tiet 1-3 | DK tiet 3-5 | 200 | `CHITIETDANGKY` | Critical | Supertest |
 | REG-019 | Student / Course Registration | Dang ky | Khac thu khong trung | Happy path | Da DK thu 2 | DK thu 3 | 201 | `CHITIETDANGKY` | High | Supertest |
 | REG-020 | Student / Course Registration | Dang ky | Vuot max tin chi THAMSO | Boundary | SV da gan max | DK them | 400 | `PHIEUDANGKY.TongTinChi` | Critical | Supertest |
 | REG-021 | Student / Course Registration | Dang ky | Anh Van chua dat bi gioi han tin chi | Business rule | Qua nam check, thieu ENG | DK vuot limit | 400 | `THAMSO`, `MONDAHOC` | High | Supertest |
@@ -384,7 +384,7 @@ Admin tao phieu thu dung con no sau khi payment window open. Student checkout re
 |---|---|
 | Hoc ky | `HK_NOT_OPEN`, `HK_REG_OPEN`, `HK_REG_CLOSED`, `HK_APPEAL_OPEN`, `HK_FINALIZED`, `HK_TUITION_OPEN`, `HK_TUITION_OVERDUE`. Moi HK co nam hoc, ngay start/end, registration/appeal/payment deadlines khac nhau. |
 | Sinh vien | `SV_NORMAL`, `SV_DISCOUNT50`, `SV_MULTI_DISCOUNT`, `SV_PASSED_PREREQ`, `SV_MISSING_PREREQ`, `SV_NEAR_MAX_CREDIT`, `SV_PAID`, `SV_DEBT`. Moi SV co account token rieng. |
-| Mon/lop | Mon LT, TH; mon co `tien_quyet`; lop con cho, lop day, cung mon khac lop, trung lich hoan toan, trung lich giao bien, khac lich, lop thieu don gia. |
+| Mon/lop | Mon LT, TH; mon co `tien_quyet`; lop con cho, lop day, cung mon khac lop, trung lich hoan toan, trung lich giao that, cham bien khong trung, khac lich, lop thieu don gia. |
 | Don gia | Default LT/TH cho `hoc_moi/hoc_lai/hoc_cai_thien/hoc_he`; price hoc ky override; scope thieu gia de test `MISSING_CREDIT_PRICE`. |
 | Mien giam | DT 0%, 50%, 100%, inactive, nhieu DT voi `DoUuTien` khac nhau. |
 | Thanh toan | Receipt unpaid, pending, success, failed, canceled, refund; receipt stale amount; VNPAY/ZaloPay signed payload sandbox. |

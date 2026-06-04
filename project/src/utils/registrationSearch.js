@@ -4,71 +4,25 @@ const normalizeRegistrationSearchScope = (value) => (
   REGISTRATION_SEARCH_SCOPES.includes(value) ? value : 'studentId'
 );
 
-const containsInsensitive = (value) => ({ contains: value, mode: 'insensitive' });
-
-const appendAndCondition = (where, condition) => {
-  if (!condition) return;
-  where.AND = [...(where.AND || []), condition];
-};
-
-const buildRegistrationSearchCondition = (scope, search) => {
-  const keyword = String(search || '').trim();
-  if (!keyword) return null;
-
+const getRegistrationSearchValues = (row, scope) => {
   const normalizedScope = normalizeRegistrationSearchScope(scope);
+  const student = row.SINHVIEN || {};
+  const major = student.NGANHHOC || {};
+  const faculty = major.KHOA || {};
+  const semester = row.HOCKY || {};
+  const year = semester.NAMHOC || {};
 
-  if (normalizedScope === 'studentName') {
-    return { SINHVIEN: { HoTen: containsInsensitive(keyword) } };
-  }
-
-  if (normalizedScope === 'major') {
-    return {
-      SINHVIEN: {
-        NGANHHOC: {
-          OR: [
-            { MaNganh: containsInsensitive(keyword) },
-            { TenNganh: containsInsensitive(keyword) }
-          ]
-        }
-      }
-    };
-  }
-
-  if (normalizedScope === 'faculty') {
-    return {
-      SINHVIEN: {
-        NGANHHOC: {
-          KHOA: {
-            OR: [
-              { MaKhoa: containsInsensitive(keyword) },
-              { TenKhoa: containsInsensitive(keyword) }
-            ]
-          }
-        }
-      }
-    };
-  }
-
+  if (normalizedScope === 'studentName') return [student.HoTen, row.HoTen];
+  if (normalizedScope === 'major') return [major.MaNganh, major.TenNganh];
+  if (normalizedScope === 'faculty') return [faculty.MaKhoa, faculty.TenKhoa];
   if (normalizedScope === 'semester') {
-    return {
-      OR: [
-        { MaHocKy: containsInsensitive(keyword) },
-        { HOCKY: { TenHocKy: containsInsensitive(keyword) } },
-        { HOCKY: { NAMHOC: { MaNamHoc: containsInsensitive(keyword) } } },
-        { HOCKY: { NAMHOC: { TenNamHoc: containsInsensitive(keyword) } } }
-      ]
-    };
+    return [row.MaHocKy, semester.MaHocKy, semester.TenHocKy, year.MaNamHoc, year.TenNamHoc];
   }
-
-  return { MaSv: containsInsensitive(keyword) };
-};
-
-const applyRegistrationSearch = (where, scope, search) => {
-  appendAndCondition(where, buildRegistrationSearchCondition(scope, search));
+  return [row.MaSv, student.MaSv];
 };
 
 module.exports = {
   REGISTRATION_SEARCH_SCOPES,
   normalizeRegistrationSearchScope,
-  applyRegistrationSearch
+  getRegistrationSearchValues
 };

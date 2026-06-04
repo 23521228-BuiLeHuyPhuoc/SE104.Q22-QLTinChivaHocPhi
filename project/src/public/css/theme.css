@@ -2967,3 +2967,119 @@ select.ui-readonly-field,
     grid-template-columns: 60px repeat(6, minmax(90px, 1fr));
   }
 }
+
+/* FOLLOW-UP ADMIN UI POLISH 2026-06-04 */
+.students-search-group {
+  max-width: 620px;
+}
+
+.students-search-group.search-box.search-box-with-criterion {
+  grid-template-columns: minmax(118px, 136px) minmax(300px, 1fr);
+}
+
+.students-table {
+  min-width: 1380px;
+  table-layout: fixed;
+}
+
+.students-table th:nth-child(1),
+.students-table td:nth-child(1) {
+  width: 132px;
+  white-space: nowrap;
+}
+
+.students-table th:nth-child(2) { width: 190px; }
+.students-table th:nth-child(3) { width: 260px; }
+.students-table th:nth-child(4) { width: 180px; }
+.students-table th:nth-child(5) { width: 170px; }
+.students-table th:nth-child(6) { width: 120px; }
+.students-table th:nth-child(7) { width: 170px; }
+.students-table th:nth-child(8) { width: 140px; }
+.students-table th:nth-child(9) { width: 140px; }
+.students-table th:nth-child(10) { width: 120px; }
+.students-table th:nth-child(11) { width: 150px; }
+
+.beneficiaries-table {
+  min-width: 1180px;
+  table-layout: fixed;
+}
+
+.beneficiaries-table th:nth-child(1),
+.beneficiaries-table td:nth-child(1) {
+  width: 180px;
+  white-space: nowrap;
+}
+
+.debt-filter-toolbar {
+  align-items: end;
+  gap: var(--spacing-md);
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+}
+
+.debt-filter-toolbar .debt-search-group {
+  align-self: end;
+  height: 44px;
+  max-width: 300px;
+}
+
+.debt-filter-toolbar .debt-search-group input {
+  height: 44px;
+}
+
+.debt-filter-toolbar .debt-search-group::before {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.debt-filter-toolbar .debt-search-group::after {
+  top: 50%;
+  transform: translateY(3px) rotate(45deg);
+}
+
+.debt-filter-toolbar .debt-select-group {
+  align-self: end;
+  grid-auto-flow: row;
+  grid-template-columns: minmax(150px, 0.72fr) minmax(260px, 1.35fr) minmax(190px, 0.9fr) minmax(230px, 1.08fr);
+}
+
+.permissions-heading-toolbar {
+  margin-bottom: 8px;
+}
+
+.permission-tabs {
+  margin-bottom: 6px;
+}
+
+.permission-action-toolbar {
+  margin-bottom: 6px;
+}
+
+.permission-action-toolbar + .card {
+  margin-top: 0;
+}
+
+/* FOLLOW-UP ADMIN UI RESPONSIVE RESET 2026-06-04 */
+@media (max-width: 860px) {
+  .students-search-group.search-box.search-box-with-criterion {
+    grid-template-columns: 1fr;
+  }
+
+  .students-search-group.search-box.search-box-with-criterion .admin-search-label,
+  .students-search-group.search-box.search-box-with-criterion .ui-search-criterion-select,
+  .students-search-group.search-box.search-box-with-criterion input {
+    grid-column: 1;
+  }
+
+  .debt-filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .debt-filter-toolbar .debt-search-group {
+    max-width: none;
+    width: 100%;
+  }
+
+  .debt-filter-toolbar .debt-select-group {
+    grid-template-columns: 1fr;
+  }
+}

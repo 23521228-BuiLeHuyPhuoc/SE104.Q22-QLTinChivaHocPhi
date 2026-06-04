@@ -2,7 +2,8 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { assertRegistrationOpen, getRegistrationWindowState, getAppealWindowState } = require('../utils/registrationWindow');
-const { applyRegistrationSearch, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
+const { getRegistrationSearchValues, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { buildRegistrationStudentRows, buildRegistrationDistribution, getRegistrationSemesterName } = require('../utils/registrationStats');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../utils/businessConstants');
 const { createCourseRegistrationNotification } = require('../utils/notificationEvents');
@@ -459,8 +460,8 @@ const ensureNoScheduleConflict = async (tx, maSv, maHocKy, maLop) => {
       AND lm_new."MaLop" = ${maLop}
       AND COALESCE(lm_new."TrangThai", TRUE) = TRUE
       AND lh_new."ThuTrongTuan" = lh_old."ThuTrongTuan"
-      AND tbn."ThuTu" <= teo."ThuTu"
-      AND tbo."ThuTu" <= ten."ThuTu"
+      AND tbn."ThuTu" < CASE WHEN teo."ThuTu" > tbo."ThuTu" THEN teo."ThuTu" ELSE tbo."ThuTu" + 1 END
+      AND tbo."ThuTu" < CASE WHEN ten."ThuTu" > tbn."ThuTu" THEN ten."ThuTu" ELSE tbn."ThuTu" + 1 END
     LIMIT 1
   `;
   if (conflicts.length) {
@@ -580,32 +581,32 @@ const recalculateRegistrationPricingForScope = async (tx, scope = {}) => {
 
 const getAllRegistrations = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '', MaHocKy, TrangThai } = req.query;
     const searchScope = normalizeRegistrationSearchScope(req.query.searchScope);
     const where = {};
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (TrangThai) where.TrangThai = TrangThai;
-    applyRegistrationSearch(where, searchScope, search);
 
-    const [rows, total] = await Promise.all([
-      prisma.PHIEUDANGKY.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { NgayLap: 'desc' },
-        include: { SINHVIEN: true, HOCKY: { include: { NAMHOC: true } }, CHITIETDANGKY: true }
-      }),
-      prisma.PHIEUDANGKY.count({ where })
-    ]);
+    const rows = await prisma.PHIEUDANGKY.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: {
+        SINHVIEN: { include: { NGANHHOC: { include: { KHOA: true } } } },
+        HOCKY: { include: { NAMHOC: true } },
+        CHITIETDANGKY: true
+      }
+    });
+    const filtered = filterRowsByRegex(rows, search, (row) => getRegistrationSearchValues(row, searchScope));
+    const pageRows = paginateRows(filtered, page, limit);
 
-    const data = rows.map((r) => ({
+    const data = pageRows.map((r) => ({
       SoPhieu: r.SoPhieu,
       MaSv: r.MaSv,
-      HoTen: r.SINHVIEN.HoTen,
+      HoTen: r.SINHVIEN?.HoTen || '',
       MaHocKy: r.MaHocKy,
       TenHocKy: getRegistrationSemesterName(r).replace(/ - .+$/, ''),
-      TenNamHoc: r.HOCKY.NAMHOC.TenNamHoc,
+      TenNamHoc: r.HOCKY?.NAMHOC?.TenNamHoc || '',
       HocKyDisplay: getRegistrationSemesterName(r),
       soMon: r.CHITIETDANGKY.filter((c) => c.TrangThai === ACTIVE_REGISTRATION_STATUS).length,
       TongTinChi: r.TongTinChi,
@@ -614,9 +615,9 @@ const getAllRegistrations = async (req, res) => {
       TrangThai: r.TrangThai
     }));
 
-    res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all registrations error:');
+        return sendErrorResponse(res, error, 'L?i server', 'Get all registrations error:');
   }
 };
 
@@ -652,7 +653,6 @@ const exportRegistrations = async (req, res) => {
     const where = {};
     if (MaHocKy) where.MaHocKy = MaHocKy;
     if (status) where.TrangThai = status;
-    applyRegistrationSearch(where, searchScope, search);
 
     const registrations = await prisma.PHIEUDANGKY.findMany({
       where,
@@ -671,8 +671,9 @@ const exportRegistrations = async (req, res) => {
         }
       }
     });
+    const filtered = filterRowsByRegex(registrations, search, (row) => getRegistrationSearchValues(row, searchScope));
 
-    const studentRows = buildRegistrationStudentRows(registrations);
+    const studentRows = buildRegistrationStudentRows(filtered);
     const xml = buildRegistrationStatsExcelXml({
       byFaculty: buildRegistrationDistribution(studentRows, 'faculty'),
       byMajor: buildRegistrationDistribution(studentRows, 'major')
@@ -681,7 +682,7 @@ const exportRegistrations = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="thong-ke-dang-ky-mon-hoc.xls"');
     res.send(Buffer.from(xml, 'utf8'));
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'Export registrations error:');
+    return sendErrorResponse(res, error, 'L?i server', 'Export registrations error:');
   }
 };
 
@@ -876,7 +877,7 @@ const getStudentCourses = async (req, res) => {
 
 const getAvailableCourses = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { MaHocKy, search = '', MaKhoa } = req.query;
     const searchScope = normalizeAvailableSearchScope(req.query.searchScope);
     const courseType = String(req.query.LoaiMon || '').trim().toUpperCase();
@@ -951,47 +952,6 @@ const getAvailableCourses = async (req, res) => {
       }
     };
     const andFilters = [];
-    if (search) {
-      if (searchScope === 'lecturer') {
-        andFilters.push({
-          OR: [
-            { MaGiangVien: { contains: search, mode: 'insensitive' } },
-            { GiangVien: { contains: search, mode: 'insensitive' } },
-            {
-              GIANGVIEN: {
-                is: {
-                  OR: [
-                    { MaGiangVien: { contains: search, mode: 'insensitive' } },
-                    { HoTen: { contains: search, mode: 'insensitive' } },
-                    { HocHamHocVi: { contains: search, mode: 'insensitive' } }
-                  ]
-                }
-              }
-            }
-          ]
-        });
-      } else if (searchScope === 'class') {
-        andFilters.push({
-          LOP: {
-            OR: [
-              { MaLop: { contains: search, mode: 'insensitive' } },
-              { TenLop: { contains: search, mode: 'insensitive' } }
-            ]
-          }
-        });
-      } else {
-        andFilters.push({
-          LOP: {
-            MONHOC: {
-              OR: [
-                { MaMonHoc: { contains: search, mode: 'insensitive' } },
-                { TenMonHoc: { contains: search, mode: 'insensitive' } }
-              ]
-            }
-          }
-        });
-      }
-    }
     if (MaKhoa) where.LOP.MONHOC.MaKhoa = MaKhoa;
     if (courseType) where.LOP.MONHOC.LoaiMon = courseType;
     if (weekday || periodStartOrder !== null || periodEndOrder !== null) {
@@ -1007,32 +967,29 @@ const getAvailableCourses = async (req, res) => {
     }
     if (andFilters.length) where.AND = andFilters;
 
-    const [rows, total, currentRegistration] = await Promise.all([
+    const [availableRows, currentRegistration] = await Promise.all([
       prisma.LOPMO.findMany({
-      where,
-      skip,
-      take: limit,
-      include: {
-        LOP: {
-          include: {
-            MONHOC: { include: { KHOA: true } },
-            CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy } } }
-          }
-        },
-        GIANGVIEN: true,
-        LICHHOCLOP: {
-          where: { TrangThai: true },
-          include: {
-            PHONGHOC: true,
-            TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
-            TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+        where,
+        include: {
+          LOP: {
+            include: {
+              MONHOC: { include: { KHOA: true } },
+              CHITIETDANGKY: { where: { TrangThai: ACTIVE_REGISTRATION_STATUS, PHIEUDANGKY: { MaHocKy } } }
+            }
           },
-          orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
-        },
-        HOCKY: true
-      }
-    }),
-      prisma.LOPMO.count({ where }),
+          GIANGVIEN: true,
+          LICHHOCLOP: {
+            where: { TrangThai: true },
+            include: {
+              PHONGHOC: true,
+              TIETHOC_LICHHOCLOP_MaTietBatDauToTIETHOC: true,
+              TIETHOC_LICHHOCLOP_MaTietKetThucToTIETHOC: true
+            },
+            orderBy: [{ ThuTrongTuan: 'asc' }, { MaTietBatDau: 'asc' }]
+          },
+          HOCKY: true
+        }
+      }),
       studentId ? prisma.PHIEUDANGKY.findFirst({
         where: { MaSv: studentId, MaHocKy },
         include: {
@@ -1044,6 +1001,8 @@ const getAvailableCourses = async (req, res) => {
       }) : null
     ]);
     const lockedByPayment = hasSuccessfulPayment(currentRegistration);
+    const filteredRows = filterRowsByRegex(availableRows, search, (row) => getAvailableCourseSearchValues(row, searchScope));
+    const rows = paginateRows(filteredRows, page, limit);
 
     const data = await Promise.all(rows.map(async (r) => {
       const course = r.LOP.MONHOC;
@@ -1084,7 +1043,7 @@ const getAvailableCourses = async (req, res) => {
       };
     }));
 
-    res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
+    res.json({ success: true, data, pagination: getPaginationMeta(filteredRows.length, page, limit) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get available courses error:');
   }

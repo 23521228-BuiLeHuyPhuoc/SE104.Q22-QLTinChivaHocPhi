@@ -121,7 +121,7 @@ function applyCourseFilters() {
   if (search) params.set('search', search);
   if (faculty) params.set('MaKhoa', faculty);
   if (type) params.set('LoaiMon', type);
-  window.location.href = '/admin/courses?' + params.toString();
+  navigatePageContent('/admin/courses?' + params.toString());
 }
 
 function debounceSearch() {

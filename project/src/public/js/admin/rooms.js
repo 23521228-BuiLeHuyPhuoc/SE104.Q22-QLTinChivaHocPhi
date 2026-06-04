@@ -55,7 +55,7 @@ function applyRoomFilters() {
   if (type && type.value) params.set('type', type.value);
   if (usedStatus && usedStatus.value) params.set('usedStatus', usedStatus.value);
   if (status && status.value) params.set('status', status.value);
-  window.location.href = '/admin/rooms?' + params.toString();
+  navigatePageContent('/admin/rooms?' + params.toString());
 }
 
 function debounceRoomSearch() {

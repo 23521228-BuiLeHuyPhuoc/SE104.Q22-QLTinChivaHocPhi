@@ -16,7 +16,7 @@ function setLocationParam(params, key, value) {
 
 function redirectLocationPage(path, params) {
   var query = params.toString();
-  window.location.href = path + (query ? '?' + query : '');
+  navigatePageContent(path + (query ? '?' + query : ''));
 }
 
 function escapeLocationHtml(value) {

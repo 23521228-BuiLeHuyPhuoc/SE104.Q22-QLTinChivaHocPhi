@@ -3,7 +3,7 @@ extends ../../layouts/admin
 block content
   .toolbar.admin-toolbar
     .search-box.admin-search-group
-      input#trash-search(type="text" placeholder="Tìm mã hoặc tên đã xóa..." onkeyup="debounceTrashSearch()")
+      input#trash-search(type="text" placeholder="Tìm mã hoặc tên đã xóa..." onkeydown="runSearchOnEnter(event, debounceTrashSearch)")
     .filter-group.admin-filter-group
       select#trash-entity(onchange="loadTrash(1)")
         if entities && entities.length

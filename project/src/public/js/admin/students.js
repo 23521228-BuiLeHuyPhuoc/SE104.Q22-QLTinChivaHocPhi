@@ -374,25 +374,29 @@ function debounceSearch() {
 
 function applyFilters() {
   var search = document.getElementById('search-input').value;
+  var searchField = document.getElementById('student-search-field') ? document.getElementById('student-search-field').value : 'all';
   var status = document.getElementById('filter-status').value;
   var faculty = document.getElementById('filter-faculty') ? document.getElementById('filter-faculty').value : '';
   var major = document.getElementById('filter-major') ? document.getElementById('filter-major').value : '';
   var url = '/admin/students?page=1';
   if (search) url += '&search=' + encodeURIComponent(search);
+  if (searchField && searchField !== 'all') url += '&searchField=' + encodeURIComponent(searchField);
   if (status) url += '&status=' + encodeURIComponent(status);
   if (faculty) url += '&MaKhoa=' + encodeURIComponent(faculty);
   if (major) url += '&MaNganh=' + encodeURIComponent(major);
-  window.location.href = url;
+  navigatePageContent(url);
 }
 
 async function exportStudents() {
   var params = new URLSearchParams();
   var search = document.getElementById('search-input').value;
+  var searchField = document.getElementById('student-search-field') ? document.getElementById('student-search-field').value : 'all';
   var status = document.getElementById('filter-status').value;
   var faculty = document.getElementById('filter-faculty') ? document.getElementById('filter-faculty').value : '';
   var major = document.getElementById('filter-major') ? document.getElementById('filter-major').value : '';
 
   if (search) params.set('search', search);
+  if (searchField && searchField !== 'all') params.set('searchField', searchField);
   if (status) params.set('TrangThai', status);
   if (faculty) params.set('MaKhoa', faculty);
   if (major) params.set('MaNganh', major);

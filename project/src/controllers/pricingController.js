@@ -2,7 +2,8 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
-const { applyPricingSearch, normalizePricingSearchScope } = require('../utils/pricingSearch');
+const { normalizePricingSearchScope, getPricingSearchValues } = require('../utils/pricingSearch');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { recalculateRegistrationPricingForScope } = require('./registrationController');
 
 const REQUIRED_PRICE_TYPES = ['hoc_moi', 'hoc_lai', 'hoc_cai_thien', 'hoc_he'];
@@ -65,7 +66,7 @@ const findActivePricing = (LoaiMon, LoaiHoc, MaHocKy, excludeId = null) => prism
 
 const getAllPricing = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { LoaiMon, LoaiHoc, MaHocKy, TrangThai, search } = req.query;
     const searchScope = normalizePricingSearchScope(req.query.searchScope);
     const where = notDeleted();
@@ -75,14 +76,17 @@ const getAllPricing = async (req, res) => {
     else if (MaHocKy) where.MaHocKy = MaHocKy;
     if (TrangThai === 'active') where.TrangThai = true;
     if (TrangThai === 'inactive') where.TrangThai = false;
-    applyPricingSearch(where, searchScope, search);
-    const [pricing, total] = await Promise.all([
-      prisma.DONGIATINCHI.findMany({ where, skip, take: limit, orderBy: { id: 'desc' }, include: { HOCKY: { include: { NAMHOC: true } } } }),
-      prisma.DONGIATINCHI.count({ where })
-    ]);
-    res.json({ success: true, data: pricing, pagination: getPaginationMeta(total, page, limit) });
+
+    const allRows = await prisma.DONGIATINCHI.findMany({
+      where,
+      orderBy: { id: 'desc' },
+      include: { HOCKY: { include: { NAMHOC: true } } }
+    });
+    const filtered = filterRowsByRegex(allRows, search, (row) => getPricingSearchValues(row, searchScope));
+    const pricing = paginateRows(filtered, page, limit);
+    res.json({ success: true, data: pricing, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'getAllPricing error:');
+        return sendErrorResponse(res, error, 'L?i server', 'getAllPricing error:');
   }
 };
 

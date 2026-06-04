@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { getActorName } = require('../utils/audit');
 const { assertRegistrationPeriodClosedForPayment } = require('../utils/paymentRules');
 const { sendErrorResponse } = require('../utils/errorHandler');
@@ -16,27 +17,14 @@ const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
 const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_SUCCESS];
 const PAYMENT_SEARCH_FIELDS = new Set(['all', 'SoPhieuThu', 'MaSv', 'HoTen']);
 
-const buildPaymentSearchWhere = (search = '', searchField = 'all') => {
-  const keyword = String(search || '').trim();
-  if (!keyword) return {};
-
+const getPaymentSearchValues = (row, searchField = 'all') => {
   const field = PAYMENT_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
-  const textClause = { contains: keyword, mode: 'insensitive' };
-  const receiptNumber = Number.parseInt(keyword, 10);
-  const canSearchReceipt = Number.isInteger(receiptNumber) && String(receiptNumber) === keyword;
-  const receiptClause = canSearchReceipt ? { SoPhieuThu: receiptNumber } : null;
-
-  if (field === 'SoPhieuThu') return receiptClause || { SoPhieuThu: -1 };
-  if (field === 'MaSv') return { MaSv: textClause };
-  if (field === 'HoTen') return { SINHVIEN: { HoTen: textClause } };
-
-  return {
-    OR: [
-      receiptClause,
-      { MaSv: textClause },
-      { SINHVIEN: { HoTen: textClause } }
-    ].filter(Boolean)
+  const values = {
+    SoPhieuThu: [row.SoPhieuThu],
+    MaSv: [row.MaSv],
+    HoTen: [row.SINHVIEN?.HoTen]
   };
+  return field === 'all' ? Object.values(values).flat() : (values[field] || []);
 };
 
 const getSemesterKindLabel = (semester) => {
@@ -229,22 +217,23 @@ const buildVietQrPayload = (registration, receipt, amount) => {
 
 const getAllPayments = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '', searchField = 'all', MaHocKy, HinhThucThu, TrangThai } = req.query;
     const where = {};
     if (HinhThucThu) where.HinhThucThu = HinhThucThu;
     if (TrangThai) where.TrangThai = TrangThai;
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
-    Object.assign(where, buildPaymentSearchWhere(search, searchField));
 
-    const [rows, total] = await Promise.all([
-      prisma.PHIEUTHUHOCPHI.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } } }),
-      prisma.PHIEUTHUHOCPHI.count({ where })
-    ]);
-    const data = rows.map(toPaymentDto);
-    res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
+    const rows = await prisma.PHIEUTHUHOCPHI.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+    });
+    const filtered = filterRowsByRegex(rows, search, (row) => getPaymentSearchValues(row, searchField));
+    const data = paginateRows(filtered, page, limit).map(toPaymentDto);
+    res.json({ success: true, data, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'Lỗi server', 'Get all payments error:');
+        return sendErrorResponse(res, error, 'L?i server', 'Get all payments error:');
   }
 };
 
@@ -780,17 +769,17 @@ const exportPayments = async (req, res) => {
     if (HinhThucThu) where.HinhThucThu = HinhThucThu;
     if (TrangThai) where.TrangThai = TrangThai;
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
-    Object.assign(where, buildPaymentSearchWhere(search, searchField));
 
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({
       where,
       orderBy: { NgayLap: 'desc' },
       include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
     });
+    const filtered = filterRowsByRegex(rows, search, (row) => getPaymentSearchValues(row, searchField));
 
     const header = ['SoPhieuThu', 'MSSV', 'HoTen', 'HocKy', 'NamHoc', 'SoTienThu', 'HinhThucThu', 'NgayLap', 'NguoiThu', 'MaGiaoDich', 'TrangThai', 'GhiChu'];
     const lines = [header.join(',')];
-    rows.map(toPaymentDto).forEach((p) => {
+    filtered.map(toPaymentDto).forEach((p) => {
       lines.push([
         p.SoPhieuThu,
         p.MaSv,
@@ -811,54 +800,7 @@ const exportPayments = async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="phieu-thu-hoc-phi.csv"');
     res.send('\uFEFF' + lines.join('\n'));
   } catch (error) {
-        return sendErrorResponse(res, error, 'Không thể xuất phiếu thu', 'Export payments error:');
-  }
-};
-
-const refundPayment = async (req, res) => {
-  try {
-    const { SoPhieuThuGoc, SoTienHoan, LyDo } = req.body;
-    if (!SoPhieuThuGoc || !SoTienHoan) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp số phiếu thu gốc và số tiền hoàn' });
-    }
-    const refundAmount = Number(SoTienHoan);
-    if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Số tiền hoàn không hợp lệ' });
-    }
-
-    const originalPayment = await prisma.PHIEUTHUHOCPHI.findUnique({
-      where: { SoPhieuThu: parseInt(SoPhieuThuGoc, 10) },
-      include: { PHIEUDANGKY: { include: { HOCKY: true, PHIEUTHUHOCPHI: true } } }
-    });
-    if (!originalPayment) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu gốc' });
-    }
-    if (originalPayment.TrangThai !== PAYMENT_SUCCESS) {
-      return res.status(400).json({ success: false, message: 'Chỉ có thể hoàn tiền cho phiếu thu đã thành công' });
-    }
-    if (refundAmount > Number(originalPayment.SoTienThu || 0)) {
-      return res.status(400).json({ success: false, message: 'Số tiền hoàn không được vượt quá số tiền phiếu thu gốc' });
-    }
-
-    const refund = await prisma.PHIEUTHUHOCPHI.create({
-      data: {
-        SoPhieuDangKy: originalPayment.SoPhieuDangKy,
-        MaSv: originalPayment.MaSv,
-        SoTienThu: refundAmount,
-        HinhThucThu: originalPayment.HinhThucThu,
-        PaymentProvider: 'refund',
-        PaymentChannel: 'admin',
-        MaGiaoDich: `REFUND-${originalPayment.SoPhieuThu}-${Date.now()}`,
-        NguoiThu: getActorName(req),
-        GhiChu: `Hoàn tiền từ phiếu thu #${originalPayment.SoPhieuThu}${LyDo ? ` - ${LyDo}` : ''}`,
-        TrangThai: PAYMENT_REFUND,
-        NgayXacNhan: new Date()
-      }
-    });
-    res.status(201).json({ success: true, message: 'Tạo phiếu hoàn tiền thành công', data: refund });
-  } catch (error) {
-    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
-    return sendErrorResponse(res, error, 'Lỗi server', 'Refund payment error:');
+        return sendErrorResponse(res, error, 'Kh\u00f4ng th\u1ec3 xu\u1ea5t phi\u1ebfu thu', 'Export payments error:');
   }
 };
 
@@ -875,7 +817,6 @@ module.exports = {
   confirmPayment,
   cancelPayment,
   failPayment,
-  refundPayment,
   getPaymentStats,
   exportPayments
 };

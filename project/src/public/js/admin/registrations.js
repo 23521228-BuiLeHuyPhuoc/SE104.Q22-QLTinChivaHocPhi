@@ -17,7 +17,7 @@ function applyFilters() {
   if (searchScope && searchScope.value) params.set('searchScope', searchScope.value);
   if (status) params.set('status', status);
   if (semester && semester.value) params.set('MaHocKy', semester.value);
-  window.location.href = '/admin/registrations?' + params.toString();
+  navigatePageContent('/admin/registrations?' + params.toString());
 }
 
 function updateRegistrationSearchPlaceholder() {

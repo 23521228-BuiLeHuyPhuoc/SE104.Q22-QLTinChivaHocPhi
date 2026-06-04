@@ -3,6 +3,7 @@ const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { updateAudit, softDeleteAudit } = require('../utils/audit');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { getSearchRegexSource } = require('../utils/searchRegex');
 
 const cleanText = (value) => {
   if (value === undefined) return undefined;
@@ -68,25 +69,25 @@ const resolveSemesterId = async (value) => {
 const buildRoomSearchCondition = (search, searchField) => {
   const keyword = cleanText(search);
   if (!keyword) return null;
-  const pattern = '%' + keyword + '%';
+  const pattern = getSearchRegexSource(keyword);
   const field = ['MaPhong', 'TenPhong', 'ToaNha', 'LoaiPhong', 'MaHocKy'].includes(searchField) ? searchField : 'all';
 
-  if (field === 'MaPhong') return Prisma.sql`p."MaPhong" ILIKE ${pattern}`;
-  if (field === 'TenPhong') return Prisma.sql`p."TenPhong" ILIKE ${pattern}`;
-  if (field === 'ToaNha') return Prisma.sql`COALESCE(p."ToaNha", '') ILIKE ${pattern}`;
-  if (field === 'LoaiPhong') return Prisma.sql`COALESCE(p."LoaiPhong", '') ILIKE ${pattern}`;
+  if (field === 'MaPhong') return Prisma.sql`p."MaPhong" ~* ${pattern}`;
+  if (field === 'TenPhong') return Prisma.sql`p."TenPhong" ~* ${pattern}`;
+  if (field === 'ToaNha') return Prisma.sql`COALESCE(p."ToaNha", '') ~* ${pattern}`;
+  if (field === 'LoaiPhong') return Prisma.sql`COALESCE(p."LoaiPhong", '') ~* ${pattern}`;
   if (field === 'MaHocKy') {
-    return Prisma.sql`(phk."MaHocKy" ILIKE ${pattern} OR hk."TenHocKy" ILIKE ${pattern} OR COALESCE(nh."TenNamHoc", '') ILIKE ${pattern})`;
+    return Prisma.sql`(phk."MaHocKy" ~* ${pattern} OR hk."TenHocKy" ~* ${pattern} OR COALESCE(nh."TenNamHoc", '') ~* ${pattern})`;
   }
 
   return Prisma.sql`(
-    p."MaPhong" ILIKE ${pattern}
-    OR p."TenPhong" ILIKE ${pattern}
-    OR COALESCE(p."ToaNha", '') ILIKE ${pattern}
-    OR COALESCE(p."LoaiPhong", '') ILIKE ${pattern}
-    OR phk."MaHocKy" ILIKE ${pattern}
-    OR hk."TenHocKy" ILIKE ${pattern}
-    OR COALESCE(nh."TenNamHoc", '') ILIKE ${pattern}
+    p."MaPhong" ~* ${pattern}
+    OR p."TenPhong" ~* ${pattern}
+    OR COALESCE(p."ToaNha", '') ~* ${pattern}
+    OR COALESCE(p."LoaiPhong", '') ~* ${pattern}
+    OR phk."MaHocKy" ~* ${pattern}
+    OR hk."TenHocKy" ~* ${pattern}
+    OR COALESCE(nh."TenNamHoc", '') ~* ${pattern}
   )`;
 };
 

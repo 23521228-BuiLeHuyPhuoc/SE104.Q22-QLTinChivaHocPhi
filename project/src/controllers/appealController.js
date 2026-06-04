@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const { assertAppealOpen } = require('../utils/registrationWindow');
 const {
   APPEAL_TYPE,
@@ -68,8 +69,6 @@ const normalizeAppealSearchScope = (value) => (
   APPEAL_SEARCH_SCOPES.includes(value) ? value : 'studentId'
 );
 
-const containsInsensitive = (value) => ({ contains: value, mode: 'insensitive' });
-
 const appendAndCondition = (where, condition) => {
   if (!condition) return;
   where.AND = [...(where.AND || []), condition];
@@ -113,6 +112,20 @@ const toAppealDto = (row) => ({
   NgayDuyet: row.NgayDuyet
 });
 
+
+const getAppealSearchValues = (row, scope) => {
+  const values = {
+    studentId: [row.MaSv],
+    studentName: [row.HoTen],
+    classCode: [row.MaLopHuy, row.MaLopThem],
+    courseName: [row.MonHocHuy, row.MonHocThem],
+    semester: [row.MaHocKy, row.TenHocKy, row.TenNamHoc, row.HocKyLabel, row.HocKyDisplay],
+    reason: [row.LyDo, row.LyDoTuChoi]
+  };
+  const normalizedScope = normalizeAppealSearchScope(scope);
+  return values[normalizedScope] || values.studentId;
+};
+
 const buildAppealWhere = (query = {}) => {
   const where = {};
   if (query.MaHocKy) where.MaHocKy = query.MaHocKy;
@@ -120,31 +133,6 @@ const buildAppealWhere = (query = {}) => {
   if (query.LoaiDon) where.LoaiDon = query.LoaiDon;
   if (query.TrangThai) where.TrangThai = query.TrangThai;
 
-  const search = String(query.search || '').trim();
-  if (search) {
-    const scope = normalizeAppealSearchScope(query.searchScope);
-    const scopedSearch = {
-      studentName: { SINHVIEN: { HoTen: containsInsensitive(search) } },
-      classCode: { OR: [{ MaLopHuy: containsInsensitive(search) }, { MaLopThem: containsInsensitive(search) }] },
-      courseName: {
-        OR: [
-          { LOP_HUY: { is: { MONHOC: { TenMonHoc: containsInsensitive(search) } } } },
-          { LOP_THEM: { is: { MONHOC: { TenMonHoc: containsInsensitive(search) } } } }
-        ]
-      },
-      semester: {
-        OR: [
-          { MaHocKy: containsInsensitive(search) },
-          { HOCKY: { TenHocKy: containsInsensitive(search) } },
-          { HOCKY: { NAMHOC: { MaNamHoc: containsInsensitive(search) } } },
-          { HOCKY: { NAMHOC: { TenNamHoc: containsInsensitive(search) } } }
-        ]
-      },
-      reason: { OR: [{ LyDo: containsInsensitive(search) }, { LyDoTuChoi: containsInsensitive(search) }] },
-      studentId: { MaSv: containsInsensitive(search) }
-    };
-    appendAndCondition(where, scopedSearch[scope]);
-  }
   return where;
 };
 
@@ -300,15 +288,14 @@ const addClassToRegistration = async (tx, { MaSv, MaHocKy, MaLop }) => {
 
 const getAllAppeals = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
-    const where = buildAppealWhere(req.query);
-    const [rows, total] = await Promise.all([
-      prisma.DONCUUXETDANGKY.findMany({ where, skip, take: limit, orderBy: { NgayTao: 'desc' }, include: appealInclude }),
-      prisma.DONCUUXETDANGKY.count({ where })
-    ]);
-    res.json({ success: true, data: rows.map(toAppealDto), pagination: getPaginationMeta(total, page, limit) });
+    const { page, limit } = getPagination(req.query);
+    const where = buildAppealWhere({ ...req.query, search: '' });
+    const rows = await prisma.DONCUUXETDANGKY.findMany({ where, orderBy: { NgayTao: 'desc' }, include: appealInclude });
+    const dtoRows = rows.map(toAppealDto);
+    const filtered = filterRowsByRegex(dtoRows, req.query.search, (row) => getAppealSearchValues(row, req.query.searchScope));
+    res.json({ success: true, data: paginateRows(filtered, page, limit), pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'Get appeals error:');
+    return sendErrorResponse(res, error, 'L???i server', 'Get appeals error:');
   }
 };
 
@@ -316,15 +303,14 @@ const getStudentAppeals = async (req, res) => {
   try {
     const studentId = req.params.studentId;
     if (!(await ensureStudentAccess(req, res, studentId))) return;
-    const { page, limit, skip } = getPagination(req.query);
-    const where = { ...buildAppealWhere(req.query), MaSv: studentId };
-    const [rows, total] = await Promise.all([
-      prisma.DONCUUXETDANGKY.findMany({ where, skip, take: limit, orderBy: { NgayTao: 'desc' }, include: appealInclude }),
-      prisma.DONCUUXETDANGKY.count({ where })
-    ]);
-    res.json({ success: true, data: rows.map(toAppealDto), pagination: getPaginationMeta(total, page, limit) });
+    const { page, limit } = getPagination(req.query);
+    const where = { ...buildAppealWhere({ ...req.query, search: '' }), MaSv: studentId };
+    const rows = await prisma.DONCUUXETDANGKY.findMany({ where, orderBy: { NgayTao: 'desc' }, include: appealInclude });
+    const dtoRows = rows.map(toAppealDto);
+    const filtered = filterRowsByRegex(dtoRows, req.query.search, (row) => getAppealSearchValues(row, req.query.searchScope));
+    res.json({ success: true, data: paginateRows(filtered, page, limit), pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'Get student appeals error:');
+    return sendErrorResponse(res, error, 'L???i server', 'Get student appeals error:');
   }
 };
 

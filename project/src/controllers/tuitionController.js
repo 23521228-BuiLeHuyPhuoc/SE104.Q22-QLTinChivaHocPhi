@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const { recalculateRegistrationTotals, getRegistrationTypeLabel } = require('./registrationController');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
+const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
 const {
   PAYMENT_BLOCKED_DURING_REGISTRATION_MESSAGE,
   PAYMENT_BLOCKED_NOT_OPEN_MESSAGE,
@@ -148,17 +149,11 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
 
 const getAllTuition = async (req, res) => {
   try {
-    const { page, limit, skip } = getPagination(req.query);
+    const { page, limit } = getPagination(req.query);
     const { search = '', MaHocKy, status } = req.query;
     const searchField = ['MaSv', 'HoTen'].includes(req.query.searchField) ? req.query.searchField : 'all';
     const where = { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false } };
     if (MaHocKy) where.MaHocKy = MaHocKy;
-    if (search) {
-      const searchFilter = { contains: String(search).trim(), mode: 'insensitive' };
-      if (searchField === 'MaSv') where.SINHVIEN.MaSv = searchFilter;
-      else if (searchField === 'HoTen') where.SINHVIEN.HoTen = searchFilter;
-      else where.SINHVIEN.OR = [{ MaSv: searchFilter }, { HoTen: searchFilter }];
-    }
 
     const include = {
       SINHVIEN: true,
@@ -199,33 +194,24 @@ const getAllTuition = async (req, res) => {
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
         LyDoChuaTheThanhToan: paymentBlock.blocked
           ? paymentBlock.message
-          : (!payableReceipt && conNo > 0 ? 'Chưa có phiếu thu học phí do admin tạo' : null),
+          : (!payableReceipt && conNo > 0 ? 'Ch\u01b0a c\u00f3 phi\u1ebfu thu h\u1ecdc ph\u00ed do admin t\u1ea1o' : null),
         PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: Number(payableReceipt.SoTienThu || 0), TrangThai: payableReceipt.TrangThai } : null,
         QuaHan: conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date(),
         TrangThai: tuitionStatus(phaiDong, effectivePaid, effectiveDueDate)
       };
     };
 
-    if (status) {
-      // When filtering by status, we must compute status for all rows first
-      const allRows = await prisma.PHIEUDANGKY.findMany({ where, orderBy: { NgayLap: 'desc' }, include });
-      pendingAppealCountBySemester = await getPendingAppealCountMap(allRows.map((row) => row.MaHocKy));
-      const allMapped = allRows.map(mapRow).filter((row) => matchesTuitionStatus(row, status));
-      const total = allMapped.length;
-      const data = allMapped.slice(skip, skip + limit);
-      res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
-    } else {
-      // No status filter: use database pagination
-      const [rows, total] = await Promise.all([
-        prisma.PHIEUDANGKY.findMany({ where, skip, take: limit, orderBy: { NgayLap: 'desc' }, include }),
-        prisma.PHIEUDANGKY.count({ where })
-      ]);
-      pendingAppealCountBySemester = await getPendingAppealCountMap(rows.map((row) => row.MaHocKy));
-      const data = rows.map(mapRow);
-      res.json({ success: true, data, pagination: getPaginationMeta(total, page, limit) });
-    }
+    const allRows = await prisma.PHIEUDANGKY.findMany({ where, orderBy: { NgayLap: 'desc' }, include });
+    pendingAppealCountBySemester = await getPendingAppealCountMap(allRows.map((row) => row.MaHocKy));
+    const mapped = allRows.map(mapRow).filter((row) => matchesTuitionStatus(row, status));
+    const filtered = filterRowsByRegex(mapped, search, (row) => {
+      const values = { MaSv: [row.MaSv], HoTen: [row.HoTen] };
+      return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
+    });
+    const data = paginateRows(filtered, page, limit);
+    res.json({ success: true, data, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-    return sendErrorResponse(res, error, 'Lỗi server', 'Get all tuition error:');
+    return sendErrorResponse(res, error, 'L\u1ed7i server', 'Get all tuition error:');
   }
 };
 
