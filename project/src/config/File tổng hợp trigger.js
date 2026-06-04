@@ -1572,6 +1572,10 @@ DECLARE
     new_bd_thutu INT;
     new_kt_thutu INT;
 BEGIN
+    IF COALESCE(NEW."TrangThai", TRUE) = FALSE THEN
+        RETURN NEW;
+    END IF;
+
     /* 1. Lấy thứ tự (ThuTu) của tiết bắt đầu và tiết kết thúc của dòng đang thao tác */
     SELECT "ThuTu" INTO new_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
     SELECT "ThuTu" INTO new_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
@@ -1584,6 +1588,7 @@ BEGIN
         JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
         WHERE lh."LopMoId" = NEW."LopMoId"
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          AND COALESCE(lh."TrangThai", TRUE) = TRUE
           -- Loại trừ chính dòng hiện tại khi thực hiện thao tác UPDATE
           AND lh.id IS DISTINCT FROM NEW.id
           -- Công thức kiểm tra giao nhau: bd1.ThuTu <= kt2.ThuTu AND bd2.ThuTu <= kt1.ThuTu
@@ -1624,6 +1629,9 @@ BEGIN
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE 
+                COALESCE(lh1."TrangThai", TRUE) = TRUE
+                AND COALESCE(lh2."TrangThai", TRUE) = TRUE
+                AND
                 -- Áp dụng giá trị ThuTu mới nếu mã tiết trùng với tiết vừa sửa, ngược lại giữ nguyên ThuTu cũ
                 (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <= 
                 (CASE WHEN lh2."MaTietKetThuc" = NEW."MaTiet" THEN NEW."ThuTu" ELSE kt2."ThuTu" END)
@@ -2619,6 +2627,7 @@ DECLARE
     v_MaSv VARCHAR(15);
     v_MaHocKy VARCHAR(15);
     v_TongTinChi INTEGER := 0;
+    v_ChiTietDangKyId INTEGER := NULL;
     
     -- Bien luu tham so he thong
     v_SoTinChiDangKyToiDa INTEGER;
@@ -2642,6 +2651,7 @@ BEGIN
     IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
         SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
         FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        v_ChiTietDangKyId := NEW.id;
     ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
         v_MaSv := NEW."MaSv";
         v_MaHocKy := NEW."MaHocKy";
@@ -2662,7 +2672,7 @@ BEGIN
     JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
     WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
       AND ct."TrangThai" = 'Đã đăng ký'
-      AND (TG_TABLE_NAME <> 'CHITIETDANGKY' OR ct.id <> NEW.id);
+      AND (v_ChiTietDangKyId IS NULL OR ct.id <> v_ChiTietDangKyId);
 
     -- Cong them tin chi cua ban ghi dang them/sua neu no co trang thai 'Đã đăng ký'
     IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN

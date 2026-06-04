@@ -593,7 +593,9 @@ CREATE TABLE "CHUONGTRINHHOC" (
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chuong_trinh_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_cth UNIQUE ("MaNganh", "MaMonHoc"),
-    CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 10),
+    CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 8),
+    CONSTRAINT chk_hoc_ky_du_kien CHECK ("HocKyDuKien" >= 1 AND "HocKyDuKien" <= 8),
+    CONSTRAINT chk_cth_hocky_sync CHECK ("HocKy" = "HocKyDuKien"),
     CONSTRAINT fk_cth_nganh FOREIGN KEY ("MaNganh")
         REFERENCES "NGANHHOC"("MaNganh") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_cth_mon FOREIGN KEY ("MaMonHoc")
@@ -2559,6 +2561,10 @@ DECLARE
     new_bd_thutu INT;
     new_kt_thutu INT;
 BEGIN
+    IF COALESCE(NEW."TrangThai", TRUE) = FALSE THEN
+        RETURN NEW;
+    END IF;
+
     /* 1. Lấy thứ tự (ThuTu) của tiết bắt đầu và tiết kết thúc của dòng đang thao tác */
     SELECT "ThuTu" INTO new_bd_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietBatDau";
     SELECT "ThuTu" INTO new_kt_thutu FROM "TIETHOC" WHERE "MaTiet" = NEW."MaTietKetThuc";
@@ -2571,6 +2577,7 @@ BEGIN
         JOIN "TIETHOC" kt ON lh."MaTietKetThuc" = kt."MaTiet"
         WHERE lh."LopMoId" = NEW."LopMoId"
           AND lh."ThuTrongTuan" = NEW."ThuTrongTuan"
+          AND COALESCE(lh."TrangThai", TRUE) = TRUE
           -- Loại trừ chính dòng hiện tại khi thực hiện thao tác UPDATE
           AND lh.id IS DISTINCT FROM NEW.id
           -- Công thức kiểm tra giao nhau theo khoang [start, effectiveEnd)
@@ -2610,6 +2617,9 @@ BEGIN
             JOIN "TIETHOC" bd2 ON lh2."MaTietBatDau" = bd2."MaTiet"
             JOIN "TIETHOC" kt2 ON lh2."MaTietKetThuc" = kt2."MaTiet"
             WHERE
+                COALESCE(lh1."TrangThai", TRUE) = TRUE
+                AND COALESCE(lh2."TrangThai", TRUE) = TRUE
+                AND
                 -- Áp dụng giá trị ThuTu mới nếu mã tiết trùng với tiết vừa sửa, ngược lại giữ nguyên ThuTu cũ
                 (CASE WHEN lh1."MaTietBatDau" = NEW."MaTiet" THEN NEW."ThuTu" ELSE bd1."ThuTu" END) <
                 fn_schedule_effective_end_order(
@@ -3599,6 +3609,7 @@ DECLARE
     v_MaSv VARCHAR(15);
     v_MaHocKy VARCHAR(15);
     v_TongTinChi INTEGER := 0;
+    v_ChiTietDangKyId INTEGER := NULL;
 
     -- Bien luu tham so he thong
     v_SoTinChiDangKyToiDa INTEGER;
@@ -3622,6 +3633,7 @@ BEGIN
     IF TG_TABLE_NAME = 'CHITIETDANGKY' THEN
         SELECT "MaSv", "MaHocKy" INTO v_MaSv, v_MaHocKy
         FROM "PHIEUDANGKY" WHERE "SoPhieu" = NEW."SoPhieu";
+        v_ChiTietDangKyId := NEW.id;
     ELSIF TG_TABLE_NAME = 'PHIEUDANGKY' THEN
         v_MaSv := NEW."MaSv";
         v_MaHocKy := NEW."MaHocKy";
@@ -3642,7 +3654,7 @@ BEGIN
     JOIN "PHIEUDANGKY" p ON ct."SoPhieu" = p."SoPhieu"
     WHERE p."MaSv" = v_MaSv AND p."MaHocKy" = v_MaHocKy
       AND ct."TrangThai" = 'Đã đăng ký'
-      AND (TG_TABLE_NAME <> 'CHITIETDANGKY' OR ct.id <> NEW.id);
+      AND (v_ChiTietDangKyId IS NULL OR ct.id <> v_ChiTietDangKyId);
 
     -- Cong them tin chi cua ban ghi dang them/sua neu no co trang thai 'Đã đăng ký'
     IF TG_TABLE_NAME = 'CHITIETDANGKY' AND NEW."TrangThai" = 'Đã đăng ký' THEN
@@ -10728,14 +10740,14 @@ INSERT INTO "NAMHOC" ("MaNamHoc", "TenNamHoc", "NamBatDau", "NamKetThuc") VALUES
 -- INSERT DATA - Học kỳ (Semesters)
 -- =====================================================
 INSERT INTO "HOCKY" ("MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "ThuTu", "NgayBatDau", "NgayKetThuc", "NgayBatDauDangKy", "NgayKetThucDangKy", "NgayBatDauCuuXet", "NgayKetThucCuuXet", "NgayBatDauDongHocPhi", "HanDongHocPhi", "TrangThai") VALUES
-('HK1-2324', 'Học kỳ I', '2023-2024', 'Chính', 1, '2023-09-01', '2024-01-15', '2023-08-15 00:00:00', '2023-08-24 23:59:59', '2023-08-25 00:00:00', '2023-08-31 23:59:59', '2023-09-01', '2023-10-15', 'Đã kết thúc'),
-('HK2-2324', 'Học kỳ II', '2023-2024', 'Chính', 2, '2024-02-01', '2024-06-15', '2024-01-15 00:00:00', '2024-01-24 23:59:59', '2024-01-25 00:00:00', '2024-01-31 23:59:59', '2024-02-01', '2024-03-15', 'Đã kết thúc'),
-('HKH-2324', 'Học kỳ Hè', '2023-2024', 'Hè', 3, '2024-07-01', '2024-08-15', '2024-06-15 00:00:00', '2024-06-24 23:59:59', '2024-06-25 00:00:00', '2024-06-30 23:59:59', '2024-07-01', '2024-07-15', 'Đã kết thúc'),
-('HK1-2425', 'Học kỳ I', '2024-2025', 'Chính', 1, '2024-09-01', '2025-01-15', '2024-08-15 00:00:00', '2024-08-24 23:59:59', '2024-08-25 00:00:00', '2024-08-31 23:59:59', '2024-09-01', '2024-10-15', 'Đã kết thúc'),
-('HK2-2425', 'Học kỳ II', '2024-2025', 'Chính', 2, '2025-02-01', '2025-06-15', '2025-01-15 00:00:00', '2025-01-24 23:59:59', '2025-01-25 00:00:00', '2025-01-31 23:59:59', '2025-02-01', '2025-03-15', 'Đã kết thúc'),
-('HKH-2425', 'Học kỳ Hè', '2024-2025', 'Hè', 3, '2025-07-01', '2025-08-15', '2025-06-15 00:00:00', '2025-06-24 23:59:59', '2025-06-25 00:00:00', '2025-06-30 23:59:59', '2025-07-01', '2025-07-15', 'Đã kết thúc'),
-('HK1-2526', 'Học kỳ I', '2025-2026', 'Chính', 1, '2025-09-01', '2026-01-15', '2025-08-15 00:00:00', '2025-08-24 23:59:59', '2025-08-25 00:00:00', '2025-08-31 23:59:59', '2025-09-01', '2025-10-15', 'Đã kết thúc'),
-('HK2-2526', 'Học kỳ II', '2025-2026', 'Chính', 2, '2026-02-01', '2026-06-15', '2026-01-15 00:00:00', '2026-01-24 23:59:59', '2026-01-25 00:00:00', '2026-01-31 23:59:59', '2026-02-01', '2026-06-14', 'Đang diễn ra');
+('HK1-2324', 'Học kỳ I 2023-2024', '2023-2024', 'Chính', 1, '2023-09-01', '2024-01-15', '2023-08-15 00:00:00', '2023-08-24 23:59:59', '2023-08-25 00:00:00', '2023-08-31 23:59:59', '2023-09-01', '2023-10-15', 'Đã kết thúc'),
+('HK2-2324', 'Học kỳ II 2023-2024', '2023-2024', 'Chính', 2, '2024-02-01', '2024-06-15', '2024-01-15 00:00:00', '2024-01-24 23:59:59', '2024-01-25 00:00:00', '2024-01-31 23:59:59', '2024-02-01', '2024-03-15', 'Đã kết thúc'),
+('HKH-2324', 'Học kỳ Hè 2023-2024', '2023-2024', 'Hè', 3, '2024-07-01', '2024-08-15', '2024-06-15 00:00:00', '2024-06-24 23:59:59', '2024-06-25 00:00:00', '2024-06-30 23:59:59', '2024-07-01', '2024-07-15', 'Đã kết thúc'),
+('HK1-2425', 'Học kỳ I 2024-2025', '2024-2025', 'Chính', 1, '2024-09-01', '2025-01-15', '2024-08-15 00:00:00', '2024-08-24 23:59:59', '2024-08-25 00:00:00', '2024-08-31 23:59:59', '2024-09-01', '2024-10-15', 'Đã kết thúc'),
+('HK2-2425', 'Học kỳ II 2024-2025', '2024-2025', 'Chính', 2, '2025-02-01', '2025-06-15', '2025-01-15 00:00:00', '2025-01-24 23:59:59', '2025-01-25 00:00:00', '2025-01-31 23:59:59', '2025-02-01', '2025-03-15', 'Đã kết thúc'),
+('HKH-2425', 'Học kỳ Hè 2024-2025', '2024-2025', 'Hè', 3, '2025-07-01', '2025-08-15', '2025-06-15 00:00:00', '2025-06-24 23:59:59', '2025-06-25 00:00:00', '2025-06-30 23:59:59', '2025-07-01', '2025-07-15', 'Đã kết thúc'),
+('HK1-2526', 'Học kỳ I 2025-2026', '2025-2026', 'Chính', 1, '2025-09-01', '2026-01-15', '2025-08-15 00:00:00', '2025-08-24 23:59:59', '2025-08-25 00:00:00', '2025-08-31 23:59:59', '2025-09-01', '2025-10-15', 'Đã kết thúc'),
+('HK2-2526', 'Học kỳ II 2025-2026', '2025-2026', 'Chính', 2, '2026-02-01', '2026-06-15', '2026-01-15 00:00:00', '2026-01-24 23:59:59', '2026-01-25 00:00:00', '2026-01-31 23:59:59', '2026-02-01', '2026-06-14', 'Đang diễn ra');
 
 -- =====================================================
 -- INSERT DATA - Đơn giá tín chỉ (Unit Prices per Credit)
@@ -12455,7 +12467,9 @@ WHERE "GiangVien" IS NOT NULL
 -- Source distribution: thong_ke_ctdt_uit_khoa_2023_da_sua.md.
 -- uq_cth is unique on (MaNganh, MaMonHoc), so repeated course codes in the
 -- source file are stored by their first appearance in that program.
-INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy") VALUES
+INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy", "HocKyDuKien")
+SELECT v."MaNganh", v."MaMonHoc", v."HocKy", v."HocKy"
+FROM (VALUES
 ('CNTT', 'IT001', 1),
 ('CNTT', 'MA006', 1),
 ('CNTT', 'MA003', 1),
@@ -13042,7 +13056,8 @@ INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy") VALUES
 ('KHDL', 'DS104', 7),
 ('KHDL', 'DS505', 8),
 ('KHDL', 'DS300', 8),
-('KHDL', 'DS301', 8);
+('KHDL', 'DS301', 8)
+) AS v("MaNganh", "MaMonHoc", "HocKy");
 
 -- =====================================================
 -- INSERT DATA - Lớp mở trong học kỳ (Open Classes per Semester)
@@ -13917,9 +13932,9 @@ INSERT INTO "HOCKY" (
   "NgayChotDangKy", "MoThuHocPhi", "NgayMoThuHocPhi",
   "NgayBatDauDongHocPhi", "HanDongHocPhi", "TrangThai"
 ) VALUES
-('HK1-2627', 'Học kỳ I', '2026-2027', 'Chính', 1, '2026-06-20', '2026-10-01', '2026-05-01 00:00:00', '2026-05-20 23:59:59', '2026-05-21 00:00:00', '2026-06-10 23:59:59', NULL, FALSE, NULL, '2026-06-11', '2026-08-15', 'Sắp diễn ra'),
-('HK2-2627', 'Học kỳ II', '2026-2027', 'Chính', 2, '2026-07-01', '2026-11-15', '2026-04-01 00:00:00', '2026-04-10 23:59:59', '2026-04-11 00:00:00', '2026-04-20 23:59:59', '2026-04-21 09:00:00', FALSE, NULL, '2026-04-21', '2026-08-01', 'Sắp diễn ra'),
-('HKH-2627', 'Học kỳ Hè', '2026-2027', 'Hè', 3, '2026-07-15', '2026-08-31', '2026-03-01 00:00:00', '2026-03-10 23:59:59', '2026-03-11 00:00:00', '2026-03-20 23:59:59', '2026-03-21 09:00:00', TRUE, '2026-03-22 09:00:00', '2026-03-21', '2026-07-20', 'Sắp diễn ra')
+('HK1-2627', 'Học kỳ I 2026-2027', '2026-2027', 'Chính', 1, '2026-06-20', '2026-10-01', '2026-05-01 00:00:00', '2026-05-20 23:59:59', '2026-05-21 00:00:00', '2026-06-10 23:59:59', NULL, FALSE, NULL, '2026-06-11', '2026-08-15', 'Sắp diễn ra'),
+('HK2-2627', 'Học kỳ II 2026-2027', '2026-2027', 'Chính', 2, '2026-07-01', '2026-11-15', '2026-04-01 00:00:00', '2026-04-10 23:59:59', '2026-04-11 00:00:00', '2026-04-20 23:59:59', '2026-04-21 09:00:00', FALSE, NULL, '2026-04-21', '2026-08-01', 'Sắp diễn ra'),
+('HKH-2627', 'Học kỳ Hè 2026-2027', '2026-2027', 'Hè', 3, '2026-07-15', '2026-08-31', '2026-03-01 00:00:00', '2026-03-10 23:59:59', '2026-03-11 00:00:00', '2026-03-20 23:59:59', '2026-03-21 09:00:00', TRUE, '2026-03-22 09:00:00', '2026-03-21', '2026-07-20', 'Sắp diễn ra')
 ON CONFLICT ("MaHocKy") DO UPDATE SET
   "TenHocKy" = EXCLUDED."TenHocKy",
   "MaNamHoc" = EXCLUDED."MaNamHoc",
@@ -15150,6 +15165,22 @@ JOIN "MONHOC" mh ON mh."MaMonHoc" = l."MaMonHoc"
 WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
   AND COALESCE(l."DaXoa", FALSE) = FALSE
   AND COALESCE(mh."DaXoa", FALSE) = FALSE
+  AND EXISTS (
+    SELECT 1
+    FROM "CHUONGTRINHHOC" cth
+    JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
+    WHERE cth."MaMonHoc" = l."MaMonHoc"
+      AND ng."MaKhoa" = mh."MaKhoa"
+      AND COALESCE(cth."TrangThai", TRUE) = TRUE
+      AND COALESCE(ng."DaXoa", FALSE) = FALSE
+      AND COALESCE(ng."TrangThai", TRUE) = TRUE
+      AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+      AND (
+        hk."LoaiHocKy" = 'Hè'
+        OR hk."ThuTu" = 3
+        OR MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END
+      )
+  )
 GROUP BY lm."MaHocKy", l."MaMonHoc"
 ON CONFLICT ("MaHocKy", "MaMonHoc") DO UPDATE SET
   "TrangThai" = EXCLUDED."TrangThai",
@@ -15187,8 +15218,9 @@ BEGIN
       AND mhm."MaMonHoc" = v_mamonhoc
       AND COALESCE(mhm."DaXoa", FALSE) = FALSE
       AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+      AND fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", v_mamonhoc) = TRUE
   ) THEN
-    RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
+    RAISE EXCEPTION 'MONHOCMO: Mon hoc % chua duoc mo hop le theo CTDT cua khoa trong hoc ky %, khong the mo lop %.', v_mamonhoc, NEW."MaHocKy", NEW."MaLop";
   END IF;
 
   RETURN NEW;
@@ -15249,56 +15281,48 @@ EXECUTE FUNCTION fn_guard_monhocmo_active_lopmo();
 
 -- =====================================================
 -- RBTV_CTH_MONHOCMO - Mon hoc mo phai nam trong chuong trinh hoc
--- Phong dao tao lap danh sach mon hoc mo tu tap mon cua cac CTDT dang hoat dong.
--- Schema hien tai chua co khoa tuyen/cohort de anh xa nam hoc cu the vao HocKyDuKien,
--- nen rang buoc an toan o DB la: mon duoc mo phai thuoc it nhat mot CTDT dang hoat dong.
+-- Hoc ky I chi mo cac mon co HocKyDuKien le; hoc ky II chi mo cac mon co HocKyDuKien chan.
+-- Hoc ky he/ThuTu=3 chi can mon con active trong CTDT cung khoa, khong rang buoc le/chan.
 -- =====================================================
 CREATE OR REPLACE FUNCTION fn_monhocmo_has_curriculum_plan(p_ma_hoc_ky VARCHAR, p_ma_mon_hoc VARCHAR)
 RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
+DECLARE
+  v_expected_mod INTEGER;
+  v_ma_khoa VARCHAR(10);
+BEGIN
+  SELECT CASE
+    WHEN hk."LoaiHocKy" = 'Hè' OR hk."ThuTu" = 3 THEN NULL
+    WHEN hk."ThuTu" = 1 THEN 1
+    WHEN hk."ThuTu" = 2 THEN 0
+    ELSE NULL
+  END,
+  mh."MaKhoa"
+  INTO v_expected_mod, v_ma_khoa
+  FROM "HOCKY" hk
+  JOIN "MONHOC" mh ON mh."MaMonHoc" = p_ma_mon_hoc
+  WHERE hk."MaHocKy" = p_ma_hoc_ky
+    AND COALESCE(hk."DaXoa", FALSE) = FALSE
+    AND COALESCE(mh."DaXoa", FALSE) = FALSE
+    AND COALESCE(mh."TrangThai", TRUE) = TRUE;
+
+  IF NOT FOUND THEN
+    RETURN FALSE;
+  END IF;
+
+  RETURN EXISTS (
     SELECT 1
-    FROM "HOCKY" hk
-    JOIN "MONHOC" mh ON mh."MaMonHoc" = p_ma_mon_hoc
-    JOIN "CHUONGTRINHHOC" cth ON cth."MaMonHoc" = mh."MaMonHoc"
+    FROM "CHUONGTRINHHOC" cth
     JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
-    WHERE hk."MaHocKy" = p_ma_hoc_ky
-      AND COALESCE(hk."DaXoa", FALSE) = FALSE
-      AND COALESCE(mh."DaXoa", FALSE) = FALSE
-      AND COALESCE(mh."TrangThai", TRUE) = TRUE
+    WHERE cth."MaMonHoc" = p_ma_mon_hoc
+      AND ng."MaKhoa" = v_ma_khoa
       AND COALESCE(cth."TrangThai", TRUE) = TRUE
       AND COALESCE(ng."DaXoa", FALSE) = FALSE
       AND COALESCE(ng."TrangThai", TRUE) = TRUE
+      AND COALESCE(cth."HocKyDuKien", cth."HocKy") BETWEEN 1 AND 8
+      AND (v_expected_mod IS NULL OR MOD(COALESCE(cth."HocKyDuKien", cth."HocKy"), 2) = v_expected_mod)
   );
-$$ LANGUAGE sql VOLATILE;
-
-WITH invalid_lopmo AS (
-  SELECT lm.id
-  FROM "LOPMO" lm
-  JOIN "LOP" l ON l."MaLop" = lm."MaLop"
-  WHERE COALESCE(lm."TrangThai", TRUE) = TRUE
-    AND NOT fn_monhocmo_has_curriculum_plan(lm."MaHocKy", l."MaMonHoc")
-)
-UPDATE "LICHHOCLOP" lh
-SET "TrangThai" = FALSE
-WHERE lh."LopMoId" IN (SELECT id FROM invalid_lopmo)
-  AND COALESCE(lh."TrangThai", TRUE) = TRUE;
-
-UPDATE "LOPMO" lm
-SET
-  "TrangThai" = FALSE,
-  "GhiChu" = LEFT(COALESCE(NULLIF(TRIM(lm."GhiChu"), ''), 'Tu dong dong') || ' | Khong thuoc CTDT dang hoat dong', 200)
-FROM "LOP" l
-WHERE l."MaLop" = lm."MaLop"
-  AND COALESCE(lm."TrangThai", TRUE) = TRUE
-  AND NOT fn_monhocmo_has_curriculum_plan(lm."MaHocKy", l."MaMonHoc");
-
-UPDATE "MONHOCMO" mhm
-SET
-  "TrangThai" = FALSE,
-  "GhiChu" = LEFT(COALESCE(NULLIF(TRIM(mhm."GhiChu"), ''), 'Tu dong dong') || ' | Khong thuoc CTDT dang hoat dong', 200)
-WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
-  AND COALESCE(mhm."TrangThai", TRUE) = TRUE
-  AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc");
+END;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE FUNCTION fn_check_monhocmo_curriculum_plan()
 RETURNS TRIGGER AS $$
@@ -15306,7 +15330,7 @@ BEGIN
   IF COALESCE(NEW."DaXoa", FALSE) = FALSE
      AND COALESCE(NEW."TrangThai", TRUE) = TRUE
      AND NOT fn_monhocmo_has_curriculum_plan(NEW."MaHocKy", NEW."MaMonHoc") THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong nam trong CTDT dang hoat dong, khong the mo trong hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
+    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Mon hoc % khong con trong CTDT dang hoat dong cua khoa tuong ung voi hoc ky %.', NEW."MaMonHoc", NEW."MaHocKy";
   END IF;
 
   RETURN NEW;
@@ -15320,72 +15344,86 @@ ON "MONHOCMO"
 FOR EACH ROW
 EXECUTE FUNCTION fn_check_monhocmo_curriculum_plan();
 
-CREATE OR REPLACE FUNCTION fn_guard_active_monhocmo_curriculum_plan()
+CREATE OR REPLACE FUNCTION fn_guard_cth_open_course_dependency()
 RETURNS TRIGGER AS $$
 DECLARE
   v_ma_hoc_ky VARCHAR(15);
-  v_ma_mon_hoc VARCHAR(15);
+  v_hoc_ky_du_kien INTEGER;
+  v_expected_mod INTEGER;
+  v_new_still_supports BOOLEAN := FALSE;
+  v_old_supports_same_faculty BOOLEAN := FALSE;
 BEGIN
-  SELECT mhm."MaHocKy", mhm."MaMonHoc"
-  INTO v_ma_hoc_ky, v_ma_mon_hoc
+  v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
+  IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM "NGANHHOC" ng
+    JOIN "MONHOC" mh ON mh."MaMonHoc" = OLD."MaMonHoc"
+    WHERE ng."MaNganh" = OLD."MaNganh"
+      AND ng."MaKhoa" = mh."MaKhoa"
+      AND COALESCE(ng."DaXoa", FALSE) = FALSE
+      AND COALESCE(ng."TrangThai", TRUE) = TRUE
+      AND COALESCE(mh."DaXoa", FALSE) = FALSE
+      AND COALESCE(mh."TrangThai", TRUE) = TRUE
+  ) INTO v_old_supports_same_faculty;
+
+  IF v_old_supports_same_faculty = FALSE THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  v_expected_mod := MOD(v_hoc_ky_du_kien, 2);
+
+  IF TG_OP = 'UPDATE' THEN
+    v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+      AND NEW."MaNganh" = OLD."MaNganh"
+      AND NEW."MaMonHoc" = OLD."MaMonHoc"
+      AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8
+      AND MOD(COALESCE(NEW."HocKyDuKien", NEW."HocKy"), 2) = v_expected_mod;
+
+    IF v_new_still_supports THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  SELECT mhm."MaHocKy"
+  INTO v_ma_hoc_ky
   FROM "MONHOCMO" mhm
+  JOIN "HOCKY" hk ON hk."MaHocKy" = mhm."MaHocKy"
   WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
     AND COALESCE(mhm."TrangThai", TRUE) = TRUE
+    AND mhm."MaMonHoc" = OLD."MaMonHoc"
+    AND (
+      hk."LoaiHocKy" = 'Hè'
+      OR hk."ThuTu" = 3
+      OR (hk."ThuTu" IN (1, 2) AND (CASE WHEN hk."ThuTu" = 1 THEN 1 ELSE 0 END) = v_expected_mod)
+    )
     AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc")
   LIMIT 1;
 
   IF v_ma_hoc_ky IS NOT NULL THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Thao tac lam mon hoc % dang mo trong hoc ky % khong con thuoc CTDT dang hoat dong.', v_ma_mon_hoc, v_ma_hoc_ky;
+    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Khong the tam ngung, xoa hoac doi hoc ky du kien cua mon % vi mon nay dang mo trong hoc ky % va khong con CTDT cung khoa ho tro.', OLD."MaMonHoc", v_ma_hoc_ky;
   END IF;
 
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_cth ON "CHUONGTRINHHOC";
 CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_cth
-AFTER INSERT OR UPDATE OR DELETE ON "CHUONGTRINHHOC"
+AFTER UPDATE OR DELETE ON "CHUONGTRINHHOC"
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
+EXECUTE FUNCTION fn_guard_cth_open_course_dependency();
 
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_nganh ON "NGANHHOC";
-CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_nganh
-AFTER UPDATE OR DELETE ON "NGANHHOC"
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
-
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_monhoc ON "MONHOC";
-CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_monhoc
-AFTER UPDATE OR DELETE ON "MONHOC"
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
-
 DROP TRIGGER IF EXISTS trg_guard_monhocmo_plan_hocky ON "HOCKY";
-CREATE CONSTRAINT TRIGGER trg_guard_monhocmo_plan_hocky
-AFTER UPDATE OR DELETE ON "HOCKY"
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW
-EXECUTE FUNCTION fn_guard_active_monhocmo_curriculum_plan();
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM "MONHOCMO" mhm
-    WHERE COALESCE(mhm."DaXoa", FALSE) = FALSE
-      AND COALESCE(mhm."TrangThai", TRUE) = TRUE
-      AND NOT fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc")
-  ) THEN
-    RAISE EXCEPTION 'RBTV_CTH_MONHOCMO: Du lieu mon hoc mo sau seed van con dong khong hop le.';
-  END IF;
-END;
-$$;
 
 -- =====================================================
 -- END OF INIT.SQL

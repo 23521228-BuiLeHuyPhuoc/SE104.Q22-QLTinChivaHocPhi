@@ -967,7 +967,7 @@ const getAvailableCourses = async (req, res) => {
     }
     if (andFilters.length) where.AND = andFilters;
 
-    const [availableRows, currentRegistration] = await Promise.all([
+    const [availableRows, currentRegistration, plannedCourseRows] = await Promise.all([
       prisma.LOPMO.findMany({
         where,
         include: {
@@ -998,10 +998,19 @@ const getAvailableCourses = async (req, res) => {
             select: { SoPhieuThu: true, TrangThai: true }
           }
         }
-      }) : null
+      }) : null,
+      prisma.$queryRaw`
+        SELECT mh."MaMonHoc"
+        FROM "MONHOC" mh
+        WHERE COALESCE(mh."DaXoa", FALSE) = FALSE
+          AND COALESCE(mh."TrangThai", TRUE) = TRUE
+          AND fn_monhocmo_has_curriculum_plan(${MaHocKy}, mh."MaMonHoc") = TRUE
+      `
     ]);
     const lockedByPayment = hasSuccessfulPayment(currentRegistration);
-    const filteredRows = filterRowsByRegex(availableRows, search, (row) => getAvailableCourseSearchValues(row, searchScope));
+    const plannedCourseSet = new Set(plannedCourseRows.map((row) => row.MaMonHoc));
+    const plannedAvailableRows = availableRows.filter((row) => plannedCourseSet.has(row.LOP?.MONHOC?.MaMonHoc));
+    const filteredRows = filterRowsByRegex(plannedAvailableRows, search, (row) => getAvailableCourseSearchValues(row, searchScope));
     const rows = paginateRows(filteredRows, page, limit);
 
     const data = await Promise.all(rows.map(async (r) => {
@@ -1072,6 +1081,12 @@ const registerCourse = async (req, res) => {
 
       const lop = openedClass.LOP;
       const course = lop.MONHOC;
+      const planRows = await tx.$queryRaw`
+        SELECT fn_monhocmo_has_curriculum_plan(${MaHocKy}, ${course.MaMonHoc}) AS valid
+      `;
+      if (planRows[0]?.valid !== true) {
+        throw { status: 400, message: 'Môn học không thuộc kế hoạch đào tạo phù hợp với học kỳ đăng ký' };
+      }
       const capacity = Number(lop.SoLuongToiDa || 0);
       await ensureClassCapacityAvailable(tx, MaHocKy, MaLop, capacity);
 

@@ -45,7 +45,7 @@ const getPrerequisites = async (req, res) => {
 
     res.json({ success: true, data: pageRows, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
-        return sendErrorResponse(res, error, 'L???i server', 'Get prerequisites error:');
+        return sendErrorResponse(res, error, 'Lỗi server', 'Get prerequisites error:');
   }
 };
 

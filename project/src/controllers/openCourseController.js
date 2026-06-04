@@ -68,7 +68,8 @@ const buildOpenCourseWhere = (query = {}) => {
   const conditions = [
     Prisma.sql`COALESCE(mhm."DaXoa", FALSE) = FALSE`,
     Prisma.sql`COALESCE(hk."DaXoa", FALSE) = FALSE`,
-    Prisma.sql`COALESCE(mh."DaXoa", FALSE) = FALSE`
+    Prisma.sql`COALESCE(mh."DaXoa", FALSE) = FALSE`,
+    Prisma.sql`(COALESCE(mhm."TrangThai", TRUE) = FALSE OR fn_monhocmo_has_curriculum_plan(mhm."MaHocKy", mhm."MaMonHoc") = TRUE)`
   ];
 
   if (query.MaHocKy) conditions.push(Prisma.sql`mhm."MaHocKy" = ${query.MaHocKy}`);
@@ -93,6 +94,18 @@ const assertActiveCourseAndSemester = async (MaHocKy, MaMonHoc) => {
 
   if (!semester) throw { status: 404, message: 'Không tìm thấy học kỳ' };
   if (!course) throw { status: 400, message: 'Môn học không tồn tại hoặc đang bị khóa' };
+};
+
+const assertCourseMatchesCurriculumPlan = async (MaHocKy, MaMonHoc) => {
+  const rows = await prisma.$queryRaw`
+    SELECT fn_monhocmo_has_curriculum_plan(${MaHocKy}, ${MaMonHoc}) AS valid
+  `;
+  if (rows[0]?.valid !== true) {
+    throw {
+      status: 400,
+      message: 'Môn học không còn trong kế hoạch đào tạo đang hoạt động của khoa tương ứng với học kỳ đã chọn'
+    };
+  }
 };
 
 const assertNoDuplicateOpenCourse = async (id, MaHocKy, MaMonHoc) => {
@@ -211,6 +224,7 @@ const createOpenCourse = async (req, res) => {
     if (!MaHocKy || !MaMonHoc) return res.status(400).json({ success: false, message: 'Vui lòng chọn học kỳ và môn học' });
 
     await assertActiveCourseAndSemester(MaHocKy, MaMonHoc);
+    await assertCourseMatchesCurriculumPlan(MaHocKy, MaMonHoc);
     const actor = getActorId(req);
     const result = await prisma.$queryRaw`
       INSERT INTO "MONHOCMO" ("MaHocKy", "MaMonHoc", "GhiChu", "TrangThai", "NguoiCapNhat", "NgayCapNhat")
@@ -249,6 +263,7 @@ const updateOpenCourse = async (req, res) => {
 
     if (moving || disabling) await assertNoActiveOpenedClasses(current.MaHocKy, current.MaMonHoc);
     await assertActiveCourseAndSemester(nextMaHocKy, nextMaMonHoc);
+    await assertCourseMatchesCurriculumPlan(nextMaHocKy, nextMaMonHoc);
     if (moving) await assertNoDuplicateOpenCourse(id, nextMaHocKy, nextMaMonHoc);
 
     const actor = getActorId(req);
@@ -309,6 +324,7 @@ const getAvailableCourses = async (req, res) => {
       conditions.push(Prisma.sql`(mh."MaMonHoc" ~* ${term} OR mh."TenMonHoc" ~* ${term})`);
     }
     if (req.query.MaHocKy) {
+      conditions.push(Prisma.sql`fn_monhocmo_has_curriculum_plan(${req.query.MaHocKy}, mh."MaMonHoc") = TRUE`);
       conditions.push(Prisma.sql`NOT EXISTS (
         SELECT 1 FROM "MONHOCMO" mhm
         WHERE mhm."MaHocKy" = ${req.query.MaHocKy}
