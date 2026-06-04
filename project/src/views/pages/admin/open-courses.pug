@@ -22,7 +22,7 @@ block content
           select.form-control#oc-search-field(name="searchField" onchange="applyOpenCourseFilters()" aria-label="Tiêu chí tìm kiếm")
             option(value="MaMonHoc" selected=((openCourseSearchField || 'MaMonHoc') === 'MaMonHoc')) Mã môn
             option(value="TenMonHoc" selected=(openCourseSearchField === 'TenMonHoc')) Tên môn
-          input#oc-search(type="text" name="search" value=(search || '') placeholder="Nhập mã môn hoặc tên môn" autocomplete="off" onkeyup="debounceOpenCourseSearch()")
+          input#oc-search(type="text" name="search" value=(search || '') placeholder="Nhập mã môn hoặc tên môn" autocomplete="off" onkeydown="runSearchOnEnter(event, debounceOpenCourseSearch)")
       .open-courses-filter-field
         label(for="oc-filter-hocky") Học kỳ
         select.form-control#oc-filter-hocky(name="MaHocKy" onchange="applyOpenCourseFilters()")
@@ -148,7 +148,7 @@ block modals
         button.modal-close(type="button" onclick="closeOpenCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
-          input.form-control#open-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeyup="debounceOpenCoursePickerSearch()")
+          input.form-control#open-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeydown="runSearchOnEnter(event, debounceOpenCoursePickerSearch)")
           button.btn.btn-outline(type="button" onclick="loadOpenCoursePickerResults()") Tìm
         .table-container.lookup-table-container
           table.data-table.lookup-table

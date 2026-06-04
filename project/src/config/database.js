@@ -1471,8 +1471,9 @@ const ensureAuthSchema = async () => {
       JOIN "PHONGHOC" p ON p."MaPhong" = ur."MaPhong"
     )
     INSERT INTO "PHONGHOCHOCKY" ("MaPhong", "MaHocKy", "TrangThai", "GhiChu")
-    SELECT "MaPhong", "MaHocKy", TRUE, "GhiChu"
+    SELECT "MaPhong", "MaHocKy", TRUE, MAX("GhiChu")
     FROM room_allocations
+    GROUP BY "MaPhong", "MaHocKy"
     ON CONFLICT ("MaPhong", "MaHocKy") DO UPDATE SET
       "TrangThai" = TRUE,
       "DaXoa" = FALSE,
@@ -1507,8 +1508,9 @@ const ensureAuthSchema = async () => {
       JOIN "GIANGVIEN" gv ON gv."MaGiangVien" = ul."MaGiangVien"
     )
     INSERT INTO "GIANGVIENHOCKY" ("MaGiangVien", "MaHocKy", "TrangThai", "GhiChu")
-    SELECT "MaGiangVien", "MaHocKy", TRUE, "GhiChu"
+    SELECT "MaGiangVien", "MaHocKy", TRUE, MAX("GhiChu")
     FROM lecturer_allocations
+    GROUP BY "MaGiangVien", "MaHocKy"
     ON CONFLICT ("MaGiangVien", "MaHocKy") DO UPDATE SET
       "TrangThai" = TRUE,
       "DaXoa" = FALSE,

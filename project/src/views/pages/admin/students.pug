@@ -9,7 +9,7 @@ block content
         option(value="MaSv" selected=(searchField === 'MaSv')) MSSV
         option(value="HoTen" selected=(searchField === 'HoTen')) Họ tên
         option(value="Email" selected=(searchField === 'Email')) Email
-      input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') data-search-field=(searchField || 'all') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm MSSV, họ tên hoặc email..." value=(search || '') data-search-field=(searchField || 'all') onkeydown="runSearchOnEnter(event, debounceSearch)")
     .filter-group.admin-filter-group
       select#filter-faculty(onchange='onFacultyFilterChange()')
         option(value='') Tất cả khoa

@@ -26,7 +26,7 @@ block content
             option(value="TenPhuongXa" selected=(searchField === 'TenPhuongXa')) Tên
             option(value="Loai" selected=(searchField === 'Loai')) Loại
           .search-box
-            input#ward-search-input(type="text" placeholder="Nhập từ khóa tìm kiếm..." value=(search || '') onkeyup="debounceWardSearch()")
+            input#ward-search-input(type="text" placeholder="Nhập từ khóa tìm kiếm..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceWardSearch)")
         .filter-group
           select.form-control#ward-filter-province(onchange="applyWardFilters()")
             option(value="" selected=(!MaTinh)) Tất cả tỉnh

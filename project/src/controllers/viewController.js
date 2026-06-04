@@ -574,10 +574,7 @@ const adminCourses = async (req, res) => {
   const searchField = VALID_ADMIN_COURSE_SEARCH_FIELDS.has(req.query.searchField) ? req.query.searchField : 'all';
   const filterKhoa = req.query.MaKhoa || '';
   const filterLoaiMon = req.query.LoaiMon || '';
-  const where = { DaXoa: false };
-
-  applyAdminCourseSearch(where, search, searchField);
-  if (filterKhoa) where.MaKhoa = filterKhoa;
+  const where = { DaXoa: false };  if (filterKhoa) where.MaKhoa = filterKhoa;
   if (filterLoaiMon) where.LoaiMon = filterLoaiMon;
 
   try {
@@ -768,41 +765,10 @@ const adminClasses = async (req, res) => {
     where.LOPMO = { none: {} };
   }
 
-  if (search) {
-    const scopedSearch = {
-      class: [
-        { MaLop: { contains: search, mode: 'insensitive' } },
-        { TenLop: { contains: search, mode: 'insensitive' } }
-      ],
-      classCode: [
-        { MaLop: { contains: search, mode: 'insensitive' } }
-      ],
-      className: [
-        { TenLop: { contains: search, mode: 'insensitive' } }
-      ],
-      course: [
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } }
-      ],
-      lecturer: [
-        { MaGiangVien: { contains: search, mode: 'insensitive' } },
-        { GiangVien: { contains: search, mode: 'insensitive' } },
-        { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } },
-        { LOPMO: { some: { MaGiangVien: { contains: search, mode: 'insensitive' } } } },
-        { LOPMO: { some: { GiangVien: { contains: search, mode: 'insensitive' } } } },
-        { LOPMO: { some: { GIANGVIEN: { is: { HoTen: { contains: search, mode: 'insensitive' } } } } } }
-      ]
-    };
-    where.OR = scopedSearch[searchScope];
-  }
-
   try {
-    const [classes, total, courses, semesters, periods, lecturers, rooms, openCourseRows] = await Promise.all([
+    const [allClasses, courses, semesters, periods, lecturers, rooms, openCourseRows] = await Promise.all([
       prisma.LOP.findMany({
-        where,
-        skip: sortByCapacity ? undefined : (page - 1) * limit,
-        take: sortByCapacity ? undefined : limit,
-        orderBy: { MaLop: 'asc' },
+        where,        orderBy: { MaLop: 'asc' },
         include: {
           MONHOC: { include: { KHOA: true } },
           GIANGVIEN: true,
@@ -827,9 +793,7 @@ const adminClasses = async (req, res) => {
             orderBy: { NgayTao: 'desc' }
           }
         }
-      }),
-      prisma.LOP.count({ where }),
-      prisma.MONHOC.findMany({
+      }),      prisma.MONHOC.findMany({
         where: { DaXoa: false, TrangThai: true },
         orderBy: { MaMonHoc: 'asc' },
         select: { MaMonHoc: true, TenMonHoc: true }
@@ -860,6 +824,9 @@ const adminClasses = async (req, res) => {
           AND COALESCE("TrangThai", TRUE) = TRUE
       ` : Promise.resolve([])
     ]);
+    const filteredClasses = filterRowsByRegex(allClasses, search, (row) => getAdminClassSearchValues(row, searchScope));
+    const classes = filteredClasses;
+    const total = filteredClasses.length;
     const openCourseSet = new Set(openCourseRows.map((row) => row.MaMonHoc));
     const displayClasses = (await attachUpdaterNames(classes)).map((cls) => {
       const openedForSemester = selectedSemester
@@ -905,9 +872,7 @@ const adminClasses = async (req, res) => {
         return capacitySort === 'capacity_desc' ? -diff : diff;
       });
     }
-    const pagedClasses = sortByCapacity
-      ? displayClasses.slice((page - 1) * limit, page * limit)
-      : displayClasses;
+    const pagedClasses = displayClasses.slice((page - 1) * limit, page * limit);
 
     renderAdmin(res, 'classes', 'classes', 'Quản lý lớp học', req, {
       classes: pagedClasses,
@@ -1117,84 +1082,17 @@ const adminSemesters = async (req, res) => {
   const dateSearchFields = new Set(['NgayBatDau', 'NgayKetThuc', 'NgayBatDauDangKy', 'NgayKetThucDangKy', 'HanDongHocPhi']);
   const validSearchFields = new Set(['all', 'MaHocKy', 'TenHocKy', 'MaNamHoc', 'HocKy', 'LoaiHocKy', 'TrangThai', ...dateSearchFields]);
   const searchField = validSearchFields.has(req.query.searchField) ? req.query.searchField : 'all';
-  const containsSearch = (field) => ({ [field]: { contains: search, mode: 'insensitive' } });
-  const normalizedSearch = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const getSemesterKindSearchClauses = () => {
-    const clauses = [containsSearch('LoaiHocKy')];
-    if (/\b(i|1)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 1 });
-    if (/\b(ii|2)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 2 });
-    if (/\b(he|3)\b/.test(normalizedSearch)) clauses.push({ ThuTu: 3 });
-    return clauses;
-  };
-  const parseSearchDate = (value) => {
-    const raw = String(value || '').trim();
-    const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    const vi = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!iso && !vi) return null;
-
-    const year = Number(iso ? iso[1] : vi[3]);
-    const month = Number(iso ? iso[2] : vi[2]);
-    const day = Number(iso ? iso[3] : vi[1]);
-    const date = new Date(Date.UTC(year, month - 1, day));
-    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-    return date;
-  };
-  const searchDate = parseSearchDate(search);
-  const containsDate = (field) => {
-    const nextDay = new Date(searchDate.getTime());
-    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-    return { [field]: { gte: searchDate, lt: nextDay } };
-  };
-  const semesterSearchWhere = {};
-
-  if (search) {
-    if (searchField === 'all') {
-      semesterSearchWhere.OR = [
-        containsSearch('MaHocKy'),
-        containsSearch('TenHocKy'),
-        containsSearch('MaNamHoc'),
-        containsSearch('LoaiHocKy'),
-        containsSearch('TrangThai'),
-        { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } }
-      ];
-      if (searchDate) {
-        dateSearchFields.forEach((field) => semesterSearchWhere.OR.push(containsDate(field)));
-      }
-    } else if (searchField === 'MaNamHoc') {
-      semesterSearchWhere.OR = [
-        containsSearch('MaNamHoc'),
-        { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } }
-      ];
-    } else if (searchField === 'HocKy' || searchField === 'LoaiHocKy') {
-      semesterSearchWhere.OR = getSemesterKindSearchClauses();
-    } else if (dateSearchFields.has(searchField)) {
-      Object.assign(semesterSearchWhere, searchDate ? containsDate(searchField) : { MaHocKy: '__NO_DATE_MATCH__' });
-    } else {
-      Object.assign(semesterSearchWhere, containsSearch(searchField));
-    }
-  }
-
-  const where = { DaXoa: false, ...semesterSearchWhere };
+  const where = { DaXoa: false };
 
   try {
-    const [semesters, total] = await Promise.all([
-      prisma.HOCKY.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          NAMHOC: true,
-          _count: {
-            select: {
-              LOPMO: true,
-              PHIEUDANGKY: true
-            }
-          }
-        },
-        orderBy: { NgayBatDau: 'desc' }
-      }),
-      prisma.HOCKY.count({ where })
-    ]);
+    const allSemesters = await prisma.HOCKY.findMany({
+      where,
+      include: { NAMHOC: true, _count: { select: { LOPMO: true, PHIEUDANGKY: true } } },
+      orderBy: { NgayBatDau: 'desc' }
+    });
+    const filteredSemesters = filterRowsByRegex(allSemesters, search, (row) => getAdminSemesterSearchValues(row, searchField));
+    const semesters = paginateRows(filteredSemesters, page, limit);
+    const total = filteredSemesters.length;
     const semestersWithStats = semesters.map((semester) => ({
       ...semester,
       SoLopMo: semester._count?.LOPMO || 0,
@@ -1322,33 +1220,18 @@ const adminPrerequisites = async (req, res) => {
   const filterType = req.query.LoaiDieuKien || '';
   const where = { DaXoa: false };
   if (filterType) where.LoaiDieuKien = filterType;
-  if (search) {
-    if (prereqSearchField === 'courseName') {
-      where.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC = { TenMonHoc: { contains: search, mode: 'insensitive' } };
-    } else if (prereqSearchField === 'requiredName') {
-      where.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC = { TenMonHoc: { contains: search, mode: 'insensitive' } };
-    } else {
-      where.OR = [
-        { MaMonHoc: { contains: search, mode: 'insensitive' } },
-        { MaMonDieuKien: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-  }
-
   try {
-    const [prerequisites, total] = await Promise.all([
-      prisma.DIEUKIENMONHOC.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: [{ MaMonHoc: 'asc' }, { LoaiDieuKien: 'asc' }, { MaMonDieuKien: 'asc' }],
-        include: {
-          MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC: true,
-          MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: true
-        }
-      }),
-      prisma.DIEUKIENMONHOC.count({ where })
-    ]);
+    const allPrerequisites = await prisma.DIEUKIENMONHOC.findMany({
+      where,
+      orderBy: [{ MaMonHoc: 'asc' }, { LoaiDieuKien: 'asc' }, { MaMonDieuKien: 'asc' }],
+      include: { MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC: true, MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC: true }
+    });
+    const filteredPrerequisites = filterRowsByRegex(allPrerequisites, search, (row) => {
+      const values = { code: [row.MaMonHoc, row.MaMonDieuKien], courseName: [row.MONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC?.TenMonHoc], requiredName: [row.MONHOC_DIEUKIENMONHOC_MaMonDieuKienToMONHOC?.TenMonHoc] };
+      return values[prereqSearchField] || values.code;
+    });
+    const prerequisites = paginateRows(filteredPrerequisites, page, limit);
+    const total = filteredPrerequisites.length;
     const displayPrerequisites = (await attachUpdaterNames(prerequisites)).map((row) => ({
       ...row,
       LoaiDieuKienLabel: conditionTypeLabel(row.LoaiDieuKien)
@@ -1394,31 +1277,15 @@ const adminRegistrations = async (req, res) => {
     const semesters = await getSemesterActivityRows();
     selectedSemester = selectedSemester || getDefaultSemesterCode(semesters);
     if (status) where.TrangThai = status;
-    if (selectedSemester) where.MaHocKy = selectedSemester;
-    applyRegistrationSearch(where, registrationSearchScope, search);
-
-    const [registrations, total] = await Promise.all([
-      prisma.PHIEUDANGKY.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { NgayLap: 'desc' },
-        include: {
-          SINHVIEN: {
-            include: {
-              NGANHHOC: { include: { KHOA: true } }
-            }
-          },
-          HOCKY: { include: { NAMHOC: true } },
-          CHITIETDANGKY: {
-            where: { TrangThai: 'Đã đăng ký' },
-            select: { id: true, SoTinChi: true }
-          }
-        }
-      }),
-      prisma.PHIEUDANGKY.count({ where })
-    ]);
-
+    if (selectedSemester) where.MaHocKy = selectedSemester;
+    const allRegistrations = await prisma.PHIEUDANGKY.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: { SINHVIEN: { include: { NGANHHOC: { include: { KHOA: true } } } }, HOCKY: { include: { NAMHOC: true } }, CHITIETDANGKY: { where: { TrangThai: '?? ??ng k?' }, select: { id: true, SoTinChi: true } } }
+    });
+    const filteredRegistrations = filterRowsByRegex(allRegistrations, search, (row) => getRegistrationSearchValues(row, registrationSearchScope));
+    const registrations = paginateRows(filteredRegistrations, page, limit);
+    const total = filteredRegistrations.length;
     const registrationRows = registrations.map((registration) => ({
       ...registration,
       soPhieu: registration.SoPhieu,
@@ -1479,13 +1346,6 @@ const adminTuition = async (req, res) => {
 
     const where = { SINHVIEN: { DaXoa: false }, HOCKY: { DaXoa: false } };
     if (MaHocKy) where.MaHocKy = MaHocKy;
-    if (search) {
-      const searchFilter = { contains: search, mode: 'insensitive' };
-      if (searchField === 'MaSv') where.SINHVIEN.MaSv = searchFilter;
-      else if (searchField === 'HoTen') where.SINHVIEN.HoTen = searchFilter;
-      else where.SINHVIEN.OR = [{ MaSv: searchFilter }, { HoTen: searchFilter }];
-    }
-
     const registrations = await prisma.PHIEUDANGKY.findMany({
       where,
       orderBy: { NgayLap: 'desc' },
@@ -1497,7 +1357,7 @@ const adminTuition = async (req, res) => {
       }
     });
 
-    const rows = registrations.map((registration) => {
+    const mappedRows = registrations.map((registration) => {
       const amountDue = toNumber(registration.TongTienPhaiDong || registration.TongTienDangKy);
       const paidAmount = registration.PHIEUTHUHOCPHI
         .filter((receipt) => receipt.TrangThai === 'Thành công')
@@ -1529,8 +1389,9 @@ const adminTuition = async (req, res) => {
       };
     }).filter((row) => filterTuitionByStatus(row, status));
 
+    const rows = filterRowsByRegex(mappedRows, search, (row) => getScopedRegexValues({ MaSv: [row.MaSv], HoTen: [row.HoTen] }, searchField));
     const total = rows.length;
-    const tuitions = rows.slice((page - 1) * limit, page * limit);
+    const tuitions = paginateRows(rows, page, limit);
 
     renderAdmin(res, 'tuition', 'tuition', 'Công nợ học phí', req, {
       tuitions,
@@ -1571,16 +1432,6 @@ const adminPayments = async (req, res) => {
   const TrangThai = req.query.TrangThai || '';
   const where = {};
 
-  if (search) {
-    const keyword = String(search).trim();
-    const searchFilter = { contains: keyword, mode: 'insensitive' };
-    const receiptNumber = Number.parseInt(keyword, 10);
-    const receiptClause = Number.isInteger(receiptNumber) && String(receiptNumber) === keyword ? { SoPhieuThu: receiptNumber } : null;
-    if (searchField === 'SoPhieuThu') where.SoPhieuThu = receiptClause ? receiptClause.SoPhieuThu : -1;
-    else if (searchField === 'MaSv') where.MaSv = searchFilter;
-    else if (searchField === 'HoTen') where.SINHVIEN = { HoTen: searchFilter };
-    else where.OR = [receiptClause, { MaSv: searchFilter }, { SINHVIEN: { HoTen: searchFilter } }].filter(Boolean);
-  }
   if (HinhThucThu) where.HinhThucThu = HinhThucThu;
   if (TrangThai) where.TrangThai = TrangThai;
 
@@ -1589,17 +1440,14 @@ const adminPayments = async (req, res) => {
     MaHocKy = MaHocKy || getDefaultSemesterCode(semesters);
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
 
-    const [payments, total] = await Promise.all([
-      prisma.PHIEUTHUHOCPHI.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { NgayLap: 'desc' },
-        include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
-      }),
-      prisma.PHIEUTHUHOCPHI.count({ where })
-    ]);
-
+    const allPayments = await prisma.PHIEUTHUHOCPHI.findMany({
+      where,
+      orderBy: { NgayLap: 'desc' },
+      include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
+    });
+    const filteredPayments = filterRowsByRegex(allPayments, search, (row) => getPaymentSearchValues(row, searchField));
+    const payments = paginateRows(filteredPayments, page, limit);
+    const total = filteredPayments.length;
     const paymentsWithSemesterLabel = payments.map((payment) => ({
       ...payment,
       HocKyDisplay: payment.PHIEUDANGKY?.HOCKY ? getSemesterActivityLabel(payment.PHIEUDANGKY.HOCKY) : ''
@@ -1696,46 +1544,17 @@ const adminUsers = async (req, res) => {
     const allowedGroupCodes = groupOptions.map((group) => group.MaNhom);
     const filterGroupAllowed = !filterGroup || allowedGroupCodes.includes(filterGroup);
 
-    if (search) {
-      const clause = { contains: search, mode: 'insensitive' };
-      if (searchField === 'TenDangNhap') where.TenDangNhap = clause;
-      else if (searchField === 'HoTen') where.HoTen = clause;
-      else if (searchField === 'Email') where.Email = clause;
-      else if (searchField === 'MaSv') where.MaSv = clause;
-      else {
-        where.OR = [
-          { TenDangNhap: clause },
-          { HoTen: clause },
-          { Email: clause },
-          { MaSv: clause }
-        ];
-      }
-    }
-    if (filterRole && ['admin', 'student'].includes(filterRole)) where.Role = filterRole;
+      if (filterRole && ['admin', 'student'].includes(filterRole)) where.Role = filterRole;
     where.MaNhom = filterGroupAllowed && filterGroup ? filterGroup : { in: allowedGroupCodes };
 
-    const [accounts, total] = filterGroupAllowed ? await Promise.all([
-      prisma.TAIKHOAN.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { NgayTao: 'desc' },
-        select: {
-          MaTaiKhoan: true,
-          TenDangNhap: true,
-          Role: true,
-          MaNhom: true,
-          NgayTao: true,
-          HoTen: true,
-          MaSv: true,
-          Email: true,
-          Sdt: true,
-          TrangThai: true,
-          QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } }
-        }
-      }),
-      prisma.TAIKHOAN.count({ where })
-    ]) : [[], 0];
+    const allAccounts = filterGroupAllowed ? await prisma.TAIKHOAN.findMany({
+      where,
+      orderBy: { NgayTao: 'desc' },
+      select: { MaTaiKhoan: true, TenDangNhap: true, Role: true, MaNhom: true, NgayTao: true, HoTen: true, MaSv: true, Email: true, Sdt: true, TrangThai: true, QUANTRIVIEN: { select: { ChucVu: true, PhongBan: true } } }
+    }) : [];
+    const filteredAccounts = filterRowsByRegex(allAccounts, search, (row) => getAccountSearchValues(row, searchField));
+    const accounts = paginateRows(filteredAccounts, page, limit);
+    const total = filteredAccounts.length;
 
     renderAdmin(res, 'users', 'users', 'Quản lý người dùng', req, {
       accounts,
@@ -1833,16 +1652,6 @@ const adminCompletedCourses = async (req, res) => {
   const where = { DaXoa: false };
   if (filterHocKy) where.MaHocKy = filterHocKy;
   if (filterResult) where.KetQua = filterResult;
-  if (search) {
-    if (searchField === 'MaSv') where.MaSv = { contains: search, mode: 'insensitive' };
-    else if (searchField === 'HoTen') where.SINHVIEN = { HoTen: { contains: search, mode: 'insensitive' } };
-    else where.OR = [
-      { MaHocKy: { contains: search, mode: 'insensitive' } },
-      { HOCKY: { TenHocKy: { contains: search, mode: 'insensitive' } } },
-      { HOCKY: { NAMHOC: { TenNamHoc: { contains: search, mode: 'insensitive' } } } },
-      { HOCKY: { MaNamHoc: { contains: search, mode: 'insensitive' } } }
-    ];
-  }
   try {
     const [completedRows, semesters, courses, classes] = await Promise.all([
       prisma.MONDAHOC.findMany({
@@ -1862,7 +1671,11 @@ const adminCompletedCourses = async (req, res) => {
     ]);
 
     const studentMap = new Map();
-    completedRows.forEach((row) => {
+    const filteredCompletedRows = filterRowsByRegex(completedRows, search, (row) => {
+      const values = { MaSv: [row.MaSv], HoTen: [row.SINHVIEN?.HoTen], MaHocKy: [row.MaHocKy, row.HOCKY?.TenHocKy, row.HOCKY?.MaNamHoc, row.HOCKY?.NAMHOC?.TenNamHoc] };
+      return values[searchField] || values.MaSv;
+    });
+    filteredCompletedRows.forEach((row) => {
       if (!studentMap.has(row.MaSv)) {
         studentMap.set(row.MaSv, {
           MaSv: row.MaSv,
@@ -2225,33 +2038,16 @@ const adminCurriculumPrograms = async (req, res) => {
   if (major) where.MaNganh = major;
   if (status === 'active') where.TrangThai = true;
   if (status === 'inactive') where.TrangThai = false;
-  if (search) {
-    const scopedSearch = {
-      majorCode: { MaNganh: { contains: search, mode: 'insensitive' } },
-      majorName: { NGANHHOC: { TenNganh: { contains: search, mode: 'insensitive' } } },
-      courseCode: { MaMonHoc: { contains: search, mode: 'insensitive' } },
-      courseName: { MONHOC: { TenMonHoc: { contains: search, mode: 'insensitive' } } }
-    };
-    Object.assign(where, scopedSearch[searchField]);
-  }
-
   try {
-    const [rows, total, majors] = await Promise.all([
-      prisma.CHUONGTRINHHOC.findMany({
-        where,
-        orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
-        include: {
-          NGANHHOC: { include: { KHOA: true } },
-          MONHOC: { include: { KHOA: true } }
-        }
-      }),
-      prisma.CHUONGTRINHHOC.count({ where }),
-      prisma.NGANHHOC.findMany({
-        where: { DaXoa: false },
-        orderBy: { TenNganh: 'asc' },
-        include: { KHOA: true }
-      })
+    const [allRows, majors] = await Promise.all([
+      prisma.CHUONGTRINHHOC.findMany({ where, orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }], include: { NGANHHOC: { include: { KHOA: true } }, MONHOC: { include: { KHOA: true } } } }),
+      prisma.NGANHHOC.findMany({ where: { DaXoa: false }, orderBy: { TenNganh: 'asc' }, include: { KHOA: true } })
     ]);
+    const rows = filterRowsByRegex(allRows, search, (row) => {
+      const values = { majorCode: [row.MaNganh], majorName: [row.NGANHHOC?.TenNganh], courseCode: [row.MaMonHoc], courseName: [row.MONHOC?.TenMonHoc] };
+      return values[searchField] || values.majorCode;
+    });
+    const total = rows.length;
 
     const curriculumPrograms = rows.map((row) => ({
       id: row.id,
@@ -2396,41 +2192,17 @@ const applyLocationStatusFilter = (where, status) => {
   if (status === 'inactive') where.TrangThai = false;
 };
 
-const buildAdminProvinceWhere = ({ search, searchField, status, LoaiTinh }) => {
+const buildAdminProvinceWhere = ({ status, LoaiTinh }) => {
   const where = { DaXoa: false };
-  if (search) {
-    if (searchField === 'MaTinh') where.MaTinh = { contains: search, mode: 'insensitive' };
-    else if (searchField === 'TenTinh') where.TenTinh = { contains: search, mode: 'insensitive' };
-    else if (searchField === 'LoaiTinh') where.LoaiTinh = { contains: search, mode: 'insensitive' };
-    else {
-      where.OR = [
-        { MaTinh: { contains: search, mode: 'insensitive' } },
-        { TenTinh: { contains: search, mode: 'insensitive' } },
-        { LoaiTinh: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-  }
   if (LoaiTinh) where.LoaiTinh = LoaiTinh;
   applyLocationStatusFilter(where, status);
   return where;
 };
 
-const buildAdminWardWhere = ({ search, searchField, MaTinh, Loai, KhuVuc, status }) => {
+const buildAdminWardWhere = ({ MaTinh, Loai, KhuVuc, status }) => {
   const where = { DaXoa: false };
   if (MaTinh) where.MaTinh = MaTinh;
   if (KhuVuc) where.KhuVuc = KhuVuc;
-  if (search) {
-    if (searchField === 'MaPhuongXa') where.MaPhuongXa = { contains: search, mode: 'insensitive' };
-    else if (searchField === 'TenPhuongXa') where.TenPhuongXa = { contains: search, mode: 'insensitive' };
-    else if (searchField === 'Loai') where.Loai = { contains: search, mode: 'insensitive' };
-    else {
-      where.OR = [
-        { MaPhuongXa: { contains: search, mode: 'insensitive' } },
-        { TenPhuongXa: { contains: search, mode: 'insensitive' } },
-        { Loai: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-  }
   if (Loai) where.Loai = Loai;
   applyLocationStatusFilter(where, status);
   return where;
@@ -2447,19 +2219,13 @@ const adminLocationProvinces = async (req, res) => {
   const searchField = req.query.searchField || 'all';
   const status = req.query.status || '';
   const LoaiTinh = req.query.LoaiTinh || '';
-  const where = buildAdminProvinceWhere({ search, searchField, status, LoaiTinh });
+  const where = buildAdminProvinceWhere({ status, LoaiTinh });
 
   try {
-    const [provinceRows, total] = await Promise.all([
-      prisma.TINH.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { MaTinh: 'asc' },
-        include: { _count: { select: { PHUONGXA: { where: { DaXoa: false } } } } }
-      }),
-      prisma.TINH.count({ where })
-    ]);
+    const allProvinceRows = await prisma.TINH.findMany({ where, orderBy: { MaTinh: 'asc' }, include: { _count: { select: { PHUONGXA: { where: { DaXoa: false } } } } } });
+    const filteredProvinceRows = filterRowsByRegex(allProvinceRows, search, (row) => getScopedRegexValues({ MaTinh: [row.MaTinh], TenTinh: [row.TenTinh], LoaiTinh: [row.LoaiTinh] }, searchField));
+    const provinceRows = paginateRows(filteredProvinceRows, page, limit);
+    const total = filteredProvinceRows.length;
     const provinces = await attachUpdaterNames(provinceRows);
 
     renderAdmin(res, 'locations-provinces', 'locations-provinces', 'Quản lý tỉnh/thành phố', req, {
@@ -2502,24 +2268,16 @@ const adminLocationWards = async (req, res) => {
   const MaTinh = req.query.MaTinh || '';
   const Loai = req.query.Loai || '';
   const KhuVuc = req.query.KhuVuc || '';
-  const where = buildAdminWardWhere({ search, searchField, MaTinh, Loai, KhuVuc, status });
+  const where = buildAdminWardWhere({ MaTinh, Loai, KhuVuc, status });
 
   try {
-    const [wardRows, total, provinceOptions] = await Promise.all([
-      prisma.PHUONGXA.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { MaPhuongXa: 'asc' },
-        include: { TINH: true }
-      }),
-      prisma.PHUONGXA.count({ where }),
-      prisma.TINH.findMany({
-        where: { DaXoa: false },
-        orderBy: { TenTinh: 'asc' },
-        select: { MaTinh: true, TenTinh: true, TrangThai: true }
-      })
+    const [allWardRows, provinceOptions] = await Promise.all([
+      prisma.PHUONGXA.findMany({ where, orderBy: { MaPhuongXa: 'asc' }, include: { TINH: true } }),
+      prisma.TINH.findMany({ where: { DaXoa: false }, orderBy: { TenTinh: 'asc' }, select: { MaTinh: true, TenTinh: true, TrangThai: true } })
     ]);
+    const filteredWardRows = filterRowsByRegex(allWardRows, search, (row) => getScopedRegexValues({ MaPhuongXa: [row.MaPhuongXa], TenPhuongXa: [row.TenPhuongXa], Loai: [row.Loai] }, searchField));
+    const wardRows = paginateRows(filteredWardRows, page, limit);
+    const total = filteredWardRows.length;
     const wards = await attachUpdaterNames(wardRows);
 
     renderAdmin(res, 'locations-wards', 'locations-wards', 'Quản lý phường/xã', req, {

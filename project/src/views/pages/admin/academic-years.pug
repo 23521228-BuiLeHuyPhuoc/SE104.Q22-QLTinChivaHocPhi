@@ -8,7 +8,7 @@ block content
         option(value="all" selected=(!searchField || searchField === 'all')) Tất cả
         option(value="MaNamHoc" selected=(searchField === 'MaNamHoc')) Mã năm học
         option(value="TenNamHoc" selected=(searchField === 'TenNamHoc')) Tên năm học
-      input#search-input(type="text" placeholder="Tìm mã hoặc tên năm học..." value=(search || '') onkeyup="debounceAcademicYearSearch()")
+      input#search-input(type="text" placeholder="Tìm mã hoặc tên năm học..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceAcademicYearSearch)")
     .filter-group.admin-filter-group
       select.form-control#status-filter(onchange="applyAcademicYearFilters()")
         option(value="" selected=(!status)) Tất cả trạng thái

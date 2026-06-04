@@ -54,12 +54,12 @@
 }
 
 .semester-filter-search {
-  grid-column: 1 / span 3;
+  grid-column: 1 / span 4;
   grid-row: 1;
 }
 
 .semester-filter-kind {
-  grid-column: 4 / span 3;
+  grid-column: 5 / span 2;
   grid-row: 1;
 }
 
@@ -115,7 +115,7 @@
 .semester-search-row {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(140px, 0.48fr) minmax(0, 1fr);
+  grid-template-columns: minmax(112px, 0.32fr) minmax(190px, 1fr);
 }
 
 .semester-search-row .form-control,

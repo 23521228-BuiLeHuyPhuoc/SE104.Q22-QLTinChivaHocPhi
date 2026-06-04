@@ -30,7 +30,8 @@
   align-items: end;
   display: grid;
   gap: var(--spacing-md);
-  grid-template-columns: minmax(360px, 1.25fr) minmax(260px, 1fr) minmax(180px, 0.72fr) minmax(180px, 0.72fr) minmax(132px, max-content);
+  grid-template-columns: minmax(320px, 360px) minmax(230px, 260px) minmax(170px, 190px) minmax(170px, 190px) max-content;
+  justify-content: start;
 }
 
 .open-courses-search-field {

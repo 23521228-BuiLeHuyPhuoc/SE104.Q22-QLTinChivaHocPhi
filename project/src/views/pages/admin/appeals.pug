@@ -24,7 +24,7 @@ block content
       .registration-filter-field.registration-search-keyword
         label(for="appeal-search-input") Từ khóa tìm kiếm
         .search-box.registration-search-box
-          input#appeal-search-input(type="text" placeholder=appealSearchPlaceholders.studentId autocomplete="off" onkeyup="debounceAppealSearch()")
+          input#appeal-search-input(type="text" placeholder=appealSearchPlaceholders.studentId autocomplete="off" onkeydown="runSearchOnEnter(event, debounceAppealSearch)")
     .registration-filter-row
       .registration-filter-field
         label(for="appeal-semester") Học kỳ

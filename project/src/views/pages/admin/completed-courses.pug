@@ -12,7 +12,7 @@ block content
         option(value="MaSv" selected=(completedSearchField === 'MaSv')) MSSV
         option(value="HoTen" selected=(completedSearchField === 'HoTen')) Họ tên
         option(value="MaHocKy" selected=(completedSearchField === 'MaHocKy')) Học kỳ
-      input#search-input(type="text" placeholder="Tìm theo tiêu chí đã chọn..." value=(search || '') onkeyup="debounceSearch()")
+      input#search-input(type="text" placeholder="Tìm theo tiêu chí đã chọn..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
     .filter-group.admin-filter-group
       select#filter-hocky(onchange="applyFilters()")
         option(value="" selected=(!filterHocKy)) Tất cả học kỳ
