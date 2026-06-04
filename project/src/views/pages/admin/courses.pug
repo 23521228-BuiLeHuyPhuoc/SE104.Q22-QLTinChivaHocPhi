@@ -13,7 +13,7 @@ block content
         option(value="TenMonHoc" selected=(searchField === 'TenMonHoc')) Tên môn
         option(value="LoaiMon" selected=(searchField === 'LoaiMon')) Loại môn
         option(value="MaKhoa" selected=(searchField === 'MaKhoa')) Khoa
-      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') onkeydown="runSearchOnEnter(event, debounceSearch)")
+      input#search-input(type="text" placeholder="Nhập từ khóa môn học..." value=(search || '') oninput="debounceSearch()")
     .filter-group.admin-filter-group
       select.form-control#faculty-filter(onchange="applyCourseFilters()")
         option(value="" selected=!filterKhoa) Tất cả khoa
@@ -25,10 +25,18 @@ block content
         option(value="LT" selected=(filterLoaiMon === 'LT')) Lý thuyết
         option(value="TH" selected=(filterLoaiMon === 'TH')) Thực hành
     .admin-action-group
-      button.btn.btn-outline(type="button" onclick="exportCourses()") Xuất Excel
-      button.btn.btn-outline(type="button" onclick="openCourseImportModal()") Nhập Excel
-      button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm môn học
-      a.btn.btn-outline(href="/admin/trash?entity=courses") Thùng rác
+      button.btn.btn-outline(type="button" onclick="exportCourses()" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") file_download
+        | Xuất Excel
+      button.btn.btn-outline(type="button" onclick="openCourseImportModal()" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") file_upload
+        | Nhập Excel
+      button.btn.btn-primary(type="button" onclick="openModal('add')" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") add
+        | Thêm môn học
+      a.btn.btn-outline(href="/admin/trash?entity=courses" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete_outline
+        | Thùng rác
 
   .card
     .card-header
@@ -65,8 +73,12 @@ block content
                 td= c.NgayCapNhat ? new Date(c.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
                   .table-action-list
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))") Sửa
-                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')`) Xóa
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(c) onclick="openModal('edit', JSON.parse(this.dataset.record))" style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") edit
+                      | Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deleteCourse('${c.MaMonHoc}')` style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete
+                      | Xóa
           else
             tr
               td(colspan="9")

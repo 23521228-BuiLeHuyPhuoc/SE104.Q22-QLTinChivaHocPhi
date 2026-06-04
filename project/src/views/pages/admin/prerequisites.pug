@@ -11,15 +11,19 @@ block content
         option(value="code" selected=((prereqSearchField || 'code') === 'code')) Mã môn
         option(value="courseName" selected=(prereqSearchField === 'courseName')) Tên môn học
         option(value="requiredName" selected=(prereqSearchField === 'requiredName')) Tên môn điều kiện
-      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') onkeydown="runSearchOnEnter(event, debouncePrereqSearch)")
+      input#search-input(type="text" placeholder="Nhập từ khóa ràng buộc..." value=(search || '') oninput="debouncePrereqSearch()")
     .filter-group.admin-filter-group
       select.form-control#type-filter(onchange="applyPrereqFilters()")
         option(value="" selected=!filterType) Tất cả loại
         option(value="tien_quyet" selected=filterType === 'tien_quyet') Tiên quyết
         option(value="hoc_truoc" selected=filterType === 'hoc_truoc') Học trước
     .admin-action-group
-      button.btn.btn-primary(type="button" onclick="openPrereqModal('add')") Thêm ràng buộc
-      a.btn.btn-outline(href="/admin/trash?entity=prerequisites") Thùng rác
+      button.btn.btn-primary(type="button" onclick="openPrereqModal('add')" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") add
+        | Thêm ràng buộc
+      a.btn.btn-outline(href="/admin/trash?entity=prerequisites" style="display: inline-flex; align-items: center;")
+        span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete_outline
+        | Thùng rác
 
   .card
     .card-header
@@ -58,8 +62,12 @@ block content
                 td= p.NgayCapNhat ? new Date(p.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(onclick="event.stopPropagation()")
                   .table-action-list
-                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))") Sửa
-                    button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})`) Xóa
+                    button.btn.btn-sm.btn-outline(type="button" data-record=JSON.stringify(p) onclick="openPrereqModal('edit', JSON.parse(this.dataset.record))" style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") edit
+                      | Sửa
+                    button.btn.btn-sm.btn-danger(type="button" onclick=`deletePrereq(${p.id})` style="display: inline-flex; align-items: center;")
+                      span.material-symbols-rounded(style="font-size: 16px; margin-right: 4px;") delete
+                      | Xóa
           else
             tr
               td(colspan="8")
@@ -117,7 +125,7 @@ block modals
         button.modal-close(type="button" onclick="closePrereqCoursePicker()" aria-label="Đóng") ×
       .modal-body
         .lookup-search-row
-          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" onkeydown="runSearchOnEnter(event, debouncePrereqCoursePickerSearch)")
+          input.form-control#prereq-course-picker-search(type="text" placeholder="Nhập mã hoặc tên môn học" oninput="debouncePrereqCoursePickerSearch()")
           button.btn.btn-outline(type="button" onclick="loadPrereqCoursePickerResults()") Tìm
         .table-container.lookup-table-container
           table.data-table.lookup-table

@@ -1,32 +1,16 @@
 extends ../../layouts/student
 
+block styles
+  script.
+    (function() {
+      var saved = localStorage.getItem('theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    })();
 block content
   .page-shell
     .page-heading.compact
     .page-kicker Học tập
-      h2 Môn da hoc
-
-    .stats-grid
-      .stat-card
-        .stat-icon.blue.material-symbols-rounded history_edu
-        .stat-info
-          h3#total-attempts 0
-          p Lượt học
-      .stat-card
-        .stat-icon.green.material-symbols-rounded check_circle
-        .stat-info
-          h3#passed-count 0
-          p Qua môn
-      .stat-card
-        .stat-icon.red.material-symbols-rounded cancel
-        .stat-info
-          h3#failed-count 0
-          p Rớt
-      .stat-card
-        .stat-icon.purple.material-symbols-rounded school
-        .stat-info
-          h3#passed-credits 0
-          p Tín chỉ dat
+      h2 Môn đã học
 
     .filter-group
       input#completed-search(type="text" placeholder="Tìm mã môn, tên môn, khoa, loại, lớp, giảng viên")
