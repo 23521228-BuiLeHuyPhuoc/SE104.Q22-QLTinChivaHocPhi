@@ -9,7 +9,7 @@ const toNumber = (value) => {
 };
 
 const emptyTotals = () => ({ paid: 0, refunded: 0, pending: 0, failed: 0, cancelled: 0, count: 0 });
-const PAYMENT_PARTIAL_STATUS = '\u0110\u00f3ng m\u1ed9t ph\u1ea7n';
+const PAYMENT_PARTIAL_STATUS = 'Chưa thanh toán hết';
 
 const normalizeTotalsRow = (row) => ({
   paid: toNumber(row.paid),

@@ -183,7 +183,7 @@ function tuitionStatusBadge(status, overdue, key) {
   if (status === 'Chờ xác nhận') return 'badge-warning';
   if (status === 'Chưa thanh toán') return 'badge-warning';
   if (status === 'Đã đóng đủ') return 'badge-success';
-  if (status === 'Đóng một phần') return 'badge-warning';
+  if (status === 'Đóng một phần' || status === 'Chưa thanh toán hết') return 'badge-warning';
   if (status === 'Chưa phát sinh') return 'badge-secondary';
   if (overdue || status === 'Quá hạn') return 'badge-error';
   return 'badge-error';

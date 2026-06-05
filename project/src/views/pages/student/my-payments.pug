@@ -34,5 +34,16 @@ block content
             tbody#payment-list
         nav.pagination#payments-pagination(style="display:none")
 
+block modals
+  #payment-detail-modal.modal-overlay(onclick="if(event.target===this)closePaymentDetailModal()")
+    .modal.modal-wide
+      .modal-header
+        h3#payment-detail-title Chi ti?t phi?u thu
+        button.modal-close(type="button" onclick="closePaymentDetailModal()" aria-label="??ng") ?
+      .modal-body#payment-detail-body
+        .empty-state ?ang t?i d? li?u...
+      .modal-footer
+        button.btn.btn-outline(type="button" onclick="closePaymentDetailModal()") ??ng
+
 block scripts
   script(src="/js/student/my-payments.js")
