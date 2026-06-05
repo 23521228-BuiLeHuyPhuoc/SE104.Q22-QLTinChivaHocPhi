@@ -1,10 +1,13 @@
 extends ../../layouts/admin
 
 block content
-  - const total = students ? students.length : 0
-  - const studying = students ? students.filter(s => s.TrangThai === 'Đang học').length : 0
-  - const graduated = students ? students.filter(s => s.TrangThai === 'Đã tốt nghiệp').length : 0
-  - const suspended = students ? students.filter(s => s.TrangThai === 'Bảo lưu').length : 0
+  - const stats = studentStats || {}
+  - const total = Number(stats.total || 0)
+  - const studying = Number(stats.studying || 0)
+  - const graduated = Number(stats.graduated || 0)
+  - const suspended = Number(stats.suspended || 0)
+  - const pageCount = students ? students.length : 0
+  - const recordsTotal = Number(totalRecords === undefined ? total : totalRecords)
 
   .stats-grid.mb-4
     .stat-card
@@ -21,7 +24,7 @@ block content
       .stat-icon.purple.material-symbols-rounded school
       .stat-info
         h3= graduated
-        p Đã tốt nghiệp
+        p Tốt nghiệp
     .stat-card
       .stat-icon.orange.material-symbols-rounded pause_circle
       .stat-info
@@ -45,9 +48,9 @@ block content
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(status === '' || !status)) Tất cả trạng thái
         option(value="Đang học" selected=(status === 'Đang học')) Đang học
-        option(value="Đã tốt nghiệp" selected=(status === 'Đã tốt nghiệp')) Đã tốt nghiệp
+        option(value="Tốt nghiệp" selected=(status === 'Tốt nghiệp')) Tốt nghiệp
         option(value="Bảo lưu" selected=(status === 'Bảo lưu')) Bảo lưu
-        option(value="Đã thôi học" selected=(status === 'Đã thôi học')) Đã thôi học
+        option(value="Nghỉ học" selected=(status === 'Nghỉ học')) Nghỉ học
     .admin-action-group
       button.btn.btn-primary(type="button" onclick="openModal('add')") Thêm sinh viên
       a.btn.btn-outline(href="/admin/trash?entity=students") Thùng rác
@@ -63,7 +66,7 @@ block content
   .card
     .card-header
       h3 Danh sách sinh viên
-      span.card-count= students ? `${students.length} bản ghi` : '0 bản ghi'
+      span.card-count= recordsTotal === pageCount ? `${pageCount} bản ghi` : `${pageCount}/${recordsTotal} bản ghi`
     .table-container
       table.data-table.students-table
         thead
@@ -106,7 +109,7 @@ block content
                 td= sv.DANTOC ? sv.DANTOC.TenDanToc : (sv.MaDanToc || '-')
                 td= beneficiaries || '-'
                 td
-                  span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Đã tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
+                  span.badge(class=sv.TrangThai === 'Đang học' ? 'badge-success' : sv.TrangThai === 'Bảo lưu' ? 'badge-warning' : sv.TrangThai === 'Tốt nghiệp' ? 'badge-info' : 'badge-error')= sv.TrangThai || '-'
                 td= sv.NguoiCapNhatTen || sv.NguoiCapNhat || '-'
                 td= sv.NgayCapNhat ? new Date(sv.NgayCapNhat).toLocaleDateString('vi-VN') : '-'
                 td.table-actions(data-no-row-detail="true")
@@ -187,8 +190,8 @@ block modals
               select.form-control#sv-trangthai
                 option(value="Đang học") Đang học
                 option(value="Bảo lưu") Bảo lưu
-                option(value="Đã tốt nghiệp") Đã tốt nghiệp
-                option(value="Đã thôi học") Đã thôi học
+                option(value="Tốt nghiệp") Tốt nghiệp
+                option(value="Nghỉ học") Nghỉ học
           .form-group
             label(for="sv-diachi") Địa chỉ liên hệ
             input.form-control#sv-diachi(type="text" required)

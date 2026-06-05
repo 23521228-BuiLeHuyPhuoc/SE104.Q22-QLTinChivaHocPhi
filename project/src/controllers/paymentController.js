@@ -32,6 +32,51 @@ const PAYMENT_SEARCH_FIELDS = new Set(['all', 'SoPhieuThu', 'MaSv', 'HoTen']);
 const CASH_PAYMENT_INSTRUCTION = 'Vui lòng đem tiền mặt tới phòng tài chính A.101 để thanh toán và được phòng tài chính xác nhận thanh toán.';
 const ONLINE_PAYMENT_PROVIDERS = new Set(['vnpay', 'zalopay']);
 const MANUAL_CONFIRMATION_PROVIDERS = new Set(['cash', 'qr', 'bank_qr']);
+const ZALOPAY_DEFAULT_MIN_AMOUNT = 1000;
+const ZALOPAY_AMOUNT_TOO_SMALL_CODE = 'ZALOPAY_AMOUNT_TOO_SMALL';
+
+const getZalopayMinAmount = () => {
+  const amount = Number(process.env.ZALOPAY_MIN_AMOUNT || ZALOPAY_DEFAULT_MIN_AMOUNT);
+  return Number.isFinite(amount) && amount > 0 ? amount : ZALOPAY_DEFAULT_MIN_AMOUNT;
+};
+
+const getZalopayAmountTooSmallMessage = (includeMinAmount = true) => {
+  if (!includeMinAmount) {
+    return 'S\u1ed1 ti\u1ec1n thanh to\u00e1n qu\u00e1 nh\u1ecf \u0111\u1ed1i v\u1edbi ZaloPay. Vui l\u00f2ng nh\u1eadp s\u1ed1 ti\u1ec1n l\u1edbn h\u01a1n ho\u1eb7c ch\u1ecdn thanh to\u00e1n to\u00e0n b\u1ed9.';
+  }
+  return 'S\u1ed1 ti\u1ec1n thanh to\u00e1n qu\u00e1 nh\u1ecf \u0111\u1ed1i v\u1edbi ZaloPay. Vui l\u00f2ng nh\u1eadp t\u1ed1i thi\u1ec3u ' + getZalopayMinAmount().toLocaleString('vi-VN') + '\u0111 ho\u1eb7c ch\u1ecdn thanh to\u00e1n to\u00e0n b\u1ed9.';
+};
+
+const normalizeGatewayText = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase();
+
+const isZalopayAmountTooSmallResponse = (result = {}) => {
+  const text = normalizeGatewayText([
+    result.return_message,
+    result.sub_return_message,
+    result.message,
+    result.sub_message,
+    result.sub_msg,
+    result.return_code,
+    result.sub_return_code
+  ].filter((item) => item !== undefined && item !== null).join(' '));
+  return /(amount|so tien)/.test(text) && /(too small|small|min|minimum|toi thieu|nho|be hon|it nhat|invalid|khong hop le)/.test(text);
+};
+
+const throwZalopayAmountTooSmall = (includeMinAmount = true) => {
+  throw {
+    status: 400,
+    code: ZALOPAY_AMOUNT_TOO_SMALL_CODE,
+    message: getZalopayAmountTooSmallMessage(includeMinAmount)
+  };
+};
+
+const assertZalopayAmountAllowed = (amount) => {
+  const roundedAmount = Math.round(Number(amount || 0));
+  if (roundedAmount > 0 && roundedAmount < getZalopayMinAmount()) throwZalopayAmountTooSmall(true);
+};
 
 const firstHeaderValue = (value) => String(Array.isArray(value) ? value[0] : value || '').split(',')[0].trim();
 
@@ -296,6 +341,7 @@ const buildVnpayUrl = (receipt, amount, req, transactionRef = String(receipt.SoP
 };
 
 const createZalopayOrder = async (receipt, amount, req, transactionRef = String(receipt.SoPhieuThu)) => {
+  assertZalopayAmountAllowed(amount);
   requirePaymentEnv(['ZALOPAY_APP_ID', 'ZALOPAY_KEY1', 'ZALOPAY_KEY2'], 'ZaloPay');
   const appId = process.env.ZALOPAY_APP_ID;
   const key1 = process.env.ZALOPAY_KEY1;
@@ -331,6 +377,7 @@ const createZalopayOrder = async (receipt, amount, req, transactionRef = String(
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || Number(result.return_code || 0) !== 1) {
+    if (isZalopayAmountTooSmallResponse(result)) throwZalopayAmountTooSmall(false);
     throw {
       status: 502,
       code: 'ZALOPAY_CREATE_ORDER_FAILED',
@@ -767,7 +814,10 @@ const checkoutPaymentV2 = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Số tiền thanh toán không được vượt số tiền còn nợ của phiếu thu/phiếu đăng ký' });
     }
     if (provider === 'vnpay') requirePaymentEnv(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'], 'VNPAY');
-    if (provider === 'zalopay') requirePaymentEnv(['ZALOPAY_APP_ID', 'ZALOPAY_KEY1', 'ZALOPAY_KEY2'], 'ZaloPay');
+    if (provider === 'zalopay') {
+      requirePaymentEnv(['ZALOPAY_APP_ID', 'ZALOPAY_KEY1', 'ZALOPAY_KEY2'], 'ZaloPay');
+      assertZalopayAmountAllowed(requestedAmount);
+    }
 
     const isCash = provider === 'cash';
     const isQr = provider === 'qr' || provider === 'bank_qr';
@@ -1152,7 +1202,9 @@ const zalopayReturn = async (req, res) => {
       } else if (returnCode === 2) {
         payment = await markOnlineResultV2(paymentRef, false, transactionCode, providerAmount);
         status = 'failed';
-        reason = result.return_message || result.sub_return_message || 'failed';
+        reason = isZalopayAmountTooSmallResponse(result)
+          ? ZALOPAY_AMOUNT_TOO_SMALL_CODE
+          : result.return_message || result.sub_return_message || 'failed';
       }
     }
 

@@ -1,9 +1,16 @@
 const prisma = require('../config/database');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { filterRowsByRegex } = require('../utils/searchRegex');
+const { PAYMENT_STATUS } = require('../utils/businessConstants');
+const {
+  emptyTotals,
+  getTransactionTotalsByRegistration,
+  getEffectivePaid
+} = require('../utils/paymentLedger');
 
 const active = { DaXoa: false };
-const PAYMENT_SUCCESS = 'Thành công';
+const ACTIVE_REGISTRATION_STATUS = 'Đã đăng ký';
+const PAYMENT_SUCCESS = PAYMENT_STATUS.SUCCESS;
 
 const toNumber = (value) => Number(value || 0);
 
@@ -12,6 +19,7 @@ const getTuitionDebtRows = async (filters = {}) => {
   if (filters.MaNganh) studentWhere.MaNganh = filters.MaNganh;
   if (filters.MaKhoa) studentWhere.NGANHHOC = { MaKhoa: filters.MaKhoa };
   const where = {
+    TrangThai: ACTIVE_REGISTRATION_STATUS,
     SINHVIEN: studentWhere,
     HOCKY: active
   };
@@ -22,15 +30,16 @@ const getTuitionDebtRows = async (filters = {}) => {
     orderBy: { NgayLap: 'desc' },
     include: {
       SINHVIEN: { include: { NGANHHOC: { include: { KHOA: true } } } },
-      HOCKY: { include: { NAMHOC: true } },
-      PHIEUTHUHOCPHI: { where: { TrangThai: PAYMENT_SUCCESS }, select: { SoTienThu: true } }
+      HOCKY: { include: { NAMHOC: true } }
     }
   });
+
+  const totalsByRegistration = await getTransactionTotalsByRegistration(prisma, rows.map((row) => row.SoPhieu));
 
   const now = new Date();
   const mappedRows = rows.map((row) => {
     const totalDue = toNumber(row.TongTienPhaiDong);
-    const totalPaid = row.PHIEUTHUHOCPHI.reduce((sum, receipt) => sum + toNumber(receipt.SoTienThu), 0);
+    const totalPaid = getEffectivePaid(totalsByRegistration.get(Number(row.SoPhieu)) || emptyTotals());
     const debt = Math.max(totalDue - totalPaid, 0);
     const dueDate = row.HOCKY?.HanDongHocPhi || null;
     const overdue = debt > 0 && dueDate && new Date(dueDate) < now;
@@ -80,23 +89,22 @@ const getDashboardStats = async (req, res) => {
       prisma.SINHVIEN.count({ where: active }),
       prisma.MONHOC.count({ where: active }),
       prisma.LOPMO.count({ where: { TrangThai: true, LOP: active, HOCKY: active } }),
-      prisma.PHIEUDANGKY.count({ where: { TrangThai: 'Đã đăng ký', SINHVIEN: active, HOCKY: active } }),
+      prisma.PHIEUDANGKY.count({ where: { TrangThai: ACTIVE_REGISTRATION_STATUS, SINHVIEN: active, HOCKY: active } }),
       prisma.PHIEUDANGKY.findMany({
-        where: { SINHVIEN: active, HOCKY: active },
+        where: { TrangThai: ACTIVE_REGISTRATION_STATUS, SINHVIEN: active, HOCKY: active },
         select: {
+          SoPhieu: true,
           TongTienPhaiDong: true,
-          HOCKY: { select: { HanDongHocPhi: true } },
-          PHIEUTHUHOCPHI: {
-            where: { TrangThai: PAYMENT_SUCCESS },
-            select: { SoTienThu: true }
-          }
+          HOCKY: { select: { HanDongHocPhi: true } }
         }
       })
     ]);
 
+    const totalsByRegistration = await getTransactionTotalsByRegistration(prisma, tuitionRows.map((row) => row.SoPhieu));
+
     const tuition = tuitionRows.reduce((acc, row) => {
       const due = Number(row.TongTienPhaiDong || 0);
-      const paid = row.PHIEUTHUHOCPHI.reduce((sum, receipt) => sum + Number(receipt.SoTienThu || 0), 0);
+      const paid = getEffectivePaid(totalsByRegistration.get(Number(row.SoPhieu)) || emptyTotals());
       const remaining = Math.max(due - paid, 0);
       acc.totalAmount += due;
       acc.paidAmount += paid;
@@ -128,14 +136,19 @@ const getRevenueMonthly = async (req, res) => {
     const year = Number(req.query.year || new Date().getFullYear());
     const start = new Date(Date.UTC(year, 0, 1));
     const end = new Date(Date.UTC(year + 1, 0, 1));
-    const rows = await prisma.PHIEUTHUHOCPHI.findMany({
-      where: { TrangThai: PAYMENT_SUCCESS, NgayLap: { gte: start, lt: end } },
-      select: { NgayLap: true, SoTienThu: true }
-    });
+    const rows = await prisma.$queryRaw`
+      SELECT "NgayXacNhan", "NgayCapNhat", "NgayTao", "SoTienThanhToan", "TrangThai"
+      FROM "GIAODICHTHANHTOANHOCPHI"
+      WHERE "TrangThai" IN (${PAYMENT_SUCCESS}, ${PAYMENT_STATUS.REFUND})
+        AND COALESCE("NgayXacNhan", "NgayCapNhat", "NgayTao") >= ${start}
+        AND COALESCE("NgayXacNhan", "NgayCapNhat", "NgayTao") < ${end}
+    `;
     const data = Array.from({ length: 12 }, (_, index) => ({ month: index + 1, amount: 0 }));
     rows.forEach((row) => {
-      const month = new Date(row.NgayLap).getMonth();
-      data[month].amount += toNumber(row.SoTienThu);
+      const paidAt = row.NgayXacNhan || row.NgayCapNhat || row.NgayTao;
+      const month = new Date(paidAt).getMonth();
+      const sign = row.TrangThai === PAYMENT_STATUS.REFUND ? -1 : 1;
+      data[month].amount += sign * toNumber(row.SoTienThanhToan);
     });
     res.json({ success: true, data });
   } catch (error) {
@@ -182,7 +195,7 @@ const getIncompleteTuitionReport = async (req, res) => {
 const getRegistrationBySemester = async (req, res) => {
   try {
     const rows = await prisma.PHIEUDANGKY.findMany({
-      where: { SINHVIEN: active, HOCKY: active },
+      where: { TrangThai: ACTIVE_REGISTRATION_STATUS, SINHVIEN: active, HOCKY: active },
       select: { MaHocKy: true, HOCKY: { select: { TenHocKy: true, NAMHOC: { select: { TenNamHoc: true } } } } }
     });
     const map = rows.reduce((acc, row) => {

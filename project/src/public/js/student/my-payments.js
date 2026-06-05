@@ -22,6 +22,25 @@ function paymentSemesterText(payment) {
   return payment.HocKyDisplay || [payment.TenHocKy, payment.TenNamHoc].filter(Boolean).join(' - ') || payment.MaHocKy || '-';
 }
 
+function normalizePaymentReason(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function isZalopayAmountTooSmallReason(reason) {
+  var normalizedReason = normalizePaymentReason(reason);
+  return normalizedReason.indexOf('zalopay_amount_too_small') >= 0 ||
+    normalizedReason.indexOf('amount_too_small') >= 0 ||
+    ((normalizedReason.indexOf('amount') >= 0 || normalizedReason.indexOf('so tien') >= 0) &&
+      (normalizedReason.indexOf('too small') >= 0 || normalizedReason.indexOf('minimum') >= 0 || normalizedReason.indexOf('min') >= 0 || normalizedReason.indexOf('nho') >= 0 || normalizedReason.indexOf('toi thieu') >= 0 || normalizedReason.indexOf('invalid') >= 0 || normalizedReason.indexOf('khong hop le') >= 0));
+}
+
+function getZalopayAmountTooSmallMessage() {
+  return 'S\u1ed1 ti\u1ec1n thanh to\u00e1n qu\u00e1 nh\u1ecf \u0111\u1ed1i v\u1edbi ZaloPay. Vui l\u00f2ng nh\u1eadp s\u1ed1 ti\u1ec1n l\u1edbn h\u01a1n ho\u1eb7c ch\u1ecdn thanh to\u00e1n to\u00e0n b\u1ed9.';
+}
+
 function paymentDisplayStatus(payment) {
   var status = payment.TrangThaiHienThi || payment.TrangThai || '-';
   return status === 'Đóng một phần' ? 'Chưa thanh toán hết' : status;
@@ -238,6 +257,11 @@ function printStudentPayment(id) {
 document.addEventListener('DOMContentLoaded', function() {
   var params = new URLSearchParams(window.location.search || '');
   var paymentResult = params.get('payment');
+  var paymentReason = params.get('reason') || '';
+  if (paymentResult === 'failed' && isZalopayAmountTooSmallReason(paymentReason)) {
+    showToast(getZalopayAmountTooSmallMessage(), 'error');
+    paymentResult = 'failed_handled';
+  }
   if (paymentResult === 'success') showToast('Thanh toán thành công. Danh sách phiếu thu đã được cập nhật.', 'success');
   if (paymentResult === 'failed') showToast('Thanh toán thất bại. Phiếu thu đã được cập nhật trạng thái.', 'error');
   if (paymentResult && window.history && window.history.replaceState) {

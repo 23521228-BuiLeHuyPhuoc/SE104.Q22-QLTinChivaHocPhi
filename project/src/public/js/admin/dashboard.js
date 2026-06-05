@@ -19,10 +19,12 @@ async function loadDashboardStats() {
   var stats = res.data || {};
   var students = document.getElementById('stat-students');
   var courses = document.getElementById('stat-courses');
+  var openedClasses = document.getElementById('stat-opened-classes');
   var registrations = document.getElementById('stat-registrations');
   var revenue = document.getElementById('stat-revenue');
   if (students) students.textContent = stats.totalStudents || 0;
   if (courses) courses.textContent = stats.totalCourses || 0;
+  if (openedClasses) openedClasses.textContent = stats.openedClasses || 0;
   if (registrations) registrations.textContent = stats.registrations || 0;
   if (revenue) revenue.textContent = formatCurrency(stats.paidAmount || 0);
 }

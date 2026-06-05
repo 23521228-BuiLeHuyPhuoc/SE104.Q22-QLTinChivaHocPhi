@@ -363,6 +363,22 @@ const filterTuitionByStatus = (row, status) => {
   return row.TrangThaiHocPhi === status;
 };
 
+const normalizeStudentStatus = (value) => {
+  if (value === 'Đã tốt nghiệp') return 'Tốt nghiệp';
+  if (value === 'Đã thôi học') return 'Nghỉ học';
+  return value || '';
+};
+
+const getStudentStats = (rows = []) => rows.reduce((acc, row) => {
+  const status = normalizeStudentStatus(row.TrangThai);
+  acc.total += 1;
+  if (status === 'Đang học') acc.studying += 1;
+  if (status === 'Tốt nghiệp') acc.graduated += 1;
+  if (status === 'Bảo lưu') acc.suspended += 1;
+  if (status === 'Nghỉ học') acc.inactive += 1;
+  return acc;
+}, { total: 0, studying: 0, graduated: 0, suspended: 0, inactive: 0 });
+
 const attachUpdaterNames = async (rows = []) => {
   const ids = Array.from(new Set(rows.map((row) => row.NguoiCapNhat).filter(Boolean)));
   if (!ids.length) return rows;
@@ -541,7 +557,7 @@ const adminStudents = async (req, res) => {
   const limit = DEFAULT_PAGE_SIZE;
   const search = req.query.search || '';
   const searchField = ['MaSv', 'HoTen', 'Email'].includes(req.query.searchField) ? req.query.searchField : 'all';
-  const status = req.query.status || '';
+  const status = normalizeStudentStatus(req.query.status);
   const MaKhoa = req.query.MaKhoa || '';
   const MaNganh = req.query.MaNganh || '';
   const where = { DaXoa: false };
@@ -565,10 +581,13 @@ const adminStudents = async (req, res) => {
     const filteredStudents = filterRowsByRegex(allStudents, search, (row) => getScopedRegexValues({ MaSv: [row.MaSv], HoTen: [row.HoTen], Email: [row.Email] }, searchField));
     const students = paginateRows(filteredStudents, page, limit);
     const total = filteredStudents.length;
+    const studentStats = getStudentStats(filteredStudents);
     const displayStudents = await attachUpdaterNames(students);
 
     renderAdmin(res, 'students', 'students', 'Quản lý sinh viên', req, {
       students: displayStudents,
+      studentStats,
+      totalRecords: total,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       baseUrl: '/admin/students',
@@ -583,6 +602,8 @@ const adminStudents = async (req, res) => {
     console.error('Error:', err);
     renderAdmin(res, 'students', 'students', 'Quản lý sinh viên', req, {
       students: [],
+      studentStats: getStudentStats([]),
+      totalRecords: 0,
       currentPage: 1,
       totalPages: 0,
       baseUrl: '/admin/students',
