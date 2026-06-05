@@ -79,6 +79,11 @@ const assertZalopayAmountAllowed = (amount) => {
   if (roundedAmount > 0 && roundedAmount < getZalopayMinAmount()) throwZalopayAmountTooSmall(true);
 };
 
+const getZalopayAppTransDate = (date = new Date()) => new Date(date.getTime() + 7 * 60 * 60 * 1000)
+  .toISOString()
+  .slice(2, 10)
+  .replace(/-/g, '');
+
 const firstHeaderValue = (value) => String(Array.isArray(value) ? value[0] : value || '').split(',')[0].trim();
 
 const normalizeBaseUrl = (value) => String(value || '').replace(/\/$/, '');
@@ -125,6 +130,30 @@ const requirePaymentEnv = (names, provider) => {
   }
 };
 
+const getPaymentGatewayTimeoutMs = () => {
+  const timeout = Number(process.env.PAYMENT_GATEWAY_TIMEOUT_MS || 15000);
+  return Number.isFinite(timeout) && timeout >= 1000 ? timeout : 15000;
+};
+
+const fetchPaymentGateway = async (url, options, provider) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), getPaymentGatewayTimeoutMs());
+  try {
+    return await fetch(url, { ...(options || {}), signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw {
+        status: 504,
+        code: 'PAYMENT_GATEWAY_TIMEOUT',
+        message: `Không kết nối được ${provider} trong thời gian cho phép. Vui lòng thử lại hoặc kiểm tra mạng/ngrok.`
+      };
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const getPaymentSearchValues = (row, searchField = 'all') => {
   const field = PAYMENT_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
   const values = {
@@ -136,6 +165,13 @@ const getPaymentSearchValues = (row, searchField = 'all') => {
 };
 
 const getPaymentDisplayStatus = (row) => row.TrangThaiHienThi || row.TrangThai || '';
+
+const truncatePaymentNote = (value, maxLength = 300) => {
+  const text = String(value || '').trim();
+  return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text;
+};
+
+const appendPaymentNote = (base, note) => truncatePaymentNote([base, note].filter(Boolean).join(' | '));
 
 const getSemesterKindLabel = (semester) => {
   if (!semester) return '';
@@ -341,13 +377,19 @@ const createZalopayOrder = async (receipt, amount, req, transactionRef = String(
   const appId = process.env.ZALOPAY_APP_ID;
   const key1 = process.env.ZALOPAY_KEY1;
   const endpoint = process.env.ZALOPAY_ENDPOINT || 'https://sb-openapi.zalopay.vn/v2/create';
-  const appTransId = `${new Date().toISOString().slice(2, 10).replace(/-/g, '')}_${transactionRef}`;
+  const appTransId = `${getZalopayAppTransDate()}_${transactionRef}`;
   const returnUrl = getPaymentUrl(req, 'ZALOPAY_RETURN_URL', '/api/payments/zalopay-return');
   const callbackUrl = getPaymentUrl(req, 'ZALOPAY_CALLBACK_URL', '/api/payments/zalopay-callback');
+  const redirectParams = new URLSearchParams({
+    ref: transactionRef,
+    receipt: String(receipt.SoPhieuThu),
+    app_trans_id: appTransId
+  });
   const embedData = JSON.stringify({
-    redirecturl: `${returnUrl}?ref=${encodeURIComponent(transactionRef)}&receipt=${encodeURIComponent(receipt.SoPhieuThu)}`,
+    redirecturl: `${returnUrl}?${redirectParams.toString()}`,
     receipt_id: receipt.SoPhieuThu,
-    transaction_ref: transactionRef
+    transaction_ref: transactionRef,
+    app_trans_id: appTransId
   });
   const item = JSON.stringify([{ itemid: `PTHP-${receipt.SoPhieuThu}`, itemname: `Phiếu thu #${receipt.SoPhieuThu}`, itemprice: Math.round(amount), itemquantity: 1 }]);
   const appTime = Date.now();
@@ -360,16 +402,17 @@ const createZalopayOrder = async (receipt, amount, req, transactionRef = String(
     item,
     embed_data: embedData,
     description: `Thanh toán học phí phiếu thu #${receipt.SoPhieuThu}`,
-    callback_url: callbackUrl
+    callback_url: callbackUrl,
+    bank_code: process.env.ZALOPAY_BANK_CODE || 'zalopayapp'
   };
   const macData = [order.app_id, order.app_trans_id, order.app_user, order.amount, order.app_time, order.embed_data, order.item].join('|');
   order.mac = crypto.createHmac('sha256', key1).update(macData).digest('hex');
 
-  const response = await fetch(endpoint, {
+  const response = await fetchPaymentGateway(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(Object.entries(order).map(([key, value]) => [key, String(value)]))
-  });
+  }, 'ZaloPay');
   const result = await response.json().catch(() => ({}));
   if (!response.ok || Number(result.return_code || 0) !== 1) {
     if (isZalopayAmountTooSmallResponse(result)) throwZalopayAmountTooSmall(false);
@@ -847,10 +890,13 @@ const checkoutPaymentV2 = async (req, res) => {
         gatewayOrder = await createZalopayOrder(receipt, requestedAmount, req, transactionRef);
         checkoutUrl = gatewayOrder.checkoutUrl;
       }
+      const storedTransactionCode = provider === 'zalopay' && gatewayOrder?.appTransId
+        ? gatewayOrder.appTransId
+        : transactionCode;
       const qrPayload = isQr ? buildVietQrPayload(registration, receipt, requestedAmount) : null;
       const updatedRows = await tx.$queryRaw`
         UPDATE "GIAODICHTHANHTOANHOCPHI"
-        SET "MaGiaoDich" = ${transactionCode},
+        SET "MaGiaoDich" = ${storedTransactionCode},
             "CheckoutUrl" = ${checkoutUrl},
             "QrPayload" = ${qrPayload},
             "NgayCapNhat" = ${new Date()}
@@ -863,7 +909,7 @@ const checkoutPaymentV2 = async (req, res) => {
           HinhThucThu: hinhThuc,
           PaymentProvider: provider,
           PaymentChannel: paymentChannel,
-          MaGiaoDich: transactionCode,
+          MaGiaoDich: storedTransactionCode,
           NguoiThu: null,
           TrangThai: receiptStatus,
           NgayXacNhan: null,
@@ -903,7 +949,7 @@ const checkoutPaymentV2 = async (req, res) => {
       }
     });
   } catch (error) {
-    if (error.status) return res.status(error.status).json({ success: false, message: error.message });
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message, code: error.code });
     return sendErrorResponse(res, error, 'Lỗi server', 'Checkout payment error:');
   }
 };
@@ -965,11 +1011,11 @@ const queryZalopayOrder = async (appTransId) => {
     app_trans_id: appTransId,
     mac: crypto.createHmac('sha256', key1).update(macData).digest('hex')
   });
-  const response = await fetch(getZalopayQueryEndpoint(), {
+  const response = await fetchPaymentGateway(getZalopayQueryEndpoint(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body
-  });
+  }, 'ZaloPay');
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw { status: 502, code: 'ZALOPAY_QUERY_FAILED', message: 'Không truy vấn được trạng thái thanh toán ZaloPay' };
@@ -1048,7 +1094,29 @@ const parsePaymentTransactionRef = (value) => {
   return match ? Number(match[1]) : null;
 };
 
-const markOnlineResultV2 = async (paymentRef, success, transactionCode, providerAmount) => {
+const isZalopayAppTransId = (value) => /^\d{6}_.+/.test(String(value || ''));
+
+const getStoredZalopayAppTransId = async (paymentRef) => {
+  const transactionId = parsePaymentTransactionRef(paymentRef);
+  if (!transactionId) return null;
+  const transaction = await getTransactionById(prisma, transactionId);
+  if (String(transaction?.PaymentProvider || '').toLowerCase() !== 'zalopay') return null;
+  return isZalopayAppTransId(transaction.MaGiaoDich) ? transaction.MaGiaoDich : null;
+};
+
+const getLocalOnlineReturnStatus = async (paymentRef) => {
+  const transactionId = parsePaymentTransactionRef(paymentRef);
+  if (!transactionId) return null;
+  const transaction = await getTransactionById(prisma, transactionId);
+  if (!transaction) return null;
+
+  const payment = await syncReceiptStatus(prisma, transaction.SoPhieuThu, { failed: transaction.TrangThai === PAYMENT_FAILED });
+  if (transaction.TrangThai === PAYMENT_SUCCESS) return { status: 'success', reason: 'paid', payment };
+  if (transaction.TrangThai === PAYMENT_FAILED) return { status: 'failed', reason: transaction.GhiChu || 'failed', payment };
+  return { status: 'pending', reason: 'processing', payment };
+};
+
+const markOnlineResultV2 = async (paymentRef, success, transactionCode, providerAmount, options = {}) => {
   let transactionId = parsePaymentTransactionRef(paymentRef);
 
   if (!transactionId) {
@@ -1081,10 +1149,14 @@ const markOnlineResultV2 = async (paymentRef, success, transactionCode, provider
     }
   }
 
+  const failureReason = !success ? String(options.failureReason || '').trim() : '';
+  const transactionNote = failureReason ? appendPaymentNote(transaction.GhiChu, failureReason) : transaction.GhiChu;
+
   await prisma.$queryRaw`
     UPDATE "GIAODICHTHANHTOANHOCPHI"
     SET "TrangThai" = ${success ? PAYMENT_SUCCESS : PAYMENT_FAILED},
         "MaGiaoDich" = ${transactionCode || transaction.MaGiaoDich},
+        "GhiChu" = ${transactionNote},
         "NgayXacNhan" = ${success ? new Date() : null},
         "NgayCapNhat" = ${new Date()}
     WHERE "MaGiaoDichThanhToan" = ${transaction.MaGiaoDichThanhToan}
@@ -1097,7 +1169,7 @@ const markOnlineResultV2 = async (paymentRef, success, transactionCode, provider
     SoTienThu: transaction.SoTienThanhToan,
     MaGiaoDich: transactionCode || transaction.MaGiaoDich,
     ThanhCong: success,
-    LyDo: success ? null : 'Cổng thanh toán trả về kết quả thất bại'
+    LyDo: success ? null : (failureReason || 'Cổng thanh toán trả về kết quả thất bại')
   });
   return payment;
 };
@@ -1170,7 +1242,7 @@ const verifyZalopayMac = (body) => {
 };
 
 const zalopayReturn = async (req, res) => {
-  const appTransId = getZalopayAppTransId(req.query);
+  let appTransId = getZalopayAppTransId(req.query);
   const paymentRef = getZalopayPaymentRef(req.query);
   const accepts = String(req.get('accept') || '').toLowerCase();
   const wantsJson = req.query.format === 'json' || (accepts.includes('application/json') && !accepts.includes('text/html'));
@@ -1181,25 +1253,35 @@ const zalopayReturn = async (req, res) => {
   try {
     if (!paymentRef) {
       reason = 'missing_ref';
-    } else if (!appTransId) {
-      reason = 'missing_app_trans_id';
     } else {
-      const result = await queryZalopayOrder(appTransId);
-      const returnCode = Number(result.return_code || 0);
-      const transactionCode = result.zp_trans_id || result.zalopay_trans_id || result.zptranstoken || req.query.zp_trans_id;
-      const fallbackAmount = await getTransactionAmountForRef(paymentRef);
-      const providerAmount = parseCallbackAmount(result.amount || req.query.amount) || fallbackAmount;
+      appTransId = appTransId || await getStoredZalopayAppTransId(paymentRef);
+      if (!appTransId) {
+        const localResult = await getLocalOnlineReturnStatus(paymentRef);
+        if (localResult) ({ status, reason, payment } = localResult);
+        else reason = 'missing_app_trans_id';
+      } else {
+        const result = await queryZalopayOrder(appTransId);
+        const returnCode = Number(result.return_code || 0);
+        const transactionCode = result.zp_trans_id || result.zalopay_trans_id || result.zptranstoken || req.query.zp_trans_id;
+        const fallbackAmount = await getTransactionAmountForRef(paymentRef);
+        const providerAmount = parseCallbackAmount(result.amount || req.query.amount) || fallbackAmount;
 
-      if (returnCode === 1) {
-        payment = await markOnlineResultV2(paymentRef, true, transactionCode, providerAmount);
-        status = payment ? 'success' : 'pending';
-        reason = payment?.TrangThai === PAYMENT_SUCCESS ? 'paid' : 'partial_or_paid';
-      } else if (returnCode === 2) {
-        payment = await markOnlineResultV2(paymentRef, false, transactionCode, providerAmount);
-        status = 'failed';
-        reason = isZalopayAmountTooSmallResponse(result)
-          ? ZALOPAY_AMOUNT_TOO_SMALL_CODE
-          : result.return_message || result.sub_return_message || 'failed';
+        if (returnCode === 1) {
+          payment = await markOnlineResultV2(paymentRef, true, transactionCode, providerAmount);
+          status = payment ? 'success' : 'pending';
+          reason = payment?.TrangThai === PAYMENT_SUCCESS ? 'paid' : 'partial_or_paid';
+        } else if (returnCode === 2) {
+          const failureReason = isZalopayAmountTooSmallResponse(result)
+            ? ZALOPAY_AMOUNT_TOO_SMALL_CODE
+            : result.return_message || result.sub_return_message || 'failed';
+          payment = await markOnlineResultV2(paymentRef, false, transactionCode, providerAmount, { failureReason });
+          status = 'failed';
+          reason = failureReason;
+        } else {
+          const localResult = await getLocalOnlineReturnStatus(paymentRef);
+          if (localResult && localResult.status !== 'pending') ({ status, reason, payment } = localResult);
+          else reason = result.return_message || result.sub_return_message || 'processing';
+        }
       }
     }
 
@@ -1225,7 +1307,8 @@ const zalopayCallback = async (req, res) => {
       ? true
       : Number(explicitStatus) === 1;
     const providerAmount = parseCallbackAmount(payload.amount) || await getTransactionAmountForRef(paymentRef);
-    await markOnlineResultV2(paymentRef, success, payload.zp_trans_id, providerAmount);
+    const failureReason = success ? null : (payload.return_message || payload.sub_return_message || 'ZaloPay trả về kết quả thất bại');
+    await markOnlineResultV2(paymentRef, success, payload.zp_trans_id, providerAmount, { failureReason });
     res.json({ return_code: 1, return_message: 'success' });
   } catch (error) {
     console.error('ZaloPay callback error:', error);

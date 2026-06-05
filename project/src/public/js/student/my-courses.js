@@ -79,7 +79,6 @@ function semesterLabel(semester) {
 
 function registrationSemesterText(course) {
   var registration = course.PHIEUDANGKY || {};
-  var statusTitle = course.LyDoCamThi || '';
   var semester = registration.HOCKY || {};
   var year = semester.NAMHOC || {};
   var semesterName = semester.TenHocKy || registration.MaHocKy || '-';
@@ -221,6 +220,7 @@ function renderMyCourseRow(course) {
   var lop = course.LOP || {};
   var mon = lop.MONHOC || {};
   var status = course.TrangThai || 'Đã đăng ký';
+  var statusTitle = course.LyDoCamThi || '';
   var registration = course.PHIEUDANGKY || {};
 
   return '<tr>' +

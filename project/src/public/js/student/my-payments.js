@@ -41,6 +41,14 @@ function getZalopayAmountTooSmallMessage() {
   return 'S\u1ed1 ti\u1ec1n thanh to\u00e1n qu\u00e1 nh\u1ecf \u0111\u1ed1i v\u1edbi ZaloPay. Vui l\u00f2ng nh\u1eadp s\u1ed1 ti\u1ec1n l\u1edbn h\u01a1n ho\u1eb7c ch\u1ecdn thanh to\u00e1n to\u00e0n b\u1ed9.';
 }
 
+function getFailedPaymentMessage(reason) {
+  var text = String(reason || '').trim();
+  if (!text || text === 'failed' || text === 'not_found' || text === 'zalopay_return_error') {
+    return 'Thanh toán thất bại. Phiếu thu đã được cập nhật trạng thái.';
+  }
+  return 'Thanh toán thất bại: ' + text;
+}
+
 function paymentDisplayStatus(payment) {
   var status = payment.TrangThaiHienThi || payment.TrangThai || '-';
   return status === 'Đóng một phần' ? 'Chưa thanh toán hết' : status;
@@ -145,7 +153,7 @@ function renderPaymentDetail(payment) {
       '<td class="mono">' + paymentEscapeHtml(item.MaGiaoDichThanhToan || '-') + '</td>' +
       '<td>' + paymentDateTime(item.NgayTao) + '</td>' +
       '<td class="currency">' + formatCurrency(item.SoTienThanhToan || 0) + '</td>' +
-      '<td>' + paymentEscapeHtml(item.HinhThucThanhToan || 'Ch?a ch?n') + '</td>' +
+      '<td>' + paymentEscapeHtml(item.HinhThucThanhToan || 'Chưa chọn') + '</td>' +
       '<td>' + paymentEscapeHtml(provider) + '</td>' +
       '<td>' + paymentEscapeHtml(item.MaGiaoDich || '-') + '</td>' +
       '<td>' + paymentDateTime(item.NgayXacNhan) + '</td>' +
@@ -155,25 +163,25 @@ function renderPaymentDetail(payment) {
   }).join('');
 
   return '<div class="info-list">' +
-      '<div><span class="label">S? phi?u thu</span><span class="mono">' + paymentEscapeHtml(payment.SoPhieuThu || '-') + '</span></div>' +
-      '<div><span class="label">Phi?u ??ng k?</span><span class="mono">' + paymentEscapeHtml(payment.SoPhieuDangKy || '-') + '</span></div>' +
+      '<div><span class="label">Số phiếu thu</span><span class="mono">' + paymentEscapeHtml(payment.SoPhieuThu || '-') + '</span></div>' +
+      '<div><span class="label">Phiếu đăng ký</span><span class="mono">' + paymentEscapeHtml(payment.SoPhieuDangKy || '-') + '</span></div>' +
       '<div><span class="label">MSSV</span><span class="mono">' + paymentEscapeHtml(payment.MaSv || '-') + '</span></div>' +
-      '<div><span class="label">Sinh vi?n</span><span>' + paymentEscapeHtml(payment.HoTen || '-') + '</span></div>' +
-      '<div><span class="label">H?c k?</span><span>' + paymentEscapeHtml(paymentSemesterText(payment)) + '</span></div>' +
-      '<div><span class="label">S? ti?n phi?u thu</span><span>' + formatCurrency(payment.SoTienThu || 0) + '</span></div>' +
-      '<div><span class="label">?? thanh to?n</span><span>' + formatCurrency(payment.TongTienDaThanhToan || 0) + '</span></div>' +
-      '<div><span class="label">Ch? x?c nh?n</span><span>' + formatCurrency(payment.TongTienDangChoXacNhan || 0) + '</span></div>' +
-      '<div><span class="label">C?n n?</span><span>' + formatCurrency(payment.ConNoPhieuThu || 0) + '</span></div>' +
-      '<div><span class="label">Ph??ng th?c g?n nh?t</span><span>' + paymentEscapeHtml(payment.HinhThucThu || 'Ch?a ch?n') + '</span></div>' +
-      '<div><span class="label">M? giao d?ch g?n nh?t</span><span>' + paymentEscapeHtml(payment.MaGiaoDich || '-') + '</span></div>' +
-      '<div><span class="label">Ng?y l?p</span><span>' + paymentDateTime(payment.NgayLap) + '</span></div>' +
-      '<div><span class="label">Ng?y x?c nh?n</span><span>' + paymentDateTime(payment.NgayXacNhan) + '</span></div>' +
-      '<div><span class="label">Tr?ng th?i</span><span><span class="badge ' + paymentStatusBadgeClass(payment) + '">' + paymentEscapeHtml(status) + '</span></span></div>' +
-      '<div><span class="label">Ghi ch?</span><span>' + paymentEscapeHtml(payment.GhiChu || '-') + '</span></div>' +
+      '<div><span class="label">Sinh viên</span><span>' + paymentEscapeHtml(payment.HoTen || '-') + '</span></div>' +
+      '<div><span class="label">Học kỳ</span><span>' + paymentEscapeHtml(paymentSemesterText(payment)) + '</span></div>' +
+      '<div><span class="label">Số tiền phiếu thu</span><span>' + formatCurrency(payment.SoTienThu || 0) + '</span></div>' +
+      '<div><span class="label">Đã thanh toán</span><span>' + formatCurrency(payment.TongTienDaThanhToan || 0) + '</span></div>' +
+      '<div><span class="label">Chờ xác nhận</span><span>' + formatCurrency(payment.TongTienDangChoXacNhan || 0) + '</span></div>' +
+      '<div><span class="label">Còn nợ</span><span>' + formatCurrency(payment.ConNoPhieuThu || 0) + '</span></div>' +
+      '<div><span class="label">Phương thức gần nhất</span><span>' + paymentEscapeHtml(payment.HinhThucThu || 'Chưa chọn') + '</span></div>' +
+      '<div><span class="label">Mã giao dịch gần nhất</span><span>' + paymentEscapeHtml(payment.MaGiaoDich || '-') + '</span></div>' +
+      '<div><span class="label">Ngày lập</span><span>' + paymentDateTime(payment.NgayLap) + '</span></div>' +
+      '<div><span class="label">Ngày xác nhận</span><span>' + paymentDateTime(payment.NgayXacNhan) + '</span></div>' +
+      '<div><span class="label">Trạng thái</span><span><span class="badge ' + paymentStatusBadgeClass(payment) + '">' + paymentEscapeHtml(status) + '</span></span></div>' +
+      '<div><span class="label">Ghi chú</span><span>' + paymentEscapeHtml(payment.GhiChu || '-') + '</span></div>' +
     '</div>' +
-    '<h3 class="mt-3">L?n thanh to?n</h3>' +
-    '<div class="table-container"><table class="data-table"><thead><tr><th>M? l?n</th><th>Ng?y t?o</th><th>S? ti?n</th><th>Ph??ng th?c</th><th>K?nh</th><th>M? giao d?ch</th><th>Ng?y x?c nh?n</th><th>Tr?ng th?i</th><th>Ghi ch?</th></tr></thead><tbody>' +
-      (transactionRows || '<tr><td colspan="9"><div class="empty-state">Ch?a c? l?n thanh to?n</div></td></tr>') +
+    '<h3 class="mt-3">Lần thanh toán</h3>' +
+    '<div class="table-container"><table class="data-table"><thead><tr><th>Mã lần</th><th>Ngày tạo</th><th>Số tiền</th><th>Phương thức</th><th>Kênh</th><th>Mã giao dịch</th><th>Ngày xác nhận</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead><tbody>' +
+      (transactionRows || '<tr><td colspan="9"><div class="empty-state">Chưa có lần thanh toán</div></td></tr>') +
     '</tbody></table></div>';
 }
 
@@ -183,21 +191,21 @@ async function openPaymentDetailModal(id) {
   var body = document.getElementById('payment-detail-body');
   if (!modal || !body || !id) return;
   currentPaymentDetail = null;
-  if (title) title.textContent = 'Phi?u thu #' + id;
-  body.innerHTML = '<div class="empty-state">?ang t?i d? li?u...</div>';
+  if (title) title.textContent = 'Phiếu thu #' + id;
+  body.innerHTML = '<div class="empty-state">Đang tải dữ liệu...</div>';
   modal.classList.add('active');
 
   try {
     var res = await apiFetch('/api/payments/' + encodeURIComponent(id));
     if (!res || res.success === false) {
-      body.innerHTML = '<div class="empty-state text-error">' + paymentEscapeHtml((res && res.message) || 'Kh?ng t?i ???c phi?u thu') + '</div>';
+      body.innerHTML = '<div class="empty-state text-error">' + paymentEscapeHtml((res && res.message) || 'Không tải được phiếu thu') + '</div>';
       return;
     }
     currentPaymentDetail = res.data || {};
     studentPaymentCache[id] = currentPaymentDetail;
     body.innerHTML = renderPaymentDetail(currentPaymentDetail);
   } catch (e) {
-    body.innerHTML = '<div class="empty-state text-error">L?i t?i chi ti?t phi?u thu</div>';
+    body.innerHTML = '<div class="empty-state text-error">Lỗi tải chi tiết phiếu thu</div>';
   }
 }
 
@@ -263,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     paymentResult = 'failed_handled';
   }
   if (paymentResult === 'success') showToast('Thanh toán thành công. Danh sách phiếu thu đã được cập nhật.', 'success');
-  if (paymentResult === 'failed') showToast('Thanh toán thất bại. Phiếu thu đã được cập nhật trạng thái.', 'error');
+  if (paymentResult === 'failed') showToast(getFailedPaymentMessage(paymentReason), 'error');
   if (paymentResult && window.history && window.history.replaceState) {
     window.history.replaceState(null, '', window.location.pathname);
   }
