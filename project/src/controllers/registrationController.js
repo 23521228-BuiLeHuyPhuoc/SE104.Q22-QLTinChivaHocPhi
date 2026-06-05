@@ -706,15 +706,17 @@ const getRegistrationById = async (req, res) => {
 
 const addRegistrationStatsSheet = (workbook, sheetName, title, headers, rows, mapRow) => {
   const worksheet = workbook.addWorksheet(sheetName);
+  worksheet.columns = headers.map((header) => ({ key: header.key, width: header.width }));
   worksheet.mergeCells(1, 1, 1, headers.length);
   worksheet.getCell(1, 1).value = title;
   worksheet.getCell(1, 1).font = { bold: true, size: 13 };
   worksheet.getCell(1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
-  worksheet.getRow(2).values = headers.map((header) => header.label);
+  headers.forEach((header, index) => {
+    worksheet.getCell(2, index + 1).value = header.label;
+  });
   worksheet.getRow(2).font = { bold: true };
   worksheet.getRow(2).alignment = { vertical: 'middle', horizontal: 'center' };
   worksheet.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
-  worksheet.columns = headers.map((header) => ({ key: header.key, width: header.width }));
 
   rows.forEach((row) => worksheet.addRow(mapRow(row)));
   worksheet.eachRow((row) => {
