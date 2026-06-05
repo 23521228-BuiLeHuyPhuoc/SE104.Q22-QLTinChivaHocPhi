@@ -33,9 +33,40 @@ const CASH_PAYMENT_INSTRUCTION = 'Vui lòng đem tiền mặt tới phòng tài 
 const ONLINE_PAYMENT_PROVIDERS = new Set(['vnpay', 'zalopay']);
 const MANUAL_CONFIRMATION_PROVIDERS = new Set(['cash', 'qr', 'bank_qr']);
 
-const getBaseUrl = (req) => (
-  process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`
-).replace(/\/$/, '');
+const firstHeaderValue = (value) => String(Array.isArray(value) ? value[0] : value || '').split(',')[0].trim();
+
+const normalizeBaseUrl = (value) => String(value || '').replace(/\/$/, '');
+
+const isLocalBaseUrl = (value) => {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  } catch {
+    return false;
+  }
+};
+
+const getRequestBaseUrl = (req) => {
+  const forwardedProto = firstHeaderValue(req.get('x-forwarded-proto'));
+  const forwardedHost = firstHeaderValue(req.get('x-forwarded-host'));
+  const proto = forwardedProto || req.protocol || 'http';
+  const host = forwardedHost || req.get('host');
+  return normalizeBaseUrl(`${proto}://${host}`);
+};
+
+const getBaseUrl = (req) => {
+  const requestBaseUrl = getRequestBaseUrl(req);
+  if (!isLocalBaseUrl(requestBaseUrl)) return requestBaseUrl;
+  const publicBaseUrl = process.env.PUBLIC_BASE_URL || process.env.NGROK || process.env.APP_PUBLIC_URL;
+  return normalizeBaseUrl(publicBaseUrl || process.env.APP_BASE_URL || requestBaseUrl);
+};
+
+const getPaymentUrl = (req, envName, fallbackPath) => {
+  const baseUrl = getBaseUrl(req);
+  const configured = normalizeBaseUrl(process.env[envName]);
+  if (configured && (!isLocalBaseUrl(configured) || isLocalBaseUrl(baseUrl))) return configured;
+  return `${baseUrl}${fallbackPath}`;
+};
 
 const requirePaymentEnv = (names, provider) => {
   const missing = names.filter((name) => !String(process.env[name] || '').trim());
@@ -57,6 +88,8 @@ const getPaymentSearchValues = (row, searchField = 'all') => {
   };
   return field === 'all' ? Object.values(values).flat() : (values[field] || []);
 };
+
+const getPaymentDisplayStatus = (row) => row.TrangThaiHienThi || row.TrangThai || '';
 
 const getSemesterKindLabel = (semester) => {
   if (!semester) return '';
@@ -190,6 +223,9 @@ const toPaymentDto = (p) => ({
   NguoiThu: p.NguoiThu,
   GhiChu: p.GhiChu,
   TrangThai: p.TrangThai,
+  TrangThaiGoc: p.TrangThai,
+  TrangThaiHienThi: getPaymentDisplayStatus(p),
+  TrangThaiThanhToan: p.TrangThaiThanhToan || 'unknown',
   NgayXacNhan: p.NgayXacNhan,
   CheckoutUrl: p.CheckoutUrl,
   QrPayload: p.QrPayload
@@ -204,15 +240,41 @@ const assertPayableAmount = async (registration, amount) => {
   return payAmount;
 };
 
+const formatVnpayDate = (date = new Date()) => {
+  const local = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  const pad = (value) => String(value).padStart(2, '0');
+  return [
+    local.getUTCFullYear(),
+    pad(local.getUTCMonth() + 1),
+    pad(local.getUTCDate()),
+    pad(local.getUTCHours()),
+    pad(local.getUTCMinutes()),
+    pad(local.getUTCSeconds())
+  ].join('');
+};
+
+const getVnpayIpAddress = (req) => {
+  const forwarded = firstHeaderValue(req.get('x-forwarded-for'));
+  const raw = forwarded || req.ip || req.connection?.remoteAddress || '127.0.0.1';
+  const text = String(raw).replace(/^::ffff:/, '');
+  return text === '::1' || text === '::' ? '127.0.0.1' : text;
+};
+
+const encodeVnpayValue = (value) => encodeURIComponent(String(value)).replace(/%20/g, '+');
+
+const stringifyVnpayParams = (params) => Object.keys(params)
+  .filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== '')
+  .sort()
+  .map((key) => `${encodeURIComponent(key)}=${encodeVnpayValue(params[key])}`)
+  .join('&');
+
 const buildVnpayUrl = (receipt, amount, req, transactionRef = String(receipt.SoPhieuThu)) => {
   requirePaymentEnv(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'], 'VNPAY');
   const tmnCode = process.env.VNPAY_TMN_CODE;
   const secret = process.env.VNPAY_HASH_SECRET;
   const paymentUrl = process.env.VNPAY_PAYMENT_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-  const baseUrl = getBaseUrl(req);
-  const returnUrl = process.env.VNPAY_RETURN_URL || `${baseUrl}/api/payments/vnpay-return`;
-  const ipnUrl = process.env.VNPAY_IPN_URL || `${baseUrl}/api/payments/vnpay-ipn`;
-  const createDate = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+  const returnUrl = getPaymentUrl(req, 'VNPAY_RETURN_URL', '/api/payments/vnpay-return');
+  const createDate = formatVnpayDate();
   const params = {
     vnp_Version: '2.1.0',
     vnp_Command: 'pay',
@@ -220,16 +282,15 @@ const buildVnpayUrl = (receipt, amount, req, transactionRef = String(receipt.SoP
     vnp_Amount: Math.round(amount * 100),
     vnp_CurrCode: 'VND',
     vnp_TxnRef: String(transactionRef),
-    vnp_OrderInfo: `Thanh toán học phí ${receipt.SoPhieuThu}`,
+    vnp_OrderInfo: `Thanh toan hoc phi ${receipt.SoPhieuThu}`,
     vnp_OrderType: 'billpayment',
     vnp_Locale: 'vn',
     vnp_ReturnUrl: returnUrl,
-    vnp_IpnUrl: ipnUrl,
-    vnp_IpAddr: req.ip || '127.0.0.1',
-    vnp_CreateDate: createDate
+    vnp_IpAddr: getVnpayIpAddress(req),
+    vnp_CreateDate: createDate,
+    vnp_ExpireDate: formatVnpayDate(new Date(Date.now() + 15 * 60 * 1000))
   };
-  const sorted = Object.keys(params).sort().reduce((acc, key) => ({ ...acc, [key]: params[key] }), {});
-  const qs = new URLSearchParams(sorted).toString();
+  const qs = stringifyVnpayParams(params);
   const secureHash = crypto.createHmac('sha512', secret).update(qs).digest('hex');
   return `${paymentUrl}?${qs}&vnp_SecureHash=${secureHash}`;
 };
@@ -240,9 +301,10 @@ const createZalopayOrder = async (receipt, amount, req, transactionRef = String(
   const key1 = process.env.ZALOPAY_KEY1;
   const endpoint = process.env.ZALOPAY_ENDPOINT || 'https://sb-openapi.zalopay.vn/v2/create';
   const appTransId = `${new Date().toISOString().slice(2, 10).replace(/-/g, '')}_${transactionRef}`;
-  const baseUrl = getBaseUrl(req);
+  const returnUrl = getPaymentUrl(req, 'ZALOPAY_RETURN_URL', '/api/payments/zalopay-return');
+  const callbackUrl = getPaymentUrl(req, 'ZALOPAY_CALLBACK_URL', '/api/payments/zalopay-callback');
   const embedData = JSON.stringify({
-    redirecturl: process.env.ZALOPAY_RETURN_URL || `${baseUrl}/student/my-payments`,
+    redirecturl: `${returnUrl}?ref=${encodeURIComponent(transactionRef)}&receipt=${encodeURIComponent(receipt.SoPhieuThu)}`,
     receipt_id: receipt.SoPhieuThu,
     transaction_ref: transactionRef
   });
@@ -257,7 +319,7 @@ const createZalopayOrder = async (receipt, amount, req, transactionRef = String(
     item,
     embed_data: embedData,
     description: `Thanh toán học phí phiếu thu #${receipt.SoPhieuThu}`,
-    callback_url: process.env.ZALOPAY_CALLBACK_URL || `${baseUrl}/api/payments/zalopay-callback`
+    callback_url: callbackUrl
   };
   const macData = [order.app_id, order.app_trans_id, order.app_user, order.amount, order.app_time, order.embed_data, order.item].join('|');
   order.mac = crypto.createHmac('sha256', key1).update(macData).digest('hex');
@@ -355,7 +417,6 @@ const getAllPayments = async (req, res) => {
     const { search = '', searchField = 'all', MaHocKy, HinhThucThu, TrangThai } = req.query;
     const where = {};
     if (HinhThucThu) where.HinhThucThu = HinhThucThu;
-    if (TrangThai) where.TrangThai = TrangThai;
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
 
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({
@@ -366,7 +427,8 @@ const getAllPayments = async (req, res) => {
     const totalsByReceipt = await getTransactionTotalsByReceipt(prisma, rows.map((row) => row.SoPhieuThu));
     const totalsByRegistration = await getTransactionTotalsByRegistration(prisma, rows.map((row) => row.SoPhieuDangKy));
     const enrichedRows = attachReceiptSummaries(rows, totalsByReceipt, totalsByRegistration);
-    const filtered = filterRowsByRegex(enrichedRows, search, (row) => getPaymentSearchValues(row, searchField));
+    const searched = filterRowsByRegex(enrichedRows, search, (row) => getPaymentSearchValues(row, searchField));
+    const filtered = TrangThai ? searched.filter((row) => getPaymentDisplayStatus(row) === TrangThai) : searched;
     const data = paginateRows(filtered, page, limit).map(toPaymentDto);
     res.json({ success: true, data, pagination: getPaginationMeta(filtered.length, page, limit) });
   } catch (error) {
@@ -826,6 +888,57 @@ const parseZalopayCallbackPayload = (body = {}) => {
   return { ...body, ...data };
 };
 
+const getZalopayAppTransId = (payload = {}) => payload.app_trans_id
+  || payload.apptransid
+  || payload.appTransId
+  || payload.app_transid
+  || payload.appTransID
+  || payload.app_trans_id
+  || null;
+
+const getZalopayPaymentRef = (payload = {}) => {
+  const explicitRef = payload.ref || payload.transaction_ref;
+  if (parsePaymentTransactionRef(explicitRef)) return explicitRef;
+  const appTransId = getZalopayAppTransId(payload);
+  const suffix = String(appTransId || '').split('_').pop();
+  return parsePaymentTransactionRef(suffix) ? suffix : null;
+};
+
+const getZalopayQueryEndpoint = () => {
+  if (process.env.ZALOPAY_QUERY_ENDPOINT) return process.env.ZALOPAY_QUERY_ENDPOINT;
+  const createEndpoint = process.env.ZALOPAY_ENDPOINT || 'https://sb-openapi.zalopay.vn/v2/create';
+  return createEndpoint.replace(/\/create\/?$/, '/query');
+};
+
+const queryZalopayOrder = async (appTransId) => {
+  requirePaymentEnv(['ZALOPAY_APP_ID', 'ZALOPAY_KEY1'], 'ZaloPay');
+  const appId = process.env.ZALOPAY_APP_ID;
+  const key1 = process.env.ZALOPAY_KEY1;
+  const macData = `${appId}|${appTransId}|${key1}`;
+  const body = new URLSearchParams({
+    app_id: appId,
+    app_trans_id: appTransId,
+    mac: crypto.createHmac('sha256', key1).update(macData).digest('hex')
+  });
+  const response = await fetch(getZalopayQueryEndpoint(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw { status: 502, code: 'ZALOPAY_QUERY_FAILED', message: 'Không truy vấn được trạng thái thanh toán ZaloPay' };
+  }
+  return result;
+};
+
+const getTransactionAmountForRef = async (paymentRef) => {
+  const transactionId = parsePaymentTransactionRef(paymentRef);
+  if (!transactionId) return null;
+  const transaction = await getTransactionById(prisma, transactionId);
+  return transaction ? Number(transaction.SoTienThanhToan || 0) : null;
+};
+
 const markOnlineResult = async (receiptId, success, transactionCode, providerAmount) => {
   const id = parseInt(receiptId, 10);
   if (!Number.isFinite(id)) return null;
@@ -949,8 +1062,7 @@ const verifyVnpaySignature = (query) => {
   const params = { ...query };
   delete params.vnp_SecureHash;
   delete params.vnp_SecureHashType;
-  const sorted = Object.keys(params).sort().reduce((acc, key) => ({ ...acc, [key]: params[key] }), {});
-  const qs = new URLSearchParams(sorted).toString();
+  const qs = stringifyVnpayParams(params);
   requirePaymentEnv(['VNPAY_HASH_SECRET'], 'VNPAY');
   const secret = process.env.VNPAY_HASH_SECRET;
   const signed = crypto.createHmac('sha512', secret).update(qs).digest('hex');
@@ -975,7 +1087,7 @@ const vnpayReturn = async (req, res) => {
       if (wantsJson) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu thu VNPAY' });
       return res.redirect(303, '/student/my-payments?payment=failed&reason=not_found');
     }
-    const finalSuccess = payment.TrangThai === PAYMENT_SUCCESS;
+    const finalSuccess = success && payment.TrangThai !== PAYMENT_FAILED;
     if (!wantsJson) {
       const status = finalSuccess ? 'success' : 'failed';
       return res.redirect(303, `/student/my-payments?payment=${status}&receipt=${encodeURIComponent(payment.SoPhieuThu)}`);
@@ -1012,16 +1124,61 @@ const verifyZalopayMac = (body) => {
   return mac === body.mac;
 };
 
+const zalopayReturn = async (req, res) => {
+  const appTransId = getZalopayAppTransId(req.query);
+  const paymentRef = getZalopayPaymentRef(req.query);
+  const accepts = String(req.get('accept') || '').toLowerCase();
+  const wantsJson = req.query.format === 'json' || (accepts.includes('application/json') && !accepts.includes('text/html'));
+  let payment = null;
+  let status = 'pending';
+  let reason = 'processing';
+
+  try {
+    if (!paymentRef) {
+      reason = 'missing_ref';
+    } else if (!appTransId) {
+      reason = 'missing_app_trans_id';
+    } else {
+      const result = await queryZalopayOrder(appTransId);
+      const returnCode = Number(result.return_code || 0);
+      const transactionCode = result.zp_trans_id || result.zalopay_trans_id || result.zptranstoken || req.query.zp_trans_id;
+      const fallbackAmount = await getTransactionAmountForRef(paymentRef);
+      const providerAmount = parseCallbackAmount(result.amount || req.query.amount) || fallbackAmount;
+
+      if (returnCode === 1) {
+        payment = await markOnlineResultV2(paymentRef, true, transactionCode, providerAmount);
+        status = payment ? 'success' : 'pending';
+        reason = payment?.TrangThai === PAYMENT_SUCCESS ? 'paid' : 'partial_or_paid';
+      } else if (returnCode === 2) {
+        payment = await markOnlineResultV2(paymentRef, false, transactionCode, providerAmount);
+        status = 'failed';
+        reason = result.return_message || result.sub_return_message || 'failed';
+      }
+    }
+
+    if (wantsJson) return res.json({ success: status === 'success', status, reason, data: payment });
+    const receipt = payment?.SoPhieuThu || req.query.receipt || '';
+    return res.redirect(303, `/student/my-payments?payment=${encodeURIComponent(status)}&receipt=${encodeURIComponent(receipt)}&reason=${encodeURIComponent(reason)}`);
+  } catch (error) {
+    console.error('ZaloPay return error:', error);
+    if (wantsJson) return res.status(error.status || 500).json({ success: false, status: 'failed', message: error.message || 'Không thể cập nhật thanh toán ZaloPay' });
+    return res.redirect(303, `/student/my-payments?payment=failed&reason=${encodeURIComponent(error.code || 'zalopay_return_error')}`);
+  }
+};
+
 const zalopayCallback = async (req, res) => {
   try {
     if (!verifyZalopayMac(req.body)) {
       return res.json({ return_code: -1, return_message: 'mac not equal' });
     }
     const payload = parseZalopayCallbackPayload(req.body);
-    const receiptId = String(payload.app_trans_id || '').split('_').pop();
-    const success = Number(payload.status || payload.return_code || 0) === 1;
-    const providerAmount = parseCallbackAmount(payload.amount);
-    await markOnlineResultV2(receiptId, success, payload.zp_trans_id, providerAmount);
+    const paymentRef = getZalopayPaymentRef(payload);
+    const explicitStatus = payload.status ?? payload.return_code;
+    const success = explicitStatus === undefined || explicitStatus === null || explicitStatus === ''
+      ? true
+      : Number(explicitStatus) === 1;
+    const providerAmount = parseCallbackAmount(payload.amount) || await getTransactionAmountForRef(paymentRef);
+    await markOnlineResultV2(paymentRef, success, payload.zp_trans_id, providerAmount);
     res.json({ return_code: 1, return_message: 'success' });
   } catch (error) {
     console.error('ZaloPay callback error:', error);
@@ -1336,7 +1493,6 @@ const exportPayments = async (req, res) => {
     const { search = '', searchField = 'all', MaHocKy, HinhThucThu, TrangThai } = req.query;
     const where = {};
     if (HinhThucThu) where.HinhThucThu = HinhThucThu;
-    if (TrangThai) where.TrangThai = TrangThai;
     if (MaHocKy) where.PHIEUDANGKY = { MaHocKy };
 
     const rows = await prisma.PHIEUTHUHOCPHI.findMany({
@@ -1344,7 +1500,11 @@ const exportPayments = async (req, res) => {
       orderBy: { NgayLap: 'desc' },
       include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
     });
-    const filtered = filterRowsByRegex(rows, search, (row) => getPaymentSearchValues(row, searchField));
+    const totalsByReceipt = await getTransactionTotalsByReceipt(prisma, rows.map((row) => row.SoPhieuThu));
+    const totalsByRegistration = await getTransactionTotalsByRegistration(prisma, rows.map((row) => row.SoPhieuDangKy));
+    const enrichedRows = attachReceiptSummaries(rows, totalsByReceipt, totalsByRegistration);
+    const searched = filterRowsByRegex(enrichedRows, search, (row) => getPaymentSearchValues(row, searchField));
+    const filtered = TrangThai ? searched.filter((row) => getPaymentDisplayStatus(row) === TrangThai) : searched;
 
     const header = ['SoPhieuThu', 'MSSV', 'HoTen', 'HocKy', 'NamHoc', 'SoTienThu', 'HinhThucThu', 'NgayLap', 'NguoiThu', 'MaGiaoDich', 'TrangThai', 'GhiChu'];
     const lines = [header.join(',')];
@@ -1360,7 +1520,7 @@ const exportPayments = async (req, res) => {
         p.NgayLap ? new Date(p.NgayLap).toISOString() : '',
         p.NguoiThu,
         p.MaGiaoDich,
-        p.TrangThai,
+        p.TrangThaiHienThi || p.TrangThai,
         p.GhiChu
       ].map(csvCell).join(','));
     });
@@ -1382,6 +1542,7 @@ module.exports = {
   checkoutPayment: checkoutPaymentV2,
   vnpayReturn,
   vnpayIpn,
+  zalopayReturn,
   zalopayCallback,
   confirmPayment: confirmPaymentV2,
   cancelPayment: cancelPaymentV2,

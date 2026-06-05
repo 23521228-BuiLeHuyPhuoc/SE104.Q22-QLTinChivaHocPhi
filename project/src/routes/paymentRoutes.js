@@ -5,6 +5,7 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 router.get('/vnpay-return', paymentController.vnpayReturn);
 router.get('/vnpay-ipn', paymentController.vnpayIpn);
+router.get('/zalopay-return', paymentController.zalopayReturn);
 router.post('/zalopay-callback', paymentController.zalopayCallback);
 
 // All routes require authentication

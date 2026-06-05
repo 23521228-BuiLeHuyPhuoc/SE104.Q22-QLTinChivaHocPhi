@@ -13,6 +13,14 @@ const { getPricingSearchValues, normalizePricingSearchScope } = require('../util
 const { getRegistrationSearchValues, normalizeRegistrationSearchScope } = require('../utils/registrationSearch');
 const { getRegistrationWindowState, getAppealWindowState, getSemesterWorkflowState } = require('../utils/registrationWindow');
 const { getTuitionPaymentWindowState } = require('../utils/paymentRules');
+const {
+  emptyTotals,
+  getEffectivePaid,
+  getLatestTransactionActivityByRegistration,
+  getTransactionTotalsByRegistration,
+  getTransactionTotalsByReceipt,
+  attachReceiptSummaries
+} = require('../utils/paymentLedger');
 const { createSearchRegex, filterRowsByRegex, getSearchRegexSource, matchesRegex, paginateRows } = require('../utils/searchRegex');
 const { APPEAL_STATUS, REGISTRATION_STATUS, SEMESTER_STATUS } = require('../utils/businessConstants');
 const { getRoomRows } = require('./roomController');
@@ -129,6 +137,8 @@ const getPaymentSearchValues = (row, field) => getScopedRegexValues({
   HoTen: [row.SINHVIEN?.HoTen]
 }, field);
 
+const getPaymentDisplayStatus = (row) => row.TrangThaiHienThi || row.TrangThai || '';
+
 const getAccountSearchValues = (row, field) => getScopedRegexValues({
   TenDangNhap: [row.TenDangNhap],
   HoTen: [row.HoTen],
@@ -137,6 +147,27 @@ const getAccountSearchValues = (row, field) => getScopedRegexValues({
 }, field);
 
 const toNumber = (value) => Number(value || 0);
+
+const toTimeValue = (value) => {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
+const getLatestDebtActivityDate = (registration, latestTransactionDate) => {
+  const dates = [registration?.NgayCapNhat, registration?.NgayLap, latestTransactionDate];
+  (registration?.PHIEUTHUHOCPHI || []).forEach((receipt) => {
+    dates.push(receipt.NgayCapNhat, receipt.NgayXacNhan, receipt.NgayLap);
+  });
+  const latest = dates.reduce((max, value) => Math.max(max, toTimeValue(value)), 0);
+  return latest ? new Date(latest) : null;
+};
+
+const sortByLatestDebtActivity = (rows = []) => rows.sort((a, b) => {
+  const diff = toTimeValue(b.NgayHoatDongCongNo) - toTimeValue(a.NgayHoatDongCongNo);
+  if (diff !== 0) return diff;
+  return Number(b.SoPhieu || 0) - Number(a.SoPhieu || 0);
+});
 
 const toIsoOrNull = (value) => {
   if (!value) return null;
@@ -1355,20 +1386,23 @@ const adminTuition = async (req, res) => {
         SINHVIEN: true,
         HOCKY: { include: { NAMHOC: true } },
         CHITIETDANGKY: true,
-        PHIEUTHUHOCPHI: { where: { TrangThai: { in: ['Thành công', 'Hoàn tiền'] } } }
+        PHIEUTHUHOCPHI: true
       }
     });
 
+    const registrationIds = registrations.map((registration) => registration.SoPhieu);
+    const [paymentTotalsByRegistration, latestTransactionActivityByRegistration] = await Promise.all([
+      getTransactionTotalsByRegistration(prisma, registrationIds),
+      getLatestTransactionActivityByRegistration(prisma, registrationIds)
+    ]);
+
     const mappedRows = registrations.map((registration) => {
       const amountDue = toNumber(registration.TongTienPhaiDong || registration.TongTienDangKy);
-      const paidAmount = registration.PHIEUTHUHOCPHI
-        .filter((receipt) => receipt.TrangThai === 'Thành công')
-        .reduce((sum, receipt) => sum + toNumber(receipt.SoTienThu), 0);
-      const refundedAmount = registration.PHIEUTHUHOCPHI
-        .filter((receipt) => receipt.TrangThai === 'Hoàn tiền')
-        .reduce((sum, receipt) => sum + toNumber(receipt.SoTienThu), 0);
-      const amountPaid = Math.max(paidAmount - refundedAmount, 0);
+      const paymentTotals = paymentTotalsByRegistration.get(Number(registration.SoPhieu)) || emptyTotals();
+      const amountPaid = getEffectivePaid(paymentTotals);
       const debt = Math.max(amountDue - amountPaid, 0);
+      const latestTransactionDate = latestTransactionActivityByRegistration.get(Number(registration.SoPhieu)) || null;
+      const latestDebtActivity = getLatestDebtActivityDate(registration, latestTransactionDate);
 
       return {
         SoPhieu: registration.SoPhieu,
@@ -1387,11 +1421,12 @@ const adminTuition = async (req, res) => {
         ConNo: debt,
         TrangThaiHocPhi: getTuitionStatus(amountDue, amountPaid, registration.HOCKY?.HanDongHocPhi),
         HanDongHocPhi: registration.HOCKY?.HanDongHocPhi,
+        NgayHoatDongCongNo: latestDebtActivity,
         NgayLap: registration.NgayLap
       };
     }).filter((row) => filterTuitionByStatus(row, status));
 
-    const rows = filterRowsByRegex(mappedRows, search, (row) => getScopedRegexValues({ MaSv: [row.MaSv], HoTen: [row.HoTen] }, searchField));
+    const rows = sortByLatestDebtActivity(filterRowsByRegex(mappedRows, search, (row) => getScopedRegexValues({ MaSv: [row.MaSv], HoTen: [row.HoTen] }, searchField)));
     const total = rows.length;
     const tuitions = paginateRows(rows, page, limit);
 
@@ -1435,7 +1470,6 @@ const adminPayments = async (req, res) => {
   const where = {};
 
   if (HinhThucThu) where.HinhThucThu = HinhThucThu;
-  if (TrangThai) where.TrangThai = TrangThai;
 
   try {
     const semesters = await getSemesterActivityRows();
@@ -1447,7 +1481,13 @@ const adminPayments = async (req, res) => {
       orderBy: { NgayLap: 'desc' },
       include: { SINHVIEN: true, PHIEUDANGKY: { include: { HOCKY: { include: { NAMHOC: true } } } } }
     });
-    const filteredPayments = filterRowsByRegex(allPayments, search, (row) => getPaymentSearchValues(row, searchField));
+    const [totalsByReceipt, totalsByRegistration] = await Promise.all([
+      getTransactionTotalsByReceipt(prisma, allPayments.map((row) => row.SoPhieuThu)),
+      getTransactionTotalsByRegistration(prisma, allPayments.map((row) => row.SoPhieuDangKy))
+    ]);
+    const enrichedPayments = attachReceiptSummaries(allPayments, totalsByReceipt, totalsByRegistration);
+    const searchedPayments = filterRowsByRegex(enrichedPayments, search, (row) => getPaymentSearchValues(row, searchField));
+    const filteredPayments = TrangThai ? searchedPayments.filter((row) => getPaymentDisplayStatus(row) === TrangThai) : searchedPayments;
     const payments = paginateRows(filteredPayments, page, limit);
     const total = filteredPayments.length;
     const paymentsWithSemesterLabel = payments.map((payment) => ({

@@ -15,6 +15,18 @@ function paymentSemesterText(payment) {
   return payment.HocKyDisplay || [payment.TenHocKy, payment.TenNamHoc].filter(Boolean).join(' - ') || payment.MaHocKy || '-';
 }
 
+function paymentDisplayStatus(payment) {
+  return payment.TrangThaiHienThi || payment.TrangThai || '-';
+}
+
+function paymentStatusBadgeClass(payment) {
+  var key = payment.TrangThaiThanhToan || '';
+  if (key === 'paid') return 'badge-success';
+  if (key === 'pending' || key === 'unpaid' || key === 'partial') return 'badge-warning';
+  if (key === 'cancelled' || key === 'refunded') return 'badge-secondary';
+  return 'badge-error';
+}
+
 function getSelectedPaymentActivity() {
   var select = document.getElementById('filter-semester');
   if (!select || !select.value) return null;
@@ -421,8 +433,8 @@ async function failPayment(id) {
 }
 
 function renderPaymentDetail(p) {
-  var status = p.TrangThai || '-';
-  var badgeClass = status === 'Thành công' ? 'badge-success' : status === 'Chờ xác nhận' ? 'badge-warning' : 'badge-error';
+  var status = paymentDisplayStatus(p);
+  var badgeClass = paymentStatusBadgeClass(p);
   return '<div class="stats-grid">' +
       '<div class="stat-card"><div class="stat-info"><h3>' + paymentSafe(p.SoPhieuThu || '-') + '</h3><p>Số phiếu</p></div></div>' +
       '<div class="stat-card"><div class="stat-info"><h3>' + formatCurrency(p.SoTienThu || 0) + '</h3><p>Số tiền</p></div></div>' +

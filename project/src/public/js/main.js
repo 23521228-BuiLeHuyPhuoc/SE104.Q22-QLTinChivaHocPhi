@@ -4,8 +4,15 @@ function getToken() {
 }
 
 function clearToken() {
-  document.cookie = 'token=; path=/; max-age=0; SameSite=Strict';
+  document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
 }
+
+function refreshTokenCookieAttributes() {
+  var token = getToken();
+  if (token) document.cookie = 'token=' + token + '; path=/; max-age=86400; SameSite=Lax';
+}
+
+refreshTokenCookieAttributes();
 
 function getLoginPathForCurrentPage() {
   return window.location.pathname.indexOf('/admin') === 0 ? '/admin/login' : '/login';

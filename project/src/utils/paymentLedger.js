@@ -9,6 +9,7 @@ const toNumber = (value) => {
 };
 
 const emptyTotals = () => ({ paid: 0, refunded: 0, pending: 0, failed: 0, cancelled: 0, count: 0 });
+const PAYMENT_PARTIAL_STATUS = '\u0110\u00f3ng m\u1ed9t ph\u1ea7n';
 
 const normalizeTotalsRow = (row) => ({
   paid: toNumber(row.paid),
@@ -61,6 +62,43 @@ const getTransactionTotalsByReceipt = async (prisma, receiptIds = []) => {
   return new Map(rows.map((row) => [Number(row.SoPhieuThu), normalizeTotalsRow(row)]));
 };
 
+const getLatestTransactionActivityByRegistration = async (prisma, registrationIds = []) => {
+  const ids = Array.from(new Set(registrationIds.map((id) => Number(id)).filter(Number.isFinite)));
+  if (!ids.length) return new Map();
+
+  const rows = await prisma.$queryRaw`
+    SELECT
+      "SoPhieuDangKy",
+      MAX(GREATEST(
+        COALESCE("NgayCapNhat", "NgayTao", "NgayXacNhan"),
+        COALESCE("NgayXacNhan", "NgayCapNhat", "NgayTao"),
+        COALESCE("NgayTao", "NgayCapNhat", "NgayXacNhan")
+      )) AS "NgayGiaoDichGanNhat"
+    FROM "GIAODICHTHANHTOANHOCPHI"
+    WHERE "SoPhieuDangKy" IN (${Prisma.join(ids)})
+    GROUP BY "SoPhieuDangKy"
+  `;
+
+  return new Map(rows.map((row) => [Number(row.SoPhieuDangKy), row.NgayGiaoDichGanNhat]));
+};
+
+const getRegistrationTransactions = async (prisma, registrationId) => {
+  const id = Number(registrationId);
+  if (!Number.isFinite(id)) return [];
+  return prisma.$queryRaw`
+    SELECT *
+    FROM "GIAODICHTHANHTOANHOCPHI"
+    WHERE "SoPhieuDangKy" = ${id}
+    ORDER BY GREATEST(
+               COALESCE("NgayCapNhat", "NgayTao", "NgayXacNhan"),
+               COALESCE("NgayXacNhan", "NgayCapNhat", "NgayTao"),
+               COALESCE("NgayTao", "NgayCapNhat", "NgayXacNhan")
+             ) DESC NULLS LAST,
+             "NgayTao" DESC,
+             "MaGiaoDichThanhToan" DESC
+  `;
+};
+
 const getReceiptTransactions = async (prisma, receiptId) => {
   const id = Number(receiptId);
   if (!Number.isFinite(id)) return [];
@@ -107,16 +145,45 @@ const getReceiptRemaining = (receipt, totals) => Math.max(toNumber(receipt?.SoTi
 
 const getRegistrationRemaining = (registration, totals) => Math.max(toNumber(registration?.TongTienPhaiDong) - getEffectivePaid(totals), 0);
 
+const getReceiptPaymentDisplayStatus = (receipt, totals) => {
+  const rawStatus = receipt?.TrangThai || PAYMENT_STATUS.UNPAID;
+  const value = totals || emptyTotals();
+  const paid = getEffectivePaid(value);
+  const pending = toNumber(value.pending);
+  const remaining = getReceiptRemaining(receipt, value);
+  const receiptAmount = toNumber(receipt?.SoTienThu);
+
+  if ([PAYMENT_STATUS.CANCELLED, PAYMENT_STATUS.REFUND].includes(rawStatus)) return rawStatus;
+  if (pending > 0) return PAYMENT_STATUS.PENDING;
+  if (receiptAmount > 0 && remaining <= 0 && (paid > 0 || rawStatus === PAYMENT_STATUS.SUCCESS)) return PAYMENT_STATUS.SUCCESS;
+  if (paid > 0 && remaining > 0) return PAYMENT_PARTIAL_STATUS;
+  return rawStatus;
+};
+
+const getReceiptPaymentStatusKey = (status) => {
+  if (status === PAYMENT_STATUS.SUCCESS) return 'paid';
+  if (status === PAYMENT_PARTIAL_STATUS) return 'partial';
+  if (status === PAYMENT_STATUS.PENDING) return 'pending';
+  if (status === PAYMENT_STATUS.UNPAID) return 'unpaid';
+  if (status === PAYMENT_STATUS.FAILED) return 'failed';
+  if (status === PAYMENT_STATUS.CANCELLED) return 'cancelled';
+  if (status === PAYMENT_STATUS.REFUND) return 'refunded';
+  return 'unknown';
+};
+
 const attachReceiptSummaries = (receipts = [], totalsByReceipt = new Map(), totalsByRegistration = new Map()) => receipts.map((receipt) => {
   const receiptTotals = totalsByReceipt.get(Number(receipt.SoPhieuThu)) || emptyTotals();
   const registrationTotals = totalsByRegistration.get(Number(receipt.SoPhieuDangKy)) || emptyTotals();
   const receiptRemaining = getReceiptRemaining(receipt, receiptTotals);
   const hasRegistrationAmount = receipt.PHIEUDANGKY && receipt.PHIEUDANGKY.TongTienPhaiDong !== undefined && receipt.PHIEUDANGKY.TongTienPhaiDong !== null;
   const registrationRemaining = hasRegistrationAmount ? getRegistrationRemaining(receipt.PHIEUDANGKY, registrationTotals) : receiptRemaining;
+  const displayStatus = getReceiptPaymentDisplayStatus(receipt, receiptTotals);
   return {
     ...receipt,
     _paymentTotals: receiptTotals,
     _registrationPaymentTotals: registrationTotals,
+    TrangThaiHienThi: displayStatus,
+    TrangThaiThanhToan: getReceiptPaymentStatusKey(displayStatus),
     TongTienDaThanhToan: getEffectivePaid(receiptTotals),
     TongTienDangChoXacNhan: toNumber(receiptTotals.pending),
     ConNoPhieuThu: receiptRemaining,
@@ -127,15 +194,20 @@ const attachReceiptSummaries = (receipts = [], totalsByReceipt = new Map(), tota
 
 module.exports = {
   PAYMENT_TRANSACTION_TABLE,
+  PAYMENT_PARTIAL_STATUS,
   emptyTotals,
   toNumber,
   getTransactionTotalsByRegistration,
   getTransactionTotalsByReceipt,
+  getLatestTransactionActivityByRegistration,
+  getRegistrationTransactions,
   getReceiptTransactions,
   getLatestPendingTransaction,
   getTransactionById,
   getEffectivePaid,
   getReceiptRemaining,
   getRegistrationRemaining,
+  getReceiptPaymentDisplayStatus,
+  getReceiptPaymentStatusKey,
   attachReceiptSummaries
 };

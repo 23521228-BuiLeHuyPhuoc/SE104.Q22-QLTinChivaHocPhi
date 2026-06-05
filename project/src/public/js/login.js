@@ -78,7 +78,7 @@ async function handleLogin(e) {
         throw new Error('Tài khoản không phù hợp với cổng đăng nhập này');
       }
 
-      document.cookie = 'token=' + data.data.token + '; path=/; max-age=86400; SameSite=Strict';
+      document.cookie = 'token=' + data.data.token + '; path=/; max-age=86400; SameSite=Lax';
       window.location.href = userRole === 'admin' ? '/admin/dashboard' : '/student/dashboard';
       return false;
     }

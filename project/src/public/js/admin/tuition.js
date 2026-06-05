@@ -33,6 +33,9 @@ function closeTuitionDetail() {
 }
 
 function tuitionBadgeClass(status, overdue) {
+  if (status === 'Thành công') return 'badge-success';
+  if (status === 'Chờ xác nhận' || status === 'Chưa thanh toán') return 'badge-warning';
+  if (status === 'Đã hủy' || status === 'Hoàn tiền') return 'badge-secondary';
   if (status === 'Đã đóng đủ') return 'badge-success';
   if (status === 'Đóng một phần') return 'badge-warning';
   if (status === 'Chưa phát sinh') return 'badge-secondary';
@@ -60,6 +63,19 @@ function renderTuitionDetail(data) {
       '<td class="currency">' + formatCurrency(payment.SoTienThu || 0) + '</td>' +
       '<td>' + tuitionSafe(payment.HinhThucThu || '-') + '</td>' +
       '<td>' + tuitionSafe(payment.NguoiThu || '-') + '</td>' +
+      '<td><span class="badge ' + tuitionBadgeClass(status, false) + '">' + tuitionSafe(status) + '</span></td>' +
+    '</tr>';
+  }).join('');
+
+  var transactionRows = (data.paymentTransactions || []).map(function(item) {
+    var status = item.TrangThai || '-';
+    return '<tr>' +
+      '<td class="mono">' + tuitionSafe(item.MaGiaoDichThanhToan || '-') + '</td>' +
+      '<td class="mono">' + tuitionSafe(item.SoPhieuThu || '-') + '</td>' +
+      '<td>' + (item.NgayXacNhan ? formatDate(item.NgayXacNhan) : (item.NgayTao ? formatDate(item.NgayTao) : '-')) + '</td>' +
+      '<td class="currency">' + formatCurrency(item.SoTienThanhToan || 0) + '</td>' +
+      '<td>' + tuitionSafe(item.HinhThucThanhToan || '-') + '</td>' +
+      '<td>' + tuitionSafe(item.NguoiXacNhan || '-') + '</td>' +
       '<td><span class="badge ' + tuitionBadgeClass(status, false) + '">' + tuitionSafe(status) + '</span></td>' +
     '</tr>';
   }).join('');
@@ -95,6 +111,10 @@ function renderTuitionDetail(data) {
     '<div class="card"><div class="card-header"><h3>Phiếu thu</h3></div><div class="table-container"><table class="data-table">' +
       '<thead><tr><th>Số phiếu</th><th>Ngày lập</th><th>Số tiền</th><th>Phương thức</th><th>Người thu</th><th>Trạng thái</th></tr></thead>' +
       '<tbody>' + (paymentRows || '<tr><td colspan="6"><div class="empty-state">Chưa có phiếu thu</div></td></tr>') + '</tbody>' +
+    '</table></div></div>' +
+    '<div class="card"><div class="card-header"><h3>Lần thanh toán</h3></div><div class="table-container"><table class="data-table">' +
+      '<thead><tr><th>Mã lần</th><th>Phiếu thu</th><th>Ngày</th><th>Số tiền</th><th>Phương thức</th><th>Người xác nhận</th><th>Trạng thái</th></tr></thead>' +
+      '<tbody>' + (transactionRows || '<tr><td colspan="7"><div class="empty-state">Chưa có lần thanh toán</div></td></tr>') + '</tbody>' +
     '</table></div></div>';
 }
 

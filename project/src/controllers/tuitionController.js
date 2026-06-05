@@ -13,6 +13,8 @@ const {
   emptyTotals,
   getTransactionTotalsByRegistration,
   getTransactionTotalsByReceipt,
+  getLatestTransactionActivityByRegistration,
+  getRegistrationTransactions,
   getEffectivePaid,
   getReceiptRemaining,
   getRegistrationRemaining,
@@ -76,6 +78,52 @@ const receiptPaymentAmount = (receipt, registrationRemaining) => Math.max(Math.m
   Number(receipt?.ConNoPhieuThu ?? receipt?.SoTienThu ?? 0),
   Number(registrationRemaining || 0)
 ), 0);
+
+const toReceiptSummaryDto = (receipt, registrationRemaining) => receipt ? {
+  SoPhieuThu: receipt.SoPhieuThu,
+  SoTienThu: receiptPaymentAmount(receipt, registrationRemaining),
+  SoTienThanhToanToiDa: receiptPaymentAmount(receipt, registrationRemaining),
+  TongTienPhieuThu: Number(receipt.SoTienThu || 0),
+  TongTienDaThanhToan: Number(receipt.TongTienDaThanhToan || 0),
+  TongTienDangChoXacNhan: Number(receipt.TongTienDangChoXacNhan || 0),
+  ConNoPhieuThu: Number(receipt.ConNoPhieuThu || 0),
+  TrangThai: receipt.TrangThai,
+  TrangThaiHienThi: receipt.TrangThaiHienThi || receipt.TrangThai,
+  TrangThaiThanhToan: receipt.TrangThaiThanhToan || 'unknown'
+} : null;
+
+const toExistingReceiptDto = (receipt) => receipt ? {
+  SoPhieuThu: receipt.SoPhieuThu,
+  TrangThai: receipt.TrangThai,
+  TrangThaiHienThi: receipt.TrangThaiHienThi || receipt.TrangThai,
+  TrangThaiThanhToan: receipt.TrangThaiThanhToan || 'unknown'
+} : null;
+
+const toTimeValue = (value) => {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
+const getLatestDebtActivityDate = (registration, latestTransactionDate) => {
+  const dates = [registration?.NgayCapNhat, registration?.NgayLap, latestTransactionDate];
+  (registration?.PHIEUTHUHOCPHI || []).forEach((receipt) => {
+    dates.push(receipt.NgayCapNhat, receipt.NgayXacNhan, receipt.NgayLap);
+  });
+  const latest = dates.reduce((max, value) => Math.max(max, toTimeValue(value)), 0);
+  return latest ? new Date(latest) : null;
+};
+
+const sortByLatestDebtActivity = (rows = []) => rows.sort((a, b) => {
+  const diff = toTimeValue(b.NgayHoatDongCongNo) - toTimeValue(a.NgayHoatDongCongNo);
+  if (diff !== 0) return diff;
+  return Number(b.SoPhieu || 0) - Number(a.SoPhieu || 0);
+});
+
+const normalizePaymentTransaction = (item) => ({
+  ...item,
+  SoTienThanhToan: Number(item.SoTienThanhToan || 0)
+});
 
 const getPaymentUnavailableReason = ({ conNo, paymentBlock, payableReceipt, existingReceipt }) => {
   if (conNo <= 0) return null;
@@ -165,7 +213,7 @@ const matchesTuitionStatus = (row, status) => {
   return row.TrangThai === status;
 };
 
-const buildTuitionDetail = (registration, pendingAppeals = 0) => {
+const buildTuitionDetail = (registration, pendingAppeals = 0, paymentTransactions = []) => {
   const successPayments = registration.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_SUCCESS);
   const refunds = registration.PHIEUTHUHOCPHI.filter((p) => p.TrangThai === PAYMENT_REFUND);
   const legacyDaDong = successPayments.reduce((s, p) => s + Number(p.SoTienThu), 0) - refunds.reduce((s, p) => s + Number(p.SoTienThu), 0);
@@ -183,6 +231,14 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
   const tongTienDangKy = Number(registration.TongTienDangKy || 0);
   const tiLeGiam = Number(registration.TiLeGiam || appliedDiscount?.TiLeGiamHocPhi || 0);
   const tienMienGiam = Number(registration.TienMienGiam || 0);
+
+  const transactions = paymentTransactions.map(normalizePaymentTransaction);
+  const transactionsByReceipt = transactions.reduce((map, item) => {
+    const receiptId = Number(item.SoPhieuThu);
+    if (!map.has(receiptId)) map.set(receiptId, []);
+    map.get(receiptId).push(item);
+    return map;
+  }, new Map());
 
   return {
     SoPhieu: registration.SoPhieu,
@@ -210,15 +266,8 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
     CamThiCuoiKy: Boolean(camThiCuoiKy),
     ThongBaoCamThi: camThiCuoiKy ? 'Quá hạn đóng học phí và chưa hoàn thành học phí: cấm thi cuối kỳ.' : null,
     TrangThai: tuitionStatus(phaiDong, daDong, effectiveDueDate),
-    PayableReceipt: payableReceipt ? {
-      SoPhieuThu: payableReceipt.SoPhieuThu,
-      SoTienThu: receiptPaymentAmount(payableReceipt, conNo),
-      TongTienPhieuThu: Number(payableReceipt.SoTienThu || 0),
-      TongTienDaThanhToan: Number(payableReceipt.TongTienDaThanhToan || 0),
-      ConNoPhieuThu: Number(payableReceipt.ConNoPhieuThu || 0),
-      TrangThai: payableReceipt.TrangThai
-    } : null,
-    ExistingReceipt: existingReceipt ? { SoPhieuThu: existingReceipt.SoPhieuThu, TrangThai: existingReceipt.TrangThai } : null,
+    PayableReceipt: toReceiptSummaryDto(payableReceipt, conNo),
+    ExistingReceipt: toExistingReceiptDto(existingReceipt),
     DoiTuongMienGiam: appliedDiscount,
     CongThucHocPhi: {
       TongTienMonHoc: tongTienDangKy,
@@ -238,9 +287,14 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
       CamThiCuoiKy: Boolean(camThiCuoiKy),
       TrangThaiThi: camThiCuoiKy ? 'Cấm thi cuối kỳ' : 'Được thi cuối kỳ'
     })),
+    paymentTransactions: transactions,
     payments: registration.PHIEUTHUHOCPHI.map((p) => ({
       ...p,
-      SoTienThu: Number(p.SoTienThu || 0)
+      SoTienThu: Number(p.SoTienThu || 0),
+      TongTienDaThanhToan: Number(p.TongTienDaThanhToan || 0),
+      TongTienDangChoXacNhan: Number(p.TongTienDangChoXacNhan || 0),
+      ConNoPhieuThu: Number(p.ConNoPhieuThu || 0),
+      LanThanhToan: transactionsByReceipt.get(Number(p.SoPhieuThu)) || []
     }))
   };
 };
@@ -261,6 +315,7 @@ const getAllTuition = async (req, res) => {
     };
 
     let pendingAppealCountBySemester = new Map();
+    let latestTransactionActivityByRegistration = new Map();
 
     const mapRow = (t) => {
       const effectivePaid = Number(t._effectivePaid || 0);
@@ -274,6 +329,7 @@ const getAllTuition = async (req, res) => {
       const effectiveDueDate = getEffectiveTuitionDueDate(t);
       const deadlinePassed = isTuitionDeadlinePassed(effectiveDueDate);
       const camThiCuoiKy = conNo > 0 && deadlinePassed;
+      const latestTransactionDate = latestTransactionActivityByRegistration.get(Number(t.SoPhieu)) || null;
       return {
         SoPhieu: t.SoPhieu,
         MaSv: t.MaSv,
@@ -292,19 +348,23 @@ const getAllTuition = async (req, res) => {
         conNo,
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
         LyDoChuaTheThanhToan: paymentUnavailableReason,
-        PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: receiptPaymentAmount(payableReceipt, conNo), TongTienPhieuThu: Number(payableReceipt.SoTienThu || 0), TongTienDaThanhToan: Number(payableReceipt.TongTienDaThanhToan || 0), ConNoPhieuThu: Number(payableReceipt.ConNoPhieuThu || 0), TrangThai: payableReceipt.TrangThai } : null,
-        ExistingReceipt: existingReceipt ? { SoPhieuThu: existingReceipt.SoPhieuThu, TrangThai: existingReceipt.TrangThai } : null,
+        PayableReceipt: toReceiptSummaryDto(payableReceipt, conNo),
+        ExistingReceipt: toExistingReceiptDto(existingReceipt),
         CamThiCuoiKy: Boolean(camThiCuoiKy),
         ThongBaoCamThi: camThiCuoiKy ? 'Quá hạn đóng học phí và chưa hoàn thành học phí: cấm thi cuối kỳ.' : null,
         QuaHan: conNo > 0 && deadlinePassed,
+        NgayHoatDongCongNo: getLatestDebtActivityDate(t, latestTransactionDate),
         TrangThai: tuitionStatus(phaiDong, effectivePaid, effectiveDueDate)
       };
     };
 
     const allRows = await prisma.PHIEUDANGKY.findMany({ where, orderBy: { NgayLap: 'desc' }, include });
     const enrichedRows = await attachPaymentSummariesToRegistrations(allRows);
-    pendingAppealCountBySemester = await getPendingAppealCountMap(enrichedRows.map((row) => row.MaHocKy));
-    const mapped = enrichedRows.map(mapRow).filter((row) => matchesTuitionStatus(row, status));
+    [pendingAppealCountBySemester, latestTransactionActivityByRegistration] = await Promise.all([
+      getPendingAppealCountMap(enrichedRows.map((row) => row.MaHocKy)),
+      getLatestTransactionActivityByRegistration(prisma, enrichedRows.map((row) => row.SoPhieu))
+    ]);
+    const mapped = sortByLatestDebtActivity(enrichedRows.map(mapRow).filter((row) => matchesTuitionStatus(row, status)));
     const filtered = filterRowsByRegex(mapped, search, (row) => {
       const values = { MaSv: [row.MaSv], HoTen: [row.HoTen] };
       return searchField === 'all' ? Object.values(values).flat() : (values[searchField] || []);
@@ -328,9 +388,12 @@ const getTuitionById = async (req, res) => {
       }
     });
     if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
-    const pendingAppeals = await prisma.DONCUUXETDANGKY.count({ where: { MaHocKy: t.MaHocKy, TrangThai: APPEAL_STATUS.PENDING } });
+    const [pendingAppeals, paymentTransactions] = await Promise.all([
+      prisma.DONCUUXETDANGKY.count({ where: { MaHocKy: t.MaHocKy, TrangThai: APPEAL_STATUS.PENDING } }),
+      getRegistrationTransactions(prisma, t.SoPhieu)
+    ]);
     const [enriched] = await attachPaymentSummariesToRegistrations([t]);
-    res.json({ success: true, data: buildTuitionDetail(enriched, pendingAppeals) });
+    res.json({ success: true, data: buildTuitionDetail(enriched, pendingAppeals, paymentTransactions) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition by ID error:');
   }
@@ -349,9 +412,12 @@ const getTuitionDetail = async (req, res) => {
     });
     if (!t) return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin học phí' });
     if (!(await ensureStudentAccess(req, res, t.MaSv))) return;
-    const pendingAppeals = await prisma.DONCUUXETDANGKY.count({ where: { MaHocKy: t.MaHocKy, TrangThai: APPEAL_STATUS.PENDING } });
+    const [pendingAppeals, paymentTransactions] = await Promise.all([
+      prisma.DONCUUXETDANGKY.count({ where: { MaHocKy: t.MaHocKy, TrangThai: APPEAL_STATUS.PENDING } }),
+      getRegistrationTransactions(prisma, t.SoPhieu)
+    ]);
     const [enriched] = await attachPaymentSummariesToRegistrations([t]);
-    res.json({ success: true, data: buildTuitionDetail(enriched, pendingAppeals) });
+    res.json({ success: true, data: buildTuitionDetail(enriched, pendingAppeals, paymentTransactions) });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'Get tuition detail error:');
   }
@@ -450,8 +516,8 @@ const getStudentTuition = async (req, res) => {
         conNo,
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
         LyDoChuaTheThanhToan: paymentUnavailableReason,
-        PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: receiptPaymentAmount(payableReceipt, conNo), TongTienPhieuThu: Number(payableReceipt.SoTienThu || 0), TongTienDaThanhToan: Number(payableReceipt.TongTienDaThanhToan || 0), ConNoPhieuThu: Number(payableReceipt.ConNoPhieuThu || 0), TrangThai: payableReceipt.TrangThai } : null,
-        ExistingReceipt: existingReceipt ? { SoPhieuThu: existingReceipt.SoPhieuThu, TrangThai: existingReceipt.TrangThai } : null,
+        PayableReceipt: toReceiptSummaryDto(payableReceipt, conNo),
+        ExistingReceipt: toExistingReceiptDto(existingReceipt),
         CamThiCuoiKy: Boolean(camThiCuoiKy),
         ThongBaoCamThi: camThiCuoiKy ? 'Quá hạn đóng học phí và chưa hoàn thành học phí: cấm thi cuối kỳ.' : null,
         TrangThai: tuitionStatus(phaiDong, effectiveRowPaid, effectiveDueDate)

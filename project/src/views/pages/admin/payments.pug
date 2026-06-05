@@ -26,6 +26,7 @@ block content
       select#filter-status(onchange="applyFilters()")
         option(value="" selected=(!TrangThai)) Tất cả trạng thái
         option(value="Chưa thanh toán" selected=(TrangThai === 'Chưa thanh toán')) Chưa thanh toán
+        option(value="Đóng một phần" selected=(TrangThai === 'Đóng một phần')) Đóng một phần
         option(value="Thành công" selected=(TrangThai === 'Thành công')) Thành công
         option(value="Chờ xác nhận" selected=(TrangThai === 'Chờ xác nhận')) Chờ xác nhận
         option(value="Thất bại" selected=(TrangThai === 'Thất bại')) Thất bại
@@ -91,7 +92,8 @@ block content
           if payments && payments.length > 0
             each p in payments
               - const paymentStatus = p.TrangThai || 'Thành công'
-              - const paymentBadge = paymentStatus === 'Thành công' ? 'badge-success' : (paymentStatus === 'Chờ xác nhận' || paymentStatus === 'Chưa thanh toán') ? 'badge-warning' : 'badge-error'
+              - const paymentDisplayStatus = p.TrangThaiHienThi || paymentStatus
+              - const paymentBadge = paymentDisplayStatus === 'Thành công' ? 'badge-success' : (paymentDisplayStatus === 'Chờ xác nhận' || paymentDisplayStatus === 'Chưa thanh toán' || paymentDisplayStatus === 'Đóng một phần') ? 'badge-warning' : paymentDisplayStatus === 'Đã hủy' ? 'badge-secondary' : 'badge-error'
               tr
                 td.mono= p.SoPhieuThu
                 td.mono= p.MaSv || '-'
@@ -105,7 +107,7 @@ block content
                 td= p.NgayXacNhan ? new Date(p.NgayXacNhan).toLocaleString('vi-VN') : '-'
                 td= p.NguoiThu || '-'
                 td
-                  span.badge(class=paymentBadge)= paymentStatus
+                  span.badge(class=paymentBadge)= paymentDisplayStatus
                 td.table-actions
                   .table-action-list
                     button.btn.btn-sm.btn-outline(type="button" onclick=`viewPaymentDetail(${p.SoPhieuThu})`)
@@ -118,7 +120,7 @@ block content
                     button.btn.btn-sm.btn-success(type="button" onclick=`confirmPayment(${p.SoPhieuThu})`) Xác nhận
                   if paymentStatus === 'Chờ xác nhận'
                     button.btn.btn-sm.btn-danger(type="button" onclick=`failPayment(${p.SoPhieuThu})`) Thất bại
-                  if paymentStatus === 'Chờ xác nhận' || paymentStatus === 'Chưa thanh toán'
+                  if paymentStatus === 'Chờ xác nhận' || paymentDisplayStatus === 'Chưa thanh toán'
                     button.btn.btn-sm.btn-outline(type="button" onclick=`cancelPayment(${p.SoPhieuThu})`) Hủy
           else
             tr
