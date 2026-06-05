@@ -27,6 +27,14 @@ const getRegistrationTypeLabel = (type) => REGISTRATION_TYPE_LABELS[type] || typ
 const hasSuccessfulPayment = (registration) =>
   Boolean(registration?.PHIEUTHUHOCPHI?.some((payment) => payment.TrangThai === PAYMENT_SUCCESS_STATUS));
 
+const isTuitionDeadlinePassed = (dueDate, now = new Date()) => {
+  if (!dueDate) return false;
+  const deadline = new Date(dueDate);
+  if (Number.isNaN(deadline.getTime())) return false;
+  deadline.setHours(23, 59, 59, 999);
+  return deadline < now;
+};
+
 const AVAILABLE_SEARCH_SCOPES = new Set(['course', 'lecturer', 'class']);
 
 const normalizeAvailableSearchScope = (scope) => {
@@ -820,9 +828,8 @@ const getStudentCourses = async (req, res) => {
       const appealWindow = getAppealWindowState(row.PHIEUDANGKY?.HOCKY);
       const lockedByWindow = !registrationWindow.isOpen;
       const isActive = row.TrangThai === ACTIVE_REGISTRATION_STATUS;
-      const tuitionDueDate = row.PHIEUDANGKY?.HOCKY?.HanDongHocPhi ? new Date(row.PHIEUDANGKY.HOCKY.HanDongHocPhi) : null;
       const amountDue = Number(row.PHIEUDANGKY?.TongTienPhaiDong || 0);
-      const camThiCuoiKy = isActive && amountDue > paidAmount && tuitionDueDate && tuitionDueDate < new Date();
+      const camThiCuoiKy = isActive && amountDue > paidAmount && isTuitionDeadlinePassed(row.PHIEUDANGKY?.HOCKY?.HanDongHocPhi);
       const displayStatus = camThiCuoiKy ? 'Cấm thi cuối kỳ' : row.TrangThai;
       const canAppeal = appealWindow.isOpen && isActive && !lockedByPayment;
       const cancelLockMessage = lockedByPayment

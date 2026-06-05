@@ -43,27 +43,59 @@ function openPaymentModal(receiptId, amount) {
   document.getElementById('payment-amount-label').textContent = formatCurrency(maxAmount);
   var amountInput = document.getElementById('payment-amount');
   if (amountInput) {
+    amountInput.min = '1';
     amountInput.max = String(maxAmount);
     amountInput.value = String(maxAmount);
+    amountInput.readOnly = true;
   }
   var amountHint = document.getElementById('payment-amount-hint');
-  if (amountHint) amountHint.textContent = 'Có thể thanh toán một phần, nhỏ hơn hoặc bằng ' + formatCurrency(maxAmount) + '.';
+  if (amountHint) amountHint.textContent = 'Thanh toán toàn bộ sẽ dùng đúng ' + formatCurrency(maxAmount) + '.';
   document.getElementById('payment-result').innerHTML = '';
   var mode = document.getElementById('payment-mode');
   if (mode) mode.value = 'full';
+  var method = document.getElementById('payment-method');
+  if (method) method.value = 'cash';
   updatePaymentModeHint();
+  updatePaymentMethodHint();
   if (modal) modal.classList.add('active');
 }
 
 function updatePaymentModeHint() {
   var mode = document.getElementById('payment-mode');
   var hint = document.getElementById('payment-mode-hint');
-  if (!hint) return;
+  var amountHint = document.getElementById('payment-amount-hint');
+  var amountInput = document.getElementById('payment-amount');
+  var maxAmount = Number(document.getElementById('payment-receipt-amount').value || 0);
   if (mode && mode.value === 'partial') {
-    hint.textContent = 'Sinh viên có thể nhập số tiền muốn thanh toán, không vượt quá số tiền còn nợ.';
+    if (amountInput) {
+      amountInput.readOnly = false;
+      amountInput.max = String(Math.max(maxAmount - 1, 0));
+      if (Number(amountInput.value || 0) >= maxAmount) amountInput.value = '';
+    }
+    if (hint) hint.textContent = 'Thanh toán một phần phải nhỏ hơn số tiền còn nợ.';
+    if (amountHint) amountHint.textContent = 'Nhập số tiền nhỏ hơn ' + formatCurrency(maxAmount) + '.';
     return;
   }
-  hint.textContent = 'Mặc định thanh toán toàn bộ số tiền còn nợ của phiếu thu.';
+  if (amountInput) {
+    amountInput.readOnly = true;
+    amountInput.max = String(maxAmount);
+    amountInput.value = String(maxAmount);
+  }
+  if (hint) hint.textContent = 'Thanh toán toàn bộ sẽ dùng đúng số tiền còn nợ của phiếu thu.';
+  if (amountHint) amountHint.textContent = 'Số tiền được khóa theo khoản còn nợ hiện tại.';
+}
+
+function updatePaymentMethodHint() {
+  var method = document.getElementById('payment-method');
+  var hint = document.getElementById('payment-method-hint');
+  if (!hint || !method) return;
+  if (method.value === 'cash') {
+    hint.textContent = 'Vui lòng đem tiền mặt tới phòng tài chính A.101 để thanh toán và được phòng tài chính xác nhận thanh toán.';
+  } else if (method.value === 'qr') {
+    hint.textContent = 'Thanh toán QR sẽ chờ phòng tài chính xác nhận.';
+  } else {
+    hint.textContent = 'Kết quả thanh toán được cổng thanh toán trả về tự động, không cần admin xác nhận.';
+  }
 }
 
 function updatePayTuitionButton() {
@@ -98,16 +130,21 @@ async function checkoutPayment() {
   var receiptId = Number(document.getElementById('payment-receipt-id').value);
   var maxAmount = Number(document.getElementById('payment-receipt-amount').value || 0);
   var amountInput = document.getElementById('payment-amount');
-  var amount = Number(amountInput ? amountInput.value : maxAmount);
   var method = document.getElementById('payment-method').value;
   var paymentMode = document.getElementById('payment-mode') ? document.getElementById('payment-mode').value : 'full';
+  var amount = paymentMode === 'full' ? maxAmount : Number(amountInput ? amountInput.value : 0);
   var result = document.getElementById('payment-result');
   if (!receiptId) {
     showToast('Không tìm thấy phiếu thu cần thanh toán', 'error');
     return;
   }
+  if (paymentMode === 'full' && amountInput) amountInput.value = String(maxAmount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > maxAmount) {
     showToast('Số tiền thanh toán phải lớn hơn 0 và không vượt quá số tiền còn nợ', 'error');
+    return;
+  }
+  if (paymentMode === 'partial' && amount >= maxAmount) {
+    showToast('Thanh toán một phần phải nhỏ hơn số tiền còn nợ', 'error');
     return;
   }
   var res = await apiFetch('/api/payments/' + encodeURIComponent(receiptId) + '/checkout', {
@@ -125,6 +162,8 @@ async function checkoutPayment() {
     return;
   } else if (data.qrPayload) {
     result.innerHTML = '<img alt="QR chuyển khoản" style="max-width:260px;width:100%" src="' + data.qrPayload + '"><p class="text-muted">Thanh toán QR sẽ ở trạng thái chờ admin xác nhận.</p>';
+  } else if (data.cashInstruction) {
+    result.innerHTML = '<div class=empty-state>' + tuitionEscapeHtml(data.cashInstruction) + '</div>';
   } else {
     var receiptStatus = data.receipt && data.receipt.TrangThai ? data.receipt.TrangThai : 'Chờ xác nhận';
     result.innerHTML = '<div class="empty-state">Đã tạo yêu cầu thanh toán. Trạng thái: ' + tuitionEscapeHtml(receiptStatus) + '.</div>';
@@ -165,7 +204,8 @@ function receiptSemesterText(receipt) {
 
 function renderReceiptDetail(receipt) {
   var status = receipt.TrangThai || '-';
-  var canPay = canCheckoutReceiptStatus(status);
+  var payableAmount = Number(receipt.SoTienThanhToanToiDa !== undefined && receipt.SoTienThanhToanToiDa !== null ? receipt.SoTienThanhToanToiDa : (receipt.ConNoPhieuThu || 0));
+  var canPay = canCheckoutReceiptStatus(status) && payableAmount > 0;
   var transactions = receipt.LanThanhToan || [];
   var transactionRows = transactions.map(function(item) {
     return '<tr>' +
@@ -217,8 +257,8 @@ async function openReceiptDetailModal(receiptId) {
     currentReceiptDetail = res.data || {};
     body.innerHTML = renderReceiptDetail(currentReceiptDetail);
     if (footer) {
-      var remainingAmount = Number(currentReceiptDetail.ConNoPhieuThu || currentReceiptDetail.SoTienThanhToanToiDa || currentReceiptDetail.SoTienThu || 0);
-      var payButton = canCheckoutReceiptStatus(currentReceiptDetail.TrangThai)
+      var remainingAmount = Number(currentReceiptDetail.SoTienThanhToanToiDa !== undefined && currentReceiptDetail.SoTienThanhToanToiDa !== null ? currentReceiptDetail.SoTienThanhToanToiDa : (currentReceiptDetail.ConNoPhieuThu || currentReceiptDetail.SoTienThu || 0));
+      var payButton = canCheckoutReceiptStatus(currentReceiptDetail.TrangThai) && remainingAmount > 0
         ? '<button class="btn btn-primary" type="button" onclick="openPaymentModal(' + Number(currentReceiptDetail.SoPhieuThu || 0) + ', ' + remainingAmount + ')">Thanh toán</button>'
         : '';
       footer.innerHTML = '<button class="btn btn-outline" type="button" onclick="closeReceiptDetailModal()">Đóng</button>' + payButton;
@@ -252,9 +292,9 @@ function renderTuitionDetail(data) {
 
   var payments = (data.payments || []).map(function(payment) {
     var status = payment.TrangThai || '-';
-    var paymentRemaining = Number(payment.ConNoPhieuThu || payment.SoTienThanhToanToiDa || payment.SoTienThu || 0);
+    var paymentRemaining = Number(payment.SoTienThanhToanToiDa !== undefined && payment.SoTienThanhToanToiDa !== null ? payment.SoTienThanhToanToiDa : (payment.ConNoPhieuThu || payment.SoTienThu || 0));
     var action = '<button class="btn btn-sm btn-outline" type="button" onclick="openReceiptDetailModal(' + Number(payment.SoPhieuThu || 0) + ')">Xem phiếu thu</button>';
-    if (canCheckoutReceiptStatus(status)) {
+    if (canCheckoutReceiptStatus(status) && paymentRemaining > 0) {
       action += ' <button class="btn btn-sm btn-primary" type="button" onclick="openPaymentModal(' + Number(payment.SoPhieuThu || 0) + ', ' + paymentRemaining + ')">Thanh toán</button>';
     }
     return '<tr>' +
@@ -344,11 +384,13 @@ async function loadMyTuition(page) {
         var paid = Number(t.TongTienDaDong || 0);
         var remaining = Number(t.conNo || Math.max(fee - paid, 0));
         var receipt = t.PayableReceipt || null;
+        var hasReceipt = Boolean(receipt || t.ExistingReceipt);
         var canPay = remaining > 0 && t.CoTheThanhToan !== false;
-        var missingReceipt = remaining > 0 && !receipt;
+        var missingReceipt = remaining > 0 && !hasReceipt;
         var rawUnavailableReason = t.LyDoChuaTheThanhToan || 'Chỉ thanh toán được khi có phiếu thu do admin tạo.';
         var unavailableReason = tuitionEscapeHtml(rawUnavailableReason);
-        var unavailableLabel = missingReceipt || rawUnavailableReason.indexOf('phiếu thu') >= 0 ? 'Chưa có phiếu thu' : 'Chưa thể thanh toán';
+        var lowerReason = rawUnavailableReason.toLowerCase();
+        var unavailableLabel = missingReceipt || lowerReason.indexOf('chưa có phiếu thu') >= 0 ? 'Chưa có phiếu thu' : 'Chưa thể thanh toán';
         var badgeClass = remaining <= 0 ? 'badge-success' : t.TrangThai === 'Quá hạn' ? 'badge-error' : paid > 0 ? 'badge-warning' : 'badge-error';
         var actionHtml = remaining <= 0
           ? '<button class="btn btn-sm btn-outline" type="button" onclick="viewTuitionDetail(' + t.SoPhieu + ')">Chi tiết</button>'

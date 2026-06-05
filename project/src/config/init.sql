@@ -10938,6 +10938,13 @@ INSERT INTO "HOCKY" ("MaHocKy", "TenHocKy", "MaNamHoc", "LoaiHocKy", "ThuTu", "N
 ('HK1-2526', 'Học kỳ I 2025-2026', '2025-2026', 'Chính', 1, '2025-09-01', '2026-01-15', '2025-08-15 00:00:00', '2025-08-24 23:59:59', '2025-08-25 00:00:00', '2025-08-31 23:59:59', '2025-09-01', '2025-10-15', 'Đã kết thúc'),
 ('HK2-2526', 'Học kỳ II 2025-2026', '2025-2026', 'Chính', 2, '2026-02-01', '2026-06-15', '2026-01-15 00:00:00', '2026-01-24 23:59:59', '2026-01-25 00:00:00', '2026-01-31 23:59:59', '2026-02-01', '2026-06-14', 'Đang diễn ra');
 
+UPDATE "HOCKY"
+SET
+  "NgayChotDangKy" = COALESCE("NgayChotDangKy", '2026-02-01 08:00:00'),
+  "MoThuHocPhi" = TRUE,
+  "NgayMoThuHocPhi" = COALESCE("NgayMoThuHocPhi", '2026-02-01 08:00:00')
+WHERE "MaHocKy" = 'HK2-2526';
+
 -- =====================================================
 -- INSERT DATA - Đơn giá tín chỉ (Unit Prices per Credit)
 -- =====================================================
@@ -11029,22 +11036,70 @@ UPDATE "SINHVIEN"
 SET "NgayNhapHoc" = '2025-09-01'
 WHERE "MaSv" IN ('22520001', '22520002', '22520003', '22520004', '22520005', '22520006');
 
--- Demo bulk students for tuition/finalization flows. These students do not need
--- login accounts; they only provide successful registrations with tuition debt.
+-- Demo bulk students for tuition/finalization flows. These students use MSSV as
+-- username and student123 as the default password.
 INSERT INTO "SINHVIEN" (
   "MaSv", "HoTen", "NgaySinh", "GioiTinh", "Cccd", "MaPhuongXa", "MaDanToc",
   "MaNganh", "DiaChiLienHe", "Sdt", "Email", "NgayNhapHoc", "TrangThai", "GhiChu"
 )
 SELECT
   '22521' || LPAD(gs::text, 3, '0') AS "MaSv",
-  'Sinh Vien Demo ' || LPAD(gs::text, 3, '0') AS "HoTen",
+  CASE
+    WHEN gs % 2 = 0 THEN
+      (ARRAY['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi', 'Đỗ', 'Hồ', 'Ngô'])[((gs - 1) % 14) + 1] || ' ' ||
+      (ARRAY['Thị', 'Ngọc', 'Thanh', 'Minh', 'Phương', 'Gia', 'Khánh', 'Bảo'])[((gs - 1) % 8) + 1] || ' ' ||
+      (ARRAY['An', 'Bình', 'Chi', 'Dung', 'Hà', 'Hân', 'Hạnh', 'Hoa', 'Hương', 'Khanh', 'Linh', 'Mai', 'My', 'Nhi', 'Như', 'Oanh', 'Phúc', 'Quỳnh', 'Thảo', 'Trang', 'Trinh', 'Tú', 'Uyên', 'Vy'])[((gs - 1) % 24) + 1]
+    ELSE
+      (ARRAY['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi', 'Đỗ', 'Hồ', 'Ngô'])[((gs - 1) % 14) + 1] || ' ' ||
+      (ARRAY['Văn', 'Minh', 'Hoàng', 'Quốc', 'Đức', 'Gia', 'Hữu', 'Thanh'])[((gs - 1) % 8) + 1] || ' ' ||
+      (ARRAY['An', 'Bảo', 'Cường', 'Dũng', 'Đạt', 'Hải', 'Hiếu', 'Huy', 'Khang', 'Khôi', 'Kiên', 'Long', 'Minh', 'Nam', 'Nhân', 'Phong', 'Phúc', 'Quân', 'Sơn', 'Tài', 'Thắng', 'Trí', 'Tuấn', 'Việt'])[((gs - 1) % 24) + 1]
+  END AS "HoTen",
   (DATE '2004-01-01' + (gs % 365))::date AS "NgaySinh",
   CASE WHEN gs % 2 = 0 THEN 'Nữ' ELSE 'Nam' END AS "GioiTinh",
   '07920421' || LPAD(gs::text, 4, '0') AS "Cccd",
   '2659' AS "MaPhuongXa",
   'KINH' AS "MaDanToc",
   'KTPM' AS "MaNganh",
-  'Demo seed for tuition after successful registration' AS "DiaChiLienHe",
+  ((12 + gs * 3)::text || ' ' ||
+    (ARRAY[
+      'Nguyễn Văn Bảo, Phường 4, Quận Gò Vấp, TP. Hồ Chí Minh',
+      'Lê Văn Việt, Phường Hiệp Phú, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Võ Văn Ngân, Phường Linh Chiểu, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Nguyễn Thị Minh Khai, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+      'Trần Hưng Đạo, Phường Cầu Ông Lãnh, Quận 1, TP. Hồ Chí Minh',
+      'Nguyễn Trãi, Phường Nguyễn Cư Trinh, Quận 1, TP. Hồ Chí Minh',
+      'Cách Mạng Tháng Tám, Phường 11, Quận 3, TP. Hồ Chí Minh',
+      'Điện Biên Phủ, Phường 25, Quận Bình Thạnh, TP. Hồ Chí Minh',
+      'Xô Viết Nghệ Tĩnh, Phường 21, Quận Bình Thạnh, TP. Hồ Chí Minh',
+      'Phan Văn Trị, Phường 7, Quận Gò Vấp, TP. Hồ Chí Minh',
+      'Quang Trung, Phường 10, Quận Gò Vấp, TP. Hồ Chí Minh',
+      'Nguyễn Kiệm, Phường 3, Quận Gò Vấp, TP. Hồ Chí Minh',
+      'Hoàng Văn Thụ, Phường 2, Quận Tân Bình, TP. Hồ Chí Minh',
+      'Cộng Hòa, Phường 13, Quận Tân Bình, TP. Hồ Chí Minh',
+      'Trường Chinh, Phường 14, Quận Tân Bình, TP. Hồ Chí Minh',
+      'Âu Cơ, Phường 9, Quận Tân Bình, TP. Hồ Chí Minh',
+      'Lạc Long Quân, Phường 5, Quận 11, TP. Hồ Chí Minh',
+      'Ba Tháng Hai, Phường 12, Quận 10, TP. Hồ Chí Minh',
+      'Tô Hiến Thành, Phường 15, Quận 10, TP. Hồ Chí Minh',
+      'Thành Thái, Phường 14, Quận 10, TP. Hồ Chí Minh',
+      'Hậu Giang, Phường 5, Quận 6, TP. Hồ Chí Minh',
+      'Kinh Dương Vương, Phường An Lạc, Quận Bình Tân, TP. Hồ Chí Minh',
+      'Tên Lửa, Phường Bình Trị Đông B, Quận Bình Tân, TP. Hồ Chí Minh',
+      'Nguyễn Hữu Thọ, Phường Tân Hưng, Quận 7, TP. Hồ Chí Minh',
+      'Huỳnh Tấn Phát, Phường Tân Thuận Đông, Quận 7, TP. Hồ Chí Minh',
+      'Nguyễn Văn Linh, Phường Tân Phong, Quận 7, TP. Hồ Chí Minh',
+      'Phạm Hùng, Xã Bình Hưng, Huyện Bình Chánh, TP. Hồ Chí Minh',
+      'Đinh Đức Thiện, Xã Bình Chánh, Huyện Bình Chánh, TP. Hồ Chí Minh',
+      'Nguyễn Duy Trinh, Phường Bình Trưng Đông, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Mai Chí Thọ, Phường An Phú, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Xa Lộ Hà Nội, Phường Thảo Điền, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Đỗ Xuân Hợp, Phường Phước Long B, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Lê Đức Thọ, Phường 17, Quận Gò Vấp, TP. Hồ Chí Minh',
+      'Nguyễn Oanh, Phường 10, Quận Gò Vấp, TP. Hồ Chí Minh',
+      'Phạm Văn Đồng, Phường Hiệp Bình Chánh, TP. Thủ Đức, TP. Hồ Chí Minh',
+      'Nguyễn Xí, Phường 26, Quận Bình Thạnh, TP. Hồ Chí Minh'
+    ])[((gs - 1) % 36) + 1]
+  ) AS "DiaChiLienHe",
   '09821' || LPAD(gs::text, 5, '0') AS "Sdt",
   'demo' || LPAD(gs::text, 3, '0') || '@student.edu.vn' AS "Email",
   DATE '2025-09-01' AS "NgayNhapHoc",
@@ -11052,6 +11107,40 @@ SELECT
   'Sinh vien sinh tu dong de demo dong hoc phi' AS "GhiChu"
 FROM generate_series(1, 90) AS gs
 ON CONFLICT ("MaSv") DO NOTHING;
+
+-- Demo bulk student login accounts (password: student123)
+INSERT INTO "NGUOIDUNG" (
+  "TenDangNhap", "MatKhau", "Role", "MaNhom", "MaSv", "HoTen", "Email", "Sdt", "TrangThai"
+)
+SELECT
+  sv."MaSv",
+  '$2b$10$i04Sd3Yr.zmOypY1FGMpbu81qNNYBqkwFQMQKKzxHGHIupZO19uPi',
+  'student',
+  'SINHVIEN',
+  sv."MaSv",
+  sv."HoTen",
+  sv."Email",
+  sv."Sdt",
+  TRUE
+FROM "SINHVIEN" sv
+WHERE sv."MaSv" LIKE '22521%'
+ON CONFLICT ("TenDangNhap") DO UPDATE
+SET
+  "MatKhau" = EXCLUDED."MatKhau",
+  "Role" = EXCLUDED."Role",
+  "MaNhom" = EXCLUDED."MaNhom",
+  "MaSv" = EXCLUDED."MaSv",
+  "HoTen" = EXCLUDED."HoTen",
+  "Email" = EXCLUDED."Email",
+  "Sdt" = EXCLUDED."Sdt",
+  "TrangThai" = TRUE,
+  "TrangThaiDuyet" = 'approved';
+
+UPDATE "SINHVIEN" sv
+SET "MaTaiKhoan" = nd."MaTaiKhoan"
+FROM "NGUOIDUNG" nd
+WHERE sv."MaSv" = nd."MaSv"
+  AND sv."MaSv" LIKE '22521%';
 
 
 
@@ -14212,12 +14301,12 @@ RESET app.finalize_registration;
 -- Số tiền thu phải khớp với học phí phải đóng của "PHIEUDANGKY" tương ứng
 -- =====================================================
 INSERT INTO "PHIEUTHUHOCPHI" ("SoPhieuThu", "SoPhieuDangKy", "MaSv", "NgayLap", "SoTienThu", "HinhThucThu", "MaGiaoDich", "NguoiThu", "PaymentProvider", "PaymentChannel", "GhiChu", "TrangThai", "NgayXacNhan", "NgayCapNhat") VALUES
-(1, 1, '22520001', '2026-05-25 09:00:00', 378000, 'Chuyển khoản', 'GD20260525001', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 09:00:00', '2026-05-25 09:00:00'),
-(2, 2, '22520002', '2026-05-25 09:30:00', 229500, 'Tiền mặt', 'CASH20260525001', 'Phòng tài chính', 'cash', 'admin', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 09:30:00', '2026-05-25 09:30:00'),
-(3, 3, '22520003', '2026-05-25 10:00:00', 150000, 'Chuyển khoản', 'GD20260525003', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán một phần học phí HK2-2526', 'Thành công', '2026-05-25 10:00:00', '2026-05-25 10:00:00'),
-(4, 4, '22520004', '2026-05-25 10:30:00', 200000, 'Ví điện tử', 'EW20260525004', 'Cổng thanh toán', 'momo', 'student_portal', 'Thanh toán một phần học phí HK2-2526', 'Thành công', '2026-05-25 10:30:00', '2026-05-25 10:30:00'),
-(5, 5, '22520005', '2026-05-25 11:00:00', 226800, 'Chuyển khoản', 'GD20260525005', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Thành công', '2026-05-25 11:00:00', '2026-05-25 11:00:00'),
-(6, 6, '22520006', '2026-05-25 11:30:00', 189000, 'Chuyển khoản', 'GD20260525006', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526 cho tài khoản student', 'Thành công', '2026-05-25 11:30:00', '2026-05-25 11:30:00');
+(1, 1, '22520001', '2026-05-25 09:00:00', 378000, 'Chuyển khoản', 'GD20260525001', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Chưa thanh toán', '2026-05-25 09:00:00', '2026-05-25 09:00:00'),
+(2, 2, '22520002', '2026-05-25 09:30:00', 229500, 'Tiền mặt', 'CASH20260525001', 'Phòng tài chính', 'cash', 'admin', 'Thanh toán học phí HK2-2526', 'Chưa thanh toán', '2026-05-25 09:30:00', '2026-05-25 09:30:00'),
+(3, 3, '22520003', '2026-05-25 10:00:00', 189000, 'Chuyển khoản', 'GD20260525003', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Phiếu thu còn nợ sau lần thanh toán một phần HK2-2526', 'Chưa thanh toán', NULL, '2026-05-25 10:00:00'),
+(4, 4, '22520004', '2026-05-25 10:30:00', 264600, 'Ví điện tử', 'EW20260525004', 'Cổng thanh toán', 'momo', 'student_portal', 'Phiếu thu còn nợ sau lần thanh toán một phần HK2-2526', 'Chưa thanh toán', NULL, '2026-05-25 10:30:00'),
+(5, 5, '22520005', '2026-05-25 11:00:00', 226800, 'Chuyển khoản', 'GD20260525005', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526', 'Chưa thanh toán', '2026-05-25 11:00:00', '2026-05-25 11:00:00'),
+(6, 6, '22520006', '2026-05-25 11:30:00', 189000, 'Chuyển khoản', 'GD20260525006', 'Cổng thanh toán', 'bank_transfer', 'student_portal', 'Thanh toán học phí HK2-2526 cho tài khoản student', 'Chưa thanh toán', '2026-05-25 11:30:00', '2026-05-25 11:30:00');
 
 -- Cập nhật sequence cho "PHIEUTHUHOCPHI" để các INSERT tiếp theo bắt đầu từ giá trị đúng
 SELECT setval(pg_get_serial_sequence('"PHIEUTHUHOCPHI"', 'SoPhieuThu'), 6, true);
@@ -15445,6 +15534,45 @@ WHERE p."TrangThai" IN ('Thành công', 'Chờ xác nhận', 'Thất bại', 'Ho
       AND gd."SoTienThanhToan" = p."SoTienThu"
       AND COALESCE(gd."MaGiaoDich", '') = COALESCE(p."MaGiaoDich", '')
   );
+
+WITH partial_seed(
+  "SoPhieuThu", "SoTienThanhToan", "HinhThucThanhToan", "PaymentProvider", "PaymentChannel",
+  "MaGiaoDich", "GhiChu", "NgayTao", "NgayXacNhan", "NguoiXacNhan", "NgayCapNhat"
+) AS (
+  VALUES
+    (3, 150000::numeric, 'Chuyển khoản', 'bank_transfer', 'student_portal', 'GD20260525003', 'Thanh toán một phần học phí HK2-2526', '2026-05-25 10:00:00'::timestamp, '2026-05-25 10:00:00'::timestamp, 'Cổng thanh toán', '2026-05-25 10:00:00'::timestamp),
+    (4, 200000::numeric, 'Ví điện tử', 'momo', 'student_portal', 'EW20260525004', 'Thanh toán một phần học phí HK2-2526', '2026-05-25 10:30:00'::timestamp, '2026-05-25 10:30:00'::timestamp, 'Cổng thanh toán', '2026-05-25 10:30:00'::timestamp)
+)
+INSERT INTO "GIAODICHTHANHTOANHOCPHI" (
+  "SoPhieuThu", "SoPhieuDangKy", "MaSv", "SoTienThanhToan", "HinhThucThanhToan",
+  "PaymentProvider", "PaymentChannel", "MaGiaoDich", "GhiChu", "TrangThai",
+  "NgayTao", "NgayXacNhan", "NguoiXacNhan", "NgayCapNhat"
+)
+SELECT
+  ps."SoPhieuThu",
+  p."SoPhieuDangKy",
+  p."MaSv",
+  ps."SoTienThanhToan",
+  ps."HinhThucThanhToan",
+  ps."PaymentProvider",
+  ps."PaymentChannel",
+  ps."MaGiaoDich",
+  ps."GhiChu",
+  'Thành công',
+  ps."NgayTao",
+  ps."NgayXacNhan",
+  ps."NguoiXacNhan",
+  ps."NgayCapNhat"
+FROM partial_seed ps
+JOIN "PHIEUTHUHOCPHI" p ON p."SoPhieuThu" = ps."SoPhieuThu"
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM "GIAODICHTHANHTOANHOCPHI" gd
+  WHERE gd."SoPhieuThu" = ps."SoPhieuThu"
+    AND gd."TrangThai" = 'Thành công'
+    AND gd."SoTienThanhToan" = ps."SoTienThanhToan"
+    AND COALESCE(gd."MaGiaoDich", '') = COALESCE(ps."MaGiaoDich", '')
+);
 
 -- Extra pending payment seed removed because payment references are generated above.
 

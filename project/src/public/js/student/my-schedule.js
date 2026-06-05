@@ -16,9 +16,20 @@ var PERIOD_BY_ID = PERIODS.reduce(function(map, period, index) {
   map[period.id] = Object.assign({ index: index }, period);
   return map;
 }, {});
+var scheduleCourses = [];
+var selectedSemesterId = '';
 
 function isCancelledStatus(value) {
   return String(value || '').toLowerCase().indexOf('hủy') >= 0;
+}
+
+function scheduleEscapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function minutesFromParts(hour, minute) {
@@ -68,7 +79,7 @@ function getPeriodIndex(schedule, fieldName, relationName) {
 }
 
 function getExclusiveEndIndex(startIndex, endIndex) {
-  return endIndex > startIndex ? endIndex : startIndex + 1;
+  return Math.max(startIndex, endIndex) + 1;
 }
 
 function getCourseTitle(course) {
@@ -114,6 +125,9 @@ function createScheduleItem(course, slot, colorIndex) {
   var startPeriod = PERIODS[startIndex];
   var endPeriod = PERIODS[endIndex];
   var maLop = course.LOP && course.LOP.MaLop;
+  var periodLabel = startPeriod && endPeriod
+    ? 'Tiết ' + startPeriod.order + (startPeriod.order === endPeriod.order ? '' : '-' + endPeriod.order)
+    : '';
 
   return {
     day: slot.day,
@@ -126,7 +140,7 @@ function createScheduleItem(course, slot, colorIndex) {
     teacher: (course.LOP && course.LOP.GiangVien) || '',
     detail: [
       'Thứ ' + slot.day,
-      startPeriod && endPeriod ? 'Tiết ' + startPeriod.order + '-' + endPeriod.order : '',
+      periodLabel,
       roomDetailLabel(room),
       maLop || ''
     ].filter(Boolean).join(' | ')
@@ -174,18 +188,104 @@ function getCourseScheduleItems(courses) {
   });
 }
 
-async function loadAllRegisteredCourses(studentId) {
+function getCourseSemesterId(course) {
+  return (course.PHIEUDANGKY && course.PHIEUDANGKY.MaHocKy) || '';
+}
+
+function getCourseSemesterLabel(course) {
+  var registration = course.PHIEUDANGKY || {};
+  var semester = registration.HOCKY || {};
+  return semester.HocKyDisplay || registration.HocKyDisplay || semester.TenHocKy || registration.MaHocKy || 'Học kỳ';
+}
+
+function getCourseSemesterSort(course) {
+  var semester = (course.PHIEUDANGKY && course.PHIEUDANGKY.HOCKY) || {};
+  var year = semester.NAMHOC && Number(semester.NAMHOC.NamBatDau);
+  if (!Number.isFinite(year)) {
+    var registration = course.PHIEUDANGKY || {};
+    var match = String(semester.MaNamHoc || registration.MaHocKy || '').match(/(20\d{2})/);
+    year = match ? Number(match[1]) : 0;
+  }
+  return (year * 10) + Number(semester.ThuTu || 0);
+}
+
+function getScheduleSemesterOptions(courses) {
+  var map = {};
+  (courses || []).forEach(function(course) {
+    var id = getCourseSemesterId(course);
+    if (!id) return;
+    if (!map[id]) {
+      map[id] = {
+        id: id,
+        label: getCourseSemesterLabel(course),
+        sort: getCourseSemesterSort(course)
+      };
+    }
+  });
+  return Object.keys(map).map(function(id) { return map[id]; }).sort(function(a, b) {
+    return b.sort - a.sort || b.id.localeCompare(a.id);
+  });
+}
+
+function renderSemesterSelect(options) {
+  var select = document.getElementById('schedule-semester-select');
+  if (!select) return;
+  if (!options.length) {
+    select.innerHTML = '<option value="">Chưa có học kỳ</option>';
+    select.disabled = true;
+    return;
+  }
+  select.innerHTML = options.map(function(option) {
+    return '<option value="' + scheduleEscapeHtml(option.id) + '">' + scheduleEscapeHtml(option.label) + '</option>';
+  }).join('');
+  select.value = selectedSemesterId;
+  select.disabled = options.length <= 1;
+}
+
+function syncScheduleUrl() {
+  var params = new URLSearchParams(window.location.search);
+  if (selectedSemesterId) params.set('MaHocKy', selectedSemesterId);
+  else params.delete('MaHocKy');
+  window.history.replaceState({}, '', window.location.pathname + (params.toString() ? '?' + params.toString() : ''));
+}
+
+async function loadAllRegisteredCourses(studentId, semesterId) {
   var page = 1;
   var courses = [];
   var totalPages = 1;
   do {
-    var res = await apiFetch('/api/registrations/student/' + studentId + '?page=' + page);
+    var params = new URLSearchParams({ page: String(page) });
+    if (semesterId) params.set('MaHocKy', semesterId);
+    var res = await apiFetch('/api/registrations/student/' + studentId + '?' + params.toString());
     if (!res.success || !res.data) return courses;
     courses = courses.concat(res.data.courses || []);
     totalPages = Number(res.pagination && res.pagination.totalPages || 1);
     page += 1;
   } while (page <= totalPages);
   return courses;
+}
+
+function renderSelectedSemesterSchedule() {
+  var loading = document.getElementById('loading');
+  var container = document.getElementById('schedule-container');
+  var message = document.getElementById('schedule-message');
+  var courses = scheduleCourses.filter(function(course) {
+    return getCourseSemesterId(course) === selectedSemesterId;
+  });
+  var items = getCourseScheduleItems(courses);
+
+  if (loading) loading.classList.add('hidden');
+  if (items.length > 0) {
+    if (message) message.classList.add('hidden');
+    if (container) container.classList.remove('hidden');
+    renderScheduleGrid(items);
+  } else {
+    if (container) container.classList.add('hidden');
+    if (message) {
+      message.textContent = courses.length ? 'Học kỳ này chưa có lịch học' : 'Chưa có thời khóa biểu';
+      message.classList.remove('hidden');
+    }
+  }
 }
 
 function appendText(parent, className, text) {
@@ -244,16 +344,25 @@ function renderScheduleGrid(items) {
     if (!meRes.success || !meRes.data.student) return;
     var sid = meRes.data.student.MaSv;
 
-    var courses = await loadAllRegisteredCourses(sid);
-    var items = getCourseScheduleItems(courses);
-    document.getElementById('loading').classList.add('hidden');
+    scheduleCourses = await loadAllRegisteredCourses(sid);
+    var semesterOptions = getScheduleSemesterOptions(scheduleCourses);
+    var requestedSemester = new URLSearchParams(window.location.search).get('MaHocKy') || '';
+    selectedSemesterId = semesterOptions.some(function(option) { return option.id === requestedSemester; })
+      ? requestedSemester
+      : (semesterOptions[0] && semesterOptions[0].id) || '';
+    renderSemesterSelect(semesterOptions);
+    syncScheduleUrl();
 
-    if (items.length > 0) {
-      document.getElementById('schedule-container').classList.remove('hidden');
-      renderScheduleGrid(items);
-    } else {
-      document.getElementById('schedule-message').classList.remove('hidden');
+    var select = document.getElementById('schedule-semester-select');
+    if (select) {
+      select.addEventListener('change', function() {
+        selectedSemesterId = select.value;
+        syncScheduleUrl();
+        renderSelectedSemesterSchedule();
+      });
     }
+
+    renderSelectedSemesterSchedule();
   } catch (e) {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('schedule-message').classList.remove('hidden');

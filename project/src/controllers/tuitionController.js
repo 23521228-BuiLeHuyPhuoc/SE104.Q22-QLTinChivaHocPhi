@@ -58,6 +58,14 @@ const getEffectiveTuitionDueDate = (registration) => {
   return hasExtendedTuitionDueDate(registration) ? addMonths(baseDue, 2) : baseDue;
 };
 
+const isTuitionDeadlinePassed = (dueDate, now = new Date()) => {
+  if (!dueDate) return false;
+  const deadline = new Date(dueDate);
+  if (Number.isNaN(deadline.getTime())) return false;
+  deadline.setHours(23, 59, 59, 999);
+  return deadline < now;
+};
+
 const getPayableReceipt = (registration) => (registration?.PHIEUTHUHOCPHI || [])
   .find((receipt) => PAYABLE_RECEIPT_STATUSES.includes(receipt.TrangThai) && Number(receipt.ConNoPhieuThu ?? receipt.SoTienThu ?? 0) > 0);
 
@@ -68,6 +76,17 @@ const receiptPaymentAmount = (receipt, registrationRemaining) => Math.max(Math.m
   Number(receipt?.ConNoPhieuThu ?? receipt?.SoTienThu ?? 0),
   Number(registrationRemaining || 0)
 ), 0);
+
+const getPaymentUnavailableReason = ({ conNo, paymentBlock, payableReceipt, existingReceipt }) => {
+  if (conNo <= 0) return null;
+  if (!existingReceipt) return 'Chưa có phiếu thu học phí do admin tạo';
+  if (!payableReceipt) {
+    if (existingReceipt.TrangThai === PAYMENT_STATUS.PENDING) return 'Phiếu thu đang chờ admin xác nhận giao dịch thanh toán trước đó';
+    if (existingReceipt.TrangThai === PAYMENT_STATUS.SUCCESS) return null;
+    return 'Phiếu thu hiện chưa sẵn sàng để thanh toán';
+  }
+  return paymentBlock.blocked ? paymentBlock.message : null;
+};
 
 const attachPaymentSummariesToRegistrations = async (registrations = []) => {
   const registrationIds = registrations.map((row) => row.SoPhieu).filter(Boolean);
@@ -131,7 +150,7 @@ const tuitionStatus = (amountDue, amountPaid, dueDate) => {
   const remaining = Math.max(amountDue - amountPaid, 0);
   if (amountDue <= 0) return 'Chưa phát sinh';
   if (remaining <= 0) return 'Đã đóng đủ';
-  if (dueDate && new Date(dueDate) < new Date()) return 'Quá hạn';
+  if (isTuitionDeadlinePassed(dueDate)) return 'Quá hạn';
   if (amountPaid > 0) return 'Đóng một phần';
   return 'Chưa đóng';
 };
@@ -156,8 +175,10 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
   const paymentBlock = getPaymentRegistrationBlock(registration.HOCKY, new Date(), { pendingAppeals });
   const payableReceipt = getPayableReceipt(registration);
   const existingReceipt = getExistingReceipt(registration);
+  const paymentUnavailableReason = getPaymentUnavailableReason({ conNo, paymentBlock, payableReceipt, existingReceipt });
   const effectiveDueDate = getEffectiveTuitionDueDate(registration);
-  const camThiCuoiKy = conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date();
+  const deadlinePassed = isTuitionDeadlinePassed(effectiveDueDate);
+  const camThiCuoiKy = conNo > 0 && deadlinePassed;
   const appliedDiscount = getAppliedDiscount(registration.SINHVIEN);
   const tongTienDangKy = Number(registration.TongTienDangKy || 0);
   const tiLeGiam = Number(registration.TiLeGiam || appliedDiscount?.TiLeGiamHocPhi || 0);
@@ -184,10 +205,8 @@ const buildTuitionDetail = (registration, pendingAppeals = 0) => {
     conNo,
     ConNo: conNo,
     CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
-    LyDoChuaTheThanhToan: paymentBlock.blocked
-      ? paymentBlock.message
-      : (!payableReceipt && conNo > 0 ? 'Chưa có phiếu thu học phí do admin tạo' : null),
-    QuaHan: conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date(),
+    LyDoChuaTheThanhToan: paymentUnavailableReason,
+    QuaHan: conNo > 0 && deadlinePassed,
     CamThiCuoiKy: Boolean(camThiCuoiKy),
     ThongBaoCamThi: camThiCuoiKy ? 'Quá hạn đóng học phí và chưa hoàn thành học phí: cấm thi cuối kỳ.' : null,
     TrangThai: tuitionStatus(phaiDong, daDong, effectiveDueDate),
@@ -251,8 +270,10 @@ const getAllTuition = async (req, res) => {
       const paymentBlock = getPaymentRegistrationBlock(t.HOCKY, new Date(), { pendingAppeals });
       const payableReceipt = getPayableReceipt(t);
       const existingReceipt = getExistingReceipt(t);
+      const paymentUnavailableReason = getPaymentUnavailableReason({ conNo, paymentBlock, payableReceipt, existingReceipt });
       const effectiveDueDate = getEffectiveTuitionDueDate(t);
-      const camThiCuoiKy = conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date();
+      const deadlinePassed = isTuitionDeadlinePassed(effectiveDueDate);
+      const camThiCuoiKy = conNo > 0 && deadlinePassed;
       return {
         SoPhieu: t.SoPhieu,
         MaSv: t.MaSv,
@@ -270,14 +291,12 @@ const getAllTuition = async (req, res) => {
         TongTienDaDong: effectivePaid,
         conNo,
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
-        LyDoChuaTheThanhToan: paymentBlock.blocked
-          ? paymentBlock.message
-          : (!payableReceipt && conNo > 0 ? 'Ch\u01b0a c\u00f3 phi\u1ebfu thu h\u1ecdc ph\u00ed do admin t\u1ea1o' : null),
+        LyDoChuaTheThanhToan: paymentUnavailableReason,
         PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: receiptPaymentAmount(payableReceipt, conNo), TongTienPhieuThu: Number(payableReceipt.SoTienThu || 0), TongTienDaThanhToan: Number(payableReceipt.TongTienDaThanhToan || 0), ConNoPhieuThu: Number(payableReceipt.ConNoPhieuThu || 0), TrangThai: payableReceipt.TrangThai } : null,
         ExistingReceipt: existingReceipt ? { SoPhieuThu: existingReceipt.SoPhieuThu, TrangThai: existingReceipt.TrangThai } : null,
         CamThiCuoiKy: Boolean(camThiCuoiKy),
         ThongBaoCamThi: camThiCuoiKy ? 'Quá hạn đóng học phí và chưa hoàn thành học phí: cấm thi cuối kỳ.' : null,
-        QuaHan: conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date(),
+        QuaHan: conNo > 0 && deadlinePassed,
         TrangThai: tuitionStatus(phaiDong, effectivePaid, effectiveDueDate)
       };
     };
@@ -407,8 +426,10 @@ const getStudentTuition = async (req, res) => {
       const paymentBlock = getPaymentRegistrationBlock(t.HOCKY, new Date(), { pendingAppeals: pendingAppealCountBySemester.get(t.MaHocKy) || 0 });
       const payableReceipt = getPayableReceipt(t);
       const existingReceipt = getExistingReceipt(t);
+      const paymentUnavailableReason = getPaymentUnavailableReason({ conNo, paymentBlock, payableReceipt, existingReceipt });
       const effectiveDueDate = getEffectiveTuitionDueDate(t);
-      const camThiCuoiKy = conNo > 0 && effectiveDueDate && new Date(effectiveDueDate) < new Date();
+      const deadlinePassed = isTuitionDeadlinePassed(effectiveDueDate);
+      const camThiCuoiKy = conNo > 0 && deadlinePassed;
       return {
         SoPhieu: t.SoPhieu,
         HoTen: t.SINHVIEN?.HoTen,
@@ -428,9 +449,7 @@ const getStudentTuition = async (req, res) => {
         TongTienDaDong: effectiveRowPaid,
         conNo,
         CoTheThanhToan: conNo > 0 && !paymentBlock.blocked && Boolean(payableReceipt),
-        LyDoChuaTheThanhToan: paymentBlock.blocked
-          ? paymentBlock.message
-          : (!payableReceipt && conNo > 0 ? 'Chưa có phiếu thu học phí do admin tạo' : null),
+        LyDoChuaTheThanhToan: paymentUnavailableReason,
         PayableReceipt: payableReceipt ? { SoPhieuThu: payableReceipt.SoPhieuThu, SoTienThu: receiptPaymentAmount(payableReceipt, conNo), TongTienPhieuThu: Number(payableReceipt.SoTienThu || 0), TongTienDaThanhToan: Number(payableReceipt.TongTienDaThanhToan || 0), ConNoPhieuThu: Number(payableReceipt.ConNoPhieuThu || 0), TrangThai: payableReceipt.TrangThai } : null,
         ExistingReceipt: existingReceipt ? { SoPhieuThu: existingReceipt.SoPhieuThu, TrangThai: existingReceipt.TrangThai } : null,
         CamThiCuoiKy: Boolean(camThiCuoiKy),

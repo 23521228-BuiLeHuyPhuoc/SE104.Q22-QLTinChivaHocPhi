@@ -9,6 +9,10 @@ block content
     .card
       .card-header
         h3 Lịch học trong tuần
+        .schedule-semester-filter
+          label(for="schedule-semester-select") Học kỳ
+          select#schedule-semester-select.form-control(disabled)
+            option(value="") Đang tải...
       .card-body
         .loading-overlay#loading
           .spinner

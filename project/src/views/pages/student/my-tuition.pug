@@ -54,26 +54,27 @@ block modals
         input#payment-receipt-id(type="hidden")
         input#payment-receipt-amount(type="hidden")
         .form-group
-          label Số tiền trên phiếu thu
+          label Còn nợ phiếu thu
           .form-control-static#payment-amount-label --
         .form-group
           label(for="payment-amount") Số tiền muốn thanh toán
           input.form-control#payment-amount(type="number" min="1" step="1000" required)
-          small.text-muted#payment-amount-hint Có thể thanh toán một phần, nhỏ hơn hoặc bằng số tiền còn nợ.
+          small.text-muted#payment-amount-hint Thanh toán toàn bộ sẽ khóa đúng số tiền còn nợ.
           small.text-muted Sinh viên chỉ thanh toán phiếu thu đã được admin tạo.
         .form-group
           label(for="payment-mode") Loại thanh toán
           select.form-control#payment-mode(onchange="updatePaymentModeHint()")
             option(value="full") Thanh toán toàn bộ phiếu thu
-            option(value="partial") Thanh toán phiếu thu một phần do admin lập
-          small.text-muted#payment-mode-hint Số tiền thanh toán luôn bằng số tiền trên phiếu thu.
+            option(value="partial") Thanh toán một phần
+          small.text-muted#payment-mode-hint Mặc định thanh toán toàn bộ số tiền còn nợ của phiếu thu.
         .form-group
           label(for="payment-method") Phương thức
-          select.form-control#payment-method
+          select.form-control#payment-method(onchange='updatePaymentMethodHint()')
             option(value="cash") Tiền mặt tại quầy
             option(value="qr") QR chuyển khoản
             option(value="vnpay") VNPAY sandbox
             option(value="zalopay") ZaloPay sandbox
+          small.text-muted#payment-method-hint Vui lòng đem tiền mặt tới phòng tài chính A.101 để thanh toán và được phòng tài chính xác nhận thanh toán.
         #payment-result.mt-3
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closePaymentModal()") Hủy

@@ -29,6 +29,24 @@ const PAYMENT_CANCELLED = PAYMENT_STATUS.CANCELLED;
 const PAYMENT_REFUND = PAYMENT_STATUS.REFUND;
 const ACTIVE_RECEIPT_STATUSES = [PAYMENT_UNPAID, PAYMENT_PENDING, PAYMENT_FAILED];
 const PAYMENT_SEARCH_FIELDS = new Set(['all', 'SoPhieuThu', 'MaSv', 'HoTen']);
+const CASH_PAYMENT_INSTRUCTION = 'Vui lòng đem tiền mặt tới phòng tài chính A.101 để thanh toán và được phòng tài chính xác nhận thanh toán.';
+const ONLINE_PAYMENT_PROVIDERS = new Set(['vnpay', 'zalopay']);
+const MANUAL_CONFIRMATION_PROVIDERS = new Set(['cash', 'qr', 'bank_qr']);
+
+const getBaseUrl = (req) => (
+  process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`
+).replace(/\/$/, '');
+
+const requirePaymentEnv = (names, provider) => {
+  const missing = names.filter((name) => !String(process.env[name] || '').trim());
+  if (missing.length) {
+    throw {
+      status: 400,
+      code: 'PAYMENT_GATEWAY_NOT_CONFIGURED',
+      message: `Chưa cấu hình ${provider}: vui lòng thêm ${missing.join(', ')} trong file .env`
+    };
+  }
+};
 
 const getPaymentSearchValues = (row, searchField = 'all') => {
   const field = PAYMENT_SEARCH_FIELDS.has(searchField) ? searchField : 'all';
@@ -160,7 +178,9 @@ const toPaymentDto = (p) => ({
   TongTienDangChoXacNhan: Number(p.TongTienDangChoXacNhan || 0),
   ConNoPhieuThu: Number(p.ConNoPhieuThu || 0),
   ConNoDangKy: Number(p.ConNoDangKy || 0),
-  SoTienThanhToanToiDa: Number(p.SoTienThanhToanToiDa || p.ConNoPhieuThu || 0),
+  SoTienThanhToanToiDa: p.SoTienThanhToanToiDa === undefined || p.SoTienThanhToanToiDa === null
+    ? Number(p.ConNoPhieuThu || 0)
+    : Number(p.SoTienThanhToanToiDa || 0),
   LanThanhToan: p.LanThanhToan || p.transactions || [],
   HinhThucThu: p.HinhThucThu,
   PaymentProvider: p.PaymentProvider,
@@ -185,9 +205,13 @@ const assertPayableAmount = async (registration, amount) => {
 };
 
 const buildVnpayUrl = (receipt, amount, req, transactionRef = String(receipt.SoPhieuThu)) => {
-  const tmnCode = process.env.VNPAY_TMN_CODE || 'SANDBOX';
-  const secret = process.env.VNPAY_HASH_SECRET || 'sandbox-secret';
-  const returnUrl = process.env.VNPAY_RETURN_URL || `${req.protocol}://${req.get('host')}/api/payments/vnpay-return`;
+  requirePaymentEnv(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'], 'VNPAY');
+  const tmnCode = process.env.VNPAY_TMN_CODE;
+  const secret = process.env.VNPAY_HASH_SECRET;
+  const paymentUrl = process.env.VNPAY_PAYMENT_URL || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+  const baseUrl = getBaseUrl(req);
+  const returnUrl = process.env.VNPAY_RETURN_URL || `${baseUrl}/api/payments/vnpay-return`;
+  const ipnUrl = process.env.VNPAY_IPN_URL || `${baseUrl}/api/payments/vnpay-ipn`;
   const createDate = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
   const params = {
     vnp_Version: '2.1.0',
@@ -200,25 +224,72 @@ const buildVnpayUrl = (receipt, amount, req, transactionRef = String(receipt.SoP
     vnp_OrderType: 'billpayment',
     vnp_Locale: 'vn',
     vnp_ReturnUrl: returnUrl,
+    vnp_IpnUrl: ipnUrl,
     vnp_IpAddr: req.ip || '127.0.0.1',
     vnp_CreateDate: createDate
   };
   const sorted = Object.keys(params).sort().reduce((acc, key) => ({ ...acc, [key]: params[key] }), {});
   const qs = new URLSearchParams(sorted).toString();
   const secureHash = crypto.createHmac('sha512', secret).update(qs).digest('hex');
-  return `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?${qs}&vnp_SecureHash=${secureHash}`;
+  return `${paymentUrl}?${qs}&vnp_SecureHash=${secureHash}`;
 };
 
-const buildZalopayUrl = (receipt, amount, transactionRef = String(receipt.SoPhieuThu)) => {
-  const appId = process.env.ZALOPAY_APP_ID || '2553';
+const createZalopayOrder = async (receipt, amount, req, transactionRef = String(receipt.SoPhieuThu)) => {
+  requirePaymentEnv(['ZALOPAY_APP_ID', 'ZALOPAY_KEY1', 'ZALOPAY_KEY2'], 'ZaloPay');
+  const appId = process.env.ZALOPAY_APP_ID;
+  const key1 = process.env.ZALOPAY_KEY1;
+  const endpoint = process.env.ZALOPAY_ENDPOINT || 'https://sb-openapi.zalopay.vn/v2/create';
   const appTransId = `${new Date().toISOString().slice(2, 10).replace(/-/g, '')}_${transactionRef}`;
-  const payload = new URLSearchParams({
+  const baseUrl = getBaseUrl(req);
+  const embedData = JSON.stringify({
+    redirecturl: process.env.ZALOPAY_RETURN_URL || `${baseUrl}/student/my-payments`,
+    receipt_id: receipt.SoPhieuThu,
+    transaction_ref: transactionRef
+  });
+  const item = JSON.stringify([{ itemid: `PTHP-${receipt.SoPhieuThu}`, itemname: `Phiếu thu #${receipt.SoPhieuThu}`, itemprice: Math.round(amount), itemquantity: 1 }]);
+  const appTime = Date.now();
+  const order = {
     app_id: appId,
     app_trans_id: appTransId,
-    amount: String(Math.round(amount)),
-    description: `Thanh toán học phí ${receipt.SoPhieuThu}`
+    app_user: receipt.MaSv,
+    app_time: appTime,
+    amount: Math.round(amount),
+    item,
+    embed_data: embedData,
+    description: `Thanh toán học phí phiếu thu #${receipt.SoPhieuThu}`,
+    callback_url: process.env.ZALOPAY_CALLBACK_URL || `${baseUrl}/api/payments/zalopay-callback`
+  };
+  const macData = [order.app_id, order.app_trans_id, order.app_user, order.amount, order.app_time, order.embed_data, order.item].join('|');
+  order.mac = crypto.createHmac('sha256', key1).update(macData).digest('hex');
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(Object.entries(order).map(([key, value]) => [key, String(value)]))
   });
-  return `https://sb-openapi.zalopay.vn/v2/gateway?${payload.toString()}`;
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || Number(result.return_code || 0) !== 1) {
+    throw {
+      status: 502,
+      code: 'ZALOPAY_CREATE_ORDER_FAILED',
+      message: result.return_message || result.sub_return_message || 'Không tạo được đơn thanh toán ZaloPay'
+    };
+  }
+
+  const checkoutUrl = result.order_url || result.orderurl;
+  if (!checkoutUrl) {
+    throw {
+      status: 502,
+      code: 'ZALOPAY_CREATE_ORDER_URL_MISSING',
+      message: 'ZaloPay không trả về URL thanh toán'
+    };
+  }
+
+  return {
+    checkoutUrl,
+    appTransId,
+    raw: result
+  };
 };
 
 const buildVietQrPayload = (registration, receipt, amount) => {
@@ -517,7 +588,7 @@ const checkoutPayment = async (req, res) => {
     let checkoutUrl = null;
     let qrPayload = null;
     if (provider === 'vnpay') checkoutUrl = buildVnpayUrl(receipt, amount, req);
-    if (provider === 'zalopay') checkoutUrl = buildZalopayUrl(receipt, amount);
+    if (provider === 'zalopay') checkoutUrl = (await createZalopayOrder(receipt, amount, req)).checkoutUrl;
     if (isQr) qrPayload = buildVietQrPayload(registration, receipt, amount);
 
     receipt = await prisma.PHIEUTHUHOCPHI.update({
@@ -601,26 +672,47 @@ const checkoutPaymentV2 = async (req, res) => {
     const registrationTotals = totalsByRegistration.get(Number(registration.SoPhieu)) || emptyTotals();
     const receiptRemaining = getReceiptRemaining(receipt, receiptTotals);
     const registrationRemaining = getRegistrationRemaining(registration, registrationTotals);
-    const maxPayableAmount = Math.max(Math.min(receiptRemaining || registrationRemaining, registrationRemaining || receiptRemaining), 0);
+    const maxPayableAmount = Math.max(Math.min(receiptRemaining, registrationRemaining), 0);
     if (maxPayableAmount <= 0) {
       await syncReceiptStatus(prisma, receipt.SoPhieuThu);
       return res.status(400).json({ success: false, message: 'Phiếu thu đã được thanh toán đủ' });
     }
 
-    const requestedAmount = SoTienThu === undefined || SoTienThu === null || SoTienThu === '' ? maxPayableAmount : Number(SoTienThu);
-    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Số tiền thanh toán không hợp lệ' });
+    const provider = String(method || 'cash').toLowerCase();
+    const isManualConfirmation = MANUAL_CONFIRMATION_PROVIDERS.has(provider);
+    const isOnlineProvider = ONLINE_PAYMENT_PROVIDERS.has(provider);
+    if (!isManualConfirmation && !isOnlineProvider) {
+      return res.status(400).json({ success: false, message: 'Phương thức thanh toán không hợp lệ' });
+    }
+
+    const normalizedPaymentMode = String(paymentMode || 'full').toLowerCase() === 'partial' ? 'partial' : 'full';
+    const suppliedAmount = SoTienThu === undefined || SoTienThu === null || SoTienThu === '' ? null : Number(SoTienThu);
+    let requestedAmount = maxPayableAmount;
+    if (normalizedPaymentMode === 'full') {
+      if (suppliedAmount !== null && (!Number.isFinite(suppliedAmount) || suppliedAmount !== maxPayableAmount)) {
+        return res.status(400).json({ success: false, message: 'Thanh toán toàn bộ phải bằng đúng số tiền còn nợ. Muốn nhập số tiền nhỏ hơn, vui lòng chọn thanh toán một phần.' });
+      }
+    } else {
+      requestedAmount = suppliedAmount;
+      if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+        return res.status(400).json({ success: false, message: 'Số tiền thanh toán không hợp lệ' });
+      }
+      if (requestedAmount >= maxPayableAmount) {
+        return res.status(400).json({ success: false, message: 'Thanh toán một phần phải nhỏ hơn số tiền còn nợ. Muốn trả đủ, vui lòng chọn thanh toán toàn bộ.' });
+      }
     }
     if (requestedAmount > maxPayableAmount) {
       return res.status(400).json({ success: false, message: 'Số tiền thanh toán không được vượt số tiền còn nợ của phiếu thu/phiếu đăng ký' });
     }
+    if (provider === 'vnpay') requirePaymentEnv(['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'], 'VNPAY');
+    if (provider === 'zalopay') requirePaymentEnv(['ZALOPAY_APP_ID', 'ZALOPAY_KEY1', 'ZALOPAY_KEY2'], 'ZaloPay');
 
-    const provider = String(method).toLowerCase();
-    const normalizedPaymentMode = String(paymentMode || 'full').toLowerCase() === 'partial' ? 'partial' : 'full';
     const isCash = provider === 'cash';
     const isQr = provider === 'qr' || provider === 'bank_qr';
     const hinhThuc = isCash ? PAYMENT_METHOD.CASH : isQr ? PAYMENT_METHOD.BANK_TRANSFER : PAYMENT_METHOD.E_WALLET;
     const paymentChannel = req.user?.Role === 'admin' ? 'admin' : 'student';
+    const initialTransactionStatus = isManualConfirmation ? PAYMENT_PENDING : PAYMENT_UNPAID;
+    const receiptStatus = isManualConfirmation ? PAYMENT_PENDING : PAYMENT_UNPAID;
 
     const transaction = await prisma.$transaction(async (tx) => {
       const insertedRows = await tx.$queryRaw`
@@ -631,19 +723,23 @@ const checkoutPaymentV2 = async (req, res) => {
           ${receipt.SoPhieuThu}, ${registration.SoPhieu}, ${receipt.MaSv}, ${requestedAmount}, ${hinhThuc},
           ${provider}, ${paymentChannel}, ${[
             normalizedPaymentMode === 'partial' ? 'Sinh viên chọn thanh toán một phần' : 'Sinh viên chọn thanh toán toàn bộ phần còn nợ',
-            isCash ? 'Sinh viên đăng ký đóng tiền mặt' : null
-          ].filter(Boolean).join(' | ')}, ${PAYMENT_PENDING}, ${new Date()}, ${new Date()}
+            isCash ? 'Sinh viên đăng ký đóng tiền mặt' : null,
+            isQr ? 'Sinh viên đăng ký thanh toán QR chờ phòng tài chính xác nhận' : null,
+            isOnlineProvider ? 'Cổng thanh toán tự động trả kết quả, không cần admin xác nhận' : null
+          ].filter(Boolean).join(' | ')}, ${initialTransactionStatus}, ${new Date()}, ${new Date()}
         )
         RETURNING *
       `;
       const paymentAttempt = insertedRows[0];
       const transactionRef = `TX-${paymentAttempt.MaGiaoDichThanhToan}`;
       const transactionCode = `${provider.toUpperCase()}-${Date.now()}-${receipt.SoPhieuThu}-${paymentAttempt.MaGiaoDichThanhToan}`;
-      const checkoutUrl = provider === 'vnpay'
-        ? buildVnpayUrl(receipt, requestedAmount, req, transactionRef)
-        : provider === 'zalopay'
-          ? buildZalopayUrl(receipt, requestedAmount, transactionRef)
-          : null;
+      let checkoutUrl = null;
+      let gatewayOrder = null;
+      if (provider === 'vnpay') checkoutUrl = buildVnpayUrl(receipt, requestedAmount, req, transactionRef);
+      if (provider === 'zalopay') {
+        gatewayOrder = await createZalopayOrder(receipt, requestedAmount, req, transactionRef);
+        checkoutUrl = gatewayOrder.checkoutUrl;
+      }
       const qrPayload = isQr ? buildVietQrPayload(registration, receipt, requestedAmount) : null;
       const updatedRows = await tx.$queryRaw`
         UPDATE "GIAODICHTHANHTOANHOCPHI"
@@ -662,7 +758,7 @@ const checkoutPaymentV2 = async (req, res) => {
           PaymentChannel: paymentChannel,
           MaGiaoDich: transactionCode,
           NguoiThu: null,
-          TrangThai: PAYMENT_PENDING,
+          TrangThai: receiptStatus,
           NgayXacNhan: null,
           NgayCapNhat: new Date(),
           CheckoutUrl: checkoutUrl,
@@ -680,15 +776,23 @@ const checkoutPaymentV2 = async (req, res) => {
     const refreshedTotalsByRegistration = await getTransactionTotalsByRegistration(prisma, [registration.SoPhieu]);
     const enrichedReceipt = attachReceiptSummaries([refreshedReceipt], refreshedTotalsByReceipt, refreshedTotalsByRegistration)[0];
 
+    const responseMessage = isOnlineProvider
+      ? 'Đã khởi tạo thanh toán qua cổng thanh toán'
+      : isCash
+        ? 'Đã tạo yêu cầu đóng tiền mặt chờ phòng tài chính xác nhận'
+        : 'Đã tạo yêu cầu thanh toán QR chờ phòng tài chính xác nhận';
+
     res.status(201).json({
       success: true,
-      message: 'Đã tạo yêu cầu thanh toán',
+      message: responseMessage,
       data: {
         receipt: toPaymentDto(enrichedReceipt),
         transaction: { ...transaction, SoTienThanhToan: Number(transaction.SoTienThanhToan || 0) },
         checkoutUrl: transaction.CheckoutUrl,
         qrPayload: transaction.QrPayload,
-        remainingAmount: Math.max(registrationRemaining - requestedAmount, 0)
+        cashInstruction: isCash ? CASH_PAYMENT_INSTRUCTION : null,
+        requiresAdminConfirmation: isManualConfirmation,
+        remainingAmount: Math.max(registrationRemaining - (isManualConfirmation ? requestedAmount : 0), 0)
       }
     });
   } catch (error) {
@@ -805,7 +909,7 @@ const markOnlineResultV2 = async (paymentRef, success, transactionCode, provider
     }
   });
   if (!receipt) return null;
-  if (transaction.TrangThai !== PAYMENT_PENDING) return syncReceiptStatus(prisma, receipt.SoPhieuThu);
+  if (![PAYMENT_PENDING, PAYMENT_UNPAID].includes(transaction.TrangThai)) return syncReceiptStatus(prisma, receipt.SoPhieuThu);
 
   if (success) {
     await assertPaymentWindowOpen(receipt.PHIEUDANGKY);
@@ -847,7 +951,8 @@ const verifyVnpaySignature = (query) => {
   delete params.vnp_SecureHashType;
   const sorted = Object.keys(params).sort().reduce((acc, key) => ({ ...acc, [key]: params[key] }), {});
   const qs = new URLSearchParams(sorted).toString();
-  const secret = process.env.VNPAY_HASH_SECRET || 'sandbox-secret';
+  requirePaymentEnv(['VNPAY_HASH_SECRET'], 'VNPAY');
+  const secret = process.env.VNPAY_HASH_SECRET;
   const signed = crypto.createHmac('sha512', secret).update(qs).digest('hex');
   try {
     return crypto.timingSafeEqual(Buffer.from(signed, 'utf8'), Buffer.from(vnp_SecureHash || '', 'utf8'));
@@ -901,7 +1006,8 @@ const vnpayIpn = async (req, res) => {
 };
 
 const verifyZalopayMac = (body) => {
-  const key2 = process.env.ZALOPAY_KEY2 || 'sandbox-key2';
+  requirePaymentEnv(['ZALOPAY_KEY2'], 'ZaloPay');
+  const key2 = process.env.ZALOPAY_KEY2;
   const mac = crypto.createHmac('sha256', key2).update(String(body.data || '')).digest('hex');
   return mac === body.mac;
 };
