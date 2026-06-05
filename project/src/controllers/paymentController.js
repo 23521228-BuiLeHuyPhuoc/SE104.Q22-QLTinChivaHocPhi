@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const ExcelJS = require('exceljs');
 const prisma = require('../config/database');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { filterRowsByRegex, paginateRows } = require('../utils/searchRegex');
@@ -233,12 +234,6 @@ const assertPaymentWindowOpen = async (registration) => {
 
 const getActiveReceipt = (registration) => (registration?.PHIEUTHUHOCPHI || [])
   .find((receipt) => ACTIVE_RECEIPT_STATUSES.includes(receipt.TrangThai));
-
-const csvCell = (value) => {
-  if (value === null || value === undefined) return '';
-  const text = String(value).replace(/"/g, '""');
-  return /[",\r\n]/.test(text) ? `"${text}"` : text;
-};
 
 const toPaymentDto = (p) => ({
   SoPhieuThu: p.SoPhieuThu,
@@ -1558,30 +1553,59 @@ const exportPayments = async (req, res) => {
     const searched = filterRowsByRegex(enrichedRows, search, (row) => getPaymentSearchValues(row, searchField));
     const filtered = TrangThai ? searched.filter((row) => getPaymentDisplayStatus(row) === TrangThai) : searched;
 
-    const header = ['SoPhieuThu', 'MSSV', 'HoTen', 'HocKy', 'NamHoc', 'SoTienThu', 'HinhThucThu', 'NgayLap', 'NguoiThu', 'MaGiaoDich', 'TrangThai', 'GhiChu'];
-    const lines = [header.join(',')];
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'EduPay';
+    workbook.created = new Date();
+    const worksheet = workbook.addWorksheet('Phieu thu');
+    worksheet.columns = [
+      { header: 'SoPhieuThu', key: 'SoPhieuThu', width: 14 },
+      { header: 'MSSV', key: 'MaSv', width: 14 },
+      { header: 'HoTen', key: 'HoTen', width: 26 },
+      { header: 'HocKy', key: 'TenHocKy', width: 18 },
+      { header: 'NamHoc', key: 'TenNamHoc', width: 16 },
+      { header: 'SoTienThu', key: 'SoTienThu', width: 16 },
+      { header: 'HinhThucThu', key: 'HinhThucThu', width: 18 },
+      { header: 'NgayLap', key: 'NgayLap', width: 18 },
+      { header: 'NguoiThu', key: 'NguoiThu', width: 20 },
+      { header: 'MaGiaoDich', key: 'MaGiaoDich', width: 24 },
+      { header: 'TrangThai', key: 'TrangThai', width: 18 },
+      { header: 'GhiChu', key: 'GhiChu', width: 30 }
+    ];
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
+
     filtered.map(toPaymentDto).forEach((p) => {
-      lines.push([
-        p.SoPhieuThu,
-        p.MaSv,
-        p.HoTen,
-        p.TenHocKy,
-        p.TenNamHoc,
-        p.SoTienThu,
-        p.HinhThucThu,
-        p.NgayLap ? new Date(p.NgayLap).toISOString() : '',
-        p.NguoiThu,
-        p.MaGiaoDich,
-        p.TrangThaiHienThi || p.TrangThai,
-        p.GhiChu
-      ].map(csvCell).join(','));
+      worksheet.addRow({
+        SoPhieuThu: p.SoPhieuThu,
+        MaSv: p.MaSv,
+        HoTen: p.HoTen,
+        TenHocKy: p.TenHocKy,
+        TenNamHoc: p.TenNamHoc,
+        SoTienThu: p.SoTienThu,
+        HinhThucThu: p.HinhThucThu,
+        NgayLap: p.NgayLap ? new Date(p.NgayLap) : null,
+        NguoiThu: p.NguoiThu,
+        MaGiaoDich: p.MaGiaoDich,
+        TrangThai: p.TrangThaiHienThi || p.TrangThai,
+        GhiChu: p.GhiChu
+      });
+    });
+    worksheet.getColumn('SoTienThu').numFmt = '#,##0';
+    worksheet.getColumn('NgayLap').numFmt = 'yyyy-mm-dd hh:mm';
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
     });
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="phieu-thu-hoc-phi.csv"');
-    res.send('\uFEFF' + lines.join('\n'));
+    const fileName = 'phieu-thu-hoc-phi-' + Date.now() + '.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (error) {
-        return sendErrorResponse(res, error, 'Kh\u00f4ng th\u1ec3 xu\u1ea5t phi\u1ebfu thu', 'Export payments error:');
+    return sendErrorResponse(res, error, 'Khong the xuat phieu thu', 'Export payments error:');
   }
 };
 

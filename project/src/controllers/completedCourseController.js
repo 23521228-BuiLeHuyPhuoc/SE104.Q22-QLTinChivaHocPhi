@@ -358,7 +358,7 @@ const batchCreateCompletedCourses = async (req, res) => {
 
 const importCompletedCourses = async (req, res) => {
   try {
-    if (!req.file?.buffer) return res.status(400).json({ success: false, message: 'Vui lòng chọn file CSV/TSV/XLS xuất từ Excel' });
+    if (!req.file?.buffer) return res.status(400).json({ success: false, message: 'Vui long chon file Excel .xlsx' });
     const rows = parseImportBuffer(req.file.buffer);
     req.body.items = rows;
     req.body.preview = req.body.preview !== 'false';

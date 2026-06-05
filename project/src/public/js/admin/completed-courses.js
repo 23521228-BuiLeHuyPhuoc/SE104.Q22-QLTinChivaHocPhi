@@ -206,7 +206,7 @@ function openImportModal() {
   importPreviewValid = false;
   var file = document.getElementById('import-file');
   if (file) file.value = '';
-  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chọn file Excel/CSV để kiểm tra trước khi import</div></td></tr>';
+  document.getElementById('import-preview').innerHTML = '<tr><td colspan="5"><div class="empty-state">Chon file Excel .xlsx de kiem tra truoc khi import</div></td></tr>';
   document.getElementById('import-modal').classList.add('active');
 }
 

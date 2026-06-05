@@ -592,6 +592,11 @@ CREATE TABLE "CHUONGTRINHHOC" (
     "GhiChu" VARCHAR(200),
     "TrangThai" BOOLEAN DEFAULT TRUE,
     "NgayTao" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    "NguoiCapNhat" INTEGER,
+    "NgayCapNhat" TIMESTAMP,
+    "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+    "NguoiXoa" INTEGER,
+    "NgayXoa" TIMESTAMP,
     CONSTRAINT chuong_trinh_hoc_pkey PRIMARY KEY (id),
     CONSTRAINT uq_cth UNIQUE ("MaNganh", "MaMonHoc"),
     CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 8),
@@ -1638,14 +1643,18 @@ CREATE OR REPLACE FUNCTION func_check_rbtv07_ChuongTrinhHoc()
 RETURNS TRIGGER AS $$
 BEGIN
     -- THAO TÁC: INSERT hoặc UPDATE thông tin của chính môn học hiện tại (M)
-    IF (TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+    IF ((TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy" OR OLD."DaXoa" IS DISTINCT FROM NEW."DaXoa" OR OLD."TrangThai" IS DISTINCT FROM NEW."TrangThai")))
+       AND COALESCE(NEW."DaXoa", FALSE) = FALSE
+       AND COALESCE(NEW."TrangThai", TRUE) = TRUE THEN
         -- Kiểm tra xem môn M vừa tác động có thỏa mãn toàn bộ môn điều kiện D đang hoạt động hay không
         IF EXISTS (
             SELECT 1
             FROM "DIEUKIENMONHOC" dk
             LEFT JOIN "CHUONGTRINHHOC" ctdk
                 ON ctdk."MaNganh" = NEW."MaNganh" AND ctdk."MaMonHoc" = dk."MaMonDieuKien"
+                AND COALESCE(ctdk."DaXoa", FALSE) = FALSE AND COALESCE(ctdk."TrangThai", TRUE) = TRUE
             WHERE dk."MaMonHoc" = NEW."MaMonHoc" AND dk."TrangThai" = TRUE
+              AND COALESCE(dk."DaXoa", FALSE) = FALSE
               AND (
                   ctdk."MaMonHoc" IS NULL -- Chưa xếp môn điều kiện D vào chương trình học của ngành N
                   OR (dk."LoaiDieuKien" = 'tien_quyet' AND ctdk."HocKy" >= NEW."HocKy") -- Vi phạm điều kiện Học kỳ môn tiên quyết phải nhỏ hơn (<)
@@ -1658,7 +1667,10 @@ BEGIN
     END IF;
 
     -- THAO TÁC: DELETE hoặc UPDATE thông tin môn học đóng vai trò làm môn điều kiện (D) cho môn khác
-    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE'
+        AND COALESCE(OLD."DaXoa", FALSE) = FALSE
+        AND COALESCE(OLD."TrangThai", TRUE) = TRUE
+        AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy" OR COALESCE(NEW."DaXoa", FALSE) = TRUE OR COALESCE(NEW."TrangThai", TRUE) = FALSE)) THEN
         -- Kiểm tra xem môn học cũ (OLD) có đang làm môn điều kiện hoạt động cho bất kỳ môn M nào khác cùng ngành không
         IF EXISTS (
             SELECT 1
@@ -1667,8 +1679,13 @@ BEGIN
             WHERE ctm."MaNganh" = OLD."MaNganh"
               AND dk."MaMonDieuKien" = OLD."MaMonHoc"
               AND dk."TrangThai" = TRUE
+              AND COALESCE(dk."DaXoa", FALSE) = FALSE
+              AND COALESCE(ctm."DaXoa", FALSE) = FALSE
+              AND COALESCE(ctm."TrangThai", TRUE) = TRUE
               AND (
                   TG_OP = 'DELETE' -- Xóa môn điều kiện ra khỏi ngành sẽ làm môn phụ thuộc thiếu điều kiện
+                  OR COALESCE(NEW."DaXoa", FALSE) = TRUE
+                  OR COALESCE(NEW."TrangThai", TRUE) = FALSE
                   OR OLD."MaNganh" <> NEW."MaNganh" -- Chuyển ngành môn điều kiện
                   OR OLD."MaMonHoc" <> NEW."MaMonHoc" -- Thay đổi mã môn
                   OR (dk."LoaiDieuKien" = 'tien_quyet' AND NEW."HocKy" >= ctm."HocKy") -- Sửa học kỳ mới làm vi phạm quy tắc môn tiên quyết
@@ -1694,14 +1711,18 @@ CREATE OR REPLACE FUNCTION func_check_rbtv07_ChuongTrinhHoc()
 RETURNS TRIGGER AS $$
 BEGIN
     -- THAO TÁC: INSERT hoặc UPDATE thông tin của chính môn học hiện tại (M)
-    IF (TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+    IF ((TG_OP = 'INSERT') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy" OR OLD."DaXoa" IS DISTINCT FROM NEW."DaXoa" OR OLD."TrangThai" IS DISTINCT FROM NEW."TrangThai")))
+       AND COALESCE(NEW."DaXoa", FALSE) = FALSE
+       AND COALESCE(NEW."TrangThai", TRUE) = TRUE THEN
         -- Kiểm tra xem môn M vừa tác động có thỏa mãn toàn bộ môn điều kiện D đang hoạt động hay không
         IF EXISTS (
             SELECT 1
             FROM "DIEUKIENMONHOC" dk
             LEFT JOIN "CHUONGTRINHHOC" ctdk
                 ON ctdk."MaNganh" = NEW."MaNganh" AND ctdk."MaMonHoc" = dk."MaMonDieuKien"
+                AND COALESCE(ctdk."DaXoa", FALSE) = FALSE AND COALESCE(ctdk."TrangThai", TRUE) = TRUE
             WHERE dk."MaMonHoc" = NEW."MaMonHoc" AND dk."TrangThai" = TRUE
+              AND COALESCE(dk."DaXoa", FALSE) = FALSE
               AND (
                   ctdk."MaMonHoc" IS NULL -- Chưa xếp môn điều kiện D vào chương trình học của ngành N
                   OR (dk."LoaiDieuKien" = 'tien_quyet' AND ctdk."HocKy" >= NEW."HocKy") -- Vi phạm điều kiện Học kỳ môn tiên quyết phải nhỏ hơn (<)
@@ -1714,7 +1735,10 @@ BEGIN
     END IF;
 
     -- THAO TÁC: DELETE hoặc UPDATE thông tin môn học đóng vai trò làm môn điều kiện (D) cho môn khác
-    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE' AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy")) THEN
+    IF (TG_OP = 'DELETE') OR (TG_OP = 'UPDATE'
+        AND COALESCE(OLD."DaXoa", FALSE) = FALSE
+        AND COALESCE(OLD."TrangThai", TRUE) = TRUE
+        AND (OLD."MaNganh" <> NEW."MaNganh" OR OLD."MaMonHoc" <> NEW."MaMonHoc" OR OLD."HocKy" <> NEW."HocKy" OR COALESCE(NEW."DaXoa", FALSE) = TRUE OR COALESCE(NEW."TrangThai", TRUE) = FALSE)) THEN
         -- Kiểm tra xem môn học cũ (OLD) có đang làm môn điều kiện hoạt động cho bất kỳ môn M nào khác cùng ngành không
         IF EXISTS (
             SELECT 1
@@ -1723,8 +1747,13 @@ BEGIN
             WHERE ctm."MaNganh" = OLD."MaNganh"
               AND dk."MaMonDieuKien" = OLD."MaMonHoc"
               AND dk."TrangThai" = TRUE
+              AND COALESCE(dk."DaXoa", FALSE) = FALSE
+              AND COALESCE(ctm."DaXoa", FALSE) = FALSE
+              AND COALESCE(ctm."TrangThai", TRUE) = TRUE
               AND (
                   TG_OP = 'DELETE' -- Xóa môn điều kiện ra khỏi ngành sẽ làm môn phụ thuộc thiếu điều kiện
+                  OR COALESCE(NEW."DaXoa", FALSE) = TRUE
+                  OR COALESCE(NEW."TrangThai", TRUE) = FALSE
                   OR OLD."MaNganh" <> NEW."MaNganh" -- Chuyển ngành môn điều kiện
                   OR OLD."MaMonHoc" <> NEW."MaMonHoc" -- Thay đổi mã môn
                   OR (dk."LoaiDieuKien" = 'tien_quyet' AND NEW."HocKy" >= ctm."HocKy") -- Sửa học kỳ mới làm vi phạm quy tắc môn tiên quyết
@@ -1750,14 +1779,17 @@ CREATE OR REPLACE FUNCTION func_check_rbtv07_DieuKienMonHoc()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Ràng buộc chỉ cần kiểm tra khi dữ liệu mối quan hệ này ở trạng thái hoạt động (TrangThai = TRUE)
-    IF NEW."TrangThai" = TRUE THEN
+    IF COALESCE(NEW."DaXoa", FALSE) = FALSE AND NEW."TrangThai" = TRUE THEN
         -- Kiểm tra trên toàn bộ các ngành xem có ngành nào đang chứa môn M (NEW.MaMonHoc) nhưng vi phạm điều kiện mới này không
         IF EXISTS (
             SELECT 1
             FROM "CHUONGTRINHHOC" ctm
             LEFT JOIN "CHUONGTRINHHOC" ctdk
                 ON ctdk."MaNganh" = ctm."MaNganh" AND ctdk."MaMonHoc" = NEW."MaMonDieuKien"
+                AND COALESCE(ctdk."DaXoa", FALSE) = FALSE AND COALESCE(ctdk."TrangThai", TRUE) = TRUE
             WHERE ctm."MaMonHoc" = NEW."MaMonHoc"
+              AND COALESCE(ctm."DaXoa", FALSE) = FALSE
+              AND COALESCE(ctm."TrangThai", TRUE) = TRUE
               AND (
                   ctdk."MaMonHoc" IS NULL -- Ngành đó có môn M nhưng chưa xếp môn điều kiện D vào chương trình học
                   OR (NEW."LoaiDieuKien" = 'tien_quyet' AND ctdk."HocKy" >= ctm."HocKy") -- Vi phạm học kỳ môn tiên quyết
@@ -1776,7 +1808,7 @@ $$ LANGUAGE plpgsql;
 -- Thiết lập Trigger chạy BEFORE trên bảng DIEUKIENMONHOC
 DROP TRIGGER IF EXISTS trigger_rbtv07_dkmh ON "DIEUKIENMONHOC";
 CREATE TRIGGER trigger_rbtv07_dkmh
-BEFORE INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien", "LoaiDieuKien", "TrangThai" ON "DIEUKIENMONHOC"
+BEFORE INSERT OR UPDATE OF "MaMonHoc", "MaMonDieuKien", "LoaiDieuKien", "TrangThai", "DaXoa" ON "DIEUKIENMONHOC"
 FOR EACH ROW EXECUTE FUNCTION func_check_rbtv07_DieuKienMonHoc();
 
 
@@ -15648,6 +15680,7 @@ WHERE COALESCE(hk."DaXoa", FALSE) = FALSE
     JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
     WHERE cth."MaMonHoc" = l."MaMonHoc"
       AND ng."MaKhoa" = mh."MaKhoa"
+      AND COALESCE(cth."DaXoa", FALSE) = FALSE
       AND COALESCE(cth."TrangThai", TRUE) = TRUE
       AND COALESCE(ng."DaXoa", FALSE) = FALSE
       AND COALESCE(ng."TrangThai", TRUE) = TRUE
@@ -15792,6 +15825,7 @@ BEGIN
     JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
     WHERE cth."MaMonHoc" = p_ma_mon_hoc
       AND ng."MaKhoa" = v_ma_khoa
+      AND COALESCE(cth."DaXoa", FALSE) = FALSE
       AND COALESCE(cth."TrangThai", TRUE) = TRUE
       AND COALESCE(ng."DaXoa", FALSE) = FALSE
       AND COALESCE(ng."TrangThai", TRUE) = TRUE
@@ -15831,7 +15865,7 @@ DECLARE
   v_old_supports_same_faculty BOOLEAN := FALSE;
 BEGIN
   v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
-  IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+  IF COALESCE(OLD."DaXoa", FALSE) = TRUE OR COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
     IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
     RETURN NEW;
   END IF;
@@ -15856,7 +15890,8 @@ BEGIN
   v_expected_mod := MOD(v_hoc_ky_du_kien, 2);
 
   IF TG_OP = 'UPDATE' THEN
-    v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+    v_new_still_supports := COALESCE(NEW."DaXoa", FALSE) = FALSE
+      AND COALESCE(NEW."TrangThai", TRUE) = TRUE
       AND NEW."MaNganh" = OLD."MaNganh"
       AND NEW."MaMonHoc" = OLD."MaMonHoc"
       AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8

@@ -24,6 +24,31 @@ const parsePositiveNumber = (value, fallback = null) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
+const findCurriculumDependencyViolation = async ({ MaNganh, MaMonHoc, HocKyDuKien, TrangThai }) => {
+  const isActive = TrangThai !== false;
+  const semester = Number(HocKyDuKien || 1);
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT ctm."MaMonHoc", COALESCE(ctm."HocKyDuKien", ctm."HocKy") AS "HocKyDuKien", dk."LoaiDieuKien"
+     FROM "CHUONGTRINHHOC" ctm
+     JOIN "DIEUKIENMONHOC" dk ON ctm."MaMonHoc" = dk."MaMonHoc"
+     WHERE ctm."MaNganh" = $1
+       AND ctm."MaMonHoc" <> $2
+       AND dk."MaMonDieuKien" = $2
+       AND COALESCE(ctm."DaXoa", FALSE) = FALSE
+       AND COALESCE(ctm."TrangThai", TRUE) = TRUE
+       AND COALESCE(dk."DaXoa", FALSE) = FALSE
+       AND COALESCE(dk."TrangThai", TRUE) = TRUE
+       AND (
+         $3::BOOLEAN = FALSE
+         OR (dk."LoaiDieuKien" = 'tien_quyet' AND $4::INTEGER >= COALESCE(ctm."HocKyDuKien", ctm."HocKy"))
+         OR (dk."LoaiDieuKien" = 'hoc_truoc' AND $4::INTEGER > COALESCE(ctm."HocKyDuKien", ctm."HocKy"))
+       )
+     LIMIT 1`,
+    MaNganh, MaMonHoc, isActive, semester
+  );
+  return rows[0] || null;
+};
+
 const getAllMajors = async (req, res) => {
   try {
     const { page, limit } = getPagination(req.query);
@@ -145,13 +170,39 @@ const createCurriculumItem = async (req, res) => {
     const validated = await validateCurriculumPlacement(req.body);
     if (validated.error) return res.status(400).json({ success: false, message: validated.error, violations: validated.violations || [] });
     const d = validated.data;
-    const rows = await prisma.$queryRawUnsafe(
-      `INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy", "HocKyDuKien", "TrangThai", "GhiChu")
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      d.MaNganh, d.MaMonHoc, d.HocKyDuKien, d.HocKyDuKien,
-      d.TrangThai ?? true, d.GhiChu || null
-    );
-    res.status(201).json({ success: true, message: 'Thêm môn vào chương trình thành công', data: rows[0] });
+    const dependencyViolation = await findCurriculumDependencyViolation(d);
+    if (dependencyViolation) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể thêm môn ở học kỳ này vì môn ${dependencyViolation.MaMonHoc} đang phụ thuộc vào môn này`
+      });
+    }
+    const audit = updateAudit(req);
+    const deletedDuplicate = await prisma.CHUONGTRINHHOC.findFirst({
+      where: { MaNganh: d.MaNganh, MaMonHoc: d.MaMonHoc, DaXoa: true },
+      select: { id: true }
+    });
+    const rows = deletedDuplicate
+      ? await prisma.$queryRawUnsafe(
+        `UPDATE "CHUONGTRINHHOC"
+         SET "HocKy"=$1, "HocKyDuKien"=$2, "TrangThai"=$3, "GhiChu"=$4,
+             "DaXoa"=FALSE, "NguoiXoa"=NULL, "NgayXoa"=NULL,
+             "NguoiCapNhat"=$5, "NgayCapNhat"=$6
+         WHERE "id"=$7 RETURNING *`,
+        d.HocKyDuKien, d.HocKyDuKien, d.TrangThai ?? true, d.GhiChu || null,
+        audit.NguoiCapNhat, audit.NgayCapNhat, deletedDuplicate.id
+      )
+      : await prisma.$queryRawUnsafe(
+        `INSERT INTO "CHUONGTRINHHOC" ("MaNganh", "MaMonHoc", "HocKy", "HocKyDuKien", "TrangThai", "GhiChu", "NguoiCapNhat", "NgayCapNhat", "DaXoa")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE) RETURNING *`,
+        d.MaNganh, d.MaMonHoc, d.HocKyDuKien, d.HocKyDuKien,
+        d.TrangThai ?? true, d.GhiChu || null, audit.NguoiCapNhat, audit.NgayCapNhat
+      );
+    res.status(deletedDuplicate ? 200 : 201).json({
+      success: true,
+      message: deletedDuplicate ? 'Đã khôi phục môn từ thùng rác chương trình học' : 'Thêm môn vào chương trình thành công',
+      data: rows[0]
+    });
   } catch (error) {
     if (error.code === 'P2010' || (error.message && error.message.includes('uq_cth'))) return res.status(400).json({ success: false, message: 'Môn học đã có trong chương trình' });
     if (error.message && error.message.includes('RBTV')) {
@@ -166,7 +217,7 @@ const updateCurriculumItem = async (req, res) => {
   try {
     const id = parseInt(req.params.itemId || req.params.id, 10);
     if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
-    const existing = await prisma.CHUONGTRINHHOC.findUnique({ where: { id } });
+    const existing = await prisma.CHUONGTRINHHOC.findFirst({ where: { id, DaXoa: false } });
     if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn trong chương trình' });
     if (req.body.MaNganh !== undefined && normalizeText(req.body.MaNganh).toUpperCase() !== existing.MaNganh) {
       return res.status(400).json({ success: false, message: 'Khong duoc phep sua nganh cua dong chuong trinh hoc' });
@@ -183,9 +234,21 @@ const updateCurriculumItem = async (req, res) => {
     }, id);
     if (validated.error) return res.status(400).json({ success: false, message: validated.error, violations: validated.violations || [] });
     const d = validated.data;
+    const dependencyViolation = await findCurriculumDependencyViolation(d);
+    if (dependencyViolation) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể tạm ngưng hoặc đổi học kỳ vì môn ${dependencyViolation.MaMonHoc} đang phụ thuộc vào môn này`
+      });
+    }
+    const audit = updateAudit(req);
     const rows = await prisma.$queryRawUnsafe(
-      `UPDATE "CHUONGTRINHHOC" SET "HocKy"=$1, "HocKyDuKien"=$2, "TrangThai"=$3, "GhiChu"=$4 WHERE "id"=$5 RETURNING *`,
-      d.HocKyDuKien, d.HocKyDuKien, d.TrangThai ?? true, d.GhiChu || null, id
+      `UPDATE "CHUONGTRINHHOC"
+       SET "HocKy"=$1, "HocKyDuKien"=$2, "TrangThai"=$3, "GhiChu"=$4,
+           "NguoiCapNhat"=$5, "NgayCapNhat"=$6
+       WHERE "id"=$7 RETURNING *`,
+      d.HocKyDuKien, d.HocKyDuKien, d.TrangThai ?? true, d.GhiChu || null,
+      audit.NguoiCapNhat, audit.NgayCapNhat, id
     );
     res.json({ success: true, message: 'Cập nhật chương trình thành công', data: rows[0] });
   } catch (error) {
@@ -202,9 +265,26 @@ const deleteCurriculumItem = async (req, res) => {
   try {
     const id = parseInt(req.params.itemId || req.params.id, 10);
     if (!Number.isFinite(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
-    await prisma.CHUONGTRINHHOC.delete({ where: { id } });
-    res.json({ success: true, message: 'Đã gỡ môn khỏi chương trình' });
+    const existing = await prisma.CHUONGTRINHHOC.findFirst({ where: { id, DaXoa: false } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Không tìm thấy môn trong chương trình' });
+    const dependencyViolation = await findCurriculumDependencyViolation({
+      MaNganh: existing.MaNganh,
+      MaMonHoc: existing.MaMonHoc,
+      HocKyDuKien: existing.HocKyDuKien,
+      TrangThai: false
+    });
+    if (dependencyViolation) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể chuyển vào thùng rác vì môn ${dependencyViolation.MaMonHoc} đang phụ thuộc vào môn này`
+      });
+    }
+    await prisma.CHUONGTRINHHOC.update({ where: { id }, data: softDeleteAudit(req) });
+    res.json({ success: true, message: 'Đã chuyển môn vào thùng rác chương trình học' });
   } catch (error) {
+    if (error.message && (error.message.includes('RBTV') || error.message.includes('Không thể') || error.message.includes('Khong the'))) {
+      return res.status(400).json({ success: false, message: error.message.split('\n')[0] });
+    }
         return sendErrorResponse(res, error, 'Lỗi server', 'deleteCurriculumItem error:');
   }
 };

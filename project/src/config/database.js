@@ -21,6 +21,7 @@ const AUDITED_SOFT_DELETE_TABLES = [
   'HOCKY',
   'KHOA',
   'NGANHHOC',
+  'CHUONGTRINHHOC',
   'MONDAHOC',
   'DIEUKIENMONHOC',
   'DONGIATINCHI',
@@ -94,6 +95,16 @@ const ensureAuthSchema = async () => {
       ADD COLUMN IF NOT EXISTS ${qi}TrangThai${qi} BOOLEAN DEFAULT TRUE,
       ADD COLUMN IF NOT EXISTS ${qi}DaXoa${qi} BOOLEAN NOT NULL DEFAULT FALSE
   `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "CHUONGTRINHHOC"
+      ADD COLUMN IF NOT EXISTS "NguoiCapNhat" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayCapNhat" TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS "DaXoa" BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS "NguoiXoa" INTEGER,
+      ADD COLUMN IF NOT EXISTS "NgayXoa" TIMESTAMP
+  `);
+  await prisma.$executeRawUnsafe(`UPDATE "CHUONGTRINHHOC" SET "DaXoa" = FALSE WHERE "DaXoa" IS NULL`);
 
   await prisma.$executeRawUnsafe(`
     CREATE OR REPLACE FUNCTION fn_lay_don_gia(
@@ -740,6 +751,7 @@ const ensureAuthSchema = async () => {
         JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
         WHERE cth."MaMonHoc" = l."MaMonHoc"
           AND ng."MaKhoa" = mh."MaKhoa"
+          AND COALESCE(cth."DaXoa", FALSE) = FALSE
           AND COALESCE(cth."TrangThai", TRUE) = TRUE
           AND COALESCE(ng."DaXoa", FALSE) = FALSE
           AND COALESCE(ng."TrangThai", TRUE) = TRUE
@@ -887,6 +899,7 @@ const ensureAuthSchema = async () => {
         JOIN "NGANHHOC" ng ON ng."MaNganh" = cth."MaNganh"
         WHERE cth."MaMonHoc" = p_ma_mon_hoc
           AND ng."MaKhoa" = v_ma_khoa
+          AND COALESCE(cth."DaXoa", FALSE) = FALSE
           AND COALESCE(cth."TrangThai", TRUE) = TRUE
           AND COALESCE(ng."DaXoa", FALSE) = FALSE
           AND COALESCE(ng."TrangThai", TRUE) = TRUE
@@ -932,7 +945,7 @@ const ensureAuthSchema = async () => {
       v_old_supports_same_faculty BOOLEAN := FALSE;
     BEGIN
       v_hoc_ky_du_kien := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
-      IF COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
+      IF COALESCE(OLD."DaXoa", FALSE) = TRUE OR COALESCE(OLD."TrangThai", TRUE) = FALSE OR v_hoc_ky_du_kien NOT BETWEEN 1 AND 8 THEN
         IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
         RETURN NEW;
       END IF;
@@ -957,7 +970,8 @@ const ensureAuthSchema = async () => {
       v_expected_mod := MOD(v_hoc_ky_du_kien, 2);
 
       IF TG_OP = 'UPDATE' THEN
-        v_new_still_supports := COALESCE(NEW."TrangThai", TRUE) = TRUE
+        v_new_still_supports := COALESCE(NEW."DaXoa", FALSE) = FALSE
+          AND COALESCE(NEW."TrangThai", TRUE) = TRUE
           AND NEW."MaNganh" = OLD."MaNganh"
           AND NEW."MaMonHoc" = OLD."MaMonHoc"
           AND COALESCE(NEW."HocKyDuKien", NEW."HocKy") BETWEEN 1 AND 8
@@ -2033,6 +2047,102 @@ const ensureAuthSchema = async () => {
       ADD CONSTRAINT chk_hoc_ky CHECK ("HocKy" >= 1 AND "HocKy" <= 8),
       ADD CONSTRAINT chk_hoc_ky_du_kien CHECK ("HocKyDuKien" >= 1 AND "HocKyDuKien" <= 8),
       ADD CONSTRAINT chk_cth_hocky_sync CHECK ("HocKy" = "HocKyDuKien")
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION func_check_rbtv07_ChuongTrinhHoc()
+    RETURNS TRIGGER AS $$
+    DECLARE
+      v_old_semester INTEGER;
+      v_new_semester INTEGER;
+      v_should_check_new BOOLEAN := FALSE;
+      v_new_replaces_old BOOLEAN := FALSE;
+    BEGIN
+      IF TG_OP = 'INSERT' THEN
+        v_should_check_new := TRUE;
+      ELSIF TG_OP = 'UPDATE' THEN
+        v_should_check_new := OLD."MaNganh" IS DISTINCT FROM NEW."MaNganh"
+          OR OLD."MaMonHoc" IS DISTINCT FROM NEW."MaMonHoc"
+          OR COALESCE(OLD."HocKyDuKien", OLD."HocKy") IS DISTINCT FROM COALESCE(NEW."HocKyDuKien", NEW."HocKy")
+          OR COALESCE(OLD."DaXoa", FALSE) IS DISTINCT FROM COALESCE(NEW."DaXoa", FALSE)
+          OR COALESCE(OLD."TrangThai", TRUE) IS DISTINCT FROM COALESCE(NEW."TrangThai", TRUE);
+      END IF;
+
+      IF v_should_check_new = TRUE
+         AND COALESCE(NEW."DaXoa", FALSE) = FALSE
+         AND COALESCE(NEW."TrangThai", TRUE) = TRUE
+      THEN
+        v_new_semester := COALESCE(NEW."HocKyDuKien", NEW."HocKy");
+
+        IF EXISTS (
+          SELECT 1
+          FROM "DIEUKIENMONHOC" dk
+          LEFT JOIN "CHUONGTRINHHOC" ctdk
+            ON ctdk."MaNganh" = NEW."MaNganh"
+           AND ctdk."MaMonHoc" = dk."MaMonDieuKien"
+           AND COALESCE(ctdk."DaXoa", FALSE) = FALSE
+           AND COALESCE(ctdk."TrangThai", TRUE) = TRUE
+          WHERE dk."MaMonHoc" = NEW."MaMonHoc"
+            AND COALESCE(dk."DaXoa", FALSE) = FALSE
+            AND COALESCE(dk."TrangThai", TRUE) = TRUE
+            AND (
+              ctdk."MaMonHoc" IS NULL
+              OR (dk."LoaiDieuKien" = 'tien_quyet' AND COALESCE(ctdk."HocKyDuKien", ctdk."HocKy") >= v_new_semester)
+              OR (dk."LoaiDieuKien" = 'hoc_truoc' AND COALESCE(ctdk."HocKyDuKien", ctdk."HocKy") > v_new_semester)
+            )
+        ) THEN
+          RAISE EXCEPTION 'RBTV07: Mon hoc % cua nganh % khong hop le voi rang buoc mon dieu kien.', NEW."MaMonHoc", NEW."MaNganh";
+        END IF;
+      END IF;
+
+      IF TG_OP = 'DELETE' THEN
+        v_old_semester := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
+        v_new_replaces_old := FALSE;
+      ELSIF TG_OP = 'UPDATE' THEN
+        v_old_semester := COALESCE(OLD."HocKyDuKien", OLD."HocKy");
+        v_new_semester := COALESCE(NEW."HocKyDuKien", NEW."HocKy");
+        v_new_replaces_old := COALESCE(NEW."DaXoa", FALSE) = FALSE
+          AND COALESCE(NEW."TrangThai", TRUE) = TRUE
+          AND NEW."MaNganh" = OLD."MaNganh"
+          AND NEW."MaMonHoc" = OLD."MaMonHoc";
+      END IF;
+
+      IF (TG_OP = 'DELETE' OR TG_OP = 'UPDATE')
+         AND COALESCE(OLD."DaXoa", FALSE) = FALSE
+         AND COALESCE(OLD."TrangThai", TRUE) = TRUE THEN
+        IF EXISTS (
+          SELECT 1
+          FROM "CHUONGTRINHHOC" ctm
+          JOIN "DIEUKIENMONHOC" dk ON ctm."MaMonHoc" = dk."MaMonHoc"
+          WHERE ctm."MaNganh" = OLD."MaNganh"
+            AND ctm."MaMonHoc" <> OLD."MaMonHoc"
+            AND dk."MaMonDieuKien" = OLD."MaMonHoc"
+            AND COALESCE(ctm."DaXoa", FALSE) = FALSE
+            AND COALESCE(ctm."TrangThai", TRUE) = TRUE
+            AND COALESCE(dk."DaXoa", FALSE) = FALSE
+            AND COALESCE(dk."TrangThai", TRUE) = TRUE
+            AND (
+              v_new_replaces_old = FALSE
+              OR (dk."LoaiDieuKien" = 'tien_quyet' AND v_new_semester >= COALESCE(ctm."HocKyDuKien", ctm."HocKy"))
+              OR (dk."LoaiDieuKien" = 'hoc_truoc' AND v_new_semester > COALESCE(ctm."HocKyDuKien", ctm."HocKy"))
+            )
+        ) THEN
+          RAISE EXCEPTION 'RBTV07: Khong the xoa, tam ngung hoac doi hoc ky mon % vi co mon khac dang phu thuoc.', OLD."MaMonHoc";
+        END IF;
+      END IF;
+
+      IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS trigger_rbtv07_cth ON "CHUONGTRINHHOC"');
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER trigger_rbtv07_cth
+    BEFORE INSERT OR UPDATE OR DELETE ON "CHUONGTRINHHOC"
+    FOR EACH ROW
+    EXECUTE FUNCTION func_check_rbtv07_ChuongTrinhHoc();
   `);
 
   await prisma.$executeRawUnsafe(`

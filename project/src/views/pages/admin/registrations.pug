@@ -61,6 +61,10 @@ block content
         span.material-symbols-rounded(aria-hidden="true") task_alt
         span Chốt đăng ký
 
+      button.btn.btn-warning#cancel-finalize-registration-btn(type="button" onclick="cancelFinalizeSelectedRegistration()" disabled)
+        span.material-symbols-rounded(aria-hidden="true") undo
+        span= 'H\u1ee7y ch\u1ed1t \u0111\u0103ng k\u00fd'
+
   .card
     .card-header
       h3 Phiếu đăng ký môn học
@@ -92,7 +96,7 @@ block content
                 td= r.soPhieu || 0
                 td
                   div= r.HocKyHienThi || r.DanhSachHocKy || '-'
-                td= r.soMon || 0
+                td= r.SoMon || 0
                 td= r.TongTinChi || 0
                 td
                   span.badge(class=((r.TrangThaiTongHop || '').includes('hủy')) ? 'badge-error' : 'badge-success')= r.TrangThaiTongHop || 'Đã đăng ký'

@@ -110,6 +110,11 @@ model CHUONGTRINHHOC {
   GhiChu      String?   @db.VarChar(200)
   TrangThai   Boolean?  @default(true)
   NgayTao     DateTime? @default(now()) @db.Timestamp(6)
+  NguoiCapNhat Int?
+  NgayCapNhat  DateTime? @db.Timestamp(6)
+  DaXoa        Boolean   @default(false)
+  NguoiXoa     Int?
+  NgayXoa      DateTime? @db.Timestamp(6)
   MONHOC      MONHOC    @relation(fields: [MaMonHoc], references: [MaMonHoc], onDelete: Cascade, map: "fk_cth_mon")
   NGANHHOC    NGANHHOC  @relation(fields: [MaNganh], references: [MaNganh], onDelete: Cascade, map: "fk_cth_nganh")
 

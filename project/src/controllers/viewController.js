@@ -2094,6 +2094,7 @@ const adminCurriculumPrograms = async (req, res) => {
   const major = req.query.major || '';
   const status = req.query.status || '';
   const where = {
+    DaXoa: false,
     NGANHHOC: { DaXoa: false },
     MONHOC: { DaXoa: false }
   };

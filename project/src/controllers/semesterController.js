@@ -689,6 +689,58 @@ const finalizeRegistration = async (req, res) => {
   }
 };
 
+const cancelFinalizeRegistration = async (req, res) => {
+  try {
+    const maHocKy = req.params.id;
+    const result = await prisma.$transaction(async (tx) => {
+      const semester = await tx.HOCKY.findFirst({ where: { MaHocKy: maHocKy, DaXoa: false } });
+      if (!semester) throw { status: 404, message: 'Kh\u00f4ng t\u00ecm th\u1ea5y h\u1ecdc k\u1ef3' };
+      if (!semester.NgayChotDangKy) {
+        throw { status: 400, code: 'SEMESTER_NOT_FINALIZED', message: 'H\u1ecdc k\u1ef3 ch\u01b0a ch\u1ed1t \u0111\u0103ng k\u00fd' };
+      }
+
+      const [receiptCount, transactionRows] = await Promise.all([
+        tx.PHIEUTHUHOCPHI.count({ where: { PHIEUDANGKY: { MaHocKy: maHocKy } } }),
+        tx.$queryRawUnsafe(
+          'SELECT COUNT(*)::INTEGER AS count FROM "GIAODICHTHANHTOANHOCPHI" gd JOIN "PHIEUDANGKY" pdk ON pdk."SoPhieu" = gd."SoPhieuDangKy" WHERE pdk."MaHocKy" = $1',
+          maHocKy
+        )
+      ]);
+      const transactionCount = Number(transactionRows[0]?.count || 0);
+
+      const updated = await tx.HOCKY.update({
+        where: { MaHocKy: maHocKy },
+        data: {
+          NgayChotDangKy: null,
+          MoThuHocPhi: false,
+          NgayMoThuHocPhi: null,
+          ...updateAudit(req)
+        }
+      });
+
+      return {
+        semester: updated,
+        summary: {
+          SoPhieuThuDaCo: receiptCount,
+          SoLanThanhToanDaCo: transactionCount
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      message: 'H\u1ee7y ch\u1ed1t \u0111\u0103ng k\u00fd th\u00e0nh c\u00f4ng. H\u1ecdc k\u1ef3 c\u00f3 th\u1ec3 ch\u1ed1t l\u1ea1i khi \u0111\u1ee7 \u0111i\u1ec1u ki\u1ec7n.',
+      data: {
+        ...semesterSelect(result.semester),
+        summary: result.summary
+      }
+    });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ success: false, message: error.message, code: error.code });
+    return sendErrorResponse(res, error, 'Kh\u00f4ng th\u1ec3 h\u1ee7y ch\u1ed1t \u0111\u0103ng k\u00fd', 'Cancel finalize registration error:');
+  }
+};
+
 const openTuitionPayment = async (req, res) => {
   try {
     const maHocKy = req.params.id;
@@ -976,6 +1028,7 @@ module.exports = {
   getActiveSemester,
   getSemesterById,
   finalizeRegistration,
+  cancelFinalizeRegistration,
   openTuitionPayment,
   closeTuitionPayment,
   createSemester,

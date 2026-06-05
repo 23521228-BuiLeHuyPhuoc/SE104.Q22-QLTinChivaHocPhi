@@ -74,6 +74,15 @@ const TRASH_ENTITIES = {
     type: 'string',
     title: ['TenNganh', 'MaNganh']
   },
+  curriculumPrograms: {
+    label: 'Chương trình học',
+    permissionCode: 'ADMIN_CURRICULUM',
+    model: 'CHUONGTRINHHOC',
+    pk: 'id',
+    type: 'int',
+    title: ['MaNganh', 'MaMonHoc'],
+    restoreData: { TrangThai: true }
+  },
   provinces: {
     label: 'Tỉnh/Thành phố',
     permissionCode: 'ADMIN_LOCATION_PROVINCES',

@@ -13,6 +13,9 @@ block content
       button.btn.btn-primary(type="button" onclick="openCurriculumProgramModal('add')")
         span.material-symbols-rounded add
         span Thêm môn
+      a.btn.btn-outline(href="/admin/trash?entity=curriculumPrograms")
+        span.material-symbols-rounded restore_from_trash
+        span Thùng rác
 
   - const cpSearchField = searchField || 'majorCode'
   form.curriculum-filter-panel(method="get" action="/admin/curriculum-programs")
@@ -114,9 +117,9 @@ block content
                           button.btn.btn-sm.btn-outline(type="button" title="Sửa môn trong chương trình" aria-label="Sửa môn trong chương trình" data-record=JSON.stringify(row) onclick="openCurriculumProgramModal('edit', JSON.parse(this.dataset.record))")
                             span.material-symbols-rounded edit
                             span Sửa
-                          button.btn.btn-sm.btn-danger(type="button" title="Gỡ môn khỏi chương trình" aria-label="Gỡ môn khỏi chương trình" data-id=row.id onclick="deleteCurriculumProgramItem(this.dataset.id)")
+                          button.btn.btn-sm.btn-danger(type="button" title="Chuyển môn vào thùng rác chương trình học" aria-label="Chuyển môn vào thùng rác chương trình học" data-id=row.id onclick="deleteCurriculumProgramItem(this.dataset.id)")
                             span.material-symbols-rounded delete
-                            span Gỡ
+                            span Xóa
           else
             .curriculum-major-empty
               span.material-symbols-rounded playlist_add

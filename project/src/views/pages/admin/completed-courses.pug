@@ -146,10 +146,10 @@ block modals
         button.modal-close(type="button" onclick="closeImportModal()" aria-label="Đóng") ×
       .modal-body
         .import-format-note
-          strong Format file Excel/CSV
+          strong Format file Excel .xlsx
           small Dòng đầu tiên là header. Cột bắt buộc: MSSV (hoặc MaSv), MaMonHoc, MaHocKy (hoặc HocKy), KetQua. Cột tùy chọn: MaLop, LanHoc, GhiChu.
           small KetQua chấp nhận: qua_mon/rot hoặc các cách ghi tương đương như đạt, đậu, qua môn, trượt, không đạt.
-        input#import-file.form-control(type="file" accept=".csv,.tsv,.txt,.xls,.xlsx")
+        input#import-file.form-control(type="file" accept=".xlsx")
         .table-container.mt-3
           table.data-table
             thead
@@ -162,7 +162,7 @@ block modals
             tbody#import-preview
               tr
                 td(colspan="5")
-                  .empty-state Chọn file CSV/TSV từ Excel để xem trước
+                  .empty-state Chon file Excel .xlsx de xem truoc
       .modal-footer
         button.btn.btn-outline(type="button" onclick="closeImportModal()") Hủy
         button.btn.btn-primary(type="button" onclick="confirmImport()") Xác nhận import

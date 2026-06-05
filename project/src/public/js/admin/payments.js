@@ -572,7 +572,7 @@ async function exportPayments() {
     var url = URL.createObjectURL(blob);
     var link = document.createElement('a');
     link.href = url;
-    link.download = 'phieu-thu-hoc-phi.csv';
+    link.download = 'phieu-thu-hoc-phi.xlsx';
     document.body.appendChild(link);
     link.click();
     link.remove();

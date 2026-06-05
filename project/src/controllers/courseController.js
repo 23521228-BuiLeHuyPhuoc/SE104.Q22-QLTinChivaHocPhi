@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const ExcelJS = require('exceljs');
 const XLSX = require('xlsx');
 const { formatCourse, formatCourseList } = require('../models/courseModel');
 const { getPagination, getPaginationMeta, notDeleted } = require('../utils/pagination');
@@ -210,37 +211,62 @@ const getCourseStats = async (req, res) => {
   }
 };
 
-const escapeCell = (value) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 const exportCourses = async (req, res) => {
   try {
     const { search = '', searchField = 'all', LoaiMon, MaKhoa } = req.query;
     const where = notDeleted();
     if (LoaiMon) where.LoaiMon = LoaiMon;
     if (MaKhoa) where.MaKhoa = MaKhoa;
+
     const allRows = await prisma.MONHOC.findMany({
       where,
       orderBy: { MaMonHoc: 'asc' },
       include: { KHOA: true }
     });
     const rows = filterRowsByRegex(allRows, search, (row) => getCourseRegexValues(row, searchField));
-    const htmlRows = rows.map((row) => (
-      '<tr>' +
-      `<td>${escapeCell(row.MaMonHoc)}</td>` +
-      `<td>${escapeCell(row.TenMonHoc)}</td>` +
-      `<td>${escapeCell(row.LoaiMon)}</td>` +
-      `<td>${escapeCell(row.SoTinChi)}</td>` +
-      `<td>${escapeCell(row.SoTiet)}</td>` +
-      `<td>${escapeCell(row.KHOA?.TenKhoa || row.MaKhoa)}</td>` +
-      `<td>${escapeCell(row.TrangThai === false ? 'Tạm khóa' : 'Đang dùng')}</td>` +
-      '</tr>'
-    )).join('');
-    const workbook = `<!doctype html><html><head><meta charset="utf-8"></head><body><table border="1"><thead><tr><th>MaMonHoc</th><th>TenMonHoc</th><th>LoaiMon</th><th>SoTinChi</th><th>SoTiet</th><th>Khoa</th><th>TrangThai</th></tr></thead><tbody>${htmlRows}</tbody></table></body></html>`;
-    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="courses.xls"');
-    return res.send(workbook);
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'EduPay';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('Mon hoc');
+    worksheet.columns = [
+      { header: 'MaMonHoc', key: 'MaMonHoc', width: 15 },
+      { header: 'TenMonHoc', key: 'TenMonHoc', width: 34 },
+      { header: 'LoaiMon', key: 'LoaiMon', width: 12 },
+      { header: 'SoTinChi', key: 'SoTinChi', width: 12 },
+      { header: 'SoTiet', key: 'SoTiet', width: 12 },
+      { header: 'Khoa', key: 'Khoa', width: 28 },
+      { header: 'TrangThai', key: 'TrangThai', width: 16 }
+    ];
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
+
+    rows.forEach((row) => {
+      worksheet.addRow({
+        MaMonHoc: row.MaMonHoc,
+        TenMonHoc: row.TenMonHoc,
+        LoaiMon: row.LoaiMon,
+        SoTinChi: Number(row.SoTinChi || 0),
+        SoTiet: Number(row.SoTiet || 0),
+        Khoa: row.KHOA?.TenKhoa || row.MaKhoa,
+        TrangThai: row.TrangThai === false ? 'Tam khoa' : 'Dang dung'
+      });
+    });
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
+    });
+
+    const fileName = 'danh-sach-mon-hoc-' + Date.now() + '.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (error) {
-    return sendErrorResponse(res, error, 'KhA´ng tha»ƒ xuaº¥t danh sA¡ch mA´n ha»c', 'exportCourses error:');
+    return sendErrorResponse(res, error, 'Khong the xuat danh sach mon hoc', 'exportCourses error:');
   }
 };
 
@@ -261,7 +287,7 @@ const importCourses = async (req, res) => {
     try {
       workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     } catch (error) {
-      return res.status(400).json({ success: false, message: 'Không thể đọc file Excel. Vui lòng dùng file .xls hoặc .xlsx đúng format' });
+      return res.status(400).json({ success: false, message: 'Khong the doc file Excel. Vui long dung file .xlsx dung format' });
     }
 
     const sheetName = workbook.SheetNames[0];
@@ -437,12 +463,15 @@ const getMyCurriculum = async (req, res) => {
     if (!student) return res.status(404).json({ success: false, message: 'Không tìm thấy sinh viên' });
 
     let curriculumRows = await prisma.CHUONGTRINHHOC.findMany({
-      where: { MaNganh: student.MaNganh, TrangThai: true, MONHOC: { DaXoa: false, TrangThai: true } },
+      where: { MaNganh: student.MaNganh, DaXoa: false, TrangThai: true, MONHOC: { DaXoa: false, TrangThai: true } },
       orderBy: [{ HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }],
       include: { MONHOC: { include: { KHOA: true } } }
     });
 
-    if (!curriculumRows.length && student.NGANHHOC?.MaKhoa) {
+    const hasConfiguredCurriculum = curriculumRows.length > 0
+      || await prisma.CHUONGTRINHHOC.findFirst({ where: { MaNganh: student.MaNganh }, select: { id: true } });
+
+    if (!curriculumRows.length && !hasConfiguredCurriculum && student.NGANHHOC?.MaKhoa) {
       const fallbackCourses = await prisma.MONHOC.findMany({
         where: { MaKhoa: student.NGANHHOC.MaKhoa, TrangThai: true, DaXoa: false },
         orderBy: { MaMonHoc: 'asc' },

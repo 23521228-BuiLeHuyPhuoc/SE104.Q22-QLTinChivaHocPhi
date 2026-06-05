@@ -257,39 +257,29 @@ function loadReports() {
   if (hasIncompleteTuitionSection()) loadIncompleteTuition();
 }
 
-function exportIncompleteCsv() {
-  if (!currentIncompleteRows.length) {
-    showToast('Không có dữ liệu để xuất', 'info');
-    return;
+async function exportIncompleteExcel() {
+  try {
+    var query = buildDebtQuery();
+    var token = getToken();
+    var headers = token ? { Authorization: 'Bearer ' + token } : {};
+    var url = '/api/dashboard/incomplete-tuition/export' + (query ? '?' + query : '');
+    var res = await fetch(url, { headers: headers });
+    if (!res.ok) {
+      showToast('Khong the xuat Excel', 'error');
+      return;
+    }
+    var blob = await res.blob();
+    var downloadUrl = window.URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'sinh-vien-chua-hoan-thanh-hoc-phi.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    showToast('Khong the xuat Excel', 'error');
   }
-  var header = ['MSSV', 'Họ tên', 'Ngành', 'Khoa', 'Học kỳ', 'Phải đóng', 'Đã đóng', 'Còn nợ', 'Hạn đóng học phí', 'Số ngày quá hạn', 'Trạng thái'];
-  var lines = [header.join(',')];
-  currentIncompleteRows.forEach(function(row) {
-    lines.push([
-      row.MSSV || row.MaSv,
-      row.HoTen,
-      row.TenNganh,
-      row.TenKhoa,
-      [row.TenHocKy, row.TenNamHoc].filter(Boolean).join(' - '),
-      row.TongTienPhaiDong,
-      row.TongTienDaDong,
-      row.ConNo,
-      row.HanDongHocPhi ? formatDate(row.HanDongHocPhi) : '',
-      row.SoNgayQuaHan || '',
-      row.TrangThai
-    ].map(function(value) {
-      return '"' + String(value || '').replace(/"/g, '""') + '"';
-    }).join(','));
-  });
-  var blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  var url = URL.createObjectURL(blob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = 'sinh-vien-chua-hoan-thanh-hoc-phi.csv';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 async function exportRegistrationStats() {
@@ -314,7 +304,7 @@ async function exportRegistrationStats() {
     var downloadUrl = window.URL.createObjectURL(blob);
     var link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = 'thong-ke-dang-ky-mon-hoc.xls';
+    link.download = 'thong-ke-dang-ky-mon-hoc.xlsx';
     document.body.appendChild(link);
     link.click();
     link.remove();

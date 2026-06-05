@@ -85,6 +85,7 @@ const buildCurriculumRow = (row, semesterMap) => {
 const getCurriculumRows = async (query = {}) => {
   const { MaNganh, MaKhoa, HocKyDuKien, LoaiMon, valid, search } = query;
   const where = {
+    DaXoa: false,
     MONHOC: { DaXoa: false },
     NGANHHOC: { DaXoa: false }
   };
@@ -122,10 +123,10 @@ const validateCurriculumPlacement = async (payload, currentId = null) => {
     prisma.NGANHHOC.findFirst({ where: { MaNganh, DaXoa: false }, select: { MaNganh: true } }),
     prisma.MONHOC.findFirst({ where: { MaMonHoc, DaXoa: false }, select: { MaMonHoc: true } }),
     prisma.CHUONGTRINHHOC.findFirst({
-      where: { MaNganh, MaMonHoc, ...(currentId ? { NOT: { id: currentId } } : {}) }
+      where: { MaNganh, MaMonHoc, DaXoa: false, ...(currentId ? { NOT: { id: currentId } } : {}) }
     }),
     prisma.CHUONGTRINHHOC.findMany({
-      where: { MaNganh, TrangThai: true, ...(currentId ? { NOT: { id: currentId } } : {}) },
+      where: { MaNganh, DaXoa: false, TrangThai: true, ...(currentId ? { NOT: { id: currentId } } : {}) },
       select: { MaMonHoc: true, HocKyDuKien: true }
     }),
     prisma.DIEUKIENMONHOC.findMany({
@@ -186,6 +187,7 @@ const calculateCurriculumDebt = async (MaSv, MaHocKy) => {
     prisma.CHUONGTRINHHOC.findMany({
       where: {
         MaNganh: student.MaNganh,
+        DaXoa: false,
         TrangThai: true,
         HocKyDuKien: { lte: maxSemester },
         MONHOC: { DaXoa: false, TrangThai: true }
@@ -273,7 +275,7 @@ const getThesisEligibility = async (MaSv, MaHocKy) => {
   if (!debt) return null;
   const [thesisCourses, settings] = await Promise.all([
     prisma.CHUONGTRINHHOC.findMany({
-      where: { MaNganh: debt.student.MaNganh, TrangThai: true, MONHOC: { DaXoa: false } },
+      where: { MaNganh: debt.student.MaNganh, DaXoa: false, TrangThai: true, MONHOC: { DaXoa: false } },
       include: { MONHOC: true }
     }),
     prisma.THAMSO.findFirst({ select: { GioiHanTinChiNoKhoaLuan: true } })

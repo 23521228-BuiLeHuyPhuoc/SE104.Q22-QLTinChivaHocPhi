@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const completedCourseController = require('../controllers/completedCourseController');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
-const allowedImportExtensions = new Set(['.csv', '.tsv', '.txt', '.xls', '.xlsx']);
+const allowedImportExtensions = new Set(['.xlsx']);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -22,7 +22,7 @@ const uploadImportFile = (req, res, next) => {
       return res.status(400).json({ success: false, message: 'File import khong duoc vuot qua 5MB' });
     }
     if (error.message === 'INVALID_IMPORT_FILE_TYPE') {
-      return res.status(400).json({ success: false, message: 'Chi chap nhan file CSV, TSV, TXT, XLS hoac XLSX' });
+      return res.status(400).json({ success: false, message: 'Chi chap nhan file Excel XLSX' });
     }
     return res.status(400).json({ success: false, message: 'Khong the doc file import' });
   });

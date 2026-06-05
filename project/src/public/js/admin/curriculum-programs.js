@@ -245,18 +245,18 @@ async function saveCurriculumProgramItem() {
 }
 
 async function deleteCurriculumProgramItem(id) {
-  if (!id || !confirm('Gỡ môn này khỏi chương trình học?')) return;
+  if (!id || !confirm('Chuyển môn này vào thùng rác chương trình học?')) return;
 
   try {
     var res = await apiFetch('/api/majors/curriculum/items/' + encodeURIComponent(id), { method: 'DELETE' });
     if (res.success) {
-      showToast(res.message || 'Đã gỡ môn khỏi chương trình học', 'success');
+      showToast(res.message || 'Đã chuyển môn vào thùng rác chương trình học', 'success');
       setTimeout(function() { window.location.reload(); }, 350);
     } else {
-      showToast(res.message || 'Không thể gỡ môn khỏi chương trình học', 'error');
+      showToast(res.message || 'Không thể chuyển môn vào thùng rác chương trình học', 'error');
     }
   } catch (e) {
-    showToast('Lỗi kết nối khi gỡ môn', 'error');
+    showToast('Lỗi kết nối khi chuyển môn vào thùng rác', 'error');
   }
 }
 

@@ -13,7 +13,7 @@ block content
             each semester in semesters
               option(value=semester.MaHocKy)= `${semester.TenHocKy}${semester.NAMHOC ? ' - ' + semester.NAMHOC.TenNamHoc : ''}`
       .admin-action-group
-        button.btn.btn-outline(type="button" onclick="exportIncompleteCsv()")
+        button.btn.btn-outline(type="button" onclick="exportIncompleteExcel()")
           span.material-symbols-rounded(aria-hidden="true") download
           span Excel
         button.btn.btn-outline(type="button" onclick="printIncompleteReport()")

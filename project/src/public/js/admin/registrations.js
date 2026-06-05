@@ -78,6 +78,7 @@ function renderRegistrationActivityPanel() {
   var end = document.getElementById('registration-window-end');
   var tuitionStatus = document.getElementById('registration-tuition-status');
   var button = document.getElementById('finalize-registration-btn');
+  var cancelButton = document.getElementById('cancel-finalize-registration-btn');
 
   if (!activity) {
     if (semesterEl) semesterEl.textContent = 'Chọn học kỳ để xem thời hạn đăng ký';
@@ -88,6 +89,10 @@ function renderRegistrationActivityPanel() {
     if (button) {
       button.disabled = true;
       button.title = 'Chọn học kỳ để chốt đăng ký';
+    }
+    if (cancelButton) {
+      cancelButton.disabled = true;
+      cancelButton.title = 'Chọn học kỳ đã chốt để hủy chốt';
     }
     return;
   }
@@ -109,6 +114,13 @@ function renderRegistrationActivityPanel() {
     var alreadyFinalized = Boolean(workflow.finalized || activity.NgayChotDangKy);
     button.disabled = alreadyFinalized || !workflow.canFinalize;
     button.title = alreadyFinalized ? 'Học kỳ đã chốt đăng ký' : (workflow.finalizeReason || 'Có thể chốt đăng ký');
+  }
+  if (cancelButton) {
+    var canCancelFinalize = Boolean(workflow.finalized || activity.NgayChotDangKy);
+    cancelButton.disabled = !canCancelFinalize;
+    cancelButton.title = canCancelFinalize
+      ? 'Hủy cờ chốt đăng ký để có thể chốt lại'
+      : 'Học kỳ chưa chốt đăng ký';
   }
 }
 
@@ -136,6 +148,27 @@ async function finalizeSelectedRegistration() {
     showToast((res && res.message) || 'Không thể chốt đăng ký học phần', 'error');
   } catch (error) {
     showToast('Lỗi kết nối khi chốt đăng ký học phần', 'error');
+  }
+}
+
+async function cancelFinalizeSelectedRegistration() {
+  var activity = getSelectedRegistrationActivity();
+  if (!activity || !activity.MaHocKy) {
+    showToast('Vui lòng chọn học kỳ cần hủy chốt đăng ký', 'error');
+    return;
+  }
+  if (!confirm('Hủy chốt đăng ký cho ' + (activity.label || activity.MaHocKy) + '? Học kỳ sẽ chuyển về trạng thái có thể chốt lại. Phiếu thu và lần thanh toán đã có sẽ được giữ nguyên.')) return;
+
+  try {
+    var res = await apiFetch('/api/semesters/' + encodeURIComponent(activity.MaHocKy) + '/cancel-finalize-registration', { method: 'POST' });
+    if (res && res.success) {
+      showToast(res.message || 'Hủy chốt đăng ký thành công', 'success');
+      setTimeout(function() { window.location.reload(); }, 500);
+      return;
+    }
+    showToast((res && res.message) || 'Không thể hủy chốt đăng ký', 'error');
+  } catch (error) {
+    showToast('Lỗi kết nối khi hủy chốt đăng ký', 'error');
   }
 }
 

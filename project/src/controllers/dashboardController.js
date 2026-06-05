@@ -1,3 +1,4 @@
+const ExcelJS = require('exceljs');
 const prisma = require('../config/database');
 const { sendErrorResponse } = require('../utils/errorHandler');
 const { filterRowsByRegex } = require('../utils/searchRegex');
@@ -165,19 +166,22 @@ const getStudentsOwing = async (req, res) => {
   }
 };
 
+const getIncompleteTuitionFilters = (query = {}) => {
+  const status = query.TrangThai || query.status || '';
+  const overdueFilter = query.overdue;
+  return {
+    MaHocKy: query.MaHocKy || '',
+    MaKhoa: query.MaKhoa || '',
+    MaNganh: query.MaNganh || '',
+    search: query.search || '',
+    TrangThai: status || undefined,
+    overdue: overdueFilter === 'true' ? true : overdueFilter === 'false' ? false : undefined
+  };
+};
+
 const getIncompleteTuitionReport = async (req, res) => {
   try {
-    const status = req.query.TrangThai || req.query.status || '';
-    const overdueFilter = req.query.overdue;
-    const filters = {
-      MaHocKy: req.query.MaHocKy || '',
-      MaKhoa: req.query.MaKhoa || '',
-      MaNganh: req.query.MaNganh || '',
-      search: req.query.search || '',
-      TrangThai: status || undefined,
-      overdue: overdueFilter === 'true' ? true : overdueFilter === 'false' ? false : undefined
-    };
-    const rows = await getTuitionDebtRows(filters);
+    const rows = await getTuitionDebtRows(getIncompleteTuitionFilters(req.query));
     const summary = rows.reduce((acc, row) => {
       acc.totalStudents += 1;
       acc.totalDebt += row.ConNo;
@@ -189,6 +193,64 @@ const getIncompleteTuitionReport = async (req, res) => {
     res.json({ success: true, data: { summary, rows } });
   } catch (error) {
         return sendErrorResponse(res, error, 'Lỗi server', 'getIncompleteTuitionReport error:');
+  }
+};
+
+const exportIncompleteTuitionReport = async (req, res) => {
+  try {
+    const rows = await getTuitionDebtRows(getIncompleteTuitionFilters(req.query));
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'EduPay';
+    workbook.created = new Date();
+    const worksheet = workbook.addWorksheet('Chua hoan thanh hoc phi');
+    worksheet.columns = [
+      { header: 'MSSV', key: 'MSSV', width: 14 },
+      { header: 'HoTen', key: 'HoTen', width: 26 },
+      { header: 'Nganh', key: 'TenNganh', width: 30 },
+      { header: 'Khoa', key: 'TenKhoa', width: 28 },
+      { header: 'HocKy', key: 'HocKy', width: 26 },
+      { header: 'PhaiDong', key: 'TongTienPhaiDong', width: 16 },
+      { header: 'DaDong', key: 'TongTienDaDong', width: 16 },
+      { header: 'ConNo', key: 'ConNo', width: 16 },
+      { header: 'HanDongHocPhi', key: 'HanDongHocPhi', width: 16 },
+      { header: 'SoNgayQuaHan', key: 'SoNgayQuaHan', width: 16 },
+      { header: 'TrangThai', key: 'TrangThai', width: 18 }
+    ];
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
+    rows.forEach((row) => {
+      worksheet.addRow({
+        MSSV: row.MSSV || row.MaSv,
+        HoTen: row.HoTen,
+        TenNganh: row.TenNganh,
+        TenKhoa: row.TenKhoa,
+        HocKy: [row.TenHocKy, row.TenNamHoc].filter(Boolean).join(' - '),
+        TongTienPhaiDong: row.TongTienPhaiDong,
+        TongTienDaDong: row.TongTienDaDong,
+        ConNo: row.ConNo,
+        HanDongHocPhi: row.HanDongHocPhi ? new Date(row.HanDongHocPhi) : null,
+        SoNgayQuaHan: row.SoNgayQuaHan || 0,
+        TrangThai: row.TrangThai
+      });
+    });
+    ['TongTienPhaiDong', 'TongTienDaDong', 'ConNo'].forEach((key) => {
+      worksheet.getColumn(key).numFmt = '#,##0';
+    });
+    worksheet.getColumn('HanDongHocPhi').numFmt = 'yyyy-mm-dd';
+    worksheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'middle', wrapText: true };
+      });
+    });
+
+    const fileName = 'sinh-vien-chua-hoan-thanh-hoc-phi-' + Date.now() + '.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    return sendErrorResponse(res, error, 'Loi server', 'exportIncompleteTuitionReport error:');
   }
 };
 
@@ -262,6 +324,7 @@ module.exports = {
   getRevenueMonthly,
   getStudentsOwing,
   getIncompleteTuitionReport,
+  exportIncompleteTuitionReport,
   getRegistrationBySemester,
   getRecentActivity
 };

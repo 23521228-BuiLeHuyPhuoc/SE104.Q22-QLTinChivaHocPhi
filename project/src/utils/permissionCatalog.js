@@ -40,7 +40,7 @@ const PERMISSION_CATALOG = [
   { code: 'ADMIN_USERS', name: 'Quản lý người dùng', screen: '/admin/users', paths: ['/admin/users', '/api/roles'] },
   { code: 'ADMIN_FACULTIES', name: 'Quản lý khoa', screen: '/admin/faculties', paths: ['/admin/faculties', '/api/faculties'] },
   { code: 'ADMIN_MAJORS', name: 'Quản lý ngành học', screen: '/admin/majors', paths: ['/admin/majors', '/api/majors'] },
-  { code: 'ADMIN_CURRICULUM', name: 'Quản lý chương trình học', screen: '/admin/curriculum-programs', paths: ['/admin/curriculum-programs'] },
+  { code: 'ADMIN_CURRICULUM', name: 'Quản lý chương trình học', screen: '/admin/curriculum-programs', paths: ['/admin/curriculum-programs', '/api/majors/curriculum', '/api/majors/students'] },
   { code: 'ADMIN_COMPLETED', name: 'Quản lý môn đã học', screen: '/admin/completed-courses', paths: ['/admin/completed-courses', '/api/completed-courses'] },
   { code: 'ADMIN_PRICING', name: 'Quản lý đơn giá tín chỉ', screen: '/admin/pricing', paths: ['/admin/pricing', '/api/pricing'] },
   { code: 'ADMIN_BENEFICIARIES', name: 'Quản lý đối tượng ưu tiên', screen: '/admin/beneficiaries', paths: ['/admin/beneficiaries', '/api/beneficiaries'] },

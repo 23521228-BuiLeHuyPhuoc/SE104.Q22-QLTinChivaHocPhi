@@ -151,7 +151,7 @@ async function exportCourses() {
   var url = URL.createObjectURL(blob);
   var link = document.createElement('a');
   link.href = url;
-  link.download = 'courses.xls';
+  link.download = 'danh-sach-mon-hoc.xlsx';
   document.body.appendChild(link);
   link.click();
   link.remove();

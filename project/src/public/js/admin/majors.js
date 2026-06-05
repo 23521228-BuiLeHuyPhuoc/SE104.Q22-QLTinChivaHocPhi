@@ -140,7 +140,7 @@ async function loadCurriculum() {
       '<td><span class="badge ' + (row.BatBuoc ? 'badge-primary' : 'badge-secondary') + '">' + (row.BatBuoc ? 'Bắt buộc' : 'Tự chọn') + '</span></td>' +
       '<td>' + escapeMajorHtml(conds) + '</td>' +
       '<td><span class="badge ' + (row.isValid ? 'badge-success' : 'badge-error') + '">' + (row.isValid ? 'Hợp lệ' : 'Có lỗi') + '</span></td>' +
-      '<td class="table-actions"><button class="btn btn-sm btn-outline" type="button" data-record="' + record + '" onclick="openCurriculumModal(\'edit\', JSON.parse(this.dataset.record))">Sửa</button><button class="btn btn-sm btn-danger" type="button" onclick="deleteCurriculumItem(' + row.id + ')">Gỡ</button></td>' +
+      '<td class="table-actions"><button class="btn btn-sm btn-outline" type="button" data-record="' + record + '" onclick="openCurriculumModal(\'edit\', JSON.parse(this.dataset.record))">Sửa</button><button class="btn btn-sm btn-danger" type="button" onclick="deleteCurriculumItem(' + row.id + ')">Xóa</button></td>' +
     '</tr>';
   }).join('') || '<tr><td colspan="9"><div class="empty-state">Chưa có môn trong chương trình</div></td></tr>';
 }
@@ -195,13 +195,13 @@ async function saveCurriculumItem() {
 }
 
 async function deleteCurriculumItem(id) {
-  if (!confirm('Gỡ môn này khỏi chương trình?')) return;
+  if (!confirm('Chuyển môn này vào thùng rác chương trình học?')) return;
   var res = await apiFetch('/api/majors/curriculum/items/' + id, { method: 'DELETE' });
   if (res.success) {
-    showToast(res.message || 'Đã gỡ môn', 'success');
+    showToast(res.message || 'Đã chuyển môn vào thùng rác chương trình học', 'success');
     loadCurriculum();
   } else {
-    showToast(res.message || 'Không thể gỡ môn', 'error');
+    showToast(res.message || 'Không thể chuyển môn vào thùng rác chương trình học', 'error');
   }
 }
 

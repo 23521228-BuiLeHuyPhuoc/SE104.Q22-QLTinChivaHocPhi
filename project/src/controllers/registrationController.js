@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const ExcelJS = require('exceljs');
 const { Prisma } = require('@prisma/client');
 const { getPagination, getPaginationMeta } = require('../utils/pagination');
 const { sendErrorResponse } = require('../utils/errorHandler');
@@ -703,6 +704,26 @@ const getRegistrationById = async (req, res) => {
   }
 };
 
+const addRegistrationStatsSheet = (workbook, sheetName, title, headers, rows, mapRow) => {
+  const worksheet = workbook.addWorksheet(sheetName);
+  worksheet.mergeCells(1, 1, 1, headers.length);
+  worksheet.getCell(1, 1).value = title;
+  worksheet.getCell(1, 1).font = { bold: true, size: 13 };
+  worksheet.getCell(1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0F2FE' } };
+  worksheet.getRow(2).values = headers.map((header) => header.label);
+  worksheet.getRow(2).font = { bold: true };
+  worksheet.getRow(2).alignment = { vertical: 'middle', horizontal: 'center' };
+  worksheet.getRow(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDDEBF7' } };
+  worksheet.columns = headers.map((header) => ({ key: header.key, width: header.width }));
+
+  rows.forEach((row) => worksheet.addRow(mapRow(row)));
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.alignment = { vertical: 'middle', wrapText: true };
+    });
+  });
+};
+
 const exportRegistrations = async (req, res) => {
   try {
     const { MaHocKy, search = '' } = req.query;
@@ -716,11 +737,7 @@ const exportRegistrations = async (req, res) => {
       where,
       orderBy: { NgayLap: 'desc' },
       include: {
-        SINHVIEN: {
-          include: {
-            NGANHHOC: { include: { KHOA: true } }
-          }
-        },
+        SINHVIEN: { include: { NGANHHOC: { include: { KHOA: true } } } },
         HOCKY: { include: { NAMHOC: true } },
         CHITIETDANGKY: {
           where: { TrangThai: ACTIVE_REGISTRATION_STATUS },
@@ -730,17 +747,60 @@ const exportRegistrations = async (req, res) => {
       }
     });
     const filtered = filterRowsByRegex(registrations, search, (row) => getRegistrationSearchValues(row, searchScope));
-
     const studentRows = buildRegistrationStudentRows(filtered);
-    const xml = buildRegistrationStatsExcelXml({
-      byFaculty: buildRegistrationDistribution(studentRows, 'faculty'),
-      byMajor: buildRegistrationDistribution(studentRows, 'major')
+    const byFaculty = buildRegistrationDistribution(studentRows, 'faculty');
+    const byMajor = buildRegistrationDistribution(studentRows, 'major');
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'EduPay';
+    workbook.created = new Date();
+    addRegistrationStatsSheet(workbook, 'TheoKhoa', 'Thong ke dang ky mon hoc theo khoa', [
+      { label: 'Ma khoa', key: 'code', width: 14 },
+      { label: 'Ten khoa', key: 'name', width: 32 },
+      { label: 'Sinh vien', key: 'studentCount', width: 12 },
+      { label: 'So phieu', key: 'registrationCount', width: 12 },
+      { label: 'So mon', key: 'courseCount', width: 12 },
+      { label: 'Tin chi', key: 'creditCount', width: 12 },
+      { label: 'Ty le', key: 'percent', width: 12 }
+    ], byFaculty, (row) => ({
+      code: row.code,
+      name: row.name,
+      studentCount: row.studentCount,
+      registrationCount: row.registrationCount,
+      courseCount: row.courseCount,
+      creditCount: row.creditCount,
+      percent: Number(row.percent || 0) / 100
+    }));
+    addRegistrationStatsSheet(workbook, 'TheoNganh', 'Thong ke dang ky mon hoc theo nganh', [
+      { label: 'Ma nganh', key: 'code', width: 14 },
+      { label: 'Ten nganh', key: 'name', width: 34 },
+      { label: 'Khoa', key: 'parentName', width: 28 },
+      { label: 'Sinh vien', key: 'studentCount', width: 12 },
+      { label: 'So phieu', key: 'registrationCount', width: 12 },
+      { label: 'So mon', key: 'courseCount', width: 12 },
+      { label: 'Tin chi', key: 'creditCount', width: 12 },
+      { label: 'Ty le', key: 'percent', width: 12 }
+    ], byMajor, (row) => ({
+      code: row.code,
+      name: row.name,
+      parentName: row.parentName || '-',
+      studentCount: row.studentCount,
+      registrationCount: row.registrationCount,
+      courseCount: row.courseCount,
+      creditCount: row.creditCount,
+      percent: Number(row.percent || 0) / 100
+    }));
+    workbook.worksheets.forEach((worksheet) => {
+      worksheet.getColumn('percent').numFmt = '0.00%';
     });
-    res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="thong-ke-dang-ky-mon-hoc.xls"');
-    res.send(Buffer.from(xml, 'utf8'));
+
+    const fileName = 'thong-ke-dang-ky-mon-hoc-' + Date.now() + '.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (error) {
-    return sendErrorResponse(res, error, 'L?i server', 'Export registrations error:');
+    return sendErrorResponse(res, error, 'Loi server', 'Export registrations error:');
   }
 };
 
