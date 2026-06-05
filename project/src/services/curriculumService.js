@@ -17,6 +17,19 @@ const toInt = (value, fallback = 1) => {
 
 const normalizeCode = (value) => String(value || '').trim().toUpperCase();
 
+const curriculumSemesterKey = (MaNganh, MaMonHoc) => `${normalizeCode(MaNganh)}::${normalizeCode(MaMonHoc)}`;
+
+const buildCurriculumScopeWhere = ({ MaNganh, MaKhoa } = {}) => {
+  const where = {
+    DaXoa: false,
+    MONHOC: { DaXoa: false },
+    NGANHHOC: { DaXoa: false }
+  };
+  if (MaNganh) where.MaNganh = MaNganh;
+  if (MaKhoa) where.NGANHHOC.MaKhoa = MaKhoa;
+  return where;
+};
+
 const includeCurriculumCourse = {
   MONHOC: {
     include: {
@@ -43,7 +56,7 @@ const conditionPayload = (condition) => ({
 const buildCurriculumRow = (row, semesterMap) => {
   const conditions = row.MONHOC?.DIEUKIENMONHOC_DIEUKIENMONHOC_MaMonHocToMONHOC || [];
   const violations = conditions.map((condition) => {
-    const requiredSemester = semesterMap.get(condition.MaMonDieuKien);
+    const requiredSemester = semesterMap.get(curriculumSemesterKey(row.MaNganh, condition.MaMonDieuKien));
     if (!requiredSemester) {
       return {
         ...conditionPayload(condition),
@@ -84,14 +97,8 @@ const buildCurriculumRow = (row, semesterMap) => {
 
 const getCurriculumRows = async (query = {}) => {
   const { MaNganh, MaKhoa, HocKyDuKien, LoaiMon, valid, search } = query;
-  const where = {
-    DaXoa: false,
-    MONHOC: { DaXoa: false },
-    NGANHHOC: { DaXoa: false }
-  };
-  if (MaNganh) where.MaNganh = MaNganh;
+  const where = buildCurriculumScopeWhere({ MaNganh, MaKhoa });
   if (HocKyDuKien) where.HocKyDuKien = toInt(HocKyDuKien);
-  if (MaKhoa) where.NGANHHOC.MaKhoa = MaKhoa;
   if (LoaiMon) where.MONHOC.LoaiMon = LoaiMon;
   if (search) {
     where.OR = [
@@ -100,12 +107,21 @@ const getCurriculumRows = async (query = {}) => {
     ];
   }
 
-  const rows = await prisma.CHUONGTRINHHOC.findMany({
-    where,
-    include: includeCurriculumCourse,
-    orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }]
-  });
-  const semesterMap = new Map(rows.map((row) => [row.MaMonHoc, Number(row.HocKyDuKien || 1)]));
+  const [rows, curriculumContextRows] = await Promise.all([
+    prisma.CHUONGTRINHHOC.findMany({
+      where,
+      include: includeCurriculumCourse,
+      orderBy: [{ MaNganh: 'asc' }, { HocKyDuKien: 'asc' }, { MaMonHoc: 'asc' }]
+    }),
+    prisma.CHUONGTRINHHOC.findMany({
+      where: buildCurriculumScopeWhere({ MaNganh, MaKhoa }),
+      select: { MaNganh: true, MaMonHoc: true, HocKyDuKien: true }
+    })
+  ]);
+  const semesterMap = new Map(curriculumContextRows.map((row) => [
+    curriculumSemesterKey(row.MaNganh, row.MaMonHoc),
+    Number(row.HocKyDuKien || 1)
+  ]));
   const data = rows.map((row) => buildCurriculumRow(row, semesterMap));
   if (valid === 'true') return data.filter((row) => row.isValid);
   if (valid === 'false') return data.filter((row) => !row.isValid);

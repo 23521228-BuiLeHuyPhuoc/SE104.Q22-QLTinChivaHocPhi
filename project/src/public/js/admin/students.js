@@ -2,6 +2,7 @@ var editingId = null;
 var selectedStudentAvatarFile = null;
 var selectedStudentsImportFile = null;
 var allMajors = [];
+var allEthnicities = [];
 var allBeneficiaries = [];
 var currentStudentBeneficiaryIds = [];
 
@@ -35,6 +36,51 @@ function isValidStudentPhone(value) {
   return /^0\d{9}$/.test(phone) || /^\+84\d{9}$/.test(phone);
 }
 
+function normalizeStudentCompareText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D')
+    .toLowerCase();
+}
+
+function isEthnicMinorityBeneficiaryOption(beneficiary) {
+  var text = normalizeStudentCompareText([beneficiary && beneficiary.TenDoiTuong, beneficiary && beneficiary.MoTa].filter(Boolean).join(' '));
+  return text.indexOf('dan toc thieu so') >= 0;
+}
+
+function getSelectedEthnicityOption() {
+  var select = document.getElementById('sv-dantoc');
+  var code = select ? select.value : '';
+  return allEthnicities.find(function(item) { return item.MaDanToc === code; }) || null;
+}
+
+function getSelectedMinorityBeneficiaryOptions() {
+  var selected = new Set(getSelectedStudentBeneficiaryIds());
+  return allBeneficiaries.filter(function(item) {
+    return selected.has(item.MaDoiTuong) && isEthnicMinorityBeneficiaryOption(item);
+  });
+}
+
+function getEthnicMinorityBeneficiaryError() {
+  var ethnicity = getSelectedEthnicityOption();
+  var minorityBeneficiaries = getSelectedMinorityBeneficiaryOptions();
+  if (!ethnicity || !minorityBeneficiaries.length || ethnicity.LaDanTocThieuSo === true) return '';
+
+  var beneficiaryNames = minorityBeneficiaries
+    .map(function(item) { return item.TenDoiTuong || item.MaDoiTuong; })
+    .join(', ');
+  return '\u0110\u1ed1i t\u01b0\u1ee3ng "' + beneficiaryNames + '" ch\u1ec9 \u00e1p d\u1ee5ng cho sinh vi\u00ean thu\u1ed9c d\u00e2n t\u1ed9c thi\u1ec3u s\u1ed1. D\u00e2n t\u1ed9c hi\u1ec7n t\u1ea1i l\u00e0 "' + (ethnicity.TenDanToc || ethnicity.MaDanToc) + '".';
+}
+
+function validateEthnicMinorityBeneficiarySelection(showError) {
+  var message = getEthnicMinorityBeneficiaryError();
+  if (!message) return true;
+  if (showError) showToast(message, 'error');
+  return false;
+}
+
 (async function loadMajors() {
   try {
     var res = await apiFetch('/api/students/majors');
@@ -60,12 +106,17 @@ function isValidStudentPhone(value) {
     var res = await apiFetch('/api/students/ethnicities');
     if (!res.success) return;
 
+    allEthnicities = res.data || [];
     var select = document.getElementById('sv-dantoc');
-    res.data.forEach(function(e) {
+    if (select) {
+      select.onchange = function() { validateEthnicMinorityBeneficiarySelection(true); };
+    }
+    allEthnicities.forEach(function(e) {
       var opt = document.createElement('option');
       opt.value = e.MaDanToc;
       opt.textContent = e.TenDanToc;
-      select.appendChild(opt);
+      opt.dataset.minority = e.LaDanTocThieuSo === true ? 'true' : 'false';
+      if (select) select.appendChild(opt);
     });
   } catch (e) {}
 })();
@@ -234,6 +285,9 @@ function renderStudentBeneficiaries(sv) {
     input.id = checkboxId;
     input.value = beneficiary.MaDoiTuong;
     input.checked = selectedSet.has(beneficiary.MaDoiTuong);
+    input.addEventListener('change', function() {
+      validateEthnicMinorityBeneficiarySelection(true);
+    });
 
     var text = document.createElement('span');
     text.className = 'student-beneficiary-check-text';
@@ -451,6 +505,10 @@ async function saveStudent() {
 
   if (data.Sdt && !isValidStudentPhone(data.Sdt)) {
     showToast('Số điện thoại phải có 10 chữ số bắt đầu bằng 0 hoặc dùng định dạng +84', 'error');
+    return;
+  }
+
+  if (!validateEthnicMinorityBeneficiarySelection(true)) {
     return;
   }
 
@@ -675,7 +733,7 @@ function buildStudentDetail(record) {
 
 function initStudentRowDetails() {
   if (!window.AdminUI) return;
-  AdminUI.attachRowDetailHandlers({ table: '#students-table', rowSelector: 'tr[data-record]', buildDetail: buildStudentDetail });
+  AdminUI.attachRowDetailHandlers({ table: 'table.students-table', rowSelector: 'tbody tr[data-record]', buildDetail: buildStudentDetail });
 }
 
 bindStudentAvatarInput();

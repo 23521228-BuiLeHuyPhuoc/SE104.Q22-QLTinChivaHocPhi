@@ -140,6 +140,7 @@ const createStudent = async (req, res) => {
     if (existing && existing.DaXoa === false) return res.status(400).json({ success: false, message: 'Mã sinh viên đã tồn tại' });
 
     const result = await prisma.$transaction(async (tx) => {
+      await assertStudentBeneficiaryEthnicity(tx, MaDanToc, beneficiaryIds);
       await tx.SINHVIEN.create({
         data: {
           MaSv,
@@ -211,6 +212,10 @@ const updateStudent = async (req, res) => {
     Object.assign(data, updateAudit(req));
 
     const updated = await prisma.$transaction(async (tx) => {
+      const nextBeneficiaryIds = shouldSyncBeneficiaries
+        ? beneficiaryIds
+        : await getStudentBeneficiaryIdsByStudent(tx, req.params.id);
+      await assertStudentBeneficiaryEthnicity(tx, nextMaDanToc, nextBeneficiaryIds);
       await tx.SINHVIEN.update({ where: { MaSv: req.params.id }, data });
       if (shouldSyncBeneficiaries) {
         await syncStudentBeneficiaries(tx, req.params.id, beneficiaryIds);
@@ -296,6 +301,60 @@ const normalizeBeneficiaryIds = (value) => {
       seen.add(item);
       return true;
     });
+};
+
+const normalizeComparisonText = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/\u0111/g, 'd')
+  .replace(/\u0110/g, 'D')
+  .toLowerCase();
+
+const isEthnicMinorityBeneficiary = (beneficiary) => {
+  const text = normalizeComparisonText([beneficiary?.TenDoiTuong, beneficiary?.MoTa].filter(Boolean).join(' '));
+  return text.includes('dan toc thieu so');
+};
+
+const getStudentBeneficiaryIdsByStudent = async (tx, maSv) => {
+  const rows = await tx.DOITUONGSINHVIEN.findMany({
+    where: { MaSv: maSv },
+    select: { MaDoiTuong: true }
+  });
+  return rows.map((row) => row.MaDoiTuong).filter(Boolean);
+};
+
+const assertStudentBeneficiaryEthnicity = async (tx, maDanToc, beneficiaryIds) => {
+  if (!beneficiaryIds.length) return;
+
+  const ethnicity = await tx.DANTOC.findFirst({
+    where: { MaDanToc: maDanToc, TrangThai: true },
+    select: { MaDanToc: true, TenDanToc: true, LaDanTocThieuSo: true }
+  });
+  if (!ethnicity) {
+    throw { status: 400, message: 'D\u00e2n t\u1ed9c \u0111\u00e3 ch\u1ecdn kh\u00f4ng t\u1ed3n t\u1ea1i ho\u1eb7c \u0111\u00e3 ng\u01b0ng \u00e1p d\u1ee5ng' };
+  }
+
+  const beneficiaries = await tx.DOITUONG.findMany({
+    where: { MaDoiTuong: { in: beneficiaryIds }, DaXoa: false },
+    select: { MaDoiTuong: true, TenDoiTuong: true, MoTa: true }
+  });
+  const validSet = new Set(beneficiaries.map((item) => item.MaDoiTuong));
+  const missingIds = beneficiaryIds.filter((item) => !validSet.has(item));
+  if (missingIds.length) {
+    throw { status: 400, message: 'M\u1ed9t ho\u1eb7c nhi\u1ec1u \u0111\u1ed1i t\u01b0\u1ee3ng \u01b0u ti\u00ean kh\u00f4ng t\u1ed3n t\u1ea1i ho\u1eb7c \u0111\u00e3 b\u1ecb x\u00f3a' };
+  }
+
+  const minorityBeneficiaries = beneficiaries.filter(isEthnicMinorityBeneficiary);
+  if (minorityBeneficiaries.length && ethnicity.LaDanTocThieuSo !== true) {
+    const beneficiaryNames = minorityBeneficiaries
+      .map((item) => item.TenDoiTuong || item.MaDoiTuong)
+      .join(', ');
+    throw {
+      status: 400,
+      code: 'INVALID_ETHNIC_MINORITY_BENEFICIARY',
+      message: '\u0110\u1ed1i t\u01b0\u1ee3ng "' + beneficiaryNames + '" ch\u1ec9 \u00e1p d\u1ee5ng cho sinh vi\u00ean thu\u1ed9c d\u00e2n t\u1ed9c thi\u1ec3u s\u1ed1. D\u00e2n t\u1ed9c hi\u1ec7n t\u1ea1i l\u00e0 "' + (ethnicity.TenDanToc || ethnicity.MaDanToc) + '".'
+    };
+  }
 };
 
 const syncStudentBeneficiaries = async (tx, maSv, beneficiaryIds) => {

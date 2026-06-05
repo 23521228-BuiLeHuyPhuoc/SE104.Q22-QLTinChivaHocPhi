@@ -37,11 +37,13 @@ File đã sửa/kiểm tra trong nhóm: `src/views/pages/admin/locations-wards.p
 
 ## 3. Trang sinh viên
 
-File đã sửa trong nhóm: Chưa sửa code trong lượt này; chỉ bổ sung checklist. File dự kiến cần kiểm tra nếu có yêu cầu chi tiết: `src/views/pages/admin/students.pug`; `src/public/js/admin/students.js`; `src/controllers/studentController.js`; `src/controllers/viewController.js`; `src/routes/studentRoutes.js`; `prisma/schema.prisma`.
+File da sua/kiem tra trong nhom: `src/public/js/admin/students.js`; `src/controllers/studentController.js`; `src/views/pages/admin/students.pug`; `src/routes/studentRoutes.js`; `prisma/schema.prisma`.
 
 | Mã | Trạng thái | Trang/module liên quan | Nội dung yêu cầu gốc | Frontend cần kiểm tra/sửa | Backend/API cần kiểm tra/sửa | Database/migration/seed liên quan | Cách kiểm thử |
 |---|---|---|---|---|---|---|---|
 | REQ-STUDENT-ADMIN-001 | [ ] | /admin/students | File yêu cầu gốc có section `Trang sinh viên` nhưng không ghi nội dung chi tiết bên dưới. Giả định: chưa có yêu cầu triển khai cụ thể, cần giữ lại trong checklist để không bỏ sót section. | Chưa xác định thay đổi; khi có mô tả cần rà `students.pug`/`students.js`. | Chưa xác định thay đổi; khi có mô tả cần rà `studentController`/`viewController`. | Chưa xác định; phụ thuộc yêu cầu bổ sung. | Xác nhận lại với yêu cầu gốc/cập nhật sau; hiện chỉ kiểm tra rằng section đã được ghi nhận. |
+| REQ-STUDENT-ADMIN-002 | [x] | /admin/students, /api/students | Khi them/sua sinh vien, chon dan toc Kinh hoac dan toc khong phai thieu so thi khong duoc tick doi tuong dan toc thieu so. | `students.js` luu danh sach dan toc, nhan dien doi tuong co ten/mo ta chua `Dan toc thieu so`, canh bao ngay khi tick hoac doi dan toc va chan luu. | `studentController` validate backend bang `DANTOC.LaDanTocThieuSo`; tao/cap nhat sinh vien tra 400 `INVALID_ETHNIC_MINORITY_BENEFICIARY` neu chon sai doi tuong. | Khong can migration; dung cot `DANTOC.LaDanTocThieuSo` va bang `DOITUONG` hien co. | Da chay `node -c`; API tao sinh vien voi `MaDanToc=KINH`, `MaDoiTuongs=[DT09]` tra 400 va GET lai MSSV test tra 404. |
+| REQ-STUDENT-ADMIN-003 | [x] | /admin/students | Click ban ghi sinh vien hien chi tiet bi `[object]`. | `students.js` gan row-detail handler rieng vao `table.students-table` voi selector `tbody tr[data-record]` de tranh handler mac dinh render object tho. | Khong can backend moi; dung `buildStudentDetail` hien co de map object sang ten nganh/khoa/dan toc/doi tuong. | Khong can DB moi. | Da chay `node -c src/public/js/admin/students.js`; diff review handler khong con gan vao `tbody#students-table`. |
 
 ## 4. Trang môn học
 
