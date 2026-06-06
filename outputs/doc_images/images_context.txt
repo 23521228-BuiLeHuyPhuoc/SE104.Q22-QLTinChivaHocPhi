@@ -1,0 +1,384 @@
+IMG 01
+file: outputs/doc_images\img_01_image1.jpg
+target: media/image1.jpg
+size: 251x207
+prev: 
+para: ĐẠI HỌC QUỐC GIA TP.HỒ CHÍ MINH
+next: TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN
+
+IMG 02
+file: outputs/doc_images\img_02_image2.png
+target: media/image2.png
+size: 854x428
+prev: QĐ1: Năm kết thúc bắt buộc phải bằng Năm bắt đầu + 1
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 03
+file: outputs/doc_images\img_03_image3.png
+target: media/image3.png
+size: 810x460
+prev: QĐ2.2: Loại học kỳ chỉ được mang 1 trong 3 giá trị: Học kỳ 1, Học kỳ 2, hoặc Học kỳ Hè
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 04
+file: outputs/doc_images\img_04_image4.png
+target: media/image4.png
+size: 801x449
+prev: QĐ3.2: Tên tỉnh không được trùng nhau
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 05
+file: outputs/doc_images\img_05_image5.png
+target: media/image5.png
+size: 821x422
+prev: QĐ4: Tên phường/xã có thể trùng nhau, những mã phường/xã không được phép trùng nhau
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 06
+file: outputs/doc_images\img_06_image6.png
+target: media/image6.png
+size: 770x488
+prev: QĐ5 : Số lượng Khoa tối đa trong trường là 15.
+para: 
+next: Mô tả luồng dữ liệu
+
+IMG 07
+file: outputs/doc_images\img_07_image7.png
+target: media/image7.png
+size: 774x421
+prev: QĐ6: Tổng số lượng Ngành học tối đa là 50
+para: 
+next: Mô tả luồng dữ liệu:
+
+IMG 08
+file: outputs/doc_images\img_08_image8.png
+target: media/image8.png
+size: 940x510
+prev: QĐ7. Số lượng dân tộc tối đa là 54
+para: 
+next: Mô tả luồng dữ liệu:
+
+IMG 09
+file: outputs/doc_images\img_09_image9.png
+target: media/image9.png
+size: 769x417
+prev: QĐ8.2 : Mỗi đối tượng ưu tiên gắn với một tỷ lệ miễn giảm học phí cố định (Ví dụ: Con thương binh: 100%, Hộ nghèo: 50%,...)
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 10
+file: outputs/doc_images\img_10_image10.png
+target: media/image10.png
+size: 1569x677
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 11
+file: outputs/doc_images\img_11_image11.png
+target: media/image11.png
+size: 1569x677
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 12
+file: outputs/doc_images\img_12_image12.png
+target: media/image12.png
+size: 925x499
+prev: Lập danh sách điều kiện môn học
+para: 
+next: Mô tả luồng dữ liệu:
+
+IMG 13
+file: outputs/doc_images\img_13_image13.png
+target: media/image13.png
+size: 1019x492
+prev: Lập chương trình khung
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 14
+file: outputs/doc_images\img_14_image14.png
+target: media/image14.png
+size: 1569x677
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 15
+file: outputs/doc_images\img_15_image15.png
+target: media/image15.png
+size: 828x438
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 16
+file: outputs/doc_images\img_16_image16.png
+target: media/image16.png
+size: 928x525
+prev: Lập danh sách điểm tổng kết học phần
+para: 
+next: Mô tả luồng dữ liệu:
+
+IMG 17
+file: outputs/doc_images\img_17_image17.png
+target: media/image17.png
+size: 832x484
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 18
+file: outputs/doc_images\img_18_image18.png
+target: media/image18.png
+size: 869x477
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 19
+file: outputs/doc_images\img_19_image19.png
+target: media/image19.png
+size: 800x445
+prev: Sơ đồ
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 20
+file: outputs/doc_images\img_20_image20.png
+target: media/image20.png
+size: 792x417
+prev: Sơ đồ:
+para: 
+next: Mô tả các luồng dữ liệu:
+
+IMG 21
+file: outputs/doc_images\img_21_image21.png
+target: media/image21.png
+size: 1107x435
+prev: Kiến trúc ba lớp của hệ thống:
+para: 
+next: a. Tầng Giao diện (Presentation Layer)
+
+IMG 22
+file: outputs/doc_images\img_22_image22.png
+target: media/image22.png
+size: 269x229
+prev: Sơ đồ Logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 23
+file: outputs/doc_images\img_23_image23.png
+target: media/image23.png
+size: 529x342
+prev: Sơ đồ Logic:
+para: 
+next: Bước 2: Xét yêu cầu Nhập danh sách tỉnh
+
+IMG 24
+file: outputs/doc_images\img_24_image24.png
+target: media/image24.png
+size: 240x156
+prev: Sơ đồ Logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 25
+file: outputs/doc_images\img_25_image25.png
+target: media/image25.png
+size: 941x1024
+prev: Sơ đồ Logic:
+para: 
+next: Bước 4: Xét yêu cầu Nhập danh sách phường xã (địa chỉ mới)
+
+IMG 26
+file: outputs/doc_images\img_26_image26.png
+target: media/image26.png
+size: 480x203
+prev: Sơ đồ Logic:
+para: 
+next: Bước 3: Xét yêu cầu Nhập danh sách khoa
+
+IMG 27
+file: outputs/doc_images\img_27_image27.png
+target: media/image27.png
+size: 595x401
+prev: - Sơ đồ logic
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 28
+file: outputs/doc_images\img_28_image28.png
+target: media/image28.png
+size: 1160x402
+prev: - Sơ đồ logic:
+para: 
+next: Bước 4: Xét yêu cầu Nhập danh sách Ngành học
+
+IMG 29
+file: outputs/doc_images\img_29_image29.png
+target: media/image29.png
+size: 813x328
+prev: - Sơ đồ logic
+para: 
+next: b. Thiết kế dữ liệu với tính tiến hóa
+
+IMG 30
+file: outputs/doc_images\img_30_image30.png
+target: media/image30.png
+size: 1184x624
+prev: - Sơ đồ logic:
+para: 
+next: Bước 4: Xét yêu cầu Nhập danh sách dân tộc
+
+IMG 31
+file: outputs/doc_images\img_31_image31.png
+target: media/image31.png
+size: 354x309
+prev: Sơ đồ logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 32
+file: outputs/doc_images\img_32_image32.png
+target: media/image32.png
+size: 1354x435
+prev: Thiết kế dữ liệu: table DANTOC, table THAMSO
+para: 
+next: Bước 5: Xét yêu cầu Nhập danh sách đối tượng ưu tiên
+
+IMG 33
+file: outputs/doc_images\img_33_image33.png
+target: media/image33.png
+size: 818x261
+prev: - Sơ đồ logic
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 34
+file: outputs/doc_images\img_34_image34.png
+target: media/image34.png
+size: 931x435
+prev: - Sơ đồ logic:
+para: 
+next: Bước 6: Xét yêu cầu Lập hồ sơ sinh viên
+
+IMG 35
+file: outputs/doc_images\img_35_image35.png
+target: media/image35.png
+size: 2048x1129
+prev: Sơ đồ logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa:
+
+IMG 36
+file: outputs/doc_images\img_36_image36.png
+target: media/image36.png
+size: 2036x1404
+prev: Sơ đồ logic:
+para: 
+next: Bước 7: Xét yêu cầu Nhập danh sách môn học
+
+IMG 37
+file: outputs/doc_images\img_37_image37.png
+target: media/image37.png
+size: 2048x764
+prev: Sơ đồ logic:
+para: 
+next: Bước 8: Xét yêu cầu Nhập điều kiện môn học
+
+IMG 38
+file: outputs/doc_images\img_38_image38.png
+target: media/image38.png
+size: 460x327
+prev: Sơ đồ Logic:
+para: 
+next: Bước 9: Nhập chương trình khung của các ngành
+
+IMG 39
+file: outputs/doc_images\img_39_image39.png
+target: media/image39.png
+size: 2048x1524
+prev: Sơ đồ logic:
+para: 
+next: Bước 10: Nhập chương trình học
+
+IMG 40
+file: outputs/doc_images\img_40_image40.png
+target: media/image40.png
+size: 2048x1344
+prev: Sơ đồ logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 41
+file: outputs/doc_images\img_41_image41.png
+target: media/image41.png
+size: 701x505
+prev: Sơ đồ Logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 42
+file: outputs/doc_images\img_42_image42.png
+target: media/image42.png
+size: 838x655
+prev: Sơ đồ Logic:
+para: 
+next: Thiết kế dữ liệu với tính tiến hóa
+
+IMG 43
+file: outputs/doc_images\img_43_image43.png
+target: media/image43.png
+size: 455x727
+prev: Sơ đồ Logic:
+para: 
+next: Bước 14: Xét yêu cầu Nhập đơn giá tín chỉ
+
+IMG 44
+file: outputs/doc_images\img_44_image44.png
+target: media/image44.png
+size: 508x244
+prev: Sơ đồ logic:
+para: 
+next: Bước 15: Xét yêu cầu Lập phiếu thu học phí
+
+IMG 45
+file: outputs/doc_images\img_45_image45.png
+target: media/image45.png
+size: 950x253
+prev: - Sơ đồ logic ( khi nào có table SINHVIEN sẽ hoàn thiện)
+para: 
+next: Bước 17: Xét yêu cầu Lập báo cáo doanh thu từ nguồn thu học phí của trường
+
+IMG 46
+file: outputs/doc_images\img_46_image46.png
+target: media/image46.png
+size: 600x243
+prev: Sơ đồ logic:
+para: 
+next: Bước 18: Xét yêu cầu Phân Quyền
+
+IMG 47
+file: outputs/doc_images\img_47_image47.png
+target: media/image47.png
+size: 1098x424
+prev: Thiết kế dữ liệu
+para: 
+next: Sơ đồ logic hoàn chỉnh.
+
+IMG 48
+file: outputs/doc_images\img_48_image48.png
+target: media/image48.png
+size: 1555x731
+prev: Sơ đồ logic hoàn chỉnh.
+para: 
+next: Danh sách các bảng dữ liệu (table) trong sơ đồ:
+

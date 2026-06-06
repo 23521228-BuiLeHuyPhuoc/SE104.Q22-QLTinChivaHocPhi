@@ -1,0 +1,930 @@
+TABLE 001: rows=4 cols=2
+  section: 
+  prev: Nhóm sinh viên thực hiện:
+  header: Nguyễn Đăng Minh Quân | 24521437
+  row1: Phạm Nguyễn Tấn Sang | 23521346
+  next: TP. Hồ Chí Minh, Thứ hai, ngày 18 tháng 04 năm 2026
+TABLE 002: rows=2 cols=3
+  section: 
+  prev: DANH MỤC VIẾT TẮT
+  header: STT | Từ viết tắt | Nội dung
+  row1: 1 | CSDL | Cơ sở dữ liệu
+  next: Tổng quan
+TABLE 003: rows=24 cols=5
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  header: STT | Tên yêu cầu | Biểu mẫu | Qui định | Ghi chú
+  row1: 1 | Nhập danh sách năm học | BM1 | QĐ1 | 
+  next: Lập danh sách năm học
+TABLE 004: rows=4 cols=5
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách năm học
+  header: BM1 | DANH SÁCH NĂM HỌC | DANH SÁCH NĂM HỌC | DANH SÁCH NĂM HỌC | DANH SÁCH NĂM HỌC
+  row1: STT | Mã năm học | Tên năm học | Năm bắt đầu | Năm kết thúc
+  next: QĐ1: Năm kết thúc bắt buộc phải bằng Năm bắt đầu + 1
+TABLE 005: rows=4 cols=7
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách học kì
+  header: BM2: | DANH SÁCH HỌC KÌ | DANH SÁCH HỌC KÌ | DANH SÁCH HỌC KÌ | DANH SÁCH HỌC KÌ | DANH SÁCH HỌC KÌ | DANH SÁCH HỌC KÌ
+  row1: STT | Mã học kỳ | Mã năm học | Tên học kỳ | Ngày bắt đầu | Ngày kết thúc | Loại học kỳ
+  next: QĐ2.1: Ngày bắt đầu phải nhỏ hơn Ngày kết thúc. Thời gian của các học kỳ trong cùng một năm học không được phép trùng lặp thời gian.
+TABLE 006: rows=4 cols=4
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách tỉnh
+  header: BM3: | DANH SÁCH TỈNH | DANH SÁCH TỈNH | DANH SÁCH TỈNH
+  row1: STT | Mã tỉnh | Tên tỉnh | Loại (Thành phố hay tỉnh)
+  next: QĐ3.1: Số bản ghi tỉnh tối đa là 34. Trong đó có 28 tỉnh và 6 thành phố.
+TABLE 007: rows=4 cols=6
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách phường/xã
+  header: BM4 | DANH SÁCH PHƯỜNG/XÃ | DANH SÁCH PHƯỜNG/XÃ | DANH SÁCH PHƯỜNG/XÃ | DANH SÁCH PHƯỜNG/XÃ | DANH SÁCH PHƯỜNG/XÃ
+  row1: STT | Mã phường/xã | Tên phường/xã | Mã tỉnh | Loại | Khuvực (KV1,KV2,KV3)
+  next: QĐ4: Tên phường/xã có thể trùng nhau, những mã phường/xã không được phép trùng nhau
+TABLE 008: rows=4 cols=6
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách khoa
+  header: BM3.1: | DANH SÁCH KHOA | DANH SÁCH KHOA | DANH SÁCH KHOA | DANH SÁCH KHOA | DANH SÁCH KHOA
+  row1: STT | Mã khoa | Tên khoa | SĐT | Email | Tên viết tắt
+  next: QĐ5 : Số lượng Khoa tối đa trong trường là 15.
+TABLE 009: rows=4 cols=6
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách ngành học
+  header: BM6 | DANH SÁCH NGÀNH HỌC | DANH SÁCH NGÀNH HỌC | DANH SÁCH NGÀNH HỌC | DANH SÁCH NGÀNH HỌC | DANH SÁCH NGÀNH HỌC
+  row1: STT | Mã ngành học | Tên ngành học | Mã khoa | Thời gian đào tạo | Tổng tín chỉ tối thiểu
+  next: QĐ6: Tổng số lượng Ngành học tối đa là 50
+TABLE 010: rows=4 cols=4
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách dân tộc
+  header: BM7: | DANH SÁCH DÂN TỘC | DANH SÁCH DÂN TỘC | DANH SÁCH DÂN TỘC
+  row1: STT | Mã Dân Tộc | Tên Dân Tộc | Dân tộc thiểu số (true/false)
+  next: QĐ7. Số lượng dân tộc tối đa là 54
+TABLE 011: rows=4 cols=5
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách đối tượng ưu tiên
+  header: BM8 | DANH SÁCH ĐỐI TƯỢNG ƯU TIÊN | DANH SÁCH ĐỐI TƯỢNG ƯU TIÊN | DANH SÁCH ĐỐI TƯỢNG ƯU TIÊN | DANH SÁCH ĐỐI TƯỢNG ƯU TIÊN
+  row1: STT | Mã đối tượng | Tên đối tượng | Tỉ lệ giảm học phí | Mô tả
+  next: QĐ8.1 : Số lượng loại đối tượng ưu tiên tối đa là 5
+TABLE 012: rows=2 cols=3
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập hồ sơ sinh viên
+  header: BM9: |  | HỒ SƠ SINH VIÊN
+  row1: Mã sinh viên: / Họ tên:                                                           Ngày sinh:                                	Giới tính: / Quê quán: / Đối tượng:                                                     Ngành học: | Mã sinh viên: / Họ tên:           
+  next: QĐ9: Quê quán gồm Huyện và Tỉnh. Cần lưu lại danh sách các Huyện và Tỉnh này, thông tin về Huyện sẽ cho biết Huyện đó có thuộc vùng sâu/vùng xa hay không.
+TABLE 013: rows=5 cols=7
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách môn học
+  header: BM10: | DANH SÁCH MÔN HỌC | DANH SÁCH MÔN HỌC | DANH SÁCH MÔN HỌC | DANH SÁCH MÔN HỌC | DANH SÁCH MÔN HỌC | DANH SÁCH MÔN HỌC
+  row1: Mã môn học:                                               Tên môn học:	 / Loại môn:                                                    Số tiết: | Mã môn học:                                               Tên môn học:	 / Loại môn:                               
+  next: QĐ10. Có hai loại môn: lý thuyết (LT) và thực hành (TH).
+TABLE 014: rows=4 cols=5
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách điều kiện môn học
+  header: BM11: | ĐIỀU KIỆN MÔN HỌC | ĐIỀU KIỆN MÔN HỌC | ĐIỀU KIỆN MÔN HỌC | ĐIỀU KIỆN MÔN HỌC
+  row1: STT | Mã Môn Học | Mã Môn Điều Kiện | Loại Điều Kiện | Mô tả
+  next: Mô tả luồng dữ liệu:
+TABLE 015: rows=6 cols=7
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập chương trình khung
+  header: BM12: | CHƯƠNG TRÌNH KHUNG | CHƯƠNG TRÌNH KHUNG | CHƯƠNG TRÌNH KHUNG | CHƯƠNG TRÌNH KHUNG | CHƯƠNG TRÌNH KHUNG | CHƯƠNG TRÌNH KHUNG
+  row1: Ngành học:…………… | Ngành học:…………… | Ngành học:…………… | Khoa:.................................... | Khoa:.................................... | Khoa:.................................... | Khoa:....................................
+  next: Mô tả các luồng dữ liệu:
+TABLE 016: rows=5 cols=3
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập chương trình học
+  header: BM13: | CHƯƠNG TRÌNH HỌC | CHƯƠNG TRÌNH HỌC
+  row1: Ngành học:                                                   Khoa: | Ngành học:                                                   Khoa: | Ngành học:                                                   Khoa:
+  next: QĐ11.1Phòng đào tạo sẽ dựa trên kế hoạch đào tạo (chương trình học) của các ngành để lập danh sách các môn học sẽ mở trong một học kỳ của năm học.
+TABLE 017: rows=5 cols=3
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách môn học mở
+  header: BM14: | DANH SÁCH MÔN HỌC MỞ | DANH SÁCH MÔN HỌC MỞ
+  row1: Học kỳ: | Học kỳ: | Năm học:
+  next: QĐ12. Có hai học kỳ chính trong một năm học (HK I, HK II). Có thể có học kỳ bổ sung (học kỳ hè) tuỳ theo nhu cầu thực tế.
+TABLE 018: rows=5 cols=6
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách điểm tổng kết học phần
+  header: BM15: | ĐIỂM TỔNG KẾT HỌC PHẦN | ĐIỂM TỔNG KẾT HỌC PHẦN | ĐIỂM TỔNG KẾT HỌC PHẦN | ĐIỂM TỔNG KẾT HỌC PHẦN | ĐIỂM TỔNG KẾT HỌC PHẦN
+  row1: Học kỳ: | Học kỳ: | Học kỳ: | Năm học: | Năm học: | Năm học:
+  next: Mô tả luồng dữ liệu:
+TABLE 019: rows=5 cols=5
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập phiếu đăng ký học phần
+  header: BM16: | PHIẾU ĐĂNG KÝ HỌC PHẦN | PHIẾU ĐĂNG KÝ HỌC PHẦN | PHIẾU ĐĂNG KÝ HỌC PHẦN | PHIẾU ĐĂNG KÝ HỌC PHẦN
+  row1: Số phiếu:                                                      Mã số sinh viên: / Ngày lập:                               	 / Học kỳ:                                                         Năm học: | Số phiếu:                                                  
+  next: Sơ đồ:
+TABLE 020: rows=1 cols=9
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập phiếu đăng ký học phần
+  header:  | QĐ13. Phòng tài vụ sẽ dựa trên số tín chỉ mà sinh viên đăng ký để thu học phí: nếu đăng ký môn LT sinh viên sẽ phải đóng 27.000đ/1 tín chỉ; với môn TH là 37.000đ/1 tín chỉ.  / Sinh viên chỉ được đăng ký các môn học có mở trong một học kỳ của năm học. / Các 
+  row1: 
+  next: Sơ đồ:
+TABLE 021: rows=4 cols=6
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập đơn giá tín chỉ
+  header: BM14: | ĐƠN GIÁ TÍN CHỈ | ĐƠN GIÁ TÍN CHỈ | ĐƠN GIÁ TÍN CHỈ | ĐƠN GIÁ TÍN CHỈ | ĐƠN GIÁ TÍN CHỈ
+  row1: STT / T | Loại môn | Loại học (Học mới hay học lại, học cải thiện | Đơn Giá | Mã Học Kỳ | Ghi chú
+  next: Lập phiếu thu học phí
+TABLE 022: rows=3 cols=2
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập phiếu thu học phí
+  header: BM18: | PHIẾU THU HỌC PHÍ
+  row1: Số phiếu đăng ký học phần:                                                              Ngày lập: / Mã số sinh viên:                                                   Số tiền thu: | Số phiếu đăng ký học phần:                                                    
+  next: Sơ đồ:
+TABLE 023: rows=6 cols=5
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách sinh viên chưa hoàn thành việc đóng học phí
+  header: BM16: | DANH SÁCH SINH VIÊN CHƯA HOÀN THÀNH VIỆC ĐÓNG HỌC PHÍ | DANH SÁCH SINH VIÊN CHƯA HOÀN THÀNH VIỆC ĐÓNG HỌC PHÍ | DANH SÁCH SINH VIÊN CHƯA HOÀN THÀNH VIỆC ĐÓNG HỌC PHÍ | DANH SÁCH SINH VIÊN CHƯA HOÀN THÀNH VIỆC ĐÓNG HỌC PHÍ
+  row1: Học kỳ:                                                                Năm học: | Học kỳ:                                                                Năm học: | Học kỳ:                                                                Năm học: | Học kỳ:       
+  next: Sơ đồ
+TABLE 024: rows=1 cols=11
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập danh sách sinh viên chưa hoàn thành việc đóng học phí
+  header:  |  |  |  |  |  |  |  |  |  | 
+  row1: 
+  next: Sơ đồ
+TABLE 025: rows=6 cols=2
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Lập báo cáo doanh thu từ nguồn thu học phí
+  header: BM17: | BÁO CÁO DOANH THU TỪ NGUỒN THU HỌC PHÍ
+  row1: Năm học: …………………………………………………………………………………………………………….. | Năm học: ……………………………………………………………………………………………………………..
+  next: Tra cứu sinh viên
+TABLE 026: rows=4 cols=6
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Tra cứu sinh viên
+  header: BM18: | BM18: | TRA CỨU SINH VIÊN | TRA CỨU SINH VIÊN | TRA CỨU SINH VIÊN | TRA CỨU SINH VIÊN
+  row1: Học kỳ:                                                                Năm học: | Học kỳ:                                                                Năm học: | Học kỳ:                                                                Năm học: | Học kỳ:       
+  next: Sơ đồ:
+TABLE 027: rows=7 cols=3
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Mô tả các thành phần trong hệ thống:
+  header: STT | Thành phần | Diễn giải
+  row1: 1 | Giao diện người dùng (Pug Views & Static Assets) | Nằm ở Tầng Giao diện. Bao gồm các tệp giao diện mẫu (Pug) và tài nguyên tĩnh (CSS, JS). Đây là nơi hiển thị thông tin trực quan và tiếp nhận các thao tác nhập liệu, click chuột từ phía người dùng (Admin, S
+  next: Thiết kế dữ liệu:
+TABLE 028: rows=26 cols=4
+  section: 2.2. Sơ đồ luồng dữ liệu cho từng yêu cầu (biểu mẫu và qui định kèm theo, sơ đồ, mô tả các luồng dữ liệu và thuật toán).
+  prev: Danh sách các bảng dữ liệu (table) trong sơ đồ:
+  header: STT | Tên bảng dữ liệu | Phân nhóm | Diễn giải
+  row1: 1 | THAMSO | Cấu hình hệ thống | Lưu trữ các tham số, quy định, giới hạn của hệ thống nhằm đảm bảo tính linh hoạt và tính tiến hóa của phần mềm.
+  next: Mô tả từng bảng dữ liệu:
+TABLE 029: rows=5 cols=5
+  section: 4.4.1 Bảng NAMHOC:
+  prev: 4.4.1 Bảng NAMHOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNamHoc | VARCHAR(15) | NOT NULL, PRIMARY KEY | Mã định danh năm học
+  next: 4.4.2 Bảng HOCKY:
+TABLE 030: rows=7 cols=5
+  section: 4.4.2 Bảng HOCKY:
+  prev: 4.4.2 Bảng HOCKY:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaHocKy | VARCHAR(15) | PRIMARY KEY | Mã định danh học kỳ
+  next: 4.4.3 Bảng DONGIATINCHI:
+TABLE 031: rows=6 cols=5
+  section: 4.4.3 Bảng DONGIATINCHI:
+  prev: 4.4.3 Bảng DONGIATINCHI:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaDonGia | INTEGER | NOT NULL, UNIQUE | Mã định danh mức giá
+  next: 4.4.4 Bảng TINH:
+TABLE 032: rows=4 cols=5
+  section: 4.4.4 Bảng TINH:
+  prev: 4.4.4 Bảng TINH:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaTinh | VARCHAR(10) | NOT NULL, PRIMARY KEY | Mã Tỉnh/Thành phố
+  next: 4.4.5 Bảng PHUONGXA:
+TABLE 033: rows=6 cols=5
+  section: 4.4.5 Bảng PHUONGXA:
+  prev: 4.4.5 Bảng PHUONGXA:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaPhuongXa | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã Phường/Xã/Thị trấn
+  next: 4.4.6 Bảng MONHOC:
+TABLE 034: rows=6 cols=5
+  section: 4.4.6 Bảng MONHOC:
+  prev: 4.4.6 Bảng MONHOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaMonHoc | VARCHAR(15) | NOT NULL, PRIMARY KEY | Mã định danh môn học
+  next: 4.4.7 Bảng MONHOCMO:
+TABLE 035: rows=7 cols=5
+  section: 4.4.7 Bảng MONHOCMO:
+  prev: 4.4.7 Bảng MONHOCMO:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaMonHocMo | INTEGER | PRIMARY KEY | Mã lớp học phần/đợt mở môn
+  next: 4.4.8 Bảng PHIEUDANGKYHP:
+TABLE 036: rows=8 cols=5
+  section: 4.4.8 Bảng PHIEUDANGKYHP:
+  prev: 4.4.8 Bảng PHIEUDANGKYHP:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | SoPhieu | INTEGER | NOT NULL, PRIMARY KEY | Số thứ tự/Mã phiếu đăng ký
+  next: 4.4.9 Bảng CT_PHIEUDKHP:
+TABLE 037: rows=4 cols=5
+  section: 4.4.9 Bảng CT_PHIEUDKHP:
+  prev: 4.4.9 Bảng CT_PHIEUDKHP:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | SoPhieu | INTEGER | NOT NULL | Thuộc phiếu đăng ký nào
+  next: 4.4.10 Bảng TINH:
+TABLE 038: rows=4 cols=5
+  section: 4.4.10 Bảng TINH:
+  prev: 4.4.10 Bảng TINH:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaTinh | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh tỉnh/thành phố
+  next: 4.4.11 Bảng PHUONGXA:
+TABLE 039: rows=6 cols=5
+  section: 4.4.11 Bảng PHUONGXA:
+  prev: 4.4.11 Bảng PHUONGXA:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaPhuongXa | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh phường/xã
+  next: 4.4.12 Bảng DOITUONGUUTIEN:
+TABLE 040: rows=5 cols=5
+  section: 4.4.12 Bảng DOITUONGUUTIEN:
+  prev: 4.4.12 Bảng DOITUONGUUTIEN:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaDoiTuong | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh đối tượng ưu tiên
+  next: 4.4.13 Bảng KHOA:
+TABLE 041: rows=6 cols=5
+  section: 4.4.13 Bảng KHOA:
+  prev: 4.4.13 Bảng KHOA:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaKhoa | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh của khoa
+  next: 4.4.14 Bảng NGANHHOC:
+TABLE 042: rows=6 cols=5
+  section: 4.4.14 Bảng NGANHHOC:
+  prev: 4.4.14 Bảng NGANHHOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNganh | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh ngành học
+  next: 4.4.15 Bảng SINHVIEN:
+TABLE 043: rows=11 cols=5
+  section: 4.4.15 Bảng SINHVIEN:
+  prev: 4.4.15 Bảng SINHVIEN:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaSinhVien | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh sinh viên
+  next: 4.4.16 Bảng HOCKY:
+TABLE 044: rows=7 cols=5
+  section: 4.4.16 Bảng HOCKY:
+  prev: 4.4.16 Bảng HOCKY:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaHocKy | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh học kỳ
+  next: 4.4.17 Bảng MONHOC:
+TABLE 045: rows=6 cols=5
+  section: 4.4.17 Bảng MONHOC:
+  prev: 4.4.17 Bảng MONHOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaMonHoc | VARCHAR(20) | NOT NULL, PRIMARY KEY | Mã định danh môn học
+  next: 4.4.18 Bảng CHUONGTRINHHOC:
+TABLE 046: rows=10 cols=5
+  section: 4.4.18 Bảng CHUONGTRINHHOC:
+  prev: 4.4.18 Bảng CHUONGTRINHHOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNganh | VARCHAR(20) | NOT NULL, PRIMARY KEY(‘MaNganh’, ‘MaHocKy’, ‘MaMonHoc’), FOREIGN KEY REFERENCES NGANH(‘MaNganh’) | Mã định danh ngành của chương trình học
+  next: 4.4.19 Bảng CHUONGTRINHKHUNG:
+TABLE 047: rows=13 cols=5
+  section: 4.4.19 Bảng CHUONGTRINHKHUNG:
+  prev: 4.4.19 Bảng CHUONGTRINHKHUNG:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNganh | VARCHAR(20) | NOT NULL, PRIMARY KEY(‘MaNganh’, ‘MaHocKy’, ‘MaKhoa’), FOREIGN KEY REFERENCES NGANH(‘MaNganh’) | Mã định danh ngành của chương trình khung
+  next: 4.4.20 Bảng CHUCNANG:
+TABLE 048: rows=4 cols=5
+  section: 4.4.20 Bảng CHUCNANG:
+  prev: 4.4.20 Bảng CHUCNANG:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaChucNang | VARCHAR(10) | PK | Mã định danh chức năng
+  next: 4.4.21 Bảng NHOMNGUOIDUNG:
+TABLE 049: rows=3 cols=5
+  section: 4.4.21 Bảng NHOMNGUOIDUNG:
+  prev: 4.4.21 Bảng NHOMNGUOIDUNG:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNhom | VARCHAR(10) | PK | Mã định danh nhóm người dùng
+  next: 4.4.22 Bảng PHANQUYEN:
+TABLE 050: rows=3 cols=5
+  section: 4.4.22 Bảng PHANQUYEN:
+  prev: 4.4.22 Bảng PHANQUYEN:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNhom | VARCHAR(10) | PK, FK | Mã định danh nhóm(Khóa ngoại liên kết với bảng NHOMNGUOIDUNG)
+  next: 4.4.23 Bảng NGUOIDUNG:
+TABLE 051: rows=4 cols=5
+  section: 4.4.23 Bảng NGUOIDUNG:
+  prev: 4.4.23 Bảng NGUOIDUNG:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | TenDangNhap | VARCHAR(50) | PK | Tên đăng nhập tài khoản của người dùng
+  next: 4.4.24 Bảng DANTOC:
+TABLE 052: rows=4 cols=5
+  section: 4.4.24 Bảng DANTOC:
+  prev: 4.4.24 Bảng DANTOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaDanToc | VARCHAR(10) | PK | Mã định danh của dân tộc
+  next: 4.4.25 Bảng DIEUKIENMONHOC:
+TABLE 053: rows=5 cols=5
+  section: 4.4.25 Bảng DIEUKIENMONHOC:
+  prev: 4.4.25 Bảng DIEUKIENMONHOC:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaMonHoc | VARCHAR(10) | PK, FK | Mã môn học (liên kết với bảng MONHOC)
+  next: 4.4.26 Bảng DIEMTONGKETHOCPHAN:
+TABLE 054: rows=8 cols=5
+  section: 4.4.26 Bảng DIEMTONGKETHOCPHAN:
+  prev: 4.4.26 Bảng DIEMTONGKETHOCPHAN:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaSoSinhVien | VARCHAR(15) | PK, FK | Mã định danh sinh viên
+  next: 4.4.27 Bảng THAMSO:
+TABLE 055: rows=3 cols=5
+  section: 4.4.27 Bảng THAMSO:
+  prev: 4.4.27 Bảng THAMSO:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | TenThamSo | varchar(50) | PK | Tên quy định
+  next: 4.4.28 Bảng KHOA:
+TABLE 056: rows=6 cols=5
+  section: 4.4.28 Bảng KHOA:
+  prev: 4.4.28 Bảng KHOA:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaKhoa | varchar(10) | PK | Mã định danh duy nhất của khoa
+  next: 4.4.29 Bảng NGANH:
+TABLE 057: rows=6 cols=5
+  section: 4.4.29 Bảng NGANH:
+  prev: 4.4.29 Bảng NGANH:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaNganh | varchar(10) | PK | Mã định danh duy nhất của ngành học
+  next: 4.4.30 Bảng DOITUONG:
+TABLE 058: rows=5 cols=5
+  section: 4.4.30 Bảng DOITUONG:
+  prev: 4.4.30 Bảng DOITUONG:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaDT | varchar(10) | PK | Mã định danh của đối tượng ưu tiên
+  next: 4.4.31 Bảng PHIEUTHU:
+TABLE 059: rows=6 cols=5
+  section: 4.4.31 Bảng PHIEUTHU:
+  prev: 4.4.31 Bảng PHIEUTHU:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | SoPhieuThu | varchar(10) | PK | Mã định danh duy nhất của phiếu thu
+  next: 4.4.32 Bảng BAOCAONO:
+TABLE 060: rows=4 cols=5
+  section: 4.4.32 Bảng BAOCAONO:
+  prev: 4.4.32 Bảng BAOCAONO:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaBaoCao | varchar(10) | PK | Mã định danh duy nhất của đợt báo cáo công nợ
+  next: 4.4.33 Bảng CT_BCN:
+TABLE 061: rows=3 cols=5
+  section: 4.4.33 Bảng CT_BCN:
+  prev: 4.4.33 Bảng CT_BCN:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaBaoCao | varchar(10) | PK,FK(BAOCAONO) | Thuộc báo cáo nợ nào
+  next: 4.4.34 Bảng BAOCAODT:
+TABLE 062: rows=3 cols=5
+  section: 4.4.34 Bảng BAOCAODT:
+  prev: 4.4.34 Bảng BAOCAODT:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaBaoCaoDT | varchar(10) | PK | Mã định danh duy nhất của báo cáo doanh thu
+  next: 4.4.35 Bảng CT_BCDT:
+TABLE 063: rows=3 cols=5
+  section: 4.4.35 Bảng CT_BCDT:
+  prev: 4.4.35 Bảng CT_BCDT:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | MaBaoCaoDT | varchar(10) | PK, FK(BAOCAODT) | Mã báo cáo doanh thu mà chi tiết này trực thuộc
+  next: 4.4.36 Bảng THAMSO:
+TABLE 064: rows=3 cols=5
+  section: 4.4.36 Bảng THAMSO:
+  prev: 4.4.36 Bảng THAMSO:
+  header: STT | Thuộc tính | Kiểu dữ liệu | Ràng buộc | Diễn giải
+  row1: 1 | TenThamSo | varchar(50) | PK | Tên quy định
+  next: 5. Thiết kế giao diện:
+TABLE 065: rows=45 cols=4
+  section: 5.2. Danh sách các màn hình:
+  prev: 5.2. Danh sách các màn hình:
+  header: STT | Màn hình | Loại màn hình | Chức năng
+  row1: 1 | Màn hình đăng nhập (/login, /admin/login) | hệ thống | Xác thực tài khoản sinh viên hoặc quản trị viên, lưu token và điều hướng về dashboard đúng vai trò. Ảnh: [Cần chụp hình màn hình đăng nhập].
+  next: 5.3. Mô tả các màn hình:
+TABLE 066: rows=5 cols=5
+  section: 5.3.1. Màn hình đăng nhập:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tiêu đề đăng nhập | vùng hiển thị | Hiển thị theo loginRole sinh viên hoặc admin | Cho người dùng biết đang đăng nhập vào cổng sinh viên hay khu vực quản trị.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 067: rows=5 cols=3
+  section: 5.3.1. Màn hình đăng nhập:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Nhấn Đăng nhập | Hệ thống kiểm tra tài khoản và mật khẩu, xác định vai trò người dùng, tạo phiên đăng nhập hợp lệ và chuyển người dùng đến khu vực chức năng tương ứng.
+  next: 5.3.2. Màn hình quên mật khẩu:
+TABLE 068: rows=5 cols=5
+  section: 5.3.2. Màn hình quên mật khẩu:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tên đăng nhập hoặc email | input text | Bắt buộc nhập | Xác định tài khoản cần cấp OTP.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 069: rows=5 cols=3
+  section: 5.3.2. Màn hình quên mật khẩu:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Nhấn Gửi mã OTP | Hệ thống kiểm tra định danh tài khoản, sinh mã xác thực còn hạn sử dụng, gửi mã cho người dùng và hướng dẫn sang bước đặt lại mật khẩu.
+  next: 5.3.3. Màn hình đặt lại mật khẩu:
+TABLE 070: rows=5 cols=5
+  section: 5.3.3. Màn hình đặt lại mật khẩu:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Role đặt lại | hidden input | Lấy từ query hoặc luồng quên mật khẩu | Xác định API xử lý theo vai trò.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 071: rows=5 cols=3
+  section: 5.3.3. Màn hình đặt lại mật khẩu:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Nhấn Đặt lại mật khẩu | Hệ thống kiểm tra định danh, mã OTP và hai lần nhập mật khẩu; nếu hợp lệ thì cập nhật mật khẩu mới và yêu cầu người dùng đăng nhập lại.
+  next: 5.3.4. Màn hình bảng điều khiển quản trị:
+TABLE 072: rows=5 cols=5
+  section: 5.3.4. Màn hình bảng điều khiển quản trị:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Thẻ chỉ số tổng quan | stat card | Dữ liệu lấy từ /api/dashboard/stats | Hiển thị nhanh số sinh viên, môn học, đăng ký và công nợ.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 073: rows=5 cols=3
+  section: 5.3.4. Màn hình bảng điều khiển quản trị:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải trang dashboard | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.5. Màn hình quản lý tỉnh/thành phố:
+TABLE 074: rows=5 cols=5
+  section: 5.3.5. Màn hình quản lý tỉnh/thành phố:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm theo và từ khóa | select + input | Tiêu chí gồm mã, tên, loại hoặc tất cả | Lọc danh sách tỉnh/thành phố.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 075: rows=5 cols=3
+  section: 5.3.5. Màn hình quản lý tỉnh/thành phố:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tìm kiếm hoặc lọc | Hệ thống áp dụng tiêu chí người dùng chọn, cập nhật danh sách từ trang đầu tiên, giữ trạng thái lọc và hiển thị thông báo khi không có dữ liệu phù hợp.
+  next: 5.3.6. Màn hình quản lý phường/xã:
+TABLE 076: rows=5 cols=5
+  section: 5.3.6. Màn hình quản lý phường/xã:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc địa bàn | select group | Tỉnh, loại, khu vực và trạng thái | Lọc danh sách phường/xã.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 077: rows=5 cols=3
+  section: 5.3.6. Màn hình quản lý phường/xã:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Lọc theo tỉnh hoặc khu vực | Hệ thống áp dụng tiêu chí người dùng chọn, cập nhật danh sách từ trang đầu tiên, giữ trạng thái lọc và hiển thị thông báo khi không có dữ liệu phù hợp.
+  next: 5.3.7. Màn hình quản lý năm học:
+TABLE 078: rows=5 cols=5
+  section: 5.3.7. Màn hình quản lý năm học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Ô tìm kiếm năm học | select + input | Tìm theo mã hoặc tên năm học | Lọc bảng năm học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 079: rows=5 cols=3
+  section: 5.3.7. Màn hình quản lý năm học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Nhập mã năm học | Hệ thống tiếp nhận thao tác, kiểm tra điều kiện nghiệp vụ, cập nhật dữ liệu liên quan nếu hợp lệ và phản hồi kết quả ngay trên màn hình.
+  next: 5.3.8. Màn hình quản lý học kỳ:
+TABLE 080: rows=5 cols=5
+  section: 5.3.8. Màn hình quản lý học kỳ:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc học kỳ | filter controls | Lọc theo loại học kỳ, trạng thái, chốt đăng ký, mở thu | Tìm nhanh học kỳ cần quản lý.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 081: rows=5 cols=3
+  section: 5.3.8. Màn hình quản lý học kỳ:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Lọc học kỳ | Hệ thống áp dụng tiêu chí người dùng chọn, cập nhật danh sách từ trang đầu tiên, giữ trạng thái lọc và hiển thị thông báo khi không có dữ liệu phù hợp.
+  next: 5.3.9. Màn hình quản lý tiết học:
+TABLE 082: rows=5 cols=5
+  section: 5.3.9. Màn hình quản lý tiết học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm theo tiết | select + input | Tìm theo mã tiết hoặc tên tiết | Lọc danh sách tiết học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 083: rows=5 cols=3
+  section: 5.3.9. Màn hình quản lý tiết học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm tiết học | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.10. Màn hình quản lý khoa:
+TABLE 084: rows=5 cols=5
+  section: 5.3.10. Màn hình quản lý khoa:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm khoa | select + input | Tìm theo mã khoa, tên khoa hoặc tên viết tắt | Lọc danh sách khoa.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 085: rows=5 cols=3
+  section: 5.3.10. Màn hình quản lý khoa:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm khoa | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.11. Màn hình quản lý ngành học:
+TABLE 086: rows=5 cols=5
+  section: 5.3.11. Màn hình quản lý ngành học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc ngành | select + input | Tìm theo mã ngành, tên ngành hoặc tên khoa | Lọc danh sách ngành học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 087: rows=5 cols=3
+  section: 5.3.11. Màn hình quản lý ngành học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm ngành học | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.12. Màn hình quản lý sinh viên:
+TABLE 088: rows=5 cols=5
+  section: 5.3.12. Màn hình quản lý sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm sinh viên | select + input | Tìm theo MSSV, họ tên hoặc email | Lọc danh sách sinh viên.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 089: rows=5 cols=3
+  section: 5.3.12. Màn hình quản lý sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm sinh viên | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.13. Màn hình quản lý môn học:
+TABLE 090: rows=5 cols=5
+  section: 5.3.13. Màn hình quản lý môn học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc môn học | select + input | Tìm theo mã, tên, loại môn hoặc khoa | Lọc danh mục môn học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 091: rows=5 cols=3
+  section: 5.3.13. Màn hình quản lý môn học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm hoặc sửa môn học | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.14. Màn hình quản lý môn học mở:
+TABLE 092: rows=5 cols=5
+  section: 5.3.14. Màn hình quản lý môn học mở:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc môn mở | select + input | Lọc theo học kỳ, khoa, trạng thái và tiêu chí tìm kiếm | Tìm môn học mở theo nhu cầu.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 093: rows=5 cols=3
+  section: 5.3.14. Màn hình quản lý môn học mở:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Chọn môn từ popup | Người dùng tra cứu môn trong popup, chọn đúng bản ghi; hệ thống đưa mã và tên môn về form nghiệp vụ để tránh chọn nhầm từ danh sách dài.
+  next: 5.3.15. Màn hình quản lý lớp học:
+TABLE 094: rows=5 cols=5
+  section: 5.3.15. Màn hình quản lý lớp học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc lớp học | filter controls | Lọc theo học kỳ, trạng thái mở và sĩ số | Tìm lớp học theo điều kiện quản lý.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 095: rows=5 cols=3
+  section: 5.3.15. Màn hình quản lý lớp học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Validate lịch học | Hệ thống so sánh thứ, tiết, phòng, giảng viên và lớp đang tồn tại để phát hiện trùng lịch trước khi cho phép lưu lịch học.
+  next: 5.3.16. Màn hình quản lý phòng học:
+TABLE 096: rows=5 cols=5
+  section: 5.3.16. Màn hình quản lý phòng học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc phòng học | select group | Tìm theo mã, tên, tòa nhà, loại phòng hoặc học kỳ | Lọc phòng học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 097: rows=5 cols=3
+  section: 5.3.16. Màn hình quản lý phòng học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm hoặc sửa phòng | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.17. Màn hình quản lý giảng viên:
+TABLE 098: rows=5 cols=5
+  section: 5.3.17. Màn hình quản lý giảng viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc giảng viên | select + input | Tìm theo mã GV, họ tên, khoa, email hoặc học kỳ | Lọc danh sách giảng viên.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 099: rows=5 cols=3
+  section: 5.3.17. Màn hình quản lý giảng viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm hoặc sửa giảng viên | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.18. Màn hình quản lý ràng buộc môn học:
+TABLE 100: rows=5 cols=5
+  section: 5.3.18. Màn hình quản lý ràng buộc môn học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ tìm kiếm ràng buộc | select + input | Tìm theo môn học hoặc môn điều kiện | Lọc danh sách ràng buộc.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 101: rows=5 cols=3
+  section: 5.3.18. Màn hình quản lý ràng buộc môn học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Chọn môn điều kiện | Người dùng tra cứu môn trong popup, chọn đúng bản ghi; hệ thống đưa mã và tên môn về form nghiệp vụ để tránh chọn nhầm từ danh sách dài.
+  next: 5.3.19. Màn hình quản lý chương trình học:
+TABLE 102: rows=5 cols=5
+  section: 5.3.19. Màn hình quản lý chương trình học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc CTĐT | select + input | Tìm theo ngành hoặc môn học | Lọc chương trình học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 103: rows=5 cols=3
+  section: 5.3.19. Màn hình quản lý chương trình học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm môn vào chương trình | Hệ thống kiểm tra ngành, môn học và học kỳ dự kiến; nếu môn chưa tồn tại trong chương trình thì ghi nhận vào cấu trúc đào tạo của ngành.
+  next: 5.3.20. Màn hình quản lý môn đã học:
+TABLE 104: rows=5 cols=5
+  section: 5.3.20. Màn hình quản lý môn đã học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm môn đã học | select + input | Tìm theo MSSV, họ tên hoặc học kỳ | Lọc sinh viên có môn đã học.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 105: rows=5 cols=3
+  section: 5.3.20. Màn hình quản lý môn đã học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Xem chi tiết môn đã học | Hệ thống lấy bản ghi đang chọn, mở vùng chi tiết hoặc popup chỉ xem, trình bày đầy đủ thông tin liên quan mà không cho thay đổi dữ liệu ngoài thao tác được phép.
+  next: 5.3.21. Màn hình quản lý đăng ký môn học:
+TABLE 106: rows=5 cols=5
+  section: 5.3.21. Màn hình quản lý đăng ký môn học:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc đăng ký | select + input | Tìm theo tiêu chí và lọc học kỳ, trạng thái | Tra cứu phiếu đăng ký.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 107: rows=5 cols=3
+  section: 5.3.21. Màn hình quản lý đăng ký môn học:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tìm kiếm phiếu đăng ký | Hệ thống áp dụng tiêu chí người dùng chọn, cập nhật danh sách từ trang đầu tiên, giữ trạng thái lọc và hiển thị thông báo khi không có dữ liệu phù hợp.
+  next: 5.3.22. Màn hình quản lý đơn cứu xét:
+TABLE 108: rows=5 cols=5
+  section: 5.3.22. Màn hình quản lý đơn cứu xét:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc đơn | select + input | Tìm theo MSSV, họ tên, mã đơn hoặc nội dung | Tra cứu đơn cứu xét.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 109: rows=5 cols=3
+  section: 5.3.22. Màn hình quản lý đơn cứu xét:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải danh sách đơn | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.23. Màn hình bảng điều khiển sinh viên:
+TABLE 110: rows=5 cols=5
+  section: 5.3.23. Màn hình bảng điều khiển sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Thẻ tín chỉ hoàn thành | stat card | Tính từ /api/completed-courses/me | Hiển thị tiến độ học tập.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 111: rows=5 cols=3
+  section: 5.3.23. Màn hình bảng điều khiển sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải dashboard sinh viên | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.24. Màn hình đăng ký học phần:
+TABLE 112: rows=5 cols=5
+  section: 5.3.24. Màn hình đăng ký học phần:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Học kỳ đăng ký | hidden + label | Lấy từ /api/semesters/registration-options | Xác định kỳ đăng ký hiện hành.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 113: rows=5 cols=3
+  section: 5.3.24. Màn hình đăng ký học phần:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải học phần có thể đăng ký | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.25. Màn hình phiếu đăng ký học phần:
+TABLE 114: rows=5 cols=5
+  section: 5.3.25. Màn hình phiếu đăng ký học phần:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc năm học học kỳ | select group | Chọn năm học và học kỳ | Lọc phiếu đăng ký của sinh viên.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 115: rows=5 cols=3
+  section: 5.3.25. Màn hình phiếu đăng ký học phần:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải phiếu đăng ký | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.26. Màn hình môn đã học của sinh viên:
+TABLE 116: rows=5 cols=5
+  section: 5.3.26. Màn hình môn đã học của sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm môn đã học | input text | Tìm mã môn, tên môn, khoa, loại, lớp, giảng viên | Lọc lịch sử học tập.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 117: rows=5 cols=3
+  section: 5.3.26. Màn hình môn đã học của sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải môn đã học | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.27. Màn hình chương trình đào tạo sinh viên:
+TABLE 118: rows=5 cols=5
+  section: 5.3.27. Màn hình chương trình đào tạo sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tiến độ tích lũy | progress summary | Tính theo môn đã hoàn thành | Hiển thị mức độ hoàn thành CTĐT.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 119: rows=5 cols=3
+  section: 5.3.27. Màn hình chương trình đào tạo sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải chương trình đào tạo | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.28. Màn hình thời khóa biểu sinh viên:
+TABLE 120: rows=5 cols=5
+  section: 5.3.28. Màn hình thời khóa biểu sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Chọn học kỳ | select | Được đổ từ danh sách đăng ký của sinh viên | Lọc lịch học theo học kỳ.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 121: rows=5 cols=3
+  section: 5.3.28. Màn hình thời khóa biểu sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải lịch học | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.29. Màn hình học phí của sinh viên:
+TABLE 122: rows=5 cols=5
+  section: 5.3.29. Màn hình học phí của sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Thẻ tổng học phí | stat cards | Tính từ /api/tuition/student/:id | Tổng hợp học phí, đã đóng và còn lại.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 123: rows=5 cols=3
+  section: 5.3.29. Màn hình học phí của sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải học phí | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.30. Màn hình phiếu thu của sinh viên:
+TABLE 124: rows=5 cols=5
+  section: 5.3.30. Màn hình phiếu thu của sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Lọc học kỳ | select | Lấy danh sách học kỳ từ API | Lọc phiếu thu theo học kỳ.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 125: rows=5 cols=3
+  section: 5.3.30. Màn hình phiếu thu của sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải phiếu thu | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.31. Màn hình thông báo sinh viên:
+TABLE 126: rows=5 cols=5
+  section: 5.3.31. Màn hình thông báo sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Lọc trạng thái đọc | select | Tất cả, đã đọc hoặc chưa đọc | Lọc danh sách thông báo.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 127: rows=5 cols=3
+  section: 5.3.31. Màn hình thông báo sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải thông báo | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.32. Màn hình hồ sơ sinh viên:
+TABLE 128: rows=5 cols=5
+  section: 5.3.32. Màn hình hồ sơ sinh viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Ảnh đại diện | file upload | Chấp nhận jpeg, png, webp, gif | Cập nhật avatar sinh viên.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 129: rows=5 cols=3
+  section: 5.3.32. Màn hình hồ sơ sinh viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải hồ sơ | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.33. Màn hình hồ sơ quản trị viên:
+TABLE 130: rows=5 cols=5
+  section: 5.3.33. Màn hình hồ sơ quản trị viên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Ảnh quản trị viên | file upload | File ảnh đúng định dạng | Cập nhật ảnh đại diện.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 131: rows=5 cols=3
+  section: 5.3.33. Màn hình hồ sơ quản trị viên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải hồ sơ admin | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.34. Màn hình công nợ học phí:
+TABLE 132: rows=5 cols=5
+  section: 5.3.34. Màn hình công nợ học phí:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm công nợ | select + input | Tìm theo MSSV hoặc họ tên | Tra cứu công nợ sinh viên.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 133: rows=5 cols=3
+  section: 5.3.34. Màn hình công nợ học phí:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tìm kiếm hoặc lọc công nợ | Hệ thống áp dụng tiêu chí người dùng chọn, cập nhật danh sách từ trang đầu tiên, giữ trạng thái lọc và hiển thị thông báo khi không có dữ liệu phù hợp.
+  next: 5.3.35. Màn hình phiếu thu học phí:
+TABLE 134: rows=5 cols=5
+  section: 5.3.35. Màn hình phiếu thu học phí:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc phiếu thu | select + input | Tìm phiếu thu, MSSV, họ tên, lọc học kỳ, phương thức, trạng thái | Tra cứu phiếu thu.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 135: rows=5 cols=3
+  section: 5.3.35. Màn hình phiếu thu học phí:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Lập phiếu thu | Hệ thống tiếp nhận thao tác, kiểm tra điều kiện nghiệp vụ, cập nhật dữ liệu liên quan nếu hợp lệ và phản hồi kết quả ngay trên màn hình.
+  next: 5.3.36. Màn hình đơn giá tín chỉ:
+TABLE 136: rows=5 cols=5
+  section: 5.3.36. Màn hình đơn giá tín chỉ:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm đơn giá | select + input | Tìm theo loại môn, loại học, đơn giá hoặc học kỳ | Tra cứu bảng giá.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 137: rows=5 cols=3
+  section: 5.3.36. Màn hình đơn giá tín chỉ:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm đơn giá | Hệ thống tiếp nhận thao tác, kiểm tra điều kiện nghiệp vụ, cập nhật dữ liệu liên quan nếu hợp lệ và phản hồi kết quả ngay trên màn hình.
+  next: 5.3.37. Màn hình đối tượng ưu tiên:
+TABLE 138: rows=5 cols=5
+  section: 5.3.37. Màn hình đối tượng ưu tiên:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm đối tượng | select + input | Tìm theo mã hoặc tên đối tượng | Lọc danh sách ưu tiên.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 139: rows=5 cols=3
+  section: 5.3.37. Màn hình đối tượng ưu tiên:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm hoặc sửa đối tượng | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.38. Màn hình báo cáo thống kê:
+TABLE 140: rows=5 cols=5
+  section: 5.3.38. Màn hình báo cáo thống kê:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Chọn học kỳ báo cáo | select | Có thể chọn toàn bộ hoặc một học kỳ | Lọc số liệu báo cáo.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 141: rows=5 cols=3
+  section: 5.3.38. Màn hình báo cáo thống kê:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải báo cáo | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.39. Màn hình báo cáo sinh viên chưa hoàn thành học phí:
+TABLE 142: rows=5 cols=5
+  section: 5.3.39. Màn hình báo cáo sinh viên chưa hoàn thành học phí:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc báo cáo nợ | select + input | Học kỳ, khoa, ngành, trạng thái, quá hạn | Lọc sinh viên chưa hoàn thành học phí.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 143: rows=5 cols=3
+  section: 5.3.39. Màn hình báo cáo sinh viên chưa hoàn thành học phí:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải báo cáo nợ | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 5.3.40. Màn hình quản lý người dùng:
+TABLE 144: rows=5 cols=5
+  section: 5.3.40. Màn hình quản lý người dùng:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc tài khoản | select + input | Tìm theo tên đăng nhập, họ tên, email, mã sinh viên | Tra cứu người dùng.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 145: rows=5 cols=3
+  section: 5.3.40. Màn hình quản lý người dùng:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tạo tài khoản | Hệ thống tiếp nhận thao tác, kiểm tra điều kiện nghiệp vụ, cập nhật dữ liệu liên quan nếu hợp lệ và phản hồi kết quả ngay trên màn hình.
+  next: 5.3.41. Màn hình phân quyền hệ thống:
+TABLE 146: rows=5 cols=5
+  section: 5.3.41. Màn hình phân quyền hệ thống:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tab nhóm và quyền | segmented control | Lưu tab đang chọn trên URL | Chuyển giữa quản lý nhóm và quyền.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 147: rows=5 cols=3
+  section: 5.3.41. Màn hình phân quyền hệ thống:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Thêm hoặc sửa nhóm | Người dùng nhập dữ liệu mới; hệ thống kiểm tra trường bắt buộc, định dạng, dữ liệu trùng và ràng buộc liên quan trước khi lưu và cập nhật danh sách.
+  next: 5.3.42. Màn hình quản lý thông báo:
+TABLE 148: rows=5 cols=5
+  section: 5.3.42. Màn hình quản lý thông báo:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Bộ lọc thông báo | select group | Lọc theo nguồn tự động hoặc thủ công và loại thông báo | Tra cứu thông báo.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 149: rows=5 cols=3
+  section: 5.3.42. Màn hình quản lý thông báo:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tạo thông báo | Hệ thống tiếp nhận thao tác, kiểm tra điều kiện nghiệp vụ, cập nhật dữ liệu liên quan nếu hợp lệ và phản hồi kết quả ngay trên màn hình.
+  next: 5.3.43. Màn hình tham số hệ thống:
+TABLE 150: rows=5 cols=5
+  section: 5.3.43. Màn hình tham số hệ thống:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Số tín chỉ tối thiểu tối đa | number inputs | Giá trị nguyên không âm, tối đa phải lớn hơn tối thiểu | Điều khiển giới hạn đăng ký.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 151: rows=5 cols=3
+  section: 5.3.43. Màn hình tham số hệ thống:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Cập nhật tham số | Hệ thống kiểm tra giá trị tham số, chuẩn hóa dữ liệu nhập, lưu cấu hình mới và áp dụng cho các bước nghiệp vụ bị ảnh hưởng.
+  next: 5.3.44. Màn hình thùng rác:
+TABLE 152: rows=5 cols=5
+  section: 5.3.44. Màn hình thùng rác:
+  prev: b.Mô tả các đối tượng trên màn hình:
+  header: STT | Tên | Kiểu | Ràng buộc | Chức năng
+  row1: 1 | Tìm kiếm thùng rác | input text | Tìm theo mã hoặc tên đã xóa | Lọc bản ghi trong thùng rác.
+  next: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+TABLE 153: rows=5 cols=3
+  section: 5.3.44. Màn hình thùng rác:
+  prev: c.Danh sách biến cố và xử lý tương ứng trên màn hình:
+  header: STT | Biến cố | Xử lý
+  row1: 1 | Tải thùng rác | Hệ thống xác định người dùng hoặc bộ lọc hiện tại, lấy dữ liệu liên quan, tổng hợp số liệu cần thiết và hiển thị vào đúng vùng danh sách, bảng hoặc thẻ thông tin.
+  next: 6. Cài đặt và thử nghiệm:
+TABLE 154: rows=53 cols=4
+  section: 6. Cài đặt và thử nghiệm:
+  prev: Bảng dưới đây liệt kê theo chức năng cài đặt và thử nghiệm
+  header: STT | Chức năng | Mức độ hoàn thành (%) | Ghi chú
+  row1: 1 | Đăng nhập, đăng xuất và phân tuyến vai trò - liên quan 5.3.1 | 100% | Cài đặt: Cài form đăng nhập sinh viên/admin, xử lý phiên đăng nhập, lưu trạng thái đăng nhập và điều hướng theo vai trò. Thử nghiệm: Test đăng nhập sinh viên, đăng nhập admin, sai mật kh
+  next: Kết luận: đánh giá ưu và khuyết điểm của phần mềm và trình bày hướng phát triển để hoàn thiện phần mềm.
+TABLE 155: rows=14 cols=5
+  section: 6. Cài đặt và thử nghiệm:
+  prev: Bảng phân công công việc (PCCV): mô tả như ví dụ sau:
+  header: Công việc | 24521437 | 23521346 | 23521228 | 23521195
+  row1: Bài tập Xác định yêu cầu | x | x | x | x
+  next: Thời gian thực hiện: 10 tuần.

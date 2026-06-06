@@ -166,22 +166,31 @@ const getCloudinaryUploadErrorMessage = (error) => {
 };
 
 const createMailer = () => {
-  if (!process.env.SMTP_HOST) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error('SMTP_NOT_CONFIGURED');
   }
 
   const port = Number(process.env.SMTP_PORT || 587);
-  const auth = process.env.SMTP_USER && process.env.SMTP_PASS
-    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    : undefined;
 
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port,
     secure: port === 465,
-    auth
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
   });
 };
+
+const isSmtpAuthenticationError = (error) => (
+  error?.code === 'EAUTH'
+  || error?.responseCode === 535
+);
+
+const getSmtpAuthenticationErrorMessage = () => (
+  'Gmail từ chối đăng nhập SMTP. Hãy kiểm tra SMTP_USER và tạo App Password mới cho đúng tài khoản Gmail; không dùng mật khẩu đăng nhập Gmail thông thường.'
+);
 
 const getResetPath = (account) => {
   const query = new URLSearchParams({
@@ -416,7 +425,7 @@ const forgotPassword = async (req, res) => {
     if (!account.Email) {
       return res.status(400).json({ success: false, message: 'Tài khoản chưa có email để đặt lại mật khẩu' });
     }
-    if (!process.env.SMTP_HOST) {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
       return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
     }
 
@@ -440,6 +449,9 @@ const forgotPassword = async (req, res) => {
     console.error('Forgot password error:', error);
     if (error.message === 'SMTP_NOT_CONFIGURED') {
       return res.status(500).json({ success: false, message: 'Chưa cấu hình SMTP để gửi email đặt lại mật khẩu' });
+    }
+    if (isSmtpAuthenticationError(error)) {
+      return res.status(502).json({ success: false, message: getSmtpAuthenticationErrorMessage() });
     }
     if (isRedisConnectionError(error)) {
       return res.status(500).json({ success: false, message: getRedisUnavailableMessage() });
