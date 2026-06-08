@@ -1,49 +1,7 @@
--- =====================================================
--- Database: ql_dangky_hocphi (Quản lý Đăng ký Môn học và Thu Học phí)
--- PostgreSQL 18 - Tương thích pgAdmin Query Tool
--- Mã hóa: UTF-8
--- =====================================================
 
--- =====================================================
--- HƯỚNG DẪN SỬ DỤNG
--- =====================================================
---
--- *** CÁCH 1: Sử dụng pgAdmin 4 / DBeaver / DataGrip (GUI Tools) ***
---
---   BƯỚC 1: Tạo database (Chạy trong database 'postgres')
---     - Kết nối vào database 'postgres' (hoặc bất kỳ database nào khác)
---     - Chạy lệnh sau:
---
---       CREATE DATABASE ql_dangky_hocphi
---           WITH
---           OWNER = postgres
---           ENCODING = 'UTF8'
---           LC_COLLATE = 'C'
---           LC_CTYPE = 'C'
---           TEMPLATE = template0
---           CONNECTION LIMIT = -1;
---
---   BƯỚC 2: Kết nối vào database 'ql_dangky_hocphi' và chạy file này
---     - Trong pgAdmin: Click phải vào 'ql_dangky_hocphi' -> 'Query Tool'
---     - Mở file init.sql và chạy (F5)
---
--- *** CÁCH 2: Sử dụng Terminal với psql ***
---
---   Bước 1: Tạo database
---     psql -U postgres -c "CREATE DATABASE ql_dangky_hocphi WITH ENCODING='UTF8' TEMPLATE=template0;"
---
---   Bước 2: Chạy file init.sql
---     psql -U postgres -d ql_dangky_hocphi -f init.sql
---
--- *** CÁCH 3: Sử dụng trong ứng dụng Node.js ***
---   Đọc nội dung file init.sql và thực thi qua pg client
---   (Xem backend/src/config/database.js)
---
 -- =====================================================
 -- BẮT ĐẦU KHỞI TẠO SCHEMA VÀ DỮ LIỆU
 -- =====================================================
-
--- Drop tables if exist (in correct order due to foreign keys)
 DROP TABLE IF EXISTS "THONGBAO" CASCADE;
 DROP TABLE IF EXISTS "DONCUUXETDANGKY" CASCADE;
 DROP TABLE IF EXISTS "GIAODICHTHANHTOANHOCPHI" CASCADE;
