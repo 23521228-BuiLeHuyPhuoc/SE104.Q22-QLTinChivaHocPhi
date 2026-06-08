@@ -19,7 +19,10 @@
 | Bùi Lê Huy Phước | 23521228 |
 | Đỗ Hoàng Phúc | 23521195 |
 
-> `project/src/config/init.sql` là file chứa database khởi tạo và dữ liệu demo. Đây là file cô có thể nhìn thấy ngay ở đầu repo.
+> [!IMPORTANT]
+> **File database chính:** `project/src/config/init.sql`
+>
+> File này chứa toàn bộ schema database khởi tạo và dữ liệu demo. Cô có thể kiểm tra file này ngay trong repo để xem cấu trúc dữ liệu và dữ liệu mẫu của đồ án.
 
 ## Tech Stack
 
