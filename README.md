@@ -1,123 +1,176 @@
 # Hệ thống Quản lý Tín chỉ và Học phí
 
-## Các bước triển khai chi tiết
+README này hướng dẫn chạy project trong thư mục `project` và vị trí file SQL khởi tạo cơ sở dữ liệu.
 
-### 1. Mở Visual Studio Code
+## 1. Yêu cầu môi trường
 
-<img width="444" height="814" alt="Mở Visual Studio Code" src="https://github.com/user-attachments/assets/02545952-c547-4fb5-a1a2-5d584d16d32c" />
+Cài sẵn các phần mềm sau:
 
----
+- Node.js 18 trở lên
+- npm
+- PostgreSQL
+- Redis, nếu muốn dùng chức năng OTP/quên mật khẩu
 
-### 2. Mở thư mục mới
+## 2. Cấu trúc cần chú ý
 
-<img width="962" height="603" alt="Mở thư mục mới" src="https://github.com/user-attachments/assets/4f81fa98-65d0-491c-abb7-ea41a5bc601c" />
-
----
-
-### 3. Mở Terminal
-
-<img width="807" height="512" alt="image" src="https://github.com/user-attachments/assets/9a335aac-6564-4abb-b917-5a4270b69651" />
-
----
-
-### 4. Clone source code từ GitHub
-
-Chạy lệnh sau trong Terminal:
-
-```bash
-git clone https://github.com/23521228-BuiLeHuyPhuoc/SE104.Q22-QLTinChivaHocPhi.git
+```text
+SE104.Q22-QLTinChivaHocPhi/
+├── README.md
+├── Nhom5QLTCVTHP.docx
+├── outputs/
+│   └── excel-templates/
+└── project/
+    ├── .env.example
+    ├── package.json
+    ├── package-lock.json
+    ├── prisma/
+    └── src/
+        ├── index.js
+        └── config/
+            └── init.sql
 ```
 
-<img width="1356" height="1001" alt="Clone source code từ GitHub" src="https://github.com/user-attachments/assets/63f0fcfc-395c-4631-bc9f-f362898267b0" />
+Vị trí file SQL khởi tạo database:
 
----
-
-### 5. Copy file `init.sql`
-
-<img width="1341" height="1001" alt="Copy file init.sql" src="https://github.com/user-attachments/assets/dd63b023-37dc-4d3d-a6db-7a3fc46a1f6f" />
-
----
-
-### 6. Cài đặt và chạy pgAdmin 4 / PostgreSQL
-
-Xem hướng dẫn chạy pgAdmin 4 tại đây:
-
-[Hướng dẫn chạy pgAdmin 4 / PostgreSQL](https://docs.google.com/document/d/1RLNevMQh6RfSKUcBv-jGTPgr_KV-jmhjgybFUHP6EQg/edit?tab=t.h47f3rcg9etq)
-
----
-
-### 7. Cài đặt thư viện bằng `yarn install`
-
-Nhấn vào Terminal như hình dưới:
-
-<img width="641" height="747" alt="Mở Terminal để chạy yarn install" src="https://github.com/user-attachments/assets/31b3156e-fe2a-43b0-a2c6-92ecc3b00e82" />
-
-Sau đó gõ lệnh:
-
-```bash
-yarn install
+```text
+project/src/config/init.sql
 ```
 
-<img width="1065" height="325" alt="Chạy yarn install" src="https://github.com/user-attachments/assets/9b74118d-9e4a-4343-bcc2-baafd21137ec" />
+Đường dẫn tuyệt đối trên máy hiện tại:
 
----
-
-### 8. Tạo file `.env`
-
-Tạo file mới tên là `.env`.
-
-> Lưu ý: file `.env` cần nằm cùng cấp với thư mục `/project`.
-
-<img width="597" height="828" alt="Tạo file .env" src="https://github.com/user-attachments/assets/0ae40948-947e-472f-8c13-558e1884ce81" />
-
----
-
-### 9. Copy nội dung từ `.env.example` sang `.env`
-
-Mở file `.env.example`, copy toàn bộ nội dung và dán sang file `.env`.
-
-<img width="1317" height="973" alt="Copy file .env.example sang .env" src="https://github.com/user-attachments/assets/907597c9-17be-403f-9816-f597bf125248" />
-
----
-
-### 10. Cấu hình tài khoản PostgreSQL trong file `.env`
-
-Một số thông tin trong file `.env` cần được chỉnh lại cho đúng với máy của bạn.
-
-Đây phải là **tài khoản** và **mật khẩu PostgreSQL** mà bạn đã đặt khi cài PostgreSQL / pgAdmin 4.
-
-<img width="1072" height="602" alt="Cấu hình tài khoản PostgreSQL trong file .env" src="https://github.com/user-attachments/assets/546369c9-9f40-417f-9310-a35bb1d73d87" />
-
-Link này cũng tương tự, phải đổi thành tài khoản và mật khẩu của bạn nha:
-<img width="1048" height="482" alt="image" src="https://github.com/user-attachments/assets/00e3656a-4368-452b-a2d5-c30e29107e5c" />
-
----
-
-### 11. Chạy project
-
-Sau khi cài đặt xong, chạy lệnh:
-
-```bash
-yarn start
+```text
+E:\baitap\NMCNPM\DOAN\SE104.Q22-QLTinChivaHocPhi\SE104.Q22-QLTinChivaHocPhi\project\src\config\init.sql
 ```
 
-<img width="1036" height="352" alt="Chạy yarn start" src="https://github.com/user-attachments/assets/4122825b-196e-48d2-8bc7-9f9cbc3a9c9a" />
+## 3. Tạo database PostgreSQL
 
-Nếu chạy thành công, website sẽ hoạt động tại:
+Mở pgAdmin hoặc psql, tạo database theo tên trong `.env.example`:
+
+```sql
+CREATE DATABASE ql_tin_chi_hoc_phi_db;
+```
+
+Sau đó import file:
+
+```text
+project/src/config/init.sql
+```
+
+Ví dụ dùng `psql`:
+
+```bash
+psql -U postgres -d ql_tin_chi_hoc_phi_db -f project/src/config/init.sql
+```
+
+Nếu chạy lệnh từ trong thư mục `project`, dùng:
+
+```bash
+psql -U postgres -d ql_tin_chi_hoc_phi_db -f src/config/init.sql
+```
+
+## 4. Cấu hình biến môi trường
+
+Chuyển vào thư mục `project`:
+
+```bash
+cd project
+```
+
+Tạo file `.env` từ file mẫu:
+
+```bash
+copy .env.example .env
+```
+
+Trên macOS/Linux:
+
+```bash
+cp .env.example .env
+```
+
+Mở file `.env` và chỉnh các giá trị PostgreSQL cho đúng máy của bạn:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ql_tin_chi_hoc_phi_db
+DB_USER=postgres
+DB_PASSWORD=your_password
+DATABASE_URL="postgresql://postgres:your_password@localhost:5432/ql_tin_chi_hoc_phi_db?sslmode=disable"
+PORT=5000
+```
+
+Các cấu hình Cloudinary, SMTP, VNPay, ZaloPay có thể để giá trị demo nếu chỉ chạy luồng cơ bản. Những chức năng liên quan upload ảnh, gửi email hoặc thanh toán sẽ cần cấu hình thật.
+
+## 5. Cài dependencies
+
+Trong thư mục `project`, chạy:
+
+```bash
+npm install
+```
+
+## 6. Kiểm tra Prisma
+
+Sau khi cấu hình `DATABASE_URL`, có thể kiểm tra schema Prisma:
+
+```bash
+npx prisma validate
+```
+
+Nếu cần generate Prisma Client:
+
+```bash
+npx prisma generate
+```
+
+## 7. Chạy project
+
+Trong thư mục `project`, chạy:
+
+```bash
+npm start
+```
+
+Hoặc:
+
+```bash
+npm run dev
+```
+
+Nếu chạy thành công, terminal sẽ hiển thị server đang lắng nghe ở cổng trong `.env`, mặc định là:
 
 ```text
 http://localhost:5000
 ```
 
----
+Trang health check:
 
-### 12. Đăng nhập để xem giao diện
+```text
+http://localhost:5000/api/health
+```
 
-<img width="1918" height="1078" alt="Giao diện đăng nhập hệ thống" src="https://github.com/user-attachments/assets/12b48ea1-85ec-4944-8dfb-d4190336e878" />
+## 8. Lệnh nhanh
 
----
+Chạy từ thư mục gốc repo:
 
-## Bản quyền & Đóng góp
+```bash
+cd project
+copy .env.example .env
+npm install
+npx prisma validate
+npm start
+```
 
-- Đồ án phát triển Hệ thống Môn học `SE104.Q22`.
-- Người đóng góp chính: **Bui Le Huy Phuoc** và các thành viên nhóm.
+Import database từ thư mục gốc repo:
+
+```bash
+psql -U postgres -d ql_tin_chi_hoc_phi_db -f project/src/config/init.sql
+```
+
+## 9. Ghi chú
+
+- File `.env` phải nằm trong thư mục `project`, cùng cấp với `project/package.json`.
+- File `init.sql` nằm tại `project/src/config/init.sql`.
+- Project dùng `npm` và `package-lock.json`; không cần `yarn`.
+- Nếu đã xóa `node_modules`, chỉ cần chạy lại `npm install` trong `project`.
