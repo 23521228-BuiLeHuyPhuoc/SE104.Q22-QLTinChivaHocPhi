@@ -1,5 +1,24 @@
 # Hệ thống Quản lý Tín chỉ và Học phí
 
+## Thông tin đồ án
+
+| Mục | Nội dung |
+| --- | --- |
+| Môn học | Nhập môn Công nghệ phần mềm |
+| Lớp | SE104.Q22 |
+| Đề tài | Quản lý việc đăng ký môn học và thu học phí |
+| Nhóm | 05 |
+| Giảng viên hướng dẫn | TS. Đỗ Thị Thanh Tuyền |
+
+### Thành viên nhóm
+
+| Họ và tên | MSSV |
+| --- | --- |
+| Nguyễn Đăng Minh Quân | 24521437 |
+| Phạm Nguyễn Tấn Sang | 23521346 |
+| Bùi Lê Huy Phước | 23521228 |
+| Đỗ Hoàng Phúc | 23521195 |
+
 > `project/src/config/init.sql` là file chứa database khởi tạo và dữ liệu demo. Đây là file cô có thể nhìn thấy ngay ở đầu repo.
 
 ## Tech Stack
